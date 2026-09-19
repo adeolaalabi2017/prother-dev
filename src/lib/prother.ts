@@ -90,6 +90,86 @@ export type FeedResponse = {
   subscriberCount: number;
 };
 
+// ── Submission wizard (PRD §11) — server-side helpers ───────────────────
+// TAG_VOCAB / domainOf live in lib/submit.ts (client-safe, no Prisma import).
+//
+// NOTE: these use $queryRaw because a long-running `next dev` process can keep
+// a PRE-GENERATION PrismaClient cached on globalThis (missing `db.submission`).
+// $queryRaw is model-independent and always available; the Submission TABLE
+// itself is created by `bun run db:push` regardless of client generation.
+
+export type SubmissionInsert = {
+  email: string;
+  websiteUrl: string;
+  domain: string;
+  name: string;
+  tagline: string;
+  description: string;
+  categorySlug: string;
+  tags: string;
+  pricingModel: string;
+  startingPrice: string | null;
+  pricingNote: string | null;
+  hasApi: boolean;
+  githubUrl: string | null;
+  docsUrl: string | null;
+  twitterUrl: string | null;
+  logoEmoji: string;
+  logoGradient: string;
+  isOwner: boolean;
+  confirmedLive: boolean;
+  agreedStandards: boolean;
+};
+
+export async function findActiveSubmissionByDomain(
+  domain: string
+): Promise<{ name: string } | null> {
+  const rows = await db.$queryRaw<{ name: string }[]>`
+    SELECT name FROM Submission
+    WHERE domain = ${domain} AND status IN ('pending','approved')
+    LIMIT 1`;
+  return rows[0] ?? null;
+}
+
+export async function countSubmissionsSince(
+  email: string,
+  since: Date
+): Promise<number> {
+  const rows = await db.$queryRaw<{ n: number }[]>`
+    SELECT COUNT(*) as n FROM Submission
+    WHERE email = ${email} AND createdAt >= ${since.toISOString()}`;
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function createSubmission(
+  data: SubmissionInsert
+): Promise<{ id: string }> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    INSERT INTO Submission (
+      id, email, websiteUrl, domain, name, tagline, description,
+      categorySlug, tags, pricingModel, startingPrice, pricingNote,
+      hasApi, githubUrl, docsUrl, twitterUrl, logoEmoji, logoGradient,
+      isOwner, confirmedLive, agreedStandards, status, createdAt
+    ) VALUES (
+      ${crypto.randomUUID()}, ${data.email}, ${data.websiteUrl}, ${data.domain},
+      ${data.name}, ${data.tagline}, ${data.description}, ${data.categorySlug},
+      ${data.tags}, ${data.pricingModel}, ${data.startingPrice}, ${data.pricingNote},
+      ${data.hasApi ? 1 : 0}, ${data.githubUrl}, ${data.docsUrl}, ${data.twitterUrl},
+      ${data.logoEmoji}, ${data.logoGradient}, ${data.isOwner ? 1 : 0},
+      ${data.confirmedLive ? 1 : 0}, ${data.agreedStandards ? 1 : 0},
+      'pending', ${new Date().toISOString()}
+    )
+    RETURNING id`;
+  return rows[0]!;
+}
+
+export async function pendingQueuePosition(id: string): Promise<number> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    SELECT id FROM Submission WHERE status = 'pending' ORDER BY createdAt ASC`;
+  const idx = rows.findIndex((r) => r.id === id);
+  return idx >= 0 ? idx + 1 : rows.length;
+}
+
 // ── Ranking (PRD F-36): score = weighted_upvotes / hours^1.2 ────────────
 export function rankScore(votes: number, launchStart: Date, now = Date.now()): number {
   const hours = Math.max(0.5, (now - launchStart.getTime()) / 3_600_000);

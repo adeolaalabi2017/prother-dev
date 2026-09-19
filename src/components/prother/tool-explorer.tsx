@@ -523,6 +523,7 @@ function CommandPalette() {
   const setSearch = useExplorer((s) => s.setSearch);
   const openTool = useExplorer((s) => s.openTool);
   const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
+  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
 
   const pickTool = useCallback(
     (slug: string) => {
@@ -684,8 +685,11 @@ function CommandPalette() {
         <CommandSeparator />
         <CommandGroup heading="Actions">
           <CommandItem
-            value="submit your tool launch"
-            onSelect={() => goTo("#submit")}
+            value="submit your tool launch wizard"
+            onSelect={() => {
+              setSearch(false);
+              window.setTimeout(() => setSubmitOpen(true), 80);
+            }}
           >
             <Sparkles aria-hidden />
             <span>Submit your tool</span>

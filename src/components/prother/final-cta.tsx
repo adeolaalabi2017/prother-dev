@@ -1,9 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Rocket } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useExplorer } from "./explorer-store";
 import { WaitlistForm } from "./waitlist-form";
 
 export function FinalCta() {
+  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   return (
     <section id="submit" className="relative overflow-hidden bg-ink py-28">
       {/* Bottom ember glow */}
@@ -30,6 +34,21 @@ export function FinalCta() {
         </p>
         <div className="mx-auto mt-8 max-w-md">
           <WaitlistForm source="cta" dark />
+        </div>
+        <div className="mt-6">
+          <p className="font-mono text-[11px] tracking-widest text-white/35">
+            BUILT SOMETHING? SKIP THE LINE —
+          </p>
+          <Button
+            asChild
+            variant="outline"
+            className="mt-2 rounded-lg border-ember/40 bg-transparent font-semibold text-ember hover:bg-ember/10 hover:text-ember-hot"
+          >
+            <button type="button" onClick={() => setSubmitOpen(true)}>
+              <Rocket className="size-4" aria-hidden />
+              Submit your tool for review
+            </button>
+          </Button>
         </div>
       </div>
     </section>

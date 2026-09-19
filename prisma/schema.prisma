@@ -78,3 +78,35 @@ model Vote {
   createdAt DateTime @default(now())
   @@unique([launchId, voterKey])
 }
+
+// ── Submission wizard queue (PRD §11 — Track B: community submit, F-21) ─
+model Submission {
+  id               String   @id @default(cuid())
+  email            String // maker contact (auth-lite stand-in for landing scope)
+  websiteUrl       String
+  domain           String // normalized for the 1-per-domain rate limit
+  name             String
+  tagline          String // 5–60 chars (S3)
+  description      String // 20–500 chars
+  categorySlug     String
+  tags             String   @default("") // pipe-separated, ≤5, controlled vocab §13
+  pricingModel     String // free | freemium | paid | open_source
+  startingPrice    String?
+  pricingNote      String?
+  hasApi           Boolean  @default(false)
+  githubUrl        String?
+  docsUrl          String?
+  twitterUrl       String?
+  logoEmoji        String   @default("⬡")
+  logoGradient     String   @default("from-orange-500 to-amber-700")
+  isOwner          Boolean  @default(true)
+  confirmedLive    Boolean  @default(false) // ☑ "My tool is live and usable right now"
+  agreedStandards  Boolean  @default(false) // ☑ "I've read the Listing Standards (S1–S6)"
+  status           String   @default("pending") // pending | approved | rejected
+  reviewNote       String?
+  createdAt        DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([domain])
+  @@index([status, createdAt])
+}

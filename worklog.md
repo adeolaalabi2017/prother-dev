@@ -160,3 +160,34 @@ Work Log:
 Stage Summary:
 - Prother now has a complete 4-state feed day cycle (yesterday archive → today live → tomorrow teasers) with PRD-consistent voting rules, category exploration with live counts, fully shareable state (#tool= + ?cat= survive reload AND same-document navigation), and a scroll-aware header.
 - Remaining risks/next: (1) seeded external URLs still fictional (swap before prod); (2) ⌘K "Jump to the feed" could also honor ?cat= deep link (?cat= without scroll — could auto-scroll on restore); (3) could persist selected tab (new/top) in URL too (?tab=); (4) hero social-proof count edge case from Task 5 still open (lags POST by 1 until refetch — waitlist event now syncs it, consider resolved); (5) possible next: launch-day calendar view, maker submission flow (PRD §10.2), OG image route for #tool links.
+
+---
+Task ID: 8
+Agent: main orchestrator (Z.ai Code)
+Task: webDevReview cycle #4 — PRD §11 Submission Wizard (Track B: community submit) + ?tab= persistence + CTA rewiring
+
+Work Log:
+- Assessment: server healthy, 12 rows, no overflow/errors (agent-browser). Stable → new-feature cycle.
+- PRD re-read (upload/Prother.dev PRD.pdf pp.5–11): §7 standards S1–S6, §8 dual-track supply, §11 wizard spec — 5 steps (Product/Describe/Pricing & links/Media/Confirm), persistent live-preview right rail, duplicate interstitial on URL blur, tagline 5–60 live counter, category radio with one-line helpers, ≤5 controlled-vocab tags, Open Source → GitHub required, confirm = 2 checkboxes (live-now + standards-read), rate limits 3/email/7d + 1/domain, post-submit "in review, typically 24h" + queue position.
+- DATA: prisma Submission model (email, websiteUrl, domain, name, tagline, description, categorySlug, tags, pricing*, hasApi, github/docs/twitter, logoEmoji/logoGradient, isOwner, confirmedLive, agreedStandards, status, reviewNote) + 3 indexes. `bun run db:push` synced.
+- ⚠ RUNTIME QUIRK (solved): long-running `next dev` kept a PRE-generation PrismaClient cached on globalThis → `db.submission` undefined even after `db:push` regenerate (Turbopack node_modules cache). Workaround: all Submission queries implemented as $queryRaw helpers in lib/prother.ts (findActiveSubmissionByDomain / countSubmissionsSince / createSubmission / pendingQueuePosition) — model-independent, table exists in SQLite. lib/db.ts now self-heals (recreates singleton if the cached client lacks `submission`). After a real dev-server restart these helpers can be swapped back to the ORM (they behave identically).
+- API: POST /api/submit (zod full payload validation incl. live-now/standards literal(true), URL normalization, 1-per-domain → 409 with {kind:'tool'|'submission'} interstitial data, 3/email/7d → 429, OSS→GitHub → 422; 201 → {id, position}); GET /api/submit/check?url= (Step-1 blur dup check against seeded tools AND pending queue). lib/submit.ts = client-safe constants (TAG_VOCAB §13 vocab, GRADIENTS, LOGO_EMOJIS, PRICING_MODELS, INITIAL_SUBMIT_FORM, validateStep per-step mirror of server rules).
+- UI submit-wizard.tsx (Dialog, mounted once in page.tsx):
+  - 5 steps w/ segment progress bar + mono STEP 0x/05 + per-step subtitle; sticky footer nav (Cancel/Back ↔ Continue/Submit with loading state); disabled Continue when domain already queued.
+  - Live-preview right rail (lg+): feed-row mock (emoji+gradient logo, name, tagline placeholder "Say what it does in the first 5 words", SUBMITTED BY YOU badge, category/pricing/domain meta line), pricing card, QUALITY BAR reminder — updates every keystroke.
+  - Step ① URL/name/email/isOwner + duplicate interstitial banner (amber, ▲votes · listed by @maker, "This is my product → View it" opens the tool modal; "It's a different tool → Continue").
+  - Step ② tagline w/ live counter + ember fill bar (red >60), description textarea, 2-col category radio grid with helpers, tag chips (max 5, dimmed beyond).
+  - Step ③ pricing radios (Free/Freemium/Paid/OSS + helpers), price+note fields hidden for free/OSS, API checkbox, GitHub/Docs/X inputs (GitHub required for OSS).
+  - Step ④ emoji logo picker (20) + gradient picker (12, swatch buttons) — stand-in for Phase-2 media upload, disclosed in copy.
+  - Step ⑤ summary grid + the two PRD checkboxes (S1 live-now, S1–S6 standards link scrolls to #standards) → Submit.
+  - Success screen: spring check icon, "Queued for review", copy per PRD ("typically within 24h", "72h notice + launch kit"), QUEUE #N + mono TICKET (id slice), Done / Submit another.
+- CTA rewiring (submitOpen in explorer-store): header button (desktop+mobile menu), feed footer button, tomorrow note link, mobile sticky bar, final-cta outline button ("BUILT SOMETHING? SKIP THE LINE —"), ⌘K palette "Submit your tool" action — ALL open the wizard now (previously scrolled to waitlist). #submit section keeps waitlist + adds the wizard CTA.
+- NEW ?tab= persistence: feed tab initial value reads URL (?tab=top|tomorrow|yesterday), setTabSync replaceStates it (deleted for "new"). Verified: /?tab=tomorrow → 4 teasers; click Yesterday → ?tab=yesterday; reload restores tab + rows.
+- Styling details: ember focus rings (global), segment progress, mono labels w/ right-aligned hints, checkbox cards with ember fill on checked (data-[state=checked]), gradient swatch active ring, sticky wizard footer with backdrop-blur, success stat cards.
+- QA: full happy path walked in browser (5 steps → 201 → success #1); validation errors verified (both confirm checkboxes); 409 interstitial path verified live (submitted with seeded promptly.ai domain → bounced to Step 1 with banner + toast); check API: tool-domain → kind:tool, queued-domain → kind:submission, fresh → null. Mobile 390px: wizard opens from sticky bar, docsw 390, ?tab= restore works. Test submissions removed from DB (2 rows). QA artifacts qa/45–49.
+- lint 0 errors; dev.log clean (POST /api/submit 201, GET / 200); stale "domainOf" compile error artifact cleared via route re-touch (issue badge gone).
+
+Stage Summary:
+- Track B is live end-to-end: founders submit via the PRD §11 wizard (5 steps, live preview, dup interstitial, rate limits, confirm gates) into a persisted moderation queue with position tracking — closing the last major P0 gap in the landing scope.
+- All conversion surfaces now lead to the wizard; feed state (?tab=) joins ?cat= and #tool= as shareable URLs.
+- Risks/next: (1) dev-server-restart would let the $queryRaw shim be replaced by ORM calls (cosmetic); (2) PRD auth gate before Step 1 is approximated by email field (note in worklog; NextAuth exists in stack if wanted); (3) editor review queue UI (approve/reject/schedule) is the natural admin follow-up — data model already supports it via status/reviewNote; (4) seeded fictional URLs still pending swap before prod.

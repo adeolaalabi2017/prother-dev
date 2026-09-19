@@ -312,9 +312,32 @@ export function LaunchFeed() {
   const { toast } = useToast();
   const { feed, loading, error, refresh } = useFeed();
   const openTool = useExplorer((s) => s.openTool);
+  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   const categoryFilter = useExplorer((s) => s.categoryFilter);
   const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
-  const [tab, setTab] = useState<Tab>("new");
+  const [tab, setTab] = useState<Tab>(() => {
+    // ?tab= persistence — shareable feed states (new | top | tomorrow | yesterday)
+    if (typeof window === "undefined") return "new";
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return t === "top" || t === "tomorrow" || t === "yesterday" ? (t as Tab) : "new";
+  });
+
+  // Keep the selected tab in the URL (replaceState — no history spam).
+  const setTabSync = useCallback((next: Tab) => {
+    setTab(next);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const prev = url.searchParams.get("tab");
+    if (next === "new") {
+      if (prev) {
+        url.searchParams.delete("tab");
+        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+      }
+    } else if (prev !== next) {
+      url.searchParams.set("tab", next);
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
+  }, []);
   const [now, setNow] = useState<number>(() => Date.now());
   const [voteState, setVoteState] = useState<VoteState>({});
 
@@ -451,7 +474,7 @@ export function LaunchFeed() {
             <button
               key={t.key}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => setTabSync(t.key)}
               aria-pressed={tab === t.key}
               className={cn(
                 "relative shrink-0 rounded-lg px-3.5 py-2 text-sm transition-colors sm:px-4",
@@ -665,9 +688,13 @@ export function LaunchFeed() {
                 {isTomorrow && (
                   <p className="mt-6 font-mono text-xs text-white/40">
                     → Editors schedule every launch day. Want yours?{" "}
-                    <a href="#submit" className="text-ember hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => setSubmitOpen(true)}
+                      className="text-ember hover:underline"
+                    >
                       Submit your tool.
-                    </a>
+                    </button>
                   </p>
                 )}
 
@@ -681,7 +708,7 @@ export function LaunchFeed() {
                 <div className="mt-8 flex flex-col justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center">
                   <button
                     type="button"
-                    onClick={() => setTab(isYesterday ? "new" : "yesterday")}
+                    onClick={() => setTabSync(isYesterday ? "new" : "yesterday")}
                     aria-live="polite"
                     className="group/nav inline-flex items-center gap-1.5 self-start rounded-md px-1 py-0.5 font-mono text-sm text-white/50 transition-colors hover:text-ember focus-visible:outline-2 focus-visible:outline-ember/60"
                   >
@@ -705,7 +732,9 @@ export function LaunchFeed() {
                       asChild
                       className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
                     >
-                      <a href="#submit">Submit your tool →</a>
+                      <button type="button" onClick={() => setSubmitOpen(true)}>
+                        Submit your tool →
+                      </button>
                     </Button>
                   </div>
                 </div>
@@ -715,14 +744,15 @@ export function LaunchFeed() {
         </div>
       </div>
 
-      {/* Mobile sticky submit bar */}
-      <a
-        href="#submit"
+      {/* Mobile sticky submit bar — opens the §11 wizard */}
+      <button
+        type="button"
+        onClick={() => setSubmitOpen(true)}
         className="fixed inset-x-0 bottom-0 z-40 bg-ember py-3.5 text-center text-sm font-bold text-black md:hidden"
         style={{ paddingBottom: "calc(0.875rem + env(safe-area-inset-bottom))" }}
       >
         Submit your tool →
-      </a>
+      </button>
     </section>
   );
 }

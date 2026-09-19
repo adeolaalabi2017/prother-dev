@@ -17,6 +17,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const setSearch = useExplorer((s) => s.setSearch);
+  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
 
   // Scroll-spy: highlight the section currently in view (desktop nav).
   useEffect(() => {
@@ -98,7 +99,9 @@ export function SiteHeader() {
             asChild
             className="hidden rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot sm:inline-flex dark:text-black"
           >
-            <a href="#submit">Submit your tool</a>
+            <button type="button" onClick={() => setSubmitOpen(true)}>
+              Submit your tool
+            </button>
           </Button>
           <button
             type="button"
@@ -144,9 +147,9 @@ export function SiteHeader() {
             asChild
             className="mt-2 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
           >
-            <a href="#submit" onClick={() => setOpen(false)}>
+            <button type="button" onClick={() => { setOpen(false); setSubmitOpen(true); }}>
               Submit your tool
-            </a>
+            </button>
           </Button>
           <button
             type="button"
