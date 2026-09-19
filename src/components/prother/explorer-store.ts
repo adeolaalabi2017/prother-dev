@@ -15,6 +15,10 @@ type ExplorerState = {
   submitOpen: boolean;
   /** Whether the editor review console (PRD §12 adaptation) is open. */
   editorOpen: boolean;
+  /** Whether the maker status tracker (PRD §11) is open. */
+  trackOpen: boolean;
+  /** Email pre-filled into the tracker lookup (from the wizard success screen). */
+  trackEmail: string;
   /** Category slug currently filtering the launch feed, if any. */
   categoryFilter: string | null;
   openTool: (slug: string) => void;
@@ -22,6 +26,7 @@ type ExplorerState = {
   setSearch: (open: boolean) => void;
   setSubmitOpen: (open: boolean) => void;
   setEditorOpen: (open: boolean) => void;
+  setTrackOpen: (open: boolean, email?: string) => void;
   setCategoryFilter: (slug: string | null) => void;
 };
 
@@ -57,6 +62,8 @@ export const useExplorer = create<ExplorerState>((set) => ({
   searchOpen: false,
   submitOpen: false,
   editorOpen: false,
+  trackOpen: false,
+  trackEmail: "",
   categoryFilter: null,
   openTool: (slug) => {
     set({ slug });
@@ -78,6 +85,11 @@ export const useExplorer = create<ExplorerState>((set) => ({
   setSearch: (searchOpen) => set({ searchOpen }),
   setSubmitOpen: (submitOpen) => set({ submitOpen }),
   setEditorOpen: (editorOpen) => set({ editorOpen }),
+  setTrackOpen: (trackOpen, email) =>
+    set((s) => ({
+      trackOpen,
+      trackEmail: email !== undefined ? email : s.trackEmail,
+    })),
   setCategoryFilter: (categoryFilter) => {
     set({ categoryFilter });
     syncCatParam(categoryFilter);

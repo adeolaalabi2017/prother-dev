@@ -104,6 +104,30 @@ export const INITIAL_SUBMIT_FORM: SubmitForm = {
   agreedStandards: false,
 };
 
+/** Maker-facing submission status (PRD §11 "status tracking"). */
+export type SubmissionStatus = "pending" | "approved" | "rejected";
+
+export type SubmissionStatusItem = {
+  id: string;
+  name: string;
+  tagline: string;
+  domain: string;
+  emoji: string;
+  gradient: string;
+  status: SubmissionStatus;
+  createdAt: string;
+  /** pending only — 1-based position in the review queue. */
+  queuePosition: number | null;
+  /** approved only — slug of the created Tool (opens the listing modal). */
+  toolSlug: string | null;
+  /** approved only — ISO date the launch goes live. */
+  launchDate: string | null;
+  /** approved only — true once the launch is past its 00:00 UTC rollover. */
+  live: boolean;
+  /** rejected only — "Failed: S1, S4 — note" (PRD §7 cites standards). */
+  reviewNote: string | null;
+};
+
 /** Per-step field validation — mirrors the server's zod rules. */
 export function validateStep(
   step: number,

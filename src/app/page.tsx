@@ -10,6 +10,7 @@ import { FinalCta } from "@/components/prother/final-cta";
 import { SiteFooter } from "@/components/prother/site-footer";
 import { ToolExplorer } from "@/components/prother/tool-explorer";
 import { SubmitWizard } from "@/components/prother/submit-wizard";
+import { StatusTracker } from "@/components/prother/status-tracker";
 import { EditorConsole } from "@/components/prother/editor-console";
 import { ScrollProgress } from "@/components/prother/scroll-progress";
 import { BackToTop } from "@/components/prother/back-to-top";
@@ -32,6 +33,7 @@ export default function Page() {
       <SiteFooter />
       <ToolExplorer />
       <SubmitWizard />
+      <StatusTracker />
       <EditorConsole />
       <BackToTop />
     </div>

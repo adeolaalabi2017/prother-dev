@@ -231,6 +231,7 @@ export function SubmitWizard() {
   const open = useExplorer((s) => s.submitOpen);
   const setOpen = useExplorer((s) => s.setSubmitOpen);
   const openTool = useExplorer((s) => s.openTool);
+  const setTrackOpen = useExplorer((s) => s.setTrackOpen);
 
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<SubmitForm>(INITIAL_SUBMIT_FORM);
@@ -411,6 +412,20 @@ export function SubmitWizard() {
                 className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
               >
                 Done — back to the feed
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  // Hand off to the maker status tracker with the email
+                  // pre-filled (PRD §11 status tracking).
+                  const email = form.email.trim();
+                  onOpenChange(false);
+                  window.setTimeout(() => setTrackOpen(true, email), 80);
+                }}
+                className="rounded-lg border-white/15 bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
+              >
+                Track this submission
               </Button>
               <Button
                 type="button"

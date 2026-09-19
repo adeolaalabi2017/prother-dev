@@ -70,6 +70,18 @@ export type ToolDetailResponse = {
   submittedAt: string;
   verified: boolean;
   standards: import("@/lib/standards").StandardCheck[];
+  /** Up to 3 live tools in the same category (excludes this tool). */
+  related?: RelatedToolRow[];
+};
+
+/** Mini row for the detail modal's "More like this" section. */
+export type RelatedToolRow = {
+  slug: string;
+  name: string;
+  emoji: string;
+  gradient: string;
+  tagline: string;
+  votes: number;
 };
 
 export type FeedResponse = {
@@ -168,6 +180,87 @@ export async function pendingQueuePosition(id: string): Promise<number> {
     SELECT id FROM Submission WHERE status = 'pending' ORDER BY createdAt ASC`;
   const idx = rows.findIndex((r) => r.id === id);
   return idx >= 0 ? idx + 1 : rows.length;
+}
+
+/**
+ * Maker status tracking (PRD §11): list a maker's submissions with review
+ * outcome. Approved rows are matched back to their Tool by normalized domain
+ * (the decision route derives the Tool from the submission, no FK column).
+ */
+export async function listSubmissionsByEmail(
+  email: string
+): Promise<import("@/lib/submit").SubmissionStatusItem[]> {
+  const { domainOf } = await import("@/lib/submit");
+  const subs = await db.$queryRaw<
+    {
+      id: string;
+      name: string;
+      tagline: string;
+      domain: string;
+      logoEmoji: string;
+      logoGradient: string;
+      status: string;
+      reviewNote: string | null;
+      createdAt: string;
+    }[]
+  >`
+    SELECT id, name, tagline, domain, logoEmoji, logoGradient,
+           status, reviewNote, createdAt
+    FROM Submission
+    WHERE email = ${email}
+    ORDER BY createdAt DESC
+    LIMIT 20`;
+
+  // Live queue snapshot for pending positions (oldest-first, same as editors see).
+  const queue = await db.$queryRaw<{ id: string }[]>`
+    SELECT id FROM Submission WHERE status = 'pending' ORDER BY createdAt ASC`;
+  const positionOf = new Map(queue.map((q, i) => [q.id, i + 1]));
+
+  // Domain → launched Tool map (Tool.websiteUrl is stored as submitted).
+  const tools = await db.tool.findMany({
+    select: {
+      slug: true,
+      websiteUrl: true,
+      launch: { select: { launchDate: true, scheduled: true } },
+    },
+  });
+  const byDomain = new Map<
+    string,
+    { slug: string; launchDate: string; scheduled: boolean }
+  >();
+  for (const t of tools) {
+    const d = domainOf(t.websiteUrl);
+    if (d && !byDomain.has(d)) {
+      byDomain.set(d, {
+        slug: t.slug,
+        launchDate: t.launch?.launchDate.toISOString() ?? "",
+        scheduled: t.launch?.scheduled ?? false,
+      });
+    }
+  }
+
+  return subs.map((s) => {
+    const tool = byDomain.get(s.domain);
+    const live =
+      s.status === "approved" &&
+      !!tool?.launchDate &&
+      new Date(tool.launchDate).getTime() <= Date.now();
+    return {
+      id: s.id,
+      name: s.name,
+      tagline: s.tagline,
+      domain: s.domain,
+      emoji: s.logoEmoji,
+      gradient: s.logoGradient,
+      status: s.status as "pending" | "approved" | "rejected",
+      createdAt: s.createdAt,
+      queuePosition: s.status === "pending" ? positionOf.get(s.id) ?? null : null,
+      toolSlug: s.status === "approved" ? tool?.slug ?? null : null,
+      launchDate: s.status === "approved" ? tool?.launchDate ?? null : null,
+      live,
+      reviewNote: s.reviewNote,
+    };
+  });
 }
 
 // ── Editor review queue (PRD §12 adaptation — demo passcode gate) ───────

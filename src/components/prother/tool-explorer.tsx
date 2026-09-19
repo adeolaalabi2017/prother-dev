@@ -10,6 +10,7 @@ import {
   FileText,
   Github,
   Link2,
+  MailSearch,
   Share2,
   Sparkles,
   Triangle,
@@ -96,6 +97,8 @@ function ToolDetailDialog() {
 
 function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
   const { toast } = useToast();
+  const openTool = useExplorer((s) => s.openTool);
+  const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
   const [detail, setDetail] = useState<ToolDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,6 +189,19 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
       });
     }
   }, [shareUrl, toast]);
+
+  // Cross-link: close the modal, filter the feed to this category, scroll there.
+  const browseCategory = useCallback(() => {
+    if (!detail) return;
+    const cat = detail.category.slug;
+    onClose();
+    window.setTimeout(() => {
+      setCategoryFilter(cat);
+      document
+        .querySelector("#feed")
+        ?.scrollIntoView({ behavior: "smooth" });
+    }, 80);
+  }, [detail, onClose, setCategoryFilter]);
 
   return (
     <>
@@ -489,6 +505,63 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
               </div>
             </div>
 
+            {/* More like this — same category, live tools only */}
+            {detail.related && detail.related.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-mono text-[10px] tracking-widest text-white/40">
+                    MORE LIKE THIS
+                  </p>
+                  <button
+                    type="button"
+                    onClick={browseCategory}
+                    className="font-mono text-[10px] tracking-wider text-ember transition-colors hover:text-ember-hot"
+                  >
+                    ALL {detail.category.name.toUpperCase()} →
+                  </button>
+                </div>
+                <ul className="mt-2 space-y-2">
+                  {detail.related.map((r) => (
+                    <li key={r.slug}>
+                      <button
+                        type="button"
+                        onClick={() => openTool(r.slug)}
+                        aria-label={`Open ${r.name} details`}
+                        className="group flex w-full items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] p-2.5 text-left transition-colors hover:border-ember/40 hover:bg-ember/[0.05]"
+                      >
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-base transition-transform group-hover:scale-105",
+                            r.gradient,
+                          )}
+                        >
+                          {r.emoji}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="truncate text-sm font-semibold text-white/90 group-hover:text-white">
+                              {r.name}
+                            </span>
+                            <span className="shrink-0 font-mono text-xs tabular-nums text-ember">
+                              ▲{r.votes}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 block truncate text-xs text-white/45">
+                            {r.tagline}
+                          </span>
+                        </span>
+                        <ArrowUpRight
+                          className="size-3.5 shrink-0 text-white/25 transition-colors group-hover:text-ember"
+                          aria-hidden
+                        />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Maker footer */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-4">
               <p className="font-mono text-xs text-white/50">
@@ -524,6 +597,7 @@ function CommandPalette() {
   const openTool = useExplorer((s) => s.openTool);
   const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
   const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
+  const setTrackOpen = useExplorer((s) => s.setTrackOpen);
 
   const pickTool = useCallback(
     (slug: string) => {
@@ -695,6 +769,16 @@ function CommandPalette() {
             <span>Submit your tool</span>
           </CommandItem>
           <CommandItem
+            value="track my submission status makers"
+            onSelect={() => {
+              setSearch(false);
+              window.setTimeout(() => setTrackOpen(true), 80);
+            }}
+          >
+            <MailSearch aria-hidden />
+            <span>Track my submission</span>
+          </CommandItem>
+          <CommandItem
             value="read the standards quality bar"
             onSelect={() => goTo("#standards")}
           >
@@ -748,11 +832,19 @@ export function ToolExplorer() {
     return () => window.removeEventListener("hashchange", onHash);
   }, [openTool]);
 
-  // Restore a shared/filtered category from the URL on load (?cat=<slug>).
+  // Restore a shared/filtered category from the URL on load (?cat=<slug>)
+  // and jump straight to the feed — a shared ?cat= link is an intent to browse.
   useEffect(() => {
     const cat = new URLSearchParams(window.location.search).get("cat");
     if (cat && CATEGORIES.some((c) => c.slug === cat)) {
       useExplorer.getState().setCategoryFilter(cat);
+      // Wait a beat for the feed to render before smooth-scrolling to it.
+      const t = window.setTimeout(() => {
+        document
+          .querySelector("#feed")
+          ?.scrollIntoView({ behavior: "smooth" });
+      }, 500);
+      return () => window.clearTimeout(t);
     }
   }, []);
 

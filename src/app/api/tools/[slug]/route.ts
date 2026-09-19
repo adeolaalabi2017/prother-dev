@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prother";
 import { STANDARD_DEFS } from "@/lib/standards";
-import type { ToolDetailResponse } from "@/lib/prother";
+import type { RelatedToolRow, ToolDetailResponse } from "@/lib/prother";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +44,27 @@ export async function GET(
     passed: !scheduled,
   }));
 
+  // "More like this" — up to 3 LIVE tools from the same category, most
+  // upvoted first. Scheduled/teaser tools are excluded (not launched yet).
+  const relatedRows = await db.tool.findMany({
+    where: {
+      categoryId: tool.categoryId,
+      slug: { not: tool.slug },
+      launch: { is: { scheduled: false } },
+    },
+    include: { launch: { select: { baseUpvotes: true } } },
+    orderBy: { launch: { baseUpvotes: "desc" } },
+    take: 3,
+  });
+  const related: RelatedToolRow[] = relatedRows.map((r) => ({
+    slug: r.slug,
+    name: r.name,
+    emoji: r.logoEmoji,
+    gradient: r.logoGradient,
+    tagline: r.tagline,
+    votes: r.launch?.baseUpvotes ?? 0,
+  }));
+
   const body: ToolDetailResponse = {
     slug: tool.slug,
     name: tool.name,
@@ -81,6 +102,7 @@ export async function GET(
     submittedAt: tool.createdAt.toISOString(),
     verified: tool.verifiedAt != null && !scheduled,
     standards,
+    related,
   };
 
   return NextResponse.json(body, {

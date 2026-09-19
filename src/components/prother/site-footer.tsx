@@ -11,6 +11,7 @@ const COLS = [
       { label: "Categories", href: "#categories" },
       { label: "Standards", href: "#standards" },
       { label: "Submit your tool", href: "#submit", wizard: true },
+      { label: "Check submission status", href: "#", tracker: true },
     ],
   },
   {
@@ -36,6 +37,7 @@ const COLS = [
 export function SiteFooter() {
   const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   const setEditorOpen = useExplorer((s) => s.setEditorOpen);
+  const setTrackOpen = useExplorer((s) => s.setTrackOpen);
   return (
     <footer className="mt-auto border-t border-white/10 bg-ink">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
@@ -62,6 +64,14 @@ export function SiteFooter() {
                       <button
                         type="button"
                         onClick={() => setSubmitOpen(true)}
+                        className="text-sm text-white/50 transition-colors hover:text-ember"
+                      >
+                        {l.label}
+                      </button>
+                    ) : "tracker" in l && l.tracker ? (
+                      <button
+                        type="button"
+                        onClick={() => setTrackOpen(true)}
                         className="text-sm text-white/50 transition-colors hover:text-ember"
                       >
                         {l.label}

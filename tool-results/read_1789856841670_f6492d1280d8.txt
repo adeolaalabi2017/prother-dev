@@ -1,0 +1,766 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useState } from "react";
+     4→import {
+     5→  ArrowUpRight,
+     6→  Check,
+     7→  CircleDashed,
+     8→  Clock,
+     9→  ExternalLink,
+    10→  FileText,
+    11→  Github,
+    12→  Link2,
+    13→  Share2,
+    14→  Sparkles,
+    15→  Triangle,
+    16→} from "lucide-react";
+    17→import {
+    18→  CommandDialog,
+    19→  CommandEmpty,
+    20→  CommandGroup,
+    21→  CommandInput,
+    22→  CommandItem,
+    23→  CommandList,
+    24→  CommandSeparator,
+    25→} from "@/components/ui/command";
+    26→import {
+    27→  Dialog,
+    28→  DialogContent,
+    29→  DialogDescription,
+    30→  DialogTitle,
+    31→} from "@/components/ui/dialog";
+    32→// DialogTitle/DialogDescription are used by ToolDetailDialog above.
+    33→import { Skeleton } from "@/components/ui/skeleton";
+    34→import { useToast } from "@/hooks/use-toast";
+    35→import { cn } from "@/lib/utils";
+    36→import type { ToolDetailResponse } from "@/lib/prother";
+    37→import { CATEGORIES } from "./categories";
+    38→import { toolHash, useExplorer } from "./explorer-store";
+    39→import { useFeed } from "./use-feed";
+    40→import { getVoterKey } from "./voter";
+    41→
+    42→// ── Tool detail modal ────────────────────────────────────────────────────
+    43→
+    44→const PRICING_LABEL: Record<string, string> = {
+    45→  free: "Free",
+    46→  freemium: "Freemium",
+    47→  paid: "Paid",
+    48→  open_source: "Open Source",
+    49→};
+    50→
+    51→function fmtDate(iso: string | null): string {
+    52→  if (!iso) return "—";
+    53→  return new Date(iso).toLocaleDateString("en-US", {
+    54→    month: "short",
+    55→    day: "numeric",
+    56→    timeZone: "UTC",
+    57→  });
+    58→}
+    59→
+    60→function DetailSkeleton() {
+    61→  return (
+    62→    <div className="space-y-5 p-6">
+    63→      <div className="flex items-end gap-4">
+    64→        <Skeleton className="size-16 rounded-2xl bg-white/10" />
+    65→        <div className="flex-1 space-y-2 pb-1">
+    66→          <Skeleton className="h-6 w-40 bg-white/10" />
+    67→          <Skeleton className="h-4 w-64 bg-white/10" />
+    68→        </div>
+    69→      </div>
+    70→      {[0, 1, 2, 3].map((i) => (
+    71→        <Skeleton key={i} className="h-16 w-full rounded-xl bg-white/5" />
+    72→      ))}
+    73→    </div>
+    74→  );
+    75→}
+    76→
+    77→function ToolDetailDialog() {
+    78→  const slug = useExplorer((s) => s.slug);
+    79→  const closeTool = useExplorer((s) => s.closeTool);
+    80→
+    81→  return (
+    82→    <Dialog open={!!slug} onOpenChange={(open) => !open && closeTool()}>
+    83→      <DialogContent
+    84→        showCloseButton
+    85→        className="max-h-[90vh] max-w-[calc(100vw-2rem)] gap-0 overflow-y-auto border-white/10 bg-coal p-0 text-white sm:max-w-2xl"
+    86→      >
+    87→        <DialogTitle className="sr-only">Tool details</DialogTitle>
+    88→        <DialogDescription className="sr-only">
+    89→          Full listing, pricing, and quality-bar verification for this tool.
+    90→        </DialogDescription>
+    91→        {slug && <DetailBody key={slug} slug={slug} onClose={closeTool} />}
+    92→      </DialogContent>
+    93→    </Dialog>
+    94→  );
+    95→}
+    96→
+    97→function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
+    98→  const { toast } = useToast();
+    99→  const [detail, setDetail] = useState<ToolDetailResponse | null>(null);
+   100→  const [loading, setLoading] = useState(true);
+   101→  const [error, setError] = useState<string | null>(null);
+   102→  const [vote, setVote] = useState<{ votes: number; voted: boolean } | null>(
+   103→    null,
+   104→  );
+   105→  const [copied, setCopied] = useState(false);
+   106→
+   107→  useEffect(() => {
+   108→    let alive = true;
+   109→    fetch(`/api/tools/${slug}?vk=${encodeURIComponent(getVoterKey())}`)
+   110→      .then(async (res) => {
+   111→        if (!res.ok)
+   112→          throw new Error(
+   113→            res.status === 404 ? "Tool not found" : "Failed to load tool",
+   114→          );
+   115→        return (await res.json()) as ToolDetailResponse;
+   116→      })
+   117→      .then((data) => {
+   118→        if (alive) {
+   119→          setDetail(data);
+   120→          setVote({ votes: data.votes, voted: data.voted });
+   121→        }
+   122→      })
+   123→      .catch((err: unknown) => {
+   124→        if (alive)
+   125→          setError(err instanceof Error ? err.message : "Failed to load tool");
+   126→      })
+   127→      .finally(() => {
+   128→        if (alive) setLoading(false);
+   129→      });
+   130→    return () => {
+   131→      alive = false;
+   132→    };
+   133→  }, [slug]);
+   134→
+   135→  const onVote = useCallback(async () => {
+   136→    if (!detail?.launchId || !vote) return;
+   137→    const nextVoted = !vote.voted;
+   138→    setVote({ votes: vote.votes + (nextVoted ? 1 : -1), voted: nextVoted });
+   139→    try {
+   140→      const res = await fetch("/api/vote", {
+   141→        method: "POST",
+   142→        headers: { "Content-Type": "application/json" },
+   143→        body: JSON.stringify({
+   144→          launchId: detail.launchId,
+   145→          voterKey: getVoterKey(),
+   146→        }),
+   147→      });
+   148→      const data = (await res.json()) as { voted: boolean; votes: number };
+   149→      setVote({ votes: data.votes, voted: data.voted });
+   150→      // Sync the feed list behind the modal.
+   151→      window.dispatchEvent(
+   152→        new CustomEvent("prother:vote", {
+   153→          detail: { launchId: detail.launchId, votes: data.votes, voted: data.voted },
+   154→        }),
+   155→      );
+   156→    } catch {
+   157→      setVote(vote);
+   158→      toast({
+   159→        title: "Vote failed",
+   160→        description: "Please try again.",
+   161→        variant: "destructive",
+   162→      });
+   163→    }
+   164→  }, [detail, vote, toast]);
+   165→
+   166→  const passedCount = detail?.standards.filter((s) => s.passed).length ?? 0;
+   167→
+   168→  const shareUrl =
+   169→    typeof window !== "undefined"
+   170→      ? `${window.location.origin}/${toolHash(slug)}`
+   171→      : "";
+   172→  const shareText = detail
+   173→    ? `🚀 ${detail.name} — ${detail.tagline} is on Prother`
+   174→    : "";
+   175→
+   176→  const onCopyLink = useCallback(async () => {
+   177→    try {
+   178→      await navigator.clipboard.writeText(shareUrl);
+   179→      setCopied(true);
+   180→      window.setTimeout(() => setCopied(false), 1600);
+   181→    } catch {
+   182→      toast({
+   183→        title: "Could not copy the link",
+   184→        description: shareUrl,
+   185→        variant: "destructive",
+   186→      });
+   187→    }
+   188→  }, [shareUrl, toast]);
+   189→
+   190→  return (
+   191→    <>
+   192→      {loading && <DetailSkeleton />}
+   193→
+   194→      {!loading && error && (
+   195→        <div className="p-10 text-center">
+   196→          <p className="text-sm text-white/60">{error}</p>
+   197→          <button
+   198→            type="button"
+   199→            onClick={onClose}
+   200→            className="mt-4 font-mono text-xs text-ember hover:underline"
+   201→          >
+   202→            ← Close
+   203→          </button>
+   204→        </div>
+   205→      )}
+   206→
+   207→      {!loading && !error && detail && vote && (
+   208→        <>
+   209→          {/* Header with gradient banner */}
+   210→          <div className="relative">
+   211→            <div
+   212→              aria-hidden
+   213→              className={cn(
+   214→                "h-20 w-full bg-gradient-to-br opacity-30",
+   215→                detail.gradient,
+   216→              )}
+   217→            />
+   218→            <div className="flex items-end gap-4 px-6 pb-4">
+   219→              <div
+   220→                aria-hidden
+   221→                className={cn(
+   222→                  "-mt-9 flex size-16 shrink-0 items-center justify-center rounded-2xl border-4 border-coal bg-gradient-to-br text-2xl shadow-xl",
+   223→                  detail.gradient,
+   224→                )}
+   225→              >
+   226→                {detail.emoji}
+   227→              </div>
+   228→              <div className="min-w-0 pb-1">
+   229→                <div className="flex flex-wrap items-center gap-2">
+   230→                  <h2 className="text-2xl font-black tracking-tight">
+   231→                    {detail.name}
+   232→                  </h2>
+   233→                  {detail.badges.editorsPick && (
+   234→                    <span className="rounded-full border border-ember/30 bg-ember/15 px-2 py-0.5 font-mono text-[10px] text-ember">
+   235→                      ⭐ EDITOR&apos;S PICK
+   236→                    </span>
+   237→                  )}
+   238→                  {detail.badges.curated && (
+   239→                    <span className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 font-mono text-[10px] text-yellow-500">
+   240→                      CURATED
+   241→                    </span>
+   242→                  )}
+   243→                  {detail.badges.relaunch && (
+   244→                    <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+   245→                      🔁 RE-LAUNCH
+   246→                    </span>
+   247→                  )}
+   248→                </div>
+   249→                <p className="truncate text-sm text-white/60">
+   250→                  {detail.tagline}
+   251→                </p>
+   252→              </div>
+   253→            </div>
+   254→          </div>
+   255→
+   256→          <div className="space-y-6 border-t border-white/10 p-6">
+   257→            {/* Actions */}
+   258→            <div className="flex flex-wrap items-center gap-2">
+   259→              <a
+   260→                href={detail.websiteUrl}
+   261→                target="_blank"
+   262→                rel="noopener noreferrer"
+   263→                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-semibold text-black transition hover:bg-ember-hot active:scale-[0.98]"
+   264→              >
+   265→                Visit website <ExternalLink className="size-3.5" aria-hidden />
+   266→              </a>
+   267→              {detail.links.github && (
+   268→                <a
+   269→                  href={detail.links.github}
+   270→                  target="_blank"
+   271→                  rel="noopener noreferrer"
+   272→                  aria-label={`${detail.name} on GitHub`}
+   273→                  className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+   274→                >
+   275→                  <Github className="size-4" aria-hidden />
+   276→                </a>
+   277→              )}
+   278→              {detail.links.docs && (
+   279→                <a
+   280→                  href={detail.links.docs}
+   281→                  target="_blank"
+   282→                  rel="noopener noreferrer"
+   283→                  aria-label={`${detail.name} documentation`}
+   284→                  className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+   285→                >
+   286→                  <FileText className="size-4" aria-hidden />
+   287→                </a>
+   288→              )}
+   289→              {detail.links.twitter && (
+   290→                <a
+   291→                  href={detail.links.twitter}
+   292→                  target="_blank"
+   293→                  rel="noopener noreferrer"
+   294→                  aria-label={`${detail.name} on X`}
+   295→                  className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+   296→                >
+   297→                  <svg
+   298→                    viewBox="0 0 24 24"
+   299→                    className="size-4 fill-current"
+   300→                    aria-hidden
+   301→                  >
+   302→                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+   303→                  </svg>
+   304→                </a>
+   305→              )}
+   306→              <button
+   307→                type="button"
+   308→                onClick={onCopyLink}
+   309→                aria-label="Copy link to this tool"
+   310→                className={cn(
+   311→                  "inline-flex size-10 items-center justify-center rounded-lg border border-white/10 transition-colors",
+   312→                  copied
+   313→                    ? "border-emerald-500/40 text-emerald-400"
+   314→                    : "text-white/70 hover:border-ember/40 hover:text-ember",
+   315→                )}
+   316→              >
+   317→                {copied ? (
+   318→                  <Check className="size-4" aria-hidden />
+   319→                ) : (
+   320→                  <Link2 className="size-4" aria-hidden />
+   321→                )}
+   322→              </button>
+   323→              <a
+   324→                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
+   325→                target="_blank"
+   326→                rel="noopener noreferrer"
+   327→                aria-label={`Share ${detail.name} on X`}
+   328→                className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+   329→              >
+   330→                <Share2 className="size-4" aria-hidden />
+   331→              </a>
+   332→              <div className="ml-auto flex items-center gap-2">
+   333→                <button
+   334→                  type="button"
+   335→                  onClick={onVote}
+   336→                  disabled={!detail.launchId}
+   337→                  aria-label={vote.voted ? "Remove upvote" : "Upvote this tool"}
+   338→                  aria-pressed={vote.voted}
+   339→                  className={cn(
+   340→                    "inline-flex h-10 items-center gap-2 rounded-lg border px-4 font-mono text-sm font-semibold tabular-nums transition active:scale-95",
+   341→                    vote.voted
+   342→                      ? "border-ember bg-ember/10 text-ember"
+   343→                      : "border-white/10 text-white/70 hover:border-ember/50 hover:text-ember",
+   344→                  )}
+   345→                >
+   346→                  <Triangle
+   347→                    className="size-4"
+   348→                    fill={vote.voted ? "currentColor" : "none"}
+   349→                    aria-hidden
+   350→                  />
+   351→                  {vote.votes}
+   352→                </button>
+   353→              </div>
+   354→            </div>
+   355→
+   356→            {/* Meta grid */}
+   357→            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:grid-cols-4">
+   358→              <div>
+   359→                <dt className="font-mono text-[10px] tracking-widest text-white/40">
+   360→                  CATEGORY
+   361→                </dt>
+   362→                <dd
+   363→                  className="mt-1 text-sm leading-snug text-white/85"
+   364→                  title={`${detail.category.emoji} ${detail.category.name}`}
+   365→                >
+   366→                  {detail.category.emoji} {detail.category.name}
+   367→                </dd>
+   368→              </div>
+   369→              <div>
+   370→                <dt className="font-mono text-[10px] tracking-widest text-white/40">
+   371→                  STATUS
+   372→                </dt>
+   373→                <dd className="mt-1 text-sm">
+   374→                  {detail.verified ? (
+   375→                    <span className="inline-flex items-center gap-1 text-emerald-400">
+   376→                      <Check className="size-3.5" aria-hidden /> Verified
+   377→                    </span>
+   378→                  ) : detail.scheduled ? (
+   379→                    <span className="inline-flex items-center gap-1 text-white/60">
+   380→                      <CircleDashed className="size-3.5" aria-hidden /> In
+   381→                      review
+   382→                    </span>
+   383→                  ) : (
+   384→                    <span className="text-white/60">Unverified</span>
+   385→                  )}
+   386→                </dd>
+   387→              </div>
+   388→              <div>
+   389→                <dt className="font-mono text-[10px] tracking-widest text-white/40">
+   390→                  SUBMITTED
+   391→                </dt>
+   392→                <dd className="mt-1 text-sm text-white/85">
+   393→                  {fmtDate(detail.submittedAt)}
+   394→                </dd>
+   395→              </div>
+   396→              <div>
+   397→                <dt className="font-mono text-[10px] tracking-widest text-white/40">
+   398→                  {detail.scheduled ? "GOES LIVE" : "LAUNCH DAY"}
+   399→                </dt>
+   400→                <dd className="mt-1 inline-flex items-center gap-1 text-sm text-white/85">
+   401→                  {detail.scheduled && (
+   402→                    <Clock className="size-3.5 text-ember" aria-hidden />
+   403→                  )}
+   404→                  {fmtDate(detail.launchDate)}
+   405→                </dd>
+   406→              </div>
+   407→            </dl>
+   408→
+   409→            {/* Pricing */}
+   410→            <div className="flex items-center justify-between gap-4 rounded-xl border border-ember/25 bg-ember/[0.05] p-4">
+   411→              <div>
+   412→                <p className="font-mono text-[10px] tracking-widest text-white/40">
+   413→                  PRICING
+   414→                </p>
+   415→                <p className="mt-1 font-semibold text-white">
+   416→                  {PRICING_LABEL[detail.pricing.model] ?? "Free"}
+   417→                  {detail.pricing.price && (
+   418→                    <span className="ml-2 font-mono text-ember">
+   419→                      {detail.pricing.price}/mo
+   420→                    </span>
+   421→                  )}
+   422→                </p>
+   423→                {detail.pricing.note && (
+   424→                  <p className="mt-0.5 text-xs text-white/50">
+   425→                    {detail.pricing.note}
+   426→                  </p>
+   427→                )}
+   428→              </div>
+   429→              <div className="flex shrink-0 gap-1.5">
+   430→                {detail.badges.openSource && (
+   431→                  <span className="rounded-full border border-white/15 px-2.5 py-1 font-mono text-[10px] text-white/60">
+   432→                    OSS
+   433→                  </span>
+   434→                )}
+   435→                {detail.badges.hasApi && (
+   436→                  <span className="rounded-full border border-white/15 px-2.5 py-1 font-mono text-[10px] text-white/60">
+   437→                    API
+   438→                  </span>
+   439→                )}
+   440→              </div>
+   441→            </div>
+   442→
+   443→            {/* Description */}
+   444→            {detail.description && (
+   445→              <p className="text-sm leading-relaxed text-white/70">
+   446→                {detail.description}
+   447→              </p>
+   448→            )}
+   449→
+   450→            {/* Standards */}
+   451→            <div>
+   452→              <p className="font-mono text-[10px] tracking-widest text-white/40">
+   453→                QUALITY BAR — {passedCount}/{detail.standards.length}{" "}
+   454→                {detail.scheduled ? "PENDING" : "PASSED"}
+   455→              </p>
+   456→              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+   457→                {detail.standards.map((s) => (
+   458→                  <div
+   459→                    key={s.id}
+   460→                    className="flex items-start gap-2.5 rounded-lg border border-white/10 bg-white/[0.02] p-3"
+   461→                  >
+   462→                    <span
+   463→                      className={cn(
+   464→                        "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full",
+   465→                        s.passed
+   466→                          ? "bg-emerald-500/15 text-emerald-400"
+   467→                          : "bg-white/10 text-white/40",
+   468→                      )}
+   469→                    >
+   470→                      {s.passed ? (
+   471→                        <Check className="size-2.5" aria-hidden />
+   472→                      ) : (
+   473→                        <CircleDashed className="size-2.5" aria-hidden />
+   474→                      )}
+   475→                    </span>
+   476→                    <div className="min-w-0">
+   477→                      <p className="text-xs font-semibold text-white/85">
+   478→                        <span className="mr-1.5 font-mono text-ember">
+   479→                          {s.id}
+   480→                        </span>
+   481→                        {s.title}
+   482→                      </p>
+   483→                      <p className="mt-0.5 text-[11px] leading-snug text-white/45">
+   484→                        {s.blurb}
+   485→                      </p>
+   486→                    </div>
+   487→                  </div>
+   488→                ))}
+   489→              </div>
+   490→            </div>
+   491→
+   492→            {/* Maker footer */}
+   493→            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-4">
+   494→              <p className="font-mono text-xs text-white/50">
+   495→                by <span className="text-ember">{detail.maker}</span>
+   496→                {" · "}
+   497→                {detail.track === "community"
+   498→                  ? "community submit"
+   499→                  : "editor seed"}
+   500→              </p>
+   501→              {detail.badges.unclaimed && (
+   502→                <a
+   503→                  href="#submit"
+   504→                  onClick={onClose}
+   505→                  className="font-mono text-xs text-ember hover:underline"
+   506→                >
+   507→                  Is this you? Claim this listing →
+   508→                </a>
+   509→              )}
+   510→            </div>
+   511→          </div>
+   512→        </>
+   513→      )}
+   514→    </>
+   515→  );
+   516→}
+   517→
+   518→// ── ⌘K command palette ───────────────────────────────────────────────────
+   519→
+   520→function CommandPalette() {
+   521→  const { feed } = useFeed();
+   522→  const searchOpen = useExplorer((s) => s.searchOpen);
+   523→  const setSearch = useExplorer((s) => s.setSearch);
+   524→  const openTool = useExplorer((s) => s.openTool);
+   525→  const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
+   526→  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
+   527→
+   528→  const pickTool = useCallback(
+   529→    (slug: string) => {
+   530→      setSearch(false);
+   531→      // Let the command dialog finish closing before opening the detail modal.
+   532→      window.setTimeout(() => openTool(slug), 80);
+   533→    },
+   534→    [setSearch, openTool],
+   535→  );
+   536→
+   537→  const goTo = useCallback(
+   538→    (hash: string) => {
+   539→      setSearch(false);
+   540→      window.setTimeout(() => {
+   541→        document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
+   542→      }, 80);
+   543→    },
+   544→    [setSearch],
+   545→  );
+   546→
+   547→  const filterCategory = useCallback(
+   548→    (slug: string) => {
+   549→      setCategoryFilter(slug);
+   550→      goTo("#feed");
+   551→    },
+   552→    [setCategoryFilter, goTo],
+   553→  );
+   554→
+   555→  const seen = new Set<string>();
+   556→  const todayTools = (feed?.top ?? []).filter((r) => {
+   557→    if (seen.has(r.slug)) return false;
+   558→    seen.add(r.slug);
+   559→    return true;
+   560→  });
+   561→
+   562→  return (
+   563→    <CommandDialog
+   564→      open={searchOpen}
+   565→      onOpenChange={setSearch}
+   566→      className="border-white/10 bg-coal text-white [&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-input]]:text-white [&_[cmdk-input]::placeholder]:text-white/30 [&_[cmdk-item]]:text-white/80 [&_[cmdk-item][data-selected=true]]:bg-ember/15 [&_[cmdk-item][data-selected=true]]:text-ember [&_[cmdk-separator]]:bg-white/10"
+   567→    >
+   568→      <CommandInput placeholder="Search tools, categories, actions…" />
+   569→      <CommandList className="max-h-[420px]">
+   570→        <CommandEmpty>
+   571→          No results — try &quot;agents&quot; or &quot;voice&quot;.
+   572→        </CommandEmpty>
+   573→
+   574→        {todayTools.length > 0 && (
+   575→          <CommandGroup heading="Today's launches">
+   576→            {todayTools.map((r) => (
+   577→              <CommandItem
+   578→                key={r.slug}
+   579→                value={`${r.name} ${r.tagline} ${r.category.name}`}
+   580→                onSelect={() => pickTool(r.slug)}
+   581→              >
+   582→                <span
+   583→                  aria-hidden
+   584→                  className={cn(
+   585→                    "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
+   586→                    r.gradient,
+   587→                  )}
+   588→                >
+   589→                  {r.emoji}
+   590→                </span>
+   591→                <span className="font-semibold">{r.name}</span>
+   592→                <span className="truncate text-white/40">{r.tagline}</span>
+   593→                <span className="ml-auto font-mono text-xs text-ember">
+   594→                  ▲{r.votes}
+   595→                </span>
+   596→              </CommandItem>
+   597→            ))}
+   598→          </CommandGroup>
+   599→        )}
+   600→
+   601→        {(feed?.tomorrow.length ?? 0) > 0 && (
+   602→          <>
+   603→            <CommandSeparator />
+   604→            <CommandGroup heading="Tomorrow">
+   605→              {feed!.tomorrow.map((t) => (
+   606→                <CommandItem
+   607→                  key={t.slug}
+   608→                  value={`${t.name} ${t.tagline} ${t.category.name} tomorrow`}
+   609→                  onSelect={() => pickTool(t.slug)}
+   610→                >
+   611→                  <span
+   612→                    aria-hidden
+   613→                    className={cn(
+   614→                      "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
+   615→                      t.gradient,
+   616→                    )}
+   617→                  >
+   618→                    {t.emoji}
+   619→                  </span>
+   620→                  <span className="font-semibold">{t.name}</span>
+   621→                  <span className="truncate text-white/40">{t.tagline}</span>
+   622→                  <span className="ml-auto font-mono text-[10px] text-white/40">
+   623→                    IN {t.goesLiveInH}H
+   624→                  </span>
+   625→                </CommandItem>
+   626→              ))}
+   627→            </CommandGroup>
+   628→          </>
+   629→        )}
+   630→
+   631→        {(feed?.topWeek.length ?? 0) > 0 && (
+   632→          <>
+   633→            <CommandSeparator />
+   634→            <CommandGroup heading="Top this week">
+   635→              {feed!.topWeek.map((t) => (
+   636→                <CommandItem
+   637→                  key={t.slug}
+   638→                  value={`${t.name} top week`}
+   639→                  onSelect={() => pickTool(t.slug)}
+   640→                >
+   641→                  <span
+   642→                    aria-hidden
+   643→                    className={cn(
+   644→                      "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
+   645→                      t.gradient,
+   646→                    )}
+   647→                  >
+   648→                    {t.emoji}
+   649→                  </span>
+   650→                  <span className="font-semibold">{t.name}</span>
+   651→                  <span className="ml-auto font-mono text-xs text-ember">
+   652→                    ▲{t.votes}
+   653→                  </span>
+   654→                </CommandItem>
+   655→              ))}
+   656→            </CommandGroup>
+   657→          </>
+   658→        )}
+   659→
+   660→        <CommandSeparator />
+   661→        <CommandGroup heading="Categories">
+   662→          {CATEGORIES.map((c) => {
+   663→            const count = feed?.categoryCounts?.[c.slug] ?? 0;
+   664→            return (
+   665→              <CommandItem
+   666→                key={c.slug}
+   667→                value={`category ${c.slug} ${c.name}`}
+   668→                onSelect={() => filterCategory(c.slug)}
+   669→              >
+   670→                <span aria-hidden>{c.emoji}</span>
+   671→                <span>{c.name}</span>
+   672→                {count > 0 && (
+   673→                  <span className="rounded-full bg-white/10 px-1.5 font-mono text-[10px] tabular-nums text-white/50">
+   674→                    {count} today
+   675→                  </span>
+   676→                )}
+   677→                <span className="ml-auto font-mono text-[10px] text-white/30">
+   678→                  FILTER
+   679→                </span>
+   680→              </CommandItem>
+   681→            );
+   682→          })}
+   683→        </CommandGroup>
+   684→
+   685→        <CommandSeparator />
+   686→        <CommandGroup heading="Actions">
+   687→          <CommandItem
+   688→            value="submit your tool launch wizard"
+   689→            onSelect={() => {
+   690→              setSearch(false);
+   691→              window.setTimeout(() => setSubmitOpen(true), 80);
+   692→            }}
+   693→          >
+   694→            <Sparkles aria-hidden />
+   695→            <span>Submit your tool</span>
+   696→          </CommandItem>
+   697→          <CommandItem
+   698→            value="read the standards quality bar"
+   699→            onSelect={() => goTo("#standards")}
+   700→          >
+   701→            <Check aria-hidden />
+   702→            <span>Read the standards</span>
+   703→          </CommandItem>
+   704→          <CommandItem
+   705→            value="get the daily feed newsletter"
+   706→            onSelect={() => goTo("#feed")}
+   707→          >
+   708→            <ArrowUpRight aria-hidden />
+   709→            <span>Jump to the feed</span>
+   710→          </CommandItem>
+   711→        </CommandGroup>
+   712→      </CommandList>
+   713→    </CommandDialog>
+   714→  );
+   715→}
+   716→
+   717→// ── Mounted-once explorer + ⌘K shortcut ──────────────────────────────────
+   718→
+   719→export function ToolExplorer() {
+   720→  const setSearch = useExplorer((s) => s.setSearch);
+   721→  const openTool = useExplorer((s) => s.openTool);
+   722→
+   723→  // ⌘K / ctrl+K opens the command palette.
+   724→  useEffect(() => {
+   725→    const onKey = (e: KeyboardEvent) => {
+   726→      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+   727→        e.preventDefault();
+   728→        setSearch(true);
+   729→      }
+   730→    };
+   731→    window.addEventListener("keydown", onKey);
+   732→    return () => window.removeEventListener("keydown", onKey);
+   733→  }, [setSearch]);
+   734→
+   735→  // Shareable deep links: /#tool=<slug> opens the detail modal on load —
+   736→  // and keeps working when the hash is navigated to *after* load
+   737→  // (same-document navigation, pasted links, back/forward).
+   738→  // Clearing the hash (e.g. browser Back) closes the modal again.
+   739→  useEffect(() => {
+   740→    const applyHash = (initial = false) => {
+   741→      const m = window.location.hash.match(/^#tool=([^&]+)$/);
+   742→      if (m?.[1]) openTool(decodeURIComponent(m[1]));
+   743→      else if (!initial) useExplorer.getState().closeTool();
+   744→    };
+   745→    applyHash(true);
+   746→    const onHash = () => applyHash(false);
+   747→    window.addEventListener("hashchange", onHash);
+   748→    return () => window.removeEventListener("hashchange", onHash);
+   749→  }, [openTool]);
+   750→
+   751→  // Restore a shared/filtered category from the URL on load (?cat=<slug>).
+   752→  useEffect(() => {
+   753→    const cat = new URLSearchParams(window.location.search).get("cat");
+   754→    if (cat && CATEGORIES.some((c) => c.slug === cat)) {
+   755→      useExplorer.getState().setCategoryFilter(cat);
+   756→    }
+   757→  }, []);
+   758→
+   759→  return (
+   760→    <>
+   761→      <CommandPalette />
+   762→      <ToolDetailDialog />
+   763→    </>
+   764→  );
+   765→}
+   766→
