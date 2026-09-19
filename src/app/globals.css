@@ -41,9 +41,12 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  /* Prother palette */
+  /* Prother palette (ember-tint/mint aligned with try.cloudflare.com's
+     --brand-tint #FFB877 and --success #3FCF8E) */
   --color-ember: #FF6A00;
   --color-ember-hot: #FF8A3D;
+  --color-ember-tint: #FFB877;
+  --color-mint: #3FCF8E;
   --color-ink: #0A0A0A;
   --color-coal: #141312;
   --color-cream: #F1EDE4;
@@ -164,6 +167,84 @@
   animation-play-state: paused;
 }
 
+/* ── Prother × try.cloudflare.com — hero animation layer ────────────────
+   Ported from the Quick Tunnels hero (their exact curves & durations):
+   · line-in       terminal lines stagger in (translateY 4px → 0, .22s ease-out)
+   · caret-blink   steps(1) block-cursor blink (harsh ON/OFF, 1s)
+   · status-pulse  announcement-pill dot opacity breathing (2s)
+   · dash-march    SVG rays march via stroke-dashoffset → -32 (dasharray 8 8)
+   · float-y       gentle ±6px hover on the terminal panel (5s)
+   Reduced motion: global guard below + explicit term-line visibility fix. */
+@keyframes line-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes dash-march {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+.term-line {
+  opacity: 0;
+  animation: line-in 0.22s ease-out forwards;
+}
+
+.animate-caret {
+  animation: caret-blink 1s steps(1) infinite;
+}
+
+.animate-status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.animate-float-y {
+  animation: float-y 5s ease-in-out infinite;
+}
+
+.flow-dash {
+  stroke-dasharray: 8 8;
+  animation: dash-march 1.4s linear infinite;
+}
+
 /* Prother — thin ember scrollbar */
 * {
   scrollbar-width: thin;
@@ -191,6 +272,16 @@
 /* ── Prother: accessibility & motion preferences ──────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee {
+    animation: none !important;
+  }
+  .term-line {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .animate-caret,
+  .animate-status-pulse,
+  .animate-float-y,
+  .flow-dash {
     animation: none !important;
   }
   *,

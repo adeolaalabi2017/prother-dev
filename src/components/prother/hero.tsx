@@ -37,6 +37,44 @@ function SocialProofCount() {
   );
 }
 
+/** SVG rays — ported from try.cloudflare.com: dashed strokes marching via
+    stroke-dashoffset (dash-march), radiating from the ember glow center. */
+function HeroRays() {
+  const rays = Array.from({ length: 12 }, (_, i) => i * 30);
+  const cx = 350;
+  const cy = 350;
+  return (
+    <svg
+      aria-hidden
+      className="absolute right-[-530px] top-[-210px] size-[700px] text-ember/35"
+      viewBox="0 0 700 700"
+      fill="none"
+    >
+      {rays.map((a) => {
+        const rad = (a * Math.PI) / 180;
+        const r1 = 150;
+        const r2 = 320 + (a % 60 === 0 ? 50 : 0);
+        // Rounded to 2 decimals — raw trig output differs in far decimals
+        // between server and client FPUs and breaks hydration.
+        const n = (v: number) => Number(v.toFixed(2));
+        return (
+          <line
+            key={a}
+            className="flow-dash"
+            x1={n(cx + r1 * Math.cos(rad))}
+            y1={n(cy + r1 * Math.sin(rad))}
+            x2={n(cx + r2 * Math.cos(rad))}
+            y2={n(cy + r2 * Math.sin(rad))}
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity={a % 60 === 0 ? 0.9 : 0.5}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 /** Decorative hero background — glow, concentric rings, ember dashes. */
 function HeroBackdrop() {
   const rings = [
@@ -73,6 +111,9 @@ function HeroBackdrop() {
       {dashes.map((d, i) => (
         <div key={i} className={`absolute h-px w-24 bg-ember/40 ${d.cls}`} />
       ))}
+
+      {/* marching dashed rays (try.cloudflare.com hero DNA) */}
+      <HeroRays />
     </div>
   );
 }
@@ -101,7 +142,10 @@ export function Hero() {
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
           <p className="inline-flex items-center rounded-full border border-ember/40 bg-ember/10 px-4 py-1.5 font-mono text-xs text-ember">
-            <span className="mr-2 inline-block size-1.5 rounded-full bg-ember" aria-hidden />
+            <span
+              className="mr-2 inline-block size-1.5 rounded-full bg-ember animate-status-pulse"
+              aria-hidden
+            />
             Now onboarding founding makers — first 500 get launch priority
           </p>
 
@@ -144,40 +188,47 @@ export function Hero() {
           </ul>
         </motion.div>
 
-        {/* Right — terminal panel */}
+        {/* Right — terminal panel (entrance slide on motion.div, then a
+            gentle float-y breathe on the inner panel; hover pauses the float) */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
-          className="overflow-hidden rounded-2xl border border-white/10 bg-[#111010] shadow-2xl"
+          className="will-change-transform"
         >
-          <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-            <span className="size-3 rounded-full bg-white/15" aria-hidden />
-            <span className="size-3 rounded-full bg-white/15" aria-hidden />
-            <span className="size-3 rounded-full bg-white/15" aria-hidden />
-            <span className="ml-2 font-mono text-xs text-white/50">daily-digest — zsh</span>
-          </div>
-          <div className="p-5 font-mono text-[13px] leading-relaxed">
-            <p className="text-white">
-              <span className="text-ember">$</span> prother digest --today
-            </p>
-            <p className="text-white/80">⬡ THE DAILY LAUNCH — {dayLabel}</p>
-            <p className="mt-2 text-white/80">
-              🏆 #1 {top1?.name ?? "Promptly"} — {top1?.tagline ?? "AI chatbots that never hallucinate citations"}
-              <span className="float-right text-ember">▲{top1?.votes ?? 47}</span>
-            </p>
-            <p className="mt-2 text-white/80">
-              📈 CLIMBING&nbsp;&nbsp;{top2?.name ?? "NectarSearch"} <span className="text-ember">▲{top2?.votes ?? 312}</span> ·{" "}
-              {top3?.name ?? "FlowStein"} <span className="text-ember">▲{top3?.votes ?? 288}</span>
-            </p>
-            <p className="mt-2 text-white/80">
-              ⭐ EDITOR&apos;S PICK&nbsp;&nbsp;{pick?.name ?? "PixelForge"} — {pick?.tagline ?? "sketches in, design systems out"}
-            </p>
-            <p className="mt-2 text-white/50">→ {moreCount} more launches · read in 5 min</p>
-            <p className="mt-3 flex items-center">
-              <span className="text-ember">$</span>
-              <span className="ml-2 inline-block h-4 w-2 animate-pulse bg-ember" aria-hidden />
-            </p>
+          <div className="animate-float-y overflow-hidden rounded-2xl border border-white/10 bg-[#111010] shadow-2xl hover:[animation-play-state:paused]">
+            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+              <span className="size-3 rounded-full bg-white/15" aria-hidden />
+              <span className="size-3 rounded-full bg-white/15" aria-hidden />
+              <span className="size-3 rounded-full bg-white/15" aria-hidden />
+              <span className="ml-2 font-mono text-xs text-white/50">daily-digest — zsh</span>
+            </div>
+            <div className="p-5 font-mono text-[13px] leading-relaxed">
+              <p className="term-line text-white" style={{ animationDelay: "0.05s" }}>
+                <span className="text-ember">$</span> prother digest --today
+              </p>
+              <p className="term-line mt-2 text-white/80" style={{ animationDelay: "0.25s" }}>
+                ⬡ THE DAILY LAUNCH — {dayLabel}
+              </p>
+              <p className="term-line mt-2 text-white/80" style={{ animationDelay: "0.45s" }}>
+                🏆 #1 {top1?.name ?? "Promptly"} — {top1?.tagline ?? "AI chatbots that never hallucinate citations"}
+                <span className="float-right text-ember">▲{top1?.votes ?? 47}</span>
+              </p>
+              <p className="term-line mt-2 text-white/80" style={{ animationDelay: "0.65s" }}>
+                📈 CLIMBING&nbsp;&nbsp;{top2?.name ?? "NectarSearch"} <span className="text-ember">▲{top2?.votes ?? 312}</span> ·{" "}
+                {top3?.name ?? "FlowStein"} <span className="text-ember">▲{top3?.votes ?? 288}</span>
+              </p>
+              <p className="term-line mt-2 text-white/80" style={{ animationDelay: "0.85s" }}>
+                ⭐ EDITOR&apos;S PICK&nbsp;&nbsp;{pick?.name ?? "PixelForge"} — {pick?.tagline ?? "sketches in, design systems out"}
+              </p>
+              <p className="term-line mt-2 text-white/50" style={{ animationDelay: "1.05s" }}>
+                → {moreCount} more launches · read in 5 min
+              </p>
+              <p className="term-line mt-3 flex items-center" style={{ animationDelay: "1.2s" }}>
+                <span className="text-ember">$</span>
+                <span className="animate-caret ml-2 inline-block h-4 w-2 bg-ember" aria-hidden />
+              </p>
+            </div>
           </div>
         </motion.div>
       </div>

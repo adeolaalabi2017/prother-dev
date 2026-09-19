@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "prother",
+  // OpenNext → Cloudflare Workers (Workers with static assets is the modern
+  // successor to Cloudflare Pages for Next.js — @cloudflare/next-on-pages is
+  // deprecated). `opennextjs-cloudflare build` fills .open-next/worker.js.
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+  // Optional (full-stack phase): uncomment when the Prisma/SQLite layer is
+  // migrated to D1 or Turso (see DEPLOY.md → "Database on Workers"):
+  // "d1_databases": [{ "binding": "DB", "database_name": "prother", "database_id": "<id>" }],
+  // "kv_namespaces": [{ "binding": "NEXT_INC_CACHE_KV", "id": "<id>" }]
+}
