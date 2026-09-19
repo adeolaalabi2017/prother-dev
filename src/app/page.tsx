@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { SiteHeader } from "@/components/prother/site-header";
 import { Hero } from "@/components/prother/hero";
 import { CategoryTicker } from "@/components/prother/category-ticker";
@@ -14,6 +15,62 @@ import { StatusTracker } from "@/components/prother/status-tracker";
 import { EditorConsole } from "@/components/prother/editor-console";
 import { ScrollProgress } from "@/components/prother/scroll-progress";
 import { BackToTop } from "@/components/prother/back-to-top";
+import { db } from "@/lib/prother";
+import { clamp } from "@/lib/og";
+
+/**
+ * Server-side unfurl metadata for shareable tool deep links (?tool=<slug>).
+ * The hash form (#tool=<slug>) can't reach the server, so "Copy link" now
+ * shares the canonical ?tool= form — social crawlers get a real title,
+ * description, and a dynamic OG image from /api/og?tool=<slug>.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const toolParam = params.tool;
+  const slug = (Array.isArray(toolParam) ? toolParam[0] : toolParam)?.trim();
+
+  if (!slug) return {};
+
+  const tool = await db.tool.findUnique({
+    where: { slug },
+    include: {
+      launch: { include: { _count: { select: { votes: true } } } },
+      category: { select: { name: true } },
+    },
+  });
+  if (!tool) return {};
+
+  const votes = (tool.launch?.baseUpvotes ?? 0) + (tool.launch?._count.votes ?? 0);
+  const scheduled = tool.launch?.scheduled ?? false;
+  const title = `${tool.name} — ${tool.tagline} | Prother`;
+  const description = clamp(
+    `${scheduled ? "Launching" : "Live"} on Prother · ${tool.category.name} · ▲ ${votes} votes. ${tool.description || tool.tagline}`,
+    200,
+  );
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      images: [
+        { url: `/api/og?tool=${encodeURIComponent(slug)}`, width: 1200, height: 630 },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`/api/og?tool=${encodeURIComponent(slug)}`],
+    },
+  };
+}
 
 export default function Page() {
   return (

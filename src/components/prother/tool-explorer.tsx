@@ -36,7 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { ToolDetailResponse } from "@/lib/prother";
 import { CATEGORIES } from "./categories";
-import { toolHash, useExplorer } from "./explorer-store";
+import { useExplorer } from "./explorer-store";
 import { useFeed } from "./use-feed";
 import { getVoterKey } from "./voter";
 
@@ -170,7 +170,7 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
 
   const shareUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/${toolHash(slug)}`
+      ? `${window.location.origin}/?tool=${encodeURIComponent(slug)}`
       : "";
   const shareText = detail
     ? `🚀 ${detail.name} — ${detail.tagline} is on Prother`
@@ -222,7 +222,7 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
 
       {!loading && !error && detail && vote && (
         <>
-          {/* Header with gradient banner */}
+          {/* Header with gradient banner + ember glow / dot texture */}
           <div className="relative">
             <div
               aria-hidden
@@ -231,7 +231,15 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
                 detail.gradient,
               )}
             />
-            <div className="flex items-end gap-4 px-6 pb-4">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(340px_120px_at_85%_0%,rgba(255,106,0,0.22),transparent_70%)]"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-20 opacity-[0.14] [background-image:radial-gradient(rgba(255,255,255,0.55)_1px,transparent_1px)] [background-size:12px_12px]"
+            />
+            <div className="relative flex items-end gap-4 px-6 pb-4">
               <div
                 aria-hidden
                 className={cn(
@@ -816,9 +824,10 @@ export function ToolExplorer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [setSearch]);
 
-  // Shareable deep links: /#tool=<slug> opens the detail modal on load —
-  // and keeps working when the hash is navigated to *after* load
-  // (same-document navigation, pasted links, back/forward).
+  // Shareable deep links open the detail modal:
+  //  - /#tool=<slug>     hash form (works on load AND same-document nav)
+  //  - /?tool=<slug>     canonical form (server-reachable → real OG unfurl;
+  //                      copied by the modal's Copy-link action)
   // Clearing the hash (e.g. browser Back) closes the modal again.
   useEffect(() => {
     const applyHash = (initial = false) => {
@@ -830,6 +839,18 @@ export function ToolExplorer() {
     const onHash = () => applyHash(false);
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
+  }, [openTool]);
+
+  // Canonical ?tool= form: open the modal once at mount, then normalize the
+  // URL to the hash form (keeps ?cat=/?tab=, drops the query param) so the
+  // address bar matches what in-app navigation produces.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tool");
+    if (!t) return;
+    openTool(t);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("tool");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
   }, [openTool]);
 
   // Restore a shared/filtered category from the URL on load (?cat=<slug>)

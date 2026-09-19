@@ -238,3 +238,33 @@ Work Log:
 Stage Summary:
 - The PRD §11 loop is now closed on BOTH sides: makers submit → track (queue position / launch date / cited rejections) → preview their listing the moment it's scheduled; editors approve/reject from the console. The tool modal cross-links into category browsing ("More like this" + "ALL <category>"), tightening the discovery graph.
 - Risks/next: (1) Turbopack phantom issue in dev overlay persists until dev-server restart (routes verified 200 — cosmetic only); (2) email-only tracker lookup is auth-lite — NextAuth (Phase 2) would gate accounts + history; (3) submission → approved-tool link is still domain-matched (no FK) — a submissionId column on Tool would make it exact; (4) seeded fictional external URLs still pending swap before prod; (5) candidate next: launch-day calendar view, OG image route for #tool links, rejected-resubmit prefill (clone form from a rejected submission).
+
+---
+Task ID: 11
+Agent: main orchestrator (Z.ai Code)
+Task: webDevReview cycle #7 — Dynamic OG images + server-side unfurl metadata (?tool=) + rejected-resubmit prefill + styling details
+
+Work Log:
+- Assessment: server healthy (GET / 200, /api/feed 200: 12 today / 5 tomorrow / 3 yesterday / 414 subs), lint 0 errors, dev.log clean, browser QA: 12 feed rows, no overflow (1280), no console errors → stable → new-feature cycle.
+- NEW — Dynamic OG images (next/og ImageResponse, 1200×630):
+  - GET /api/og → branded site card ("Where AI products launch._" hero type, ember glow, mono labels); GET /api/og?tool=<slug> → per-tool launch card (gradient logo tile + emoji, LIVE/GOES-LIVE mono kicker, name, tagline, category chip + votes chip, ember bottom rule). Data via db.tool.findUnique (launch + votes count + category); unknown slug gracefully falls back to the site card.
+  - src/lib/og.ts: GRADIENT_HEX map (12 Tailwind gradient classes → real hex stops, satori can't read classes), OG_COLORS palette, clamp() for satori-safe truncation.
+  - Satori quirks handled: flexbox-only layouts, monochrome-safe emoji inside gradient tile, "▲" glyph missing in mono font (dropped), bottom bar rebuilt as flat space-between row (nested flex column made the right text wrap vertically at the edge — caught by visual diff of the PNG).
+- NEW — Server-side unfurl metadata for shareable tool links:
+  - Hash deep links (#tool=) can't reach the server, so ?tool=<slug> is now the CANONICAL share form: page.tsx generateMetadata reads searchParams, fetches the tool, emits per-tool <title>, description (category + votes + description via clamp), og:image /api/og?tool=slug, twitter:card summary_large_image. Verified via curl: full og:/twitter: meta set on /?tool=promptly.
+  - layout.tsx: metadataBase added + default openGraph/twitter images → /api/og.
+  - tool-explorer.tsx: mount effect opens the modal from ?tool= as well, then normalizes the URL to the hash form (replaceState keeps ?cat=/?tab=, drops ?tool=) so the address bar matches in-app navigation; DetailBody shareUrl (Copy link + X intent) now emits the canonical ?tool= form — verified in the X intent href.
+- NEW — "Resubmit with fixes" (rejected submissions → wizard prefill, PRD §11 loop closure):
+  - lib/submit.ts: SubmitPrefill type (email + all wizard fields minus confirm checkboxes — maker must re-attest); SubmissionStatusItem gains resubmit (rejected only).
+  - listSubmissionsByEmail now selects the full form columns and builds the prefill (tags CSV → vocab-filtered ≤5, pricingModel validated with freemium fallback, hasApi via Boolean()).
+  - explorer-store: submitPrefill state; setSubmitOpen(open, prefill?) — plain opens (header CTAs, palette) always start fresh, close always clears, so a stale draft never leaks.
+  - status-tracker ResultCard: RESUBMIT WITH FIXES button (red-bordered, arrow slide hover) → closes tracker → opens wizard prefilled; submit-wizard applies the draft on open (toast "Draft loaded — Pre-filled from your rejected <name> submission", step 1, dup-check state reset).
+  - E2E verified in browser: submission → editor reject (S1+S4 cited) → tracker lookup → RESUBMIT WITH FIXES → wizard prefilled (URL/name/email/tagline/description/category radio coding-tools all correct, toast shown, confirms unticked) → QA row deleted from DB afterwards.
+- STYLING DETAILS: tool modal banner gets a radial ember glow + dot-grid texture overlay (both pointer-events-none, aria-hidden); footer brand column gets ⌘K SEARCH / ⌘⇧E EDITOR kbd chips (hover→ember) for shortcut discoverability; OG cards themselves are new branded visual artifacts (saved to qa/).
+- QA artifacts qa/59–63 (modal banner glow, footer kbd chips, OG site card, OG tool card, mobile-390 deep link).
+- Verified: lint 0 errors; dev.log clean (GET /, /api/feed, /api/tools/*, GET /?cat=… all 200; no runtime errors); browser errors empty; ?tool= + ?cat= combo works (modal opens, ?tool= stripped, ?cat= preserved, hash normalized); mobile 390px docsw=390 no overflow; true-reload /#tool=pixelforge still opens only the tool modal (hash path unaffected); DB left clean (only QA submission removed).
+
+Stage Summary:
+- Sharing is now real: every tool has a canonical ?tool= link that unfurls with a custom-designed OG card on social/IM platforms, plus the branded site card as default. Copy-link and X-share emit the unfurlable form.
+- The PRD §11 maker loop is fully closed: submit → track → (rejected) → RESUBMIT WITH FIXES re-opens the wizard pre-filled → re-review.
+- Risks/next: (1) OG font is satori's bundled default (not Geist) — close enough visually; a custom font file could be loaded via ImageResponse fonts option if brand fidelity matters later; (2) generateMetadata makes the root route dynamic (fine for this scope); (3) seeded fictional external URLs still pending swap before prod; (4) candidate next: launch-day calendar view, submissionId FK on Tool (exact approved-linking), NextAuth gating, editor-queue real-time updates.

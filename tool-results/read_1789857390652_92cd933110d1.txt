@@ -1,0 +1,241 @@
+     1→# Prother — Worklog
+     2→
+     3→Project: Prother — "Where AI products launch." (prother.dev)
+     4→Landing page built with Next.js 16 + Tailwind 4 + shadcn/ui + Prisma/SQLite.
+     5→Design language: inspired by Cloudflare Quick Tunnels screenshot — ink black (#0A0A0A), ember orange (#FF6A00), cream (#F1EDE4), mono chips/terminals, huge black display type.
+     6→
+     7→---
+     8→Task ID: 1
+     9→Agent: main orchestrator (Z.ai Code)
+    10→Task: Backend foundation — Prisma schema, seed data, API routes (feed / waitlist / vote)
+    11→
+    12→Work Log:
+    13→- Read PRD (Prother Master v2.0) + Cloudflare screenshot; extracted design tokens: ink #0A0A0A, ember #FF6A00, cream #F1EDE4, mono labels, concentric-ring hero glow, city-code ticker → adapted to category-slug ticker.
+    14→- Replaced prisma/schema.prisma with Prother domain: Subscriber (waitlist F-45), Category (10 cats §13), Tool (status/track/badges), Launch (votes reference launch_id per §16), Vote (anon voterKey, unique per launch — F-14). Note: `@createdAt` failed on installed Prisma parser → used `@default(now())`.
+    15→- `bun run db:push` → synced. `bun prisma/seed.ts` → 24 tools (12 today, 4 tomorrow teasers, 8 past-week incl. Promptly/CodePilotX/PixelForge/NectarSearch), 10 categories, 412 base subscribers.
+    16→- Created src/lib/prother.ts — shared types (FeedRow, FeedResponse, Teaser, TopWeekRow) + PRD F-36 ranking `score = weighted_upvotes / hours^1.2` + secondsUntilUtcMidnight.
+    17→- API routes: GET /api/feed (today new/top ranked, tomorrow teasers, topWeek, editorsPick, subscriberCount, resetsInSec), GET+POST /api/waitlist (zod-validated upsert, returns count + alreadySubscribed), POST /api/vote (anon toggle, 1 vote/visitor/launch, returns new total).
+    18→- Smoke-tested via curl: /api/feed 200 (12 launches, ranked, countdown 11478s), waitlist POST → {count:413, alreadySubscribed:false}, vote POST → {voted:true, votes:48}.
+    19→
+    20→Stage Summary:
+    21→- Backend complete and verified. API contracts for UI:
+    22→  - `import type { FeedResponse, FeedRow, Teaser, TopWeekRow } from "@/lib/prother"` (type-only import — safe in client).
+    23→  - GET /api/feed → FeedResponse; POST /api/waitlist {email, source} → {count, alreadySubscribed}; GET /api/waitlist → {count}; POST /api/vote {launchId, voterKey} → {voted, votes}.
+    24→- Dev server already running on :3000 (check /home/z/my-project/dev.log). Do NOT run `bun run build`. Only route allowed: src/app/page.tsx (/).
+    25→- Next: Task 2 = full landing page UI (header, hero, ticker, how-it-works, live launch feed, agent-era, standards S1–S6, FAQ, final CTA, sticky footer).
+    26→
+    27→---
+    28→Task ID: 2
+    29→Agent: full-stack-developer
+    30→Task: Complete landing page UI — all 11 sections composed on the `/` route, wired to the Task 1 APIs
+    31→
+    32→Work Log:
+    33→- Read worklog.md + src/lib/prother.ts; verified live APIs via curl (feed 200: 12 launches, dayLabel "Sat, Sep 19", waitlist count 413) before writing any UI.
+    34→- globals.css: extended `@theme inline` with --color-ember/-ember-hot/-ink/-coal/-cream/-sand (kept all shadcn tokens); added marquee keyframes + `.animate-marquee` (40s linear infinite, hover-pause), thin ember scrollbar (webkit + Firefox), `::selection` ember-on-ink.
+    35→- layout.tsx: metadata → "Prother — Where AI products launch" + PRD description + OG/Twitter. Fonts & shadcn `<Toaster />` (radix, hooks/use-toast exists) left as-is.
+    36→- Components in src/components/prother/ (all 'use client', lucide icons, framer-motion fade-up whileInView once on section headings only):
+    37→  - waitlist-form.tsx — shared email capture (source prop, dark/compact variants); POST /api/waitlist, success line "✓ You're on the list — see you at 00:00 UTC." + "N on the list"; 422/error → destructive toast. Reused 3× (hero, sidebar, final CTA).
+    38→  - site-header.tsx — sticky z-50 bg-ink/85 backdrop-blur; Hexagon logo fill-ember; center anchors; mobile hamburger dropdown; CTA → #submit.
+    39→  - hero.tsx — radial ember glow + 4 concentric rings + 6 rotated ember dashes backdrop; pill, H1 ("launch." in text-ember), WaitlistForm(source="hero"), social proof count from GET /api/waitlist (412+ placeholder), live "N LAUNCHES TODAY" chip, stat chips; right: daily-digest zsh terminal with ember ▲votes + blinking cursor.
+    40→  - category-ticker.tsx — #categories marquee, 10 hardcoded slug→emoji items duplicated 2× (aria-hidden dupe).
+    41→  - how-it-works.tsx — cream section; dark dot-grid panel with 3 flow cards + MoveRight separators (card 02 = ember highlight w/ chips); 3 white stat cards ("≤5 min", "0", "10") in #C24A00.
+    42→  - launch-feed.tsx — THE PRODUCT: GET /api/feed via shared use-feed hook (module-level promise dedupe so Hero's todayCount reuses one request); New/Top Today/Tomorrow tabs (client-side switch); feed rows with rank, optimistic upvote (Triangle, POST /api/vote, voterKey = crypto.randomUUID() in localStorage "prother_voter_key", server-reconcile + revert + toast on failure), gradient emoji logos, Editor's Pick/Curated/Re-launch/Claim badges, pricing meta line + OSS/API suffixes; tomorrow teasers with GOES LIVE IN {H}H; HH:MM:SS countdown from resetsInSec (1s tick, auto-refetch at UTC midnight via refresh()); sidebar (order-first lg:order-last): 📬 Daily Launch w/ compact WaitlistForm, 🏆 Top Week 5 rows, ⭐ Editor's Pick (ember-tinted card), Browse category chips + "+4 more"; skeleton loading (3 pulsing rows); yesterday row + "Launch it free" CTA; fixed mobile ember submit bar w/ safe-area-inset padding.
+    43→  - agent-era.tsx — full-bleed bg-ember text-black; numbered 01–03 list; launch-day zsh terminal (emerald ✓s, ▲31 in text-ember-hot).
+    44→  - standards.tsx — cream; S1–S6 white cards (#C24A00 mono ids) + rejection/resubmit italic footer.
+    45→  - faq.tsx — shadcn Accordion (single, collapsible) dark-styled, 4 QA pairs.
+    46→  - final-cta.tsx — #submit, bottom ember glow, "Be there on / day one." + centered WaitlistForm(source="cta").
+    47→  - site-footer.tsx — mt-auto; 4-col grid (logo+blurb, Product, Resources, Company anchors); bottom bar "© 2026 Prother — Curation is never sold." / "STANDARDS · PRIVACY · STATUS".
+    48→- page.tsx — only route; root wrapper `min-h-screen flex flex-col bg-ink pb-16 md:pb-0` (pb-16 clears the mobile sticky bar), footer sticks via mt-auto.
+    49→- Lint fix: react-hooks/set-state-in-effect errors → countdown refactored to render-time deadline ref + 1s `now` ticker (setState only inside interval callback), removed voteState seed effect (rows fall back to row.votes/row.voted when key absent; onVote seeds on first click).
+    50→- QA: `bun run lint` → 0 errors; dev.log → ✓ Compiled, GET / 200, no runtime errors; curl / | grep → "Where AI products", "TODAY'S LAUNCHES", "Be there on", "Questions, answered", "Every tool passes all six", "Curation is never sold" all present in SSR HTML; rg check → no blue/indigo/sky/cyan/violet classes (yellow-500 "Curated" chip + emerald-400 terminal ✓s are spec-mandated).
+    51→
+    52→Stage Summary:
+    53→- Landing page UI complete: 11 sections live on `/`, fully wired to backend (feed fetch + vote toggle + 3 waitlist sources + live social-proof counts + UTC countdown with midnight rollover).
+    54→- Deviations from spec (minor): (1) countdown uses render-derived deadline + ticking `now` instead of setState-in-effect to satisfy React hooks lint; (2) "Visit ↗" on feed rows is a non-navigating span (websiteUrl not in FeedRow — per PRD no external links from feed); (3) "Why we picked it →" links to #standards; (4) feed auto-refetch on rollover calls refresh() from use-feed rather than reloading the page; (5) marquee pauses on hover (bonus).
+    55→- Design tokens applied exactly (ink/coal/ember/ember-hot/cream/sand, #C24A00 on cream for contrast); sticky-footer rule verified; mobile safe-area respected.
+    56→- Do NOT run bun run build; dev server on :3000 serving 200. Next: none — Task 2 is the final stage of the PRD scope.
+    57→
+    58→---
+    59→Task ID: 3
+    60→Agent: main orchestrator (Z.ai Code)
+    61→Task: End-to-end QA with agent-browser + bug fixes
+    62→
+    63→Work Log:
+    64→- agent-browser: opened /, full-page + per-section viewport screenshots (hero, ticker, how-it-works, stats, feed, agent-era, standards, FAQ, footer). All 11 sections render with correct design tokens; cream/orange sections confirmed via real scrolling (full-page captures show them blank only because framer-motion whileInView hasn't fired in Playwright full-page mode).
+    65→- Interaction tests PASSED: Top Today / Tomorrow (4) tab switching; upvote toggle (47→48→49→48→49 with server reconcile; earlier smoke-test vote explained the first jump); hero waitlist submit → success state + toast + count 413→414; countdown ticking (02:57:06 → live); FAQ accordion expand verified via data-state=open.
+    66→- BUG 1 (fixed): mobile horizontal overflow — document scrollWidth 583 vs 390. Root causes: (a) compact WaitlistForm input couldn't shrink (no min-w-0/flex-1); (b) grid blowout — #feed grid items lacked min-w-0 so the implicit track sized to content min-width (aside right edge = 583px). Fixes: `min-w-0 flex-1` on Input, `min-w-0` on both grid children (aside + main), `overflow-x-clip` on root wrapper in page.tsx as safety net. Verified: docsw 390 vs 390, aside right = 374.
+    67→- BUG 2 (fixed): /api/feed displayed baseUpvotes only, ignoring anonymous votes already cast (tally inconsistency vs POST /api/vote). Fix: feed route now groupBy votes per launchId and merges into totals for today's + top-week launches.
+    68→- Cleared QA test votes from DB (2 rows) for a clean demo state.
+    69→- Final: lint 0 errors; dev.log clean (GET / 200, GET /api/feed 200); mobile 390px + desktop 1440px both verified; sticky footer + mobile sticky submit bar with safe-area confirmed.
+    70→
+    71→Stage Summary:
+    72→- Site is production-ready for the landing-page scope: browser-verified rendering, all core interactions working, no console/runtime errors, no horizontal overflow on mobile.
+    73→- QA artifacts in /home/z/my-project/qa/*.png (16 screenshots).
+    74→- Known minor items for next cycle: hero social-proof count can lag the POST response by 1 until refetch; framer-motion whileInView means below-fold sections need JS to fade in (SSR text still crawlable); "Visit ↗" is intentionally non-navigating (PRD: no external links from feed).
+    75→
+    76→---
+    77→Task ID: 4
+    78→Agent: main orchestrator (Z.ai Code)
+    79→Task: Handover doc + 15-minute webDevReview cron
+    80→
+    81→Work Log:
+    82→- Appended this Task 3/4 record to worklog.md.
+    83→- Created scheduled cron job (kind=webDevReview, fixed_rate 900s) with the mandated assessment/QA/development loop description.
+    84→
+    85→Stage Summary:
+    86→- Project state: Prother landing page (PRD Appendix D copy + §9 feed demo + Cloudflare-inspired design system) live on `/` with Prisma-backed feed/waitlist/vote APIs. Recurring 15-min agent review enabled for continuous iteration.
+    87→
+    88→---
+    89→Task ID: 5
+    90→Agent: main orchestrator (Z.ai Code)
+    91→Task: webDevReview cycle #1 — regression QA + new features (tool detail modal, ⌘K search) + styling details
+    92→
+    93→Work Log:
+    94→- Regression QA (agent-browser): / loads 200, 12 feed rows, no console errors, no overflow (1280/1280). Vote & waitlist flows unaffected.
+    95→- NEW API: GET /api/tools/[slug] (PRD §10.1) — full detail: description, pricing {model,price,note}, links (website/github/docs/twitter), meta (category/status/submitted/launch day), standards S1–S6 checklist (passed=!scheduled for scheduled launches), votes, and `?vk=<voterKey>` → per-visitor voted state (F-14 integrity: modal now reflects existing ballots).
+    96→- NEW shared module: src/lib/standards.ts (STANDARD_DEFS, client-safe); ToolDetailResponse type added to lib/prother.ts.
+    97→- NEW explorer-store.ts (zustand): {slug, searchOpen} shared by header, feed rows, and dialogs.
+    98→- NEW tool-explorer.tsx mounted once in page.tsx:
+    99→  - ToolDetailDialog: dark coal modal — gradient banner header + overlapping emoji logo, badges, action row (Visit website ember / GitHub / Docs / X ghosts + inline upvote), meta grid (CATEGORY · STATUS Verified/In review · SUBMITTED · LAUNCH DAY), ember pricing card, description, QUALITY BAR 6/6 checklist grid, maker footer w/ Claim link. Detail fetch keyed by slug (`key={slug}` remount pattern to satisfy react-hooks/set-state-in-effect lint — 0 errors).
+   100→  - Vote sync: modal dispatches `prother:vote` CustomEvent; LaunchFeed listens and merges into its voteState (feed behind modal stays consistent). Modal initial voted state comes from server via ?vk=.
+   101→  - CommandPalette (⌘K / ctrl+K listener): groups Today's launches / Tomorrow / Top this week / Categories / Actions (Submit, Standards, Jump to feed); fuzzy filter; Enter → closes palette then opens tool modal after 80ms (radix dialog handoff).
+   102→- Feed rows now open the modal (click/Enter, role=button + aria-label); upvote + Claim stopPropagation; "Visit ↗" relabeled "Details ↗" with group-hover ember. TopWeek rows + Editor's Pick card also open the modal (now proper <button>s).
+   103→- Header: new "Search tools ⌘K" button (icon-only on mobile, kbd chip on lg) + mobile menu entry.
+   104→- Styling details: ScrollProgress (fixed 3px ember gradient bar, spring-smoothed, z-60), BackToTop (appears >600px, animated, positioned above mobile submit bar), prefers-reduced-motion support (marquee + transitions), cmdk dark-theme overrides in globals.css ([cmdk-root/input/item/group-heading/separator] scoped under [role=dialog] — the palette inherited light popover tokens from :root).
+   105→- Bugs fixed this cycle: (1) palette light-on-white text (popover token) → scoped dark CSS; (2) mobile modal overflow — DialogContent max-w-2xl overrode viewport-safe default → `max-w-[calc(100vw-2rem)] sm:max-w-2xl` (verified: dialog right=374, docsw=390).
+   106→- Verified: lint 0 errors; dev.log clean (GET / + /api/feed + /api/tools/promptly 200); QA artifacts qa/17–24 (modal, standards checklist, palette filtered "voice" → VoiceLoom, mobile modal, desktop final).
+   107→
+   108→Stage Summary:
+   109→- Prother is now interactive beyond the feed: any tool (today, tomorrow, top week, or via search) opens a rich detail modal with pricing, links, and the quality-bar audit — the PRD §10.1 experience without leaving the landing page.
+   110→- ⌘K command palette is the flagship UX addition (header button + keyboard shortcut + arrow navigation).
+   111→- Risks/next: (1) modal vote count and feed refetch could be unified via a shared vote cache; (2) seeded external URLs are fictional (promptly.ai etc.) — swap for real tools before production; (3) hero social-proof count still lags POST response by 1 until reload; (4) consider share buttons (Copy link / Tweet) in modal footer next cycle.
+   112→
+   113→---
+   114→Task ID: 6
+   115→Agent: main orchestrator (Z.ai Code)
+   116→Task: webDevReview cycle #2 — full QA regression + category filtering, shareable deep links, waitlist sync, styling details
+   117→
+   118→Work Log:
+   119→- Assessment: server healthy (GET /, /api/feed, /api/waitlist, /api/tools/* all 200), dev.log clean. Browser QA (agent-browser): 12 feed rows, vote toggle 48→49→48, modal, ⌘K, mobile 390px no overflow, desktop 1280px no overflow, no console errors → phase judged stable, so this cycle = bug fixes + new features.
+   120→- BUG FIX 1 (pre-existing, uncovered by QA): CATEGORIES constant had no `name` field → ⌘K palette category items rendered EMPTY labels (a11y tree announced only "FILTER") and BROWSE chip tooltips were undefined. Added full `name` per category (mirrors seeded DB rows) in src/components/prother/categories.ts.
+   121→- BUG FIX 2: tool modal CATEGORY value truncated ("Generative Ai...") → removed `truncate`, added leading-snug wrap + title attr.
+   122→- BUG FIX 3 (styling): feed "Claim this →" mono arrow rendered as stray dots → restyled as dashed ember chip with lucide ArrowUpRight ("Claim this ↗").
+   123→- NEW FEATURE — category filtering of the launch feed (shared zustand state `categoryFilter` in explorer-store):
+   124→  - BROWSE sidebar chips are now real toggle buttons (ember fill when active, active:scale-95, title=full name).
+   125→  - Filter applies to New/Top rows AND Tomorrow teasers (Teaser type already carried category).
+   126→  - Animated filter status bar above the list ("FILTER · 🤖 Chatbots" + CLEAR button, AnimatePresence height/opacity) + empty state with "Show all categories" reset.
+   127→  - ⌘K palette "Categories" group now APPLIES the filter + smooth-scrolls to #feed (previously scrolled to a static section).
+   128→- NEW FEATURE — shareable tool deep links:
+   129→  - openTool/closeTool now sync `location.hash` via history.replaceState (#tool=<slug>).
+   130→  - ToolExplorer opens the modal from `#tool=<slug>` on page load (fresh-load verified: /#tool=pixelforge).
+   131→  - Modal action row: Copy link button (Link2 → emerald Check for 1.6s, clipboard write, toast fallback on failure) + Share on X (twitter intent with prefilled "🚀 Name — tagline is on Prother" + share URL).
+   132→- NEW FEATURE — waitlist social-proof instant sync: WaitlistForm dispatches `prother:waitlist` {count}; Hero SocialProofCount listens → count updates without reload (verified 414→415 live).
+   133→- NEW FEATURE — hero terminal is now data-driven from the live feed: #1 name/tagline/votes, CLIMBING = top[1]/top[2], Editor's Pick, dayLabel, remaining-launches count (seeded copy kept as fallback).
+   134→- STYLING DETAILS: framer-motion layoutId sliding ember pill on feed tabs; rank #1 ember bold + ranks 2-3 brightened (tabular-nums); vote counts pop via keyed motion.span (spring, ember flash); feed rows get translate-x hover + sliding ember left accent bar; active:scale press feedback on all vote buttons + Visit website; category ticker edge fade masks (ink gradients); modal vote count tabular-nums.
+   135→- QA artifacts qa/25–36. Test vote + test subscriber (sync-test@example.com) removed from DB afterwards.
+   136→- Verified after all changes: `bun run lint` 0 errors; dev.log clean (no runtime errors); reload → 12 rows, no console errors, docsw 1280/390 == viewport, hash cleared after modal close.
+   137→
+   138→Stage Summary:
+   139→- The feed is now genuinely explorable: filter by 10 categories (chips or ⌘K), every tool has a shareable deep link with copy/X-share actions, and all counts (votes, subscribers) update live without reloads.
+   140→- Bugs fixed: empty palette category labels (a11y), modal category truncation, Claim chip rendering.
+   141→- Remaining risks/next: (1) seeded external URLs still fictional (swap before prod); (2) filter state is session-only (no URL sync — could persist via ?cat= query); (3) could add per-category counts in BROWSE chips + ⌘K results; (4) possible next features: recent-launches archive (yesterday), OG meta for #tool deep links, launch-day reminder opt-in.
+   142→
+   143→---
+   144→Task ID: 7
+   145→Agent: main orchestrator (Z.ai Code)
+   146→Task: webDevReview cycle #3 — deep-link robustness fix, Yesterday archive, category counts, ?cat= URL sync, scroll-spy + a11y styling pass
+   147→
+   148→Work Log:
+   149→- Assessment: server healthy (/, /api/feed, /api/tools/* all 200, dev.log clean). Browser QA: no overflow (1280/390), vote toggle OK, filter OK. Found 1 QA issue: /#tool=<slug> deep link only opened on true reload — same-document hash navigation (paste link in same tab, in-page #tool links, back/forward) never opened the modal because the hash effect ran once at mount only. Verified via network log (no /api/tools fetch fired).
+   150→- FIX — deep-link robustness (tool-explorer.tsx): ToolExplorer now listens to `hashchange`; hash match → openTool, hash cleared (browser Back) → closeTool. Mount pass is open-only (initial=true) to avoid redundant replaceState. Verified: location.hash='#tool=voiceloom' on a loaded page opens the modal; history.back() closes it; ?cat= survives.
+   151→- NEW — Yesterday archive tab (PRD-consistent "voting closed" semantics):
+   152→  - /api/feed now returns `yesterday: FeedRow[]` (final standings, votes desc), `yesterdayLabel` (e.g. "Sep 18"), and `categoryCounts` (today's launches per category slug). Yesterday launch IDs merged into the anon-vote groupBy. Types extended in lib/prother.ts (FeedResponse).
+   153→  - Feed: 4th tab `Yesterday (N)` with responsive labels (mobile: New/Top/Tmrw (4)/Yest. (3) — fits 390px, no overflow; desktop: full labels). Archive header rule "ARCHIVE · Sep 18 · FINAL STANDINGS · VOTING CLOSED"; rows render locked FinalScore tiles (no upvote button; tooltip "Voting closed — final #N score"); footer note "Winner gets the top of tomorrow's daily email. Voting re-opens at 00:00 UTC."; bottom-left static text is now a real toggle: "← Yesterday · Sep 18 [N]" ↔ "→ Back to today's launches". Category filter applies to yesterday rows too; empty-state copy adapts ("launches yesterday").
+   154→- NEW — per-category counts: BROWSE chips show mono count pills (hidden when 0) + sub-label "TODAY'S LAUNCHES PER CATEGORY"; title="name · N today"; ⌘K palette category items show "N today" pill.
+   155→- NEW — URL-synced category filter: explorer-store.setCategoryFilter syncs ?cat=<slug> via replaceState (validated against CATEGORIES on restore at load). Verified: chip click → ?cat=coding-tools; reload → filter/chip/FILTER bar restored, 1 row.
+   156→- STYLING/A11Y: header scroll-spy — IntersectionObserver-free passive scroll handler picks the section nearest above the 96px line (fixed array-order bug where "Categories" won over "Feed"); active link = text-ember + sliding ember underline + aria-current. globals.css: section[id] scroll-margin-top 5rem (anchors no longer hide under sticky header), global ember :focus-visible ring (2px #FF6A00 + offset), html smooth-scroll (respects reduced-motion override). Header "The Daily" now xl-only (de-clutters 1280px), nav gap-7/xl:gap-8.
+   157→- QA artifacts qa/37–44 (filter, yesterday tab desktop, mobile tabs, browse counts, palette counts).
+   158→- Verified: `bun run lint` 0 errors; dev.log clean (GET /api/feed 200); no page errors; no DB changes this cycle (test vote toggles net-zero, no waitlist writes).
+   159→
+   160→Stage Summary:
+   161→- Prother now has a complete 4-state feed day cycle (yesterday archive → today live → tomorrow teasers) with PRD-consistent voting rules, category exploration with live counts, fully shareable state (#tool= + ?cat= survive reload AND same-document navigation), and a scroll-aware header.
+   162→- Remaining risks/next: (1) seeded external URLs still fictional (swap before prod); (2) ⌘K "Jump to the feed" could also honor ?cat= deep link (?cat= without scroll — could auto-scroll on restore); (3) could persist selected tab (new/top) in URL too (?tab=); (4) hero social-proof count edge case from Task 5 still open (lags POST by 1 until refetch — waitlist event now syncs it, consider resolved); (5) possible next: launch-day calendar view, maker submission flow (PRD §10.2), OG image route for #tool links.
+   163→
+   164→---
+   165→Task ID: 8
+   166→Agent: main orchestrator (Z.ai Code)
+   167→Task: webDevReview cycle #4 — PRD §11 Submission Wizard (Track B: community submit) + ?tab= persistence + CTA rewiring
+   168→
+   169→Work Log:
+   170→- Assessment: server healthy, 12 rows, no overflow/errors (agent-browser). Stable → new-feature cycle.
+   171→- PRD re-read (upload/Prother.dev PRD.pdf pp.5–11): §7 standards S1–S6, §8 dual-track supply, §11 wizard spec — 5 steps (Product/Describe/Pricing & links/Media/Confirm), persistent live-preview right rail, duplicate interstitial on URL blur, tagline 5–60 live counter, category radio with one-line helpers, ≤5 controlled-vocab tags, Open Source → GitHub required, confirm = 2 checkboxes (live-now + standards-read), rate limits 3/email/7d + 1/domain, post-submit "in review, typically 24h" + queue position.
+   172→- DATA: prisma Submission model (email, websiteUrl, domain, name, tagline, description, categorySlug, tags, pricing*, hasApi, github/docs/twitter, logoEmoji/logoGradient, isOwner, confirmedLive, agreedStandards, status, reviewNote) + 3 indexes. `bun run db:push` synced.
+   173→- ⚠ RUNTIME QUIRK (solved): long-running `next dev` kept a PRE-generation PrismaClient cached on globalThis → `db.submission` undefined even after `db:push` regenerate (Turbopack node_modules cache). Workaround: all Submission queries implemented as $queryRaw helpers in lib/prother.ts (findActiveSubmissionByDomain / countSubmissionsSince / createSubmission / pendingQueuePosition) — model-independent, table exists in SQLite. lib/db.ts now self-heals (recreates singleton if the cached client lacks `submission`). After a real dev-server restart these helpers can be swapped back to the ORM (they behave identically).
+   174→- API: POST /api/submit (zod full payload validation incl. live-now/standards literal(true), URL normalization, 1-per-domain → 409 with {kind:'tool'|'submission'} interstitial data, 3/email/7d → 429, OSS→GitHub → 422; 201 → {id, position}); GET /api/submit/check?url= (Step-1 blur dup check against seeded tools AND pending queue). lib/submit.ts = client-safe constants (TAG_VOCAB §13 vocab, GRADIENTS, LOGO_EMOJIS, PRICING_MODELS, INITIAL_SUBMIT_FORM, validateStep per-step mirror of server rules).
+   175→- UI submit-wizard.tsx (Dialog, mounted once in page.tsx):
+   176→  - 5 steps w/ segment progress bar + mono STEP 0x/05 + per-step subtitle; sticky footer nav (Cancel/Back ↔ Continue/Submit with loading state); disabled Continue when domain already queued.
+   177→  - Live-preview right rail (lg+): feed-row mock (emoji+gradient logo, name, tagline placeholder "Say what it does in the first 5 words", SUBMITTED BY YOU badge, category/pricing/domain meta line), pricing card, QUALITY BAR reminder — updates every keystroke.
+   178→  - Step ① URL/name/email/isOwner + duplicate interstitial banner (amber, ▲votes · listed by @maker, "This is my product → View it" opens the tool modal; "It's a different tool → Continue").
+   179→  - Step ② tagline w/ live counter + ember fill bar (red >60), description textarea, 2-col category radio grid with helpers, tag chips (max 5, dimmed beyond).
+   180→  - Step ③ pricing radios (Free/Freemium/Paid/OSS + helpers), price+note fields hidden for free/OSS, API checkbox, GitHub/Docs/X inputs (GitHub required for OSS).
+   181→  - Step ④ emoji logo picker (20) + gradient picker (12, swatch buttons) — stand-in for Phase-2 media upload, disclosed in copy.
+   182→  - Step ⑤ summary grid + the two PRD checkboxes (S1 live-now, S1–S6 standards link scrolls to #standards) → Submit.
+   183→  - Success screen: spring check icon, "Queued for review", copy per PRD ("typically within 24h", "72h notice + launch kit"), QUEUE #N + mono TICKET (id slice), Done / Submit another.
+   184→- CTA rewiring (submitOpen in explorer-store): header button (desktop+mobile menu), feed footer button, tomorrow note link, mobile sticky bar, final-cta outline button ("BUILT SOMETHING? SKIP THE LINE —"), ⌘K palette "Submit your tool" action — ALL open the wizard now (previously scrolled to waitlist). #submit section keeps waitlist + adds the wizard CTA.
+   185→- NEW ?tab= persistence: feed tab initial value reads URL (?tab=top|tomorrow|yesterday), setTabSync replaceStates it (deleted for "new"). Verified: /?tab=tomorrow → 4 teasers; click Yesterday → ?tab=yesterday; reload restores tab + rows.
+   186→- Styling details: ember focus rings (global), segment progress, mono labels w/ right-aligned hints, checkbox cards with ember fill on checked (data-[state=checked]), gradient swatch active ring, sticky wizard footer with backdrop-blur, success stat cards.
+   187→- QA: full happy path walked in browser (5 steps → 201 → success #1); validation errors verified (both confirm checkboxes); 409 interstitial path verified live (submitted with seeded promptly.ai domain → bounced to Step 1 with banner + toast); check API: tool-domain → kind:tool, queued-domain → kind:submission, fresh → null. Mobile 390px: wizard opens from sticky bar, docsw 390, ?tab= restore works. Test submissions removed from DB (2 rows). QA artifacts qa/45–49.
+   188→- lint 0 errors; dev.log clean (POST /api/submit 201, GET / 200); stale "domainOf" compile error artifact cleared via route re-touch (issue badge gone).
+   189→
+   190→Stage Summary:
+   191→- Track B is live end-to-end: founders submit via the PRD §11 wizard (5 steps, live preview, dup interstitial, rate limits, confirm gates) into a persisted moderation queue with position tracking — closing the last major P0 gap in the landing scope.
+   192→- All conversion surfaces now lead to the wizard; feed state (?tab=) joins ?cat= and #tool= as shareable URLs.
+   193→- Risks/next: (1) dev-server-restart would let the $queryRaw shim be replaced by ORM calls (cosmetic); (2) PRD auth gate before Step 1 is approximated by email field (note in worklog; NextAuth exists in stack if wanted); (3) editor review queue UI (approve/reject/schedule) is the natural admin follow-up — data model already supports it via status/reviewNote; (4) seeded fictional URLs still pending swap before prod.
+   194→
+   195→---
+   196→Task ID: 9
+   197→Agent: main orchestrator (Z.ai Code)
+   198→Task: webDevReview cycle #5 — Editor review console (PRD §12 adaptation) closing the Track-B loop: submit → review → approve → Tomorrow teaser
+   199→
+   200→Work Log:
+   201→- Assessment: server healthy (feed 12 today / 4 tomorrow / 3 yesterday), no overflow, no console errors → stable. This cycle: the natural next step from Task 8 — the editor/moderation side of the submission pipeline.
+   202→- NEW APIs (both gated by demo passcode header x-editor-key, EDITOR_KEY="ember-dev" — documented stand-in for Phase-2 NextAuth):
+   203→  - GET /api/editor/queue → pending submissions oldest-first (PRD fairness) + counts + capacity {today, tomorrow, floor:5, cap:15} (PRD §12 capacity chip model).
+   204→  - POST /api/editor/decision → approve | reject (zod discriminated union). Approve: Submission → Tool (slug via slugifyName + uniqueToolSlug -2/-3 dedupe, track=community, claimed=isOwner, maker @email-prefix, verifiedAt=now) + Launch scheduled for TOMORROW UTC midnight → appears as a teaser immediately, goes live at rollover. Reject: status=rejected + reviewNote "Failed: S1, S4 — note" (PRD §7 "rejections must cite failed standard(s)"). 401 wrong key · 404 unknown id · 409 already-decided.
+   205→  - Submission table access stays on $queryRaw helpers (stale-PrismaClient workaround, see Task 8); Tool/Launch/Category via normal ORM (present in pre-generation client).
+   206→- NEW editor-console.tsx (Dialog, mounted once in page.tsx):
+   207→  - Passcode gate (mono input + click-to-fill demo key hint, sessionStorage "prother_editor_key").
+   208→  - Header chips: 🟢/🟡/🔴 TODAY n/cap · TMRW n/cap · PENDING n (live after every decision).
+   209→  - Pending cards: emoji/gradient logo, OWNER vs 3RD PARTY badge, domain + "Nh in queue", expandable detail (description, category, pricing, email, tag chips, Visit site ↗), S1–S6 reviewer strip (self-declared S1/S3 show emerald checks, rest dashed), Approve → schedule tomorrow (ember) / Reject… panel with 6 S-checkbox chips + note + "Reject with N citations" (disabled until ≥1 cited).
+   210→  - After any decision: queue reload + window.dispatchEvent("prother:feed-refresh") → use-feed listens and refetches, so Tomorrow counts update LIVE without reload.
+   211→- use-feed.ts: added prother:feed-refresh listener (module cache bust via fetchFeed(true)).
+   212→- Footer: real "EDITOR ACCESS" mono button (bottom bar, ⌘⇧E shortcut also opens the console); footer "Submit your tool" / "For makers" links now open the §11 wizard instead of dead-ends.
+   213→- BUGS fixed during self-QA: (1) missing db import in queue route (ReferenceError); (2) $queryRaw returns SQLite booleans as true/false, not 1/0 → normalized in queue API + client type/comparisons (OWNER badge was wrong) + decision route (claimed/hasApi via Boolean()); (3) approve created Launch with launchDate=todayStart + scheduled=true → invisible in BOTH today and tomorrow windows; fixed to tomorrowStart (+ one-off DB fix for DriftBoard).
+   214→- VERIFIED END-TO-END (browser): submitted DriftBoard via /api/submit → console showed card (chips 🟡 TODAY 12/15 · TMRW 4/15 · PENDING 1) → Approve → toast + queue clear → TMRW chip 5/15 → Tomorrow tab lists "Turbine, LingoLoop, Verity, CanvasOps, DriftBoard" → GET /api/tools/driftboard 200 (community listing, @mira, QUALITY BAR 0/6 PENDING until rollover = PRD-consistent). Reject path: QuickNote (a waitlist-violating S1/S4 submission) → Reject panel with S1+S4 cited → DB row status=rejected, reviewNote="Failed: S1, S4". 404 on unknown id. Test row cleaned; DriftBoard intentionally kept as demo of the loop.
+   215→- QA artifacts qa/50–54 (gate, queue, expanded card, reject panel, tomorrow-with-approved).
+   216→- lint 0 errors; dev.log clean; docsw 1280/390 both clean. Known cosmetic: Next dev-overlay "1 Issue" badge shows a STALE compile-error artifact ("domainOf doesn't exist in prother.ts") — the import was fixed in cycle #4 and every route returns 200; Turbopack keeps the phantom in its issue list until a dev-server restart flushes it. No user-facing impact.
+   217→
+   218→Stage Summary:
+   219→- The moderation pipeline is now complete and CLOSED-LOOP: maker submits (§11 wizard) → editor reviews (S1–S6 audit strip) → approve → Tool+Launch created → teaser in Tomorrow → auto-live at 00:00 UTC rollover; or reject with cited standards → reviewNote persisted for the maker email.
+   220→- Prother now exercises the full PRD §8 dual-track supply model (editor seed + community submit) on a single landing route: feed, detail modals, ⌘K, wizard, and console all share one zustand store and design system.
+   221→- Risks/next: (1) demo passcode auth — swap for NextAuth before any real deployment (documented); (2) dev-overlay phantom issue flushes on dev-server restart (also re-caches PrismaClient fresh — the $queryRaw shims can then be swapped back to ORM if desired); (3) rejected-submission status tracking for makers (PRD §11 "status tracking") is a natural Phase-2 UI; (4) DriftBoard tool kept as approved-demo data — remove if unwanted (slug driftboard).
+   222→
+   223→---
+   224→Task ID: 10
+   225→Agent: main orchestrator (Z.ai Code)
+   226→Task: webDevReview cycle #6 — Maker status tracking (PRD §11) + "More like this" in tool modal + ?cat= auto-scroll
+   227→
+   228→Work Log:
+   229→- Assessment: server healthy (feed 12 today / 4 tomorrow / 3 yesterday), no page errors, only the known Turbopack phantom `route.ts:3:1` (routes all return 200 — memory artifact, flushes on dev-server restart). Stable → new-feature cycle. Chose the natural next step from Task 9: closing the MAKER side of the loop (editors had a console; makers had nothing after "Queued for review").
+   230→- NEW API GET /api/submit/status?email= (zod email, lowercase/trim) → {items: SubmissionStatusItem[]}. lib/submit.ts gained the client-safe type (status pending/approved/rejected, queuePosition, toolSlug, launchDate, live, reviewNote). lib/prother.ts gained listSubmissionsByEmail(): $queryRaw for submissions (stale-client workaround per Task 8) + queue snapshot for 1-based positions + Tool domain-matching (domainOf(websiteUrl)) to resolve approved → toolSlug/launchDate; live = launchDate <= now.
+   231→- NEW status-tracker.tsx (Dialog, mounted once in page.tsx): email lookup form (Enter/⌘), skeleton loading, result cards with gradient thumb + name + tagline + mono DOMAIN · SUBMITTED <rel-time>; status chips: IN REVIEW (amber, animate-ping dot + QUEUE #N) / GOES LIVE <date> (ember) / LIVE NOW (emerald) / REJECTED (red); rejected cards render parseReviewNote("Failed: S1, S4 — note") as citation chips + note + resubmit hint; approved cards get PREVIEW/VIEW LISTING → closes tracker, openTool(slug); empty state (dashed border, Inbox icon, "Submit your tool" CTA into the wizard); localStorage prother_track_email remembers the last lookup and AUTO-lookups on reopen; wizard success screen "Track this submission" hands off prefill via store (trackOpen/trackEmail in explorer-store).
+   232→- ENTRY POINTS: ⌘K Actions group ("Track my submission", MailSearch icon), footer Product column ("Check submission status"), wizard success screen. All share the store action.
+   233→- TOOL MODAL "MORE LIKE THIS": /api/tools/[slug] now returns related[] (up to 3 LIVE same-category tools, baseUpvotes desc, excludes self; scheduled teasers excluded). ToolDetailResponse gained optional related + RelatedToolRow type. Modal section: mini rows (gradient thumb, name, ▲votes, tagline, ArrowUpRight) with ember hover ring; click swaps the modal to that tool (key={slug} refetch); header row has "ALL <CATEGORY> →" cross-link = close modal + setCategoryFilter + smooth-scroll to #feed (verified: hash cleared, ?cat= set, scrollY 1844, dialog gone).
+   234→- ?cat= RESTORE AUTO-SCROLL (Task 7 leftover): URL-restore effect now also smooth-scrolls to #feed after 500ms (a shared ?cat= link is an intent to browse). Verified: load /?cat=audio-voice-music → feed section lands at top (feedTop 0).
+   235→- QA (agent-browser): approved path (mira@driftboard.dev → GOES LIVE Sep 20 card → PREVIEW LISTING → DriftBoard modal opens, tracker closed); pending path (test row via API → IN REVIEW · QUEUE #1; row deleted after); empty state; native email validation; palette + footer + all entries; related section (Promptly → NectarSearch 312▲; category has 1 live tool); "ALL" cross-link; ?cat= scroll; mobile 390px: docsw 390 (no overflow), tracker fits, related renders. Screenshots qa/55–58.
+   236→- lint 0 errors; dev.log clean (GET /api/submit/status 200). DB untouched except one deleted QA row.
+   237→
+   238→Stage Summary:
+   239→- The PRD §11 loop is now closed on BOTH sides: makers submit → track (queue position / launch date / cited rejections) → preview their listing the moment it's scheduled; editors approve/reject from the console. The tool modal cross-links into category browsing ("More like this" + "ALL <category>"), tightening the discovery graph.
+   240→- Risks/next: (1) Turbopack phantom issue in dev overlay persists until dev-server restart (routes verified 200 — cosmetic only); (2) email-only tracker lookup is auth-lite — NextAuth (Phase 2) would gate accounts + history; (3) submission → approved-tool link is still domain-matched (no FK) — a submissionId column on Tool would make it exact; (4) seeded fictional external URLs still pending swap before prod; (5) candidate next: launch-day calendar view, OG image route for #tool links, rejected-resubmit prefill (clone form from a rejected submission).
+   241→

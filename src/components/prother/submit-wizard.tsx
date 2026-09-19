@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -230,6 +230,7 @@ export function SubmitWizard() {
   const { toast } = useToast();
   const open = useExplorer((s) => s.submitOpen);
   const setOpen = useExplorer((s) => s.setSubmitOpen);
+  const submitPrefill = useExplorer((s) => s.submitPrefill);
   const openTool = useExplorer((s) => s.openTool);
   const setTrackOpen = useExplorer((s) => s.setTrackOpen);
 
@@ -271,6 +272,23 @@ export function SubmitWizard() {
     },
     [setOpen, reset]
   );
+
+  // "Resubmit with fixes" (status tracker): a draft queued in the store is
+  // applied once when the wizard opens with one — confirm checkboxes stay
+  // unticked so the maker re-attests after addressing the cited standards.
+  // `toast` is a module-level function (stable identity), so it's a safe dep.
+  useEffect(() => {
+    if (!open || !submitPrefill) return;
+    setForm({ ...INITIAL_SUBMIT_FORM, ...submitPrefill });
+    setStep(0);
+    setErrors({});
+    setDup(null);
+    setResult(null);
+    toast({
+      title: "Draft loaded",
+      description: `Pre-filled from your rejected ${submitPrefill.name} submission.`,
+    });
+  }, [open, submitPrefill, toast]);
 
   // PRD §11: duplicate check on Step-1 URL blur.
   const checkDuplicate = useCallback(async () => {

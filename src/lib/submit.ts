@@ -107,6 +107,30 @@ export const INITIAL_SUBMIT_FORM: SubmitForm = {
 /** Maker-facing submission status (PRD §11 "status tracking"). */
 export type SubmissionStatus = "pending" | "approved" | "rejected";
 
+/**
+ * Payload used to re-open the wizard pre-filled from a rejected submission
+ * ("Resubmit with fixes"). Confirm checkboxes are intentionally NOT carried
+ * over — the maker must re-attest after fixing the cited standards.
+ */
+export type SubmitPrefill = {
+  email: string;
+  websiteUrl: string;
+  name: string;
+  tagline: string;
+  description: string;
+  categorySlug: string;
+  tags: TagVocab[];
+  pricingModel: PricingModel;
+  startingPrice: string;
+  pricingNote: string;
+  hasApi: boolean;
+  githubUrl: string;
+  docsUrl: string;
+  twitterUrl: string;
+  logoEmoji: string;
+  logoGradient: string;
+};
+
 export type SubmissionStatusItem = {
   id: string;
   name: string;
@@ -126,6 +150,8 @@ export type SubmissionStatusItem = {
   live: boolean;
   /** rejected only — "Failed: S1, S4 — note" (PRD §7 cites standards). */
   reviewNote: string | null;
+  /** rejected only — form values to re-open the wizard pre-filled. */
+  resubmit: SubmitPrefill | null;
 };
 
 /** Per-step field validation — mirrors the server's zod rules. */

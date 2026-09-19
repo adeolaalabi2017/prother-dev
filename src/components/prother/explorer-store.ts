@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import type { SubmitPrefill } from "@/lib/submit";
 
 /**
  * Module-level UI store shared by the header, feed rows, sidebar chips,
@@ -13,6 +14,12 @@ type ExplorerState = {
   searchOpen: boolean;
   /** Whether the submission wizard (PRD §11) is open. */
   submitOpen: boolean;
+  /**
+   * Form values used to pre-fill the wizard, e.g. "Resubmit with fixes"
+   * from a rejected submission. Null for plain opens (header CTAs etc.),
+   * so a stale draft never leaks into a fresh wizard session.
+   */
+  submitPrefill: SubmitPrefill | null;
   /** Whether the editor review console (PRD §12 adaptation) is open. */
   editorOpen: boolean;
   /** Whether the maker status tracker (PRD §11) is open. */
@@ -24,7 +31,7 @@ type ExplorerState = {
   openTool: (slug: string) => void;
   closeTool: () => void;
   setSearch: (open: boolean) => void;
-  setSubmitOpen: (open: boolean) => void;
+  setSubmitOpen: (open: boolean, prefill?: SubmitPrefill) => void;
   setEditorOpen: (open: boolean) => void;
   setTrackOpen: (open: boolean, email?: string) => void;
   setCategoryFilter: (slug: string | null) => void;
@@ -61,6 +68,7 @@ export const useExplorer = create<ExplorerState>((set) => ({
   slug: null,
   searchOpen: false,
   submitOpen: false,
+  submitPrefill: null,
   editorOpen: false,
   trackOpen: false,
   trackEmail: "",
@@ -83,7 +91,10 @@ export const useExplorer = create<ExplorerState>((set) => ({
     }
   },
   setSearch: (searchOpen) => set({ searchOpen }),
-  setSubmitOpen: (submitOpen) => set({ submitOpen }),
+  // Opening with a prefill loads the draft; any open without one (header
+  // CTAs, palette actions) starts the wizard fresh. Closing always clears.
+  setSubmitOpen: (submitOpen, prefill) =>
+    set({ submitOpen, submitPrefill: submitOpen ? prefill ?? null : null }),
   setEditorOpen: (editorOpen) => set({ editorOpen }),
   setTrackOpen: (trackOpen, email) =>
     set((s) => ({

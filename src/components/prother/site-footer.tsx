@@ -52,6 +52,14 @@ export function SiteFooter() {
               evaluate them.
             </p>
             <p className="mt-4 font-mono text-xs text-white/30">@PROTHER_DEV · PROTHER.DEV</p>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] tracking-wider text-white/45 transition-colors hover:border-ember/40 hover:text-ember">
+                <span className="text-white/80">⌘K</span> SEARCH
+              </kbd>
+              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] tracking-wider text-white/45 transition-colors hover:border-ember/40 hover:text-ember">
+                <span className="text-white/80">⌘⇧E</span> EDITOR
+              </kbd>
+            </div>
           </div>
 
           {COLS.map((col) => (

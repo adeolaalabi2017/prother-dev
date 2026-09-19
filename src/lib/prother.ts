@@ -190,7 +190,9 @@ export async function pendingQueuePosition(id: string): Promise<number> {
 export async function listSubmissionsByEmail(
   email: string
 ): Promise<import("@/lib/submit").SubmissionStatusItem[]> {
-  const { domainOf } = await import("@/lib/submit");
+  const { domainOf, TAG_VOCAB, PRICING_MODELS } = await import(
+    "@/lib/submit"
+  );
   const subs = await db.$queryRaw<
     {
       id: string;
@@ -202,10 +204,23 @@ export async function listSubmissionsByEmail(
       status: string;
       reviewNote: string | null;
       createdAt: string;
+      websiteUrl: string;
+      description: string;
+      categorySlug: string;
+      tags: string;
+      pricingModel: string;
+      startingPrice: string | null;
+      pricingNote: string | null;
+      hasApi: number;
+      githubUrl: string | null;
+      docsUrl: string | null;
+      twitterUrl: string | null;
     }[]
   >`
     SELECT id, name, tagline, domain, logoEmoji, logoGradient,
-           status, reviewNote, createdAt
+           status, reviewNote, createdAt,
+           websiteUrl, description, categorySlug, tags, pricingModel,
+           startingPrice, pricingNote, hasApi, githubUrl, docsUrl, twitterUrl
     FROM Submission
     WHERE email = ${email}
     ORDER BY createdAt DESC
@@ -245,6 +260,41 @@ export async function listSubmissionsByEmail(
       s.status === "approved" &&
       !!tool?.launchDate &&
       new Date(tool.launchDate).getTime() <= Date.now();
+
+    const status = s.status as "pending" | "approved" | "rejected";
+
+    // Rejected rows carry a prefill payload so the tracker can re-open the
+    // wizard pre-filled ("Resubmit with fixes"). Confirm checkboxes are
+    // deliberately excluded — the maker re-attests after fixing the issues.
+    let resubmit: import("@/lib/submit").SubmitPrefill | null = null;
+    if (status === "rejected") {
+      const pricingModel = PRICING_MODELS.some((p) => p.value === s.pricingModel)
+        ? (s.pricingModel as import("@/lib/submit").PricingModel)
+        : "freemium";
+      resubmit = {
+        email,
+        websiteUrl: s.websiteUrl,
+        name: s.name,
+        tagline: s.tagline,
+        description: s.description,
+        categorySlug: s.categorySlug,
+        tags: s.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => (TAG_VOCAB as readonly string[]).includes(t))
+          .slice(0, 5) as import("@/lib/submit").TagVocab[],
+        pricingModel,
+        startingPrice: s.startingPrice ?? "",
+        pricingNote: s.pricingNote ?? "",
+        hasApi: Boolean(s.hasApi),
+        githubUrl: s.githubUrl ?? "",
+        docsUrl: s.docsUrl ?? "",
+        twitterUrl: s.twitterUrl ?? "",
+        logoEmoji: s.logoEmoji,
+        logoGradient: s.logoGradient,
+      };
+    }
+
     return {
       id: s.id,
       name: s.name,
@@ -252,13 +302,14 @@ export async function listSubmissionsByEmail(
       domain: s.domain,
       emoji: s.logoEmoji,
       gradient: s.logoGradient,
-      status: s.status as "pending" | "approved" | "rejected",
+      status,
       createdAt: s.createdAt,
-      queuePosition: s.status === "pending" ? positionOf.get(s.id) ?? null : null,
-      toolSlug: s.status === "approved" ? tool?.slug ?? null : null,
-      launchDate: s.status === "approved" ? tool?.launchDate ?? null : null,
+      queuePosition: status === "pending" ? positionOf.get(s.id) ?? null : null,
+      toolSlug: status === "approved" ? tool?.slug ?? null : null,
+      launchDate: status === "approved" ? tool?.launchDate ?? null : null,
       live,
       reviewNote: s.reviewNote,
+      resubmit,
     };
   });
 }

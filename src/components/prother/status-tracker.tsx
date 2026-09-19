@@ -91,9 +91,16 @@ function StatusChip({ item }: { item: SubmissionStatusItem }) {
   );
 }
 
-function ResultCard({ item }: { item: SubmissionStatusItem }) {
+function ResultCard({
+  item,
+  email,
+}: {
+  item: SubmissionStatusItem;
+  email: string;
+}) {
   const openTool = useExplorer((s) => s.openTool);
   const setTrackOpen = useExplorer((s) => s.setTrackOpen);
+  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   const parsed = item.reviewNote ? parseReviewNote(item.reviewNote) : null;
 
   return (
@@ -150,6 +157,27 @@ function ResultCard({ item }: { item: SubmissionStatusItem }) {
             Fix the cited standards and submit again — the same product is
             welcome once it complies.
           </p>
+          {item.resubmit && (
+            <button
+              type="button"
+              onClick={() => {
+                setTrackOpen(false);
+                window.setTimeout(
+                  () => setSubmitOpen(true, item.resubmit!),
+                  80,
+                );
+              }}
+              className="group mt-3 inline-flex w-full items-center justify-between rounded-lg border border-red-500/25 bg-red-500/[0.06] px-3 py-2 text-left transition-colors hover:bg-red-500/[0.14]"
+            >
+              <span className="font-mono text-[11px] tracking-wider text-red-300">
+                RESUBMIT WITH FIXES
+              </span>
+              <ArrowRight
+                className="size-3.5 text-red-300 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </button>
+          )}
         </div>
       )}
 
@@ -319,7 +347,7 @@ export function StatusTracker() {
                 className="max-h-[46vh] space-y-3 overflow-y-auto pr-1"
               >
                 {items.map((item) => (
-                  <ResultCard key={item.id} item={item} />
+                  <ResultCard key={item.id} item={item} email={searchedFor} />
                 ))}
               </motion.ul>
             )}
