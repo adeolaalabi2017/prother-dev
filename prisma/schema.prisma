@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Newsletter / waitlist (PRD Appendix D, F-45) ────────────────────────
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String   @default("waitlist") // waitlist | hero | footer | exit
+  confirmed Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ── Taxonomy (PRD §13 — 10 primary categories) ──────────────────────────
+model Category {
+  id        String @id @default(cuid())
+  slug      String @unique
+  name      String
+  emoji     String
+  sortOrder Int
+  tools     Tool[]
+}
+
+// ── Tools (one table, status-driven per PRD §16 schema decisions) ───────
+model Tool {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  name          String
+  tagline       String // 5–60 chars (S3)
+  description   String?
+  websiteUrl    String
+  logoEmoji     String    @default("⬡")
+  logoGradient  String    @default("from-orange-500 to-amber-700")
+  pricingModel  String // free | freemium | paid | open_source
+  startingPrice String?
+  pricingNote   String?
+  hasApi        Boolean   @default(false)
+  githubUrl     String?
+  docsUrl       String?
+  twitterUrl    String?
+  tags          String    @default("") // pipe-separated, ≤5 (controlled vocab §13)
+  track         String    @default("editor_seed") // editor_seed | community
+  editorsPick   Boolean   @default(false)
+  curated       Boolean   @default(false)
+  claimed       Boolean   @default(false)
+  makerHandle   String    @default("@prother")
+  relaunch      Boolean   @default(false)
+  verifiedAt    DateTime?
+  category      Category  @relation(fields: [categoryId], references: [id])
+  categoryId    String
+  launch        Launch?
+  createdAt     DateTime  @default(now())
+}
+
+// ── Launches (votes reference launch_id → fresh vote pools on re-launch) ─
+model Launch {
+  id          String   @id @default(cuid())
+  tool        Tool     @relation(fields: [toolId], references: [id])
+  toolId      String   @unique
+  launchDate  DateTime // UTC midnight of launch day
+  scheduled   Boolean  @default(false) // true = tomorrow teaser
+  baseUpvotes Int      @default(0) // seeded community votes
+  votes       Vote[]
+  createdAt   DateTime @default(now())
+}
+
+// ── Votes (1 per anonymous visitor per launch, F-14) ────────────────────
+model Vote {
+  id        String   @id @default(cuid())
+  launch    Launch   @relation(fields: [launchId], references: [id])
+  launchId  String
+  voterKey  String // anon localStorage key
+  createdAt DateTime @default(now())
+  @@unique([launchId, voterKey])
+}
