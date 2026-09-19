@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowUpRight,
   Check,
@@ -10,7 +11,10 @@ import {
   FileText,
   Github,
   Link2,
+  Loader2,
   MailSearch,
+  MessageSquare,
+  Send,
   Share2,
   Sparkles,
   Triangle,
@@ -34,7 +38,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import type { ToolDetailResponse } from "@/lib/prother";
+import type { CommentRow, ToolDetailResponse } from "@/lib/prother";
 import { CATEGORIES } from "./categories";
 import { useExplorer } from "./explorer-store";
 import { useFeed } from "./use-feed";
@@ -71,6 +75,296 @@ function DetailSkeleton() {
       {[0, 1, 2, 3].map((i) => (
         <Skeleton key={i} className="h-16 w-full rounded-xl bg-white/5" />
       ))}
+    </div>
+  );
+}
+
+// ── Launch discussion (comments) ─────────────────────────────────────────
+
+const COMMENT_BODY_MAX = 280;
+const COMMENT_BODY_WARN = 224; // 80% — counter turns ember
+const COMMENT_NAME_MAX = 24;
+const COMMENT_NAME_STORAGE = "prother_comment_name";
+
+const AVATAR_GRADIENTS = [
+  "from-orange-400 to-rose-600",
+  "from-amber-400 to-orange-600",
+  "from-emerald-400 to-teal-600",
+  "from-rose-400 to-red-600",
+  "from-yellow-400 to-amber-600",
+  "from-lime-400 to-green-600",
+  "from-fuchsia-400 to-purple-600",
+  "from-red-400 to-orange-600",
+] as const;
+
+function avatarGradient(author: string): string {
+  let h = 0;
+  for (let i = 0; i < author.length; i++) h = (h * 31 + author.charCodeAt(i)) >>> 0;
+  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
+}
+
+function relTime(iso: string): string {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function Discussion({
+  slug,
+  makerHandle,
+}: {
+  slug: string;
+  makerHandle: string;
+}) {
+  const { toast } = useToast();
+  const [items, setItems] = useState<CommentRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [name, setName] = useState("");
+  const [body, setBody] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [postedFlash, setPostedFlash] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setLoadError(false);
+    setItems(null);
+    fetch(`/api/tools/${encodeURIComponent(slug)}/comments`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load discussion");
+        return (await res.json()) as { items: CommentRow[] };
+      })
+      .then((data) => {
+        if (alive) setItems(data.items);
+      })
+      .catch(() => {
+        if (alive) setLoadError(true);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  // Remember the commenter's display name (per browser).
+  useEffect(() => {
+    setName(window.localStorage.getItem(COMMENT_NAME_STORAGE) ?? "");
+  }, []);
+
+  const canPost =
+    name.trim().length >= 2 && body.trim().length >= 4 && !posting;
+
+  const onPost = useCallback(async () => {
+    if (!canPost) return;
+    setPosting(true);
+    try {
+      const res = await fetch(
+        `/api/tools/${encodeURIComponent(slug)}/comments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ author: name.trim(), body: body.trim() }),
+        },
+      );
+      const data = (await res.json()) as CommentRow & { error?: string };
+      if (!res.ok)
+        throw new Error(data.error ?? "Could not post — please try again.");
+      setItems((prev) => [...(prev ?? []), data]);
+      setBody("");
+      window.localStorage.setItem(COMMENT_NAME_STORAGE, name.trim());
+      setPostedFlash(true);
+      window.setTimeout(() => setPostedFlash(false), 1600);
+      toast({ title: "Comment posted" });
+    } catch (err) {
+      toast({
+        title: "Could not post comment",
+        description:
+          err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPosting(false);
+    }
+  }, [canPost, slug, name, body, toast]);
+
+  const count = items?.length ?? 0;
+  const counterTone =
+    body.length >= COMMENT_BODY_MAX
+      ? "text-red-400"
+      : body.length >= COMMENT_BODY_WARN
+        ? "text-ember"
+        : "text-white/35";
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] tracking-widest text-white/40">
+          DISCUSSION ({count})
+        </p>
+        <p className="font-mono text-[10px] tracking-wider text-white/25">
+          MODERATED PER S6
+        </p>
+      </div>
+
+      <div
+        className="mt-2 max-h-96 space-y-2 overflow-y-auto"
+        aria-live="polite"
+        aria-label={`Discussion for this tool, ${count} comments`}
+      >
+        {loading && (
+          <>
+            <Skeleton className="h-16 w-full rounded-xl bg-white/5" />
+            <Skeleton className="h-16 w-5/6 rounded-xl bg-white/5" />
+          </>
+        )}
+
+        {!loading && loadError && (
+          <p className="rounded-lg border border-red-500/25 bg-red-500/[0.04] p-3 text-xs text-red-300">
+            Couldn&apos;t load the discussion. It will appear next time you
+            open this listing.
+          </p>
+        )}
+
+        {!loading && !loadError && count === 0 && (
+          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-white/15 p-6 text-center">
+            <MessageSquare className="size-4 text-white/30" aria-hidden />
+            <p className="text-sm text-white/70">No comments yet.</p>
+            <p className="text-xs text-white/40">
+              Start the discussion — ask {makerHandle} anything.
+            </p>
+          </div>
+        )}
+
+        {items?.map((c) => (
+          <motion.div
+            key={c.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/25"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-black",
+                avatarGradient(c.author),
+              )}
+            >
+              {c.author.replace(/^@/, "").charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-sm font-semibold text-white/90">
+                  {c.author}
+                </span>
+                {c.isMaker && (
+                  <span className="rounded-full border border-ember/40 bg-ember/15 px-1.5 py-px font-mono text-[9px] tracking-wider text-ember">
+                    MAKER
+                  </span>
+                )}
+                <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] text-white/35">
+                  {relTime(c.createdAt)}
+                </span>
+              </div>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-white/75">
+                {c.body}
+              </p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Composer */}
+      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 transition-colors focus-within:border-ember/40">
+        <label htmlFor={`c-name-${slug}`} className="sr-only">
+          Your display name
+        </label>
+        <input
+          id={`c-name-${slug}`}
+          value={name}
+          onChange={(e) => setName(e.target.value.slice(0, COMMENT_NAME_MAX))}
+          placeholder="Your name"
+          maxLength={COMMENT_NAME_MAX}
+          autoComplete="name"
+          className="w-full border-b border-white/10 bg-transparent pb-2 font-mono text-sm text-white placeholder:text-white/30 focus:border-ember/60 focus:outline-none"
+        />
+        <label htmlFor={`c-body-${slug}`} className="sr-only">
+          Write a comment
+        </label>
+        <textarea
+          id={`c-body-${slug}`}
+          value={body}
+          onChange={(e) =>
+            setBody(e.target.value.slice(0, COMMENT_BODY_MAX))
+          }
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              void onPost();
+            }
+          }}
+          placeholder="Add to the discussion…"
+          rows={3}
+          maxLength={COMMENT_BODY_MAX}
+          className={cn(
+            "mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-white placeholder:text-white/30 focus:outline-none",
+            body.length >= COMMENT_BODY_MAX && "text-red-300",
+          )}
+        />
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className="font-mono text-[10px] text-white/30">
+            ⌘↵ TO POST · BE CONSTRUCTIVE (S6)
+          </p>
+          <div className="flex items-center gap-3">
+            <span
+              className={cn(
+                "font-mono text-[10px] tabular-nums transition-colors",
+                counterTone,
+              )}
+              aria-live="polite"
+            >
+              {body.length}/{COMMENT_BODY_MAX}
+            </span>
+            <button
+              type="button"
+              onClick={() => void onPost()}
+              disabled={!canPost}
+              aria-label="Post comment"
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition active:scale-95",
+                postedFlash
+                  ? "bg-emerald-500 text-black"
+                  : "bg-ember text-black hover:bg-ember-hot",
+                !canPost && !posting && "cursor-not-allowed opacity-40",
+              )}
+            >
+              {posting ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  Posting…
+                </>
+              ) : postedFlash ? (
+                <>
+                  <Check className="size-3.5" aria-hidden />
+                  Posted
+                </>
+              ) : (
+                <>
+                  <Send className="size-3.5" aria-hidden />
+                  Post
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -512,6 +806,9 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
                 ))}
               </div>
             </div>
+
+            {/* Discussion — comments on this listing */}
+            <Discussion slug={detail.slug} makerHandle={detail.maker} />
 
             {/* More like this — same category, live tools only */}
             {detail.related && detail.related.length > 0 && (

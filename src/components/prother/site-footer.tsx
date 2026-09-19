@@ -21,6 +21,7 @@ const COLS = [
       { label: "FAQ", href: "#faq" },
       { label: "For makers", href: "#submit", wizard: true },
       { label: "Listing standards", href: "#standards" },
+      { label: "RSS feed", href: "/api/rss" },
     ],
   },
   {

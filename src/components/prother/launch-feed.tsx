@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, Clock, Crown, Triangle, X } from "lucide-react";
+import { ArrowUpRight, Clock, Crown, MessageSquare, Triangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -228,10 +228,21 @@ function FeedRowItem({
           )}
         </div>
         <p className="mt-0.5 truncate text-sm text-white/70">{row.tagline}</p>
-        <p className="mt-1 font-mono text-[11px] text-white/40">
-          {row.category.emoji} {row.category.name} · {pricingLabel(row)} · {row.maker}
-          {row.badges.openSource && " · OSS"}
-          {row.badges.hasApi && " · API"}
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 font-mono text-[11px] text-white/40">
+          <span>
+            {row.category.emoji} {row.category.name} · {pricingLabel(row)} · {row.maker}
+            {row.badges.openSource && " · OSS"}
+            {row.badges.hasApi && " · API"}
+          </span>
+          {(row.comments ?? 0) > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-white/55 transition-colors group-hover:border-ember/30 group-hover:text-ember"
+              title={`${row.comments} comments on this launch`}
+            >
+              <MessageSquare className="size-2.5" aria-hidden />
+              {row.comments}
+            </span>
+          )}
         </p>
       </div>
       <div className="hidden items-center md:flex">
@@ -326,12 +337,15 @@ export function LaunchFeed() {
   const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   const categoryFilter = useExplorer((s) => s.categoryFilter);
   const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
-  const [tab, setTab] = useState<Tab>(() => {
-    // ?tab= persistence — shareable feed states (new | top | tomorrow | yesterday)
-    if (typeof window === "undefined") return "new";
+  // ?tab= persistence — shareable feed states (new | top | tomorrow | yesterday).
+  // Read AFTER mount only: reading window.location during the initial render makes
+  // the server HTML ("new") and the hydrated client (?tab=top) diverge, which
+  // React reports as a hydration mismatch. Post-mount sync keeps SSR markup valid.
+  const [tab, setTab] = useState<Tab>("new");
+  useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    return t === "top" || t === "tomorrow" || t === "yesterday" ? (t as Tab) : "new";
-  });
+    if (t === "top" || t === "tomorrow" || t === "yesterday") setTab(t);
+  }, []);
 
   // Archive day browser: null = yesterday (served from the main feed payload),
   // otherwise an ISO day from the strip — fetched once, then cached.
@@ -463,20 +477,20 @@ export function LaunchFeed() {
     if (!feed) return [];
     const base =
       tab === "top"
-        ? feed.top
+        ? feed.top ?? []
         : tab === "yesterday"
           ? archiveDate
             ? dayCache[archiveDate]?.rows ?? []
-            : feed.yesterday
-          : feed.new;
+            : feed.yesterday ?? []
+          : feed.new ?? [];
     if (!categoryFilter) return base;
-    return base.filter((r) => r.category.slug === categoryFilter);
+    return base.filter((r) => r.category?.slug === categoryFilter);
   }, [feed, tab, categoryFilter, archiveDate, dayCache]);
 
   const tomorrowRows = useMemo(() => {
     if (!feed) return [];
-    if (!categoryFilter) return feed.tomorrow;
-    return feed.tomorrow.filter((t) => t.category.slug === categoryFilter);
+    if (!categoryFilter) return feed.tomorrow ?? [];
+    return (feed.tomorrow ?? []).filter((t) => t.category?.slug === categoryFilter);
   }, [feed, categoryFilter]);
 
   const activeCategory = useMemo(
@@ -496,8 +510,8 @@ export function LaunchFeed() {
   const tabs: { key: Tab; label: string; short: string }[] = [
     { key: "new", label: "New", short: "New" },
     { key: "top", label: "Top Today", short: "Top" },
-    { key: "tomorrow", label: `Tomorrow (${feed?.tomorrow.length ?? 0})`, short: `Tmrw (${feed?.tomorrow.length ?? 0})` },
-    { key: "yesterday", label: `Archive (${feed?.yesterday.length ?? 0})`, short: `Arch. (${feed?.yesterday.length ?? 0})` },
+    { key: "tomorrow", label: `Tomorrow (${feed?.tomorrow?.length ?? 0})`, short: `Tmrw (${feed?.tomorrow?.length ?? 0})` },
+    { key: "yesterday", label: `Archive (${feed?.yesterday?.length ?? 0})`, short: `Arch. (${feed?.yesterday?.length ?? 0})` },
   ];
 
   return (

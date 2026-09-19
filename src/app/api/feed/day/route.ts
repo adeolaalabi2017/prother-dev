@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, toFeedRow } from "@/lib/prother";
+import { attachCommentCounts, db, toFeedRow } from "@/lib/prother";
 import type { DayArchiveResponse, FeedRow } from "@/lib/prother";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +67,9 @@ export async function GET(req: NextRequest) {
   const rows: FeedRow[] = tools
     .map((t) => toFeedRow(t, t.category, votedSet))
     .sort((a, b) => b.votes - a.votes);
+
+  const slugToToolId = new Map(tools.map((t) => [t.slug, t.id] as const));
+  await attachCommentCounts([rows], slugToToolId);
 
   const body: DayArchiveResponse = {
     date: dateParam,

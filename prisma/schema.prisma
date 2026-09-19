@@ -58,6 +58,7 @@ model Tool {
    *  route; nullable for editor-seeded tools). Written via $queryRaw — see
    *  the stale-PrismaClient note in lib/prother.ts. */
   submissionId  String?   @unique
+  comments      Comment[]
   createdAt     DateTime  @default(now())
 }
 
@@ -113,4 +114,20 @@ model Submission {
   @@index([email, createdAt])
   @@index([domain])
   @@index([status, createdAt])
+}
+
+// ── Launch discussion (comments on tool listings) ────────────────────────
+// Auth-lite: display-name only for the landing scope; isMaker is derived by
+// the API when the author matches the tool's makerHandle. Access goes through
+// $queryRaw helpers in lib/discussion.ts (stale-PrismaClient note there).
+model Comment {
+  id        String   @id @default(cuid())
+  tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  toolId    String
+  author    String // display name, 2–24 chars
+  body      String // 4–280 chars
+  isMaker   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([toolId, createdAt])
 }

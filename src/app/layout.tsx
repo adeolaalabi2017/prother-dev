@@ -43,6 +43,9 @@ export const metadata: Metadata = {
       "Every day, the newest AI tools launch on one page. Get the daily launch feed and never miss the tool that changes how you work.",
     images: ["/api/og"],
   },
+  alternates: {
+    types: { "application/rss+xml": "/api/rss" },
+  },
 };
 
 export default function RootLayout({

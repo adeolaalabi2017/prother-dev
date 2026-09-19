@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, rankScore, secondsUntilUtcMidnight, toFeedRow } from "@/lib/prother";
+import { attachCommentCounts, db, rankScore, secondsUntilUtcMidnight, toFeedRow } from "@/lib/prother";
 import type { FeedResponse, FeedRow, Teaser, TopWeekRow, WeekDay } from "@/lib/prother";
 
 export const dynamic = "force-dynamic";
@@ -128,6 +128,11 @@ export async function GET() {
   }));
 
   const editorsPick = top.find((r) => r.badges.editorsPick) ?? null;
+
+  // Discussion sizes per launch row — powers the 💬 badge on feed cards.
+  const slugToToolId = new Map<string, string>();
+  for (const t of [...tools, ...yesterdayTools]) slugToToolId.set(t.slug, t.id);
+  await attachCommentCounts([rows, yesterdayRows], slugToToolId);
 
   // Launch-week archive summary: launches per past day (today-6 … today-1),
   // oldest → newest. Powers the day strip in the feed's Archive tab.

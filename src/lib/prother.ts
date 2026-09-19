@@ -26,6 +26,8 @@ export type FeedRow = {
   track: "editor_seed" | "community";
   pricing: { model: string; price: string | null; note: string | null };
   category: { slug: string; name: string; emoji: string };
+  /** Discussion size — rendered as a 💬 badge on feed rows (omitted when 0). */
+  comments?: number;
   badges: Badge;
 };
 
@@ -442,6 +444,27 @@ export async function uniqueToolSlug(base: string): Promise<string> {
     if (!takenSet.has(`${base}-${i}`)) return `${base}-${i}`;
   }
   return `${base}-${Date.now().toString(36)}`;
+}
+
+/**
+ * Attach per-tool discussion sizes to feed rows (mutates rows in place —
+ * `top`/`new` share the same row objects). Lazy import avoids a cycle;
+ * $queryRaw inside (stale-PrismaClient note in lib/discussion.ts).
+ */
+export async function attachCommentCounts(
+  rowSets: FeedRow[][],
+  slugToToolId: Map<string, string>
+): Promise<void> {
+  const { commentCountsByTool } = await import("@/lib/discussion");
+  const counts = await commentCountsByTool([...slugToToolId.values()]);
+  if (counts.size === 0) return;
+  for (const set of rowSets) {
+    for (const r of set) {
+      const toolId = slugToToolId.get(r.slug);
+      const n = toolId ? counts.get(toolId) ?? 0 : 0;
+      if (n > 0) r.comments = n;
+    }
+  }
 }
 
 // ── Ranking (PRD F-36): score = weighted_upvotes / hours^1.2 ────────────
