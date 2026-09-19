@@ -658,19 +658,27 @@ function CommandPalette() {
 
         <CommandSeparator />
         <CommandGroup heading="Categories">
-          {CATEGORIES.map((c) => (
-            <CommandItem
-              key={c.slug}
-              value={`category ${c.slug} ${c.name}`}
-              onSelect={() => filterCategory(c.slug)}
-            >
-              <span aria-hidden>{c.emoji}</span>
-              <span>{c.name}</span>
-              <span className="ml-auto font-mono text-[10px] text-white/30">
-                FILTER
-              </span>
-            </CommandItem>
-          ))}
+          {CATEGORIES.map((c) => {
+            const count = feed?.categoryCounts?.[c.slug] ?? 0;
+            return (
+              <CommandItem
+                key={c.slug}
+                value={`category ${c.slug} ${c.name}`}
+                onSelect={() => filterCategory(c.slug)}
+              >
+                <span aria-hidden>{c.emoji}</span>
+                <span>{c.name}</span>
+                {count > 0 && (
+                  <span className="rounded-full bg-white/10 px-1.5 font-mono text-[10px] tabular-nums text-white/50">
+                    {count} today
+                  </span>
+                )}
+                <span className="ml-auto font-mono text-[10px] text-white/30">
+                  FILTER
+                </span>
+              </CommandItem>
+            );
+          })}
         </CommandGroup>
 
         <CommandSeparator />
@@ -723,14 +731,17 @@ export function ToolExplorer() {
   // Shareable deep links: /#tool=<slug> opens the detail modal on load —
   // and keeps working when the hash is navigated to *after* load
   // (same-document navigation, pasted links, back/forward).
+  // Clearing the hash (e.g. browser Back) closes the modal again.
   useEffect(() => {
-    const applyHash = () => {
+    const applyHash = (initial = false) => {
       const m = window.location.hash.match(/^#tool=([^&]+)$/);
       if (m?.[1]) openTool(decodeURIComponent(m[1]));
+      else if (!initial) useExplorer.getState().closeTool();
     };
-    applyHash();
-    window.addEventListener("hashchange", applyHash);
-    return () => window.removeEventListener("hashchange", applyHash);
+    applyHash(true);
+    const onHash = () => applyHash(false);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
   }, [openTool]);
 
   // Restore a shared/filtered category from the URL on load (?cat=<slug>).

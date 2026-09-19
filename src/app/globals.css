@@ -130,6 +130,20 @@
     background-color: #ff6a00;
     color: #0a0a0a;
   }
+  /* Anchored sections clear the sticky header (h-16) on jump navigation. */
+  section[id],
+  div[id="feed"] {
+    scroll-margin-top: 5rem;
+  }
+  /* Prother keyboard focus: ember ring, consistent everywhere. */
+  :focus-visible {
+    outline: 2px solid #ff6a00;
+    outline-offset: 2px;
+  }
+  /* Smooth anchor scrolling (respects reduced-motion override below). */
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Prother — category ticker marquee */

@@ -558,24 +558,39 @@ export function LaunchFeed() {
 
             <div className="rounded-2xl border border-white/10 bg-coal p-5">
               <h3 className="font-mono text-xs tracking-widest text-white/50">BROWSE</h3>
+              <p className="mt-1 font-mono text-[10px] text-white/30">
+                TODAY&apos;S LAUNCHES PER CATEGORY
+              </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {CATEGORIES.map((c) => {
                   const active = categoryFilter === c.slug;
+                  const count = feed?.categoryCounts?.[c.slug] ?? 0;
                   return (
                     <button
                       key={c.slug}
                       type="button"
                       aria-pressed={active}
-                      title={c.name}
+                      title={`${c.name} · ${count} today`}
                       onClick={() => setCategoryFilter(active ? null : c.slug)}
                       className={cn(
-                        "rounded-full border px-3 py-1.5 text-xs transition-all active:scale-95",
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-all active:scale-95",
                         active
                           ? "border-ember bg-ember font-semibold text-black"
                           : "border-white/10 text-white/70 hover:border-ember/40 hover:text-white"
                       )}
                     >
-                      {c.emoji} {c.short}
+                      <span aria-hidden>{c.emoji}</span>
+                      <span>{c.short}</span>
+                      {count > 0 && (
+                        <span
+                          className={cn(
+                            "rounded-full px-1.5 py-px font-mono text-[10px] leading-4 tabular-nums",
+                            active ? "bg-black/15 text-black" : "bg-white/10 text-white/50"
+                          )}
+                        >
+                          {count}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -595,6 +610,14 @@ export function LaunchFeed() {
 
             {!loading && !error && (
               <>
+                {isYesterday && (
+                  <div className="mb-4 flex items-center gap-2 font-mono text-[11px] tracking-widest text-white/40">
+                    <span className="h-px flex-1 bg-white/10" aria-hidden />
+                    ARCHIVE · {feed?.yesterdayLabel ?? "YESTERDAY"} · FINAL STANDINGS · VOTING CLOSED
+                    <span className="h-px flex-1 bg-white/10" aria-hidden />
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   {isTomorrow
                     ? tomorrowRows.map((t) => (
@@ -615,6 +638,7 @@ export function LaunchFeed() {
                           rank={i + 1}
                           vote={voteState[row.launchId]}
                           onVote={onVote}
+                          votingOpen={!isYesterday}
                         />
                       ))}
                 </div>
@@ -622,7 +646,9 @@ export function LaunchFeed() {
                 {!isTomorrow && rows.length === 0 && (
                   <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
                     <p className="font-mono text-sm text-white/60">
-                      No {activeCategory ? activeCategory.short : ""} launches in this list today.
+                      No{" "}
+                      {activeCategory ? activeCategory.short : ""} launches{" "}
+                      {isYesterday ? "yesterday" : "in this list today"}.
                     </p>
                     {activeCategory && (
                       <button
@@ -645,12 +671,30 @@ export function LaunchFeed() {
                   </p>
                 )}
 
+                {isYesterday && (
+                  <p className="mt-6 font-mono text-xs text-white/40">
+                    Winner gets the top of <span className="text-white/60">tomorrow&apos;s daily email</span>.
+                    Voting re-opens at 00:00 UTC.
+                  </p>
+                )}
+
                 <div className="mt-8 flex flex-col justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center">
                   <button
                     type="button"
-                    className="cursor-default font-mono text-sm text-white/50 transition-colors hover:text-white"
+                    onClick={() => setTab(isYesterday ? "new" : "yesterday")}
+                    aria-live="polite"
+                    className="group/nav inline-flex items-center gap-1.5 self-start rounded-md px-1 py-0.5 font-mono text-sm text-white/50 transition-colors hover:text-ember focus-visible:outline-2 focus-visible:outline-ember/60"
                   >
-                    ← Yesterday · Sep 18
+                    {isYesterday ? (
+                      <>→ Back to today&apos;s launches</>
+                    ) : (
+                      <>
+                        ← Yesterday · {feed?.yesterdayLabel ?? "Sep 18"}
+                        <span className="rounded border border-white/15 px-1.5 py-px font-mono text-[10px] text-white/40 transition-colors group-hover/nav:border-ember/40 group-hover/nav:text-ember">
+                          {feed?.yesterday.length ?? 0}
+                        </span>
+                      </>
+                    )}
                   </button>
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-white/60">

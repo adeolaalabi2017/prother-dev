@@ -1,21 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Hexagon, Menu, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
 
 const NAV_LINKS = [
-  { label: "Feed", href: "#feed" },
-  { label: "Categories", href: "#categories" },
-  { label: "Standards", href: "#standards" },
-  { label: "FAQ", href: "#faq" },
+  { label: "Feed", href: "#feed", id: "feed" },
+  { label: "Categories", href: "#categories", id: "categories" },
+  { label: "Standards", href: "#standards", id: "standards" },
+  { label: "FAQ", href: "#faq", id: "faq" },
 ];
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<string | null>(null);
   const setSearch = useExplorer((s) => s.setSearch);
+
+  // Scroll-spy: highlight the section currently in view (desktop nav).
+  useEffect(() => {
+    const sections = NAV_LINKS.map((l) => document.getElementById(l.id)).filter(
+      (el): el is HTMLElement => el !== null
+    );
+    if (sections.length === 0) return;
+    const onScroll = () => {
+      // Pick the section closest ABOVE the header line (document position wins,
+      // not array order — the ticker sits between hero and the feed).
+      let current: string | null = null;
+      let currentTop = -Infinity;
+      for (const el of sections) {
+        const top = el.getBoundingClientRect().top;
+        if (top <= 96 && top > currentTop) {
+          currentTop = top;
+          current = el.id;
+        }
+      }
+      setActive(current);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-ink/85 backdrop-blur-md">
@@ -25,14 +51,26 @@ export function SiteHeader() {
           <span className="text-lg font-black tracking-tight text-white">Prother</span>
         </a>
 
-        <nav aria-label="Main" className="hidden items-center gap-8 md:flex">
+        <nav aria-label="Main" className="hidden items-center gap-7 md:flex xl:gap-8">
           {NAV_LINKS.map((l) => (
             <a
               key={l.href}
               href={l.href}
-              className="text-sm text-white/70 transition-colors hover:text-white"
+              aria-current={active === l.id ? "true" : undefined}
+              className={cn(
+                "relative py-1 text-sm transition-colors",
+                active === l.id ? "text-ember" : "text-white/70 hover:text-white"
+              )}
             >
               {l.label}
+              {/* ember underline for the section in view */}
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute inset-x-0 -bottom-0.5 h-0.5 origin-center rounded-full bg-ember transition-transform duration-200",
+                  active === l.id ? "scale-x-100" : "scale-x-0"
+                )}
+              />
             </a>
           ))}
         </nav>
@@ -52,7 +90,7 @@ export function SiteHeader() {
           </button>
           <a
             href="#feed"
-            className="hidden text-sm text-white/70 transition-colors hover:text-white lg:block"
+            className="hidden text-sm text-white/70 transition-colors hover:text-white xl:block"
           >
             The Daily
           </a>
@@ -87,7 +125,10 @@ export function SiteHeader() {
               key={l.href}
               href={l.href}
               onClick={() => setOpen(false)}
-              className="rounded-lg px-3 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+              className={cn(
+                "rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-white/5 hover:text-white",
+                active === l.id ? "text-ember" : "text-white/80"
+              )}
             >
               {l.label}
             </a>

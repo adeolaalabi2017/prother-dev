@@ -139,3 +139,24 @@ Stage Summary:
 - The feed is now genuinely explorable: filter by 10 categories (chips or ⌘K), every tool has a shareable deep link with copy/X-share actions, and all counts (votes, subscribers) update live without reloads.
 - Bugs fixed: empty palette category labels (a11y), modal category truncation, Claim chip rendering.
 - Remaining risks/next: (1) seeded external URLs still fictional (swap before prod); (2) filter state is session-only (no URL sync — could persist via ?cat= query); (3) could add per-category counts in BROWSE chips + ⌘K results; (4) possible next features: recent-launches archive (yesterday), OG meta for #tool deep links, launch-day reminder opt-in.
+
+---
+Task ID: 7
+Agent: main orchestrator (Z.ai Code)
+Task: webDevReview cycle #3 — deep-link robustness fix, Yesterday archive, category counts, ?cat= URL sync, scroll-spy + a11y styling pass
+
+Work Log:
+- Assessment: server healthy (/, /api/feed, /api/tools/* all 200, dev.log clean). Browser QA: no overflow (1280/390), vote toggle OK, filter OK. Found 1 QA issue: /#tool=<slug> deep link only opened on true reload — same-document hash navigation (paste link in same tab, in-page #tool links, back/forward) never opened the modal because the hash effect ran once at mount only. Verified via network log (no /api/tools fetch fired).
+- FIX — deep-link robustness (tool-explorer.tsx): ToolExplorer now listens to `hashchange`; hash match → openTool, hash cleared (browser Back) → closeTool. Mount pass is open-only (initial=true) to avoid redundant replaceState. Verified: location.hash='#tool=voiceloom' on a loaded page opens the modal; history.back() closes it; ?cat= survives.
+- NEW — Yesterday archive tab (PRD-consistent "voting closed" semantics):
+  - /api/feed now returns `yesterday: FeedRow[]` (final standings, votes desc), `yesterdayLabel` (e.g. "Sep 18"), and `categoryCounts` (today's launches per category slug). Yesterday launch IDs merged into the anon-vote groupBy. Types extended in lib/prother.ts (FeedResponse).
+  - Feed: 4th tab `Yesterday (N)` with responsive labels (mobile: New/Top/Tmrw (4)/Yest. (3) — fits 390px, no overflow; desktop: full labels). Archive header rule "ARCHIVE · Sep 18 · FINAL STANDINGS · VOTING CLOSED"; rows render locked FinalScore tiles (no upvote button; tooltip "Voting closed — final #N score"); footer note "Winner gets the top of tomorrow's daily email. Voting re-opens at 00:00 UTC."; bottom-left static text is now a real toggle: "← Yesterday · Sep 18 [N]" ↔ "→ Back to today's launches". Category filter applies to yesterday rows too; empty-state copy adapts ("launches yesterday").
+- NEW — per-category counts: BROWSE chips show mono count pills (hidden when 0) + sub-label "TODAY'S LAUNCHES PER CATEGORY"; title="name · N today"; ⌘K palette category items show "N today" pill.
+- NEW — URL-synced category filter: explorer-store.setCategoryFilter syncs ?cat=<slug> via replaceState (validated against CATEGORIES on restore at load). Verified: chip click → ?cat=coding-tools; reload → filter/chip/FILTER bar restored, 1 row.
+- STYLING/A11Y: header scroll-spy — IntersectionObserver-free passive scroll handler picks the section nearest above the 96px line (fixed array-order bug where "Categories" won over "Feed"); active link = text-ember + sliding ember underline + aria-current. globals.css: section[id] scroll-margin-top 5rem (anchors no longer hide under sticky header), global ember :focus-visible ring (2px #FF6A00 + offset), html smooth-scroll (respects reduced-motion override). Header "The Daily" now xl-only (de-clutters 1280px), nav gap-7/xl:gap-8.
+- QA artifacts qa/37–44 (filter, yesterday tab desktop, mobile tabs, browse counts, palette counts).
+- Verified: `bun run lint` 0 errors; dev.log clean (GET /api/feed 200); no page errors; no DB changes this cycle (test vote toggles net-zero, no waitlist writes).
+
+Stage Summary:
+- Prother now has a complete 4-state feed day cycle (yesterday archive → today live → tomorrow teasers) with PRD-consistent voting rules, category exploration with live counts, fully shareable state (#tool= + ?cat= survive reload AND same-document navigation), and a scroll-aware header.
+- Remaining risks/next: (1) seeded external URLs still fictional (swap before prod); (2) ⌘K "Jump to the feed" could also honor ?cat= deep link (?cat= without scroll — could auto-scroll on restore); (3) could persist selected tab (new/top) in URL too (?tab=); (4) hero social-proof count edge case from Task 5 still open (lags POST by 1 until refetch — waitlist event now syncs it, consider resolved); (5) possible next: launch-day calendar view, maker submission flow (PRD §10.2), OG image route for #tool links.
