@@ -95,11 +95,34 @@ export type FeedResponse = {
   /** Yesterday's final standings (voting closed), sorted by votes. */
   yesterday: FeedRow[];
   yesterdayLabel: string;
+  /** Past-6-day archive summary (oldest → newest, excludes today) —
+   *  powers the launch-week day strip in the Archive tab. */
+  weekDays: WeekDay[];
   /** Today's launches per category slug — powers BROWSE chip counts. */
   categoryCounts: Record<string, number>;
   topWeek: TopWeekRow[];
   editorsPick: FeedRow | null;
   subscriberCount: number;
+};
+
+/** One past launch day in the archive day strip. */
+export type WeekDay = {
+  /** ISO day, e.g. "2026-09-18". */
+  date: string;
+  /** Human label, e.g. "Sep 18". */
+  label: string;
+  /** Short weekday, e.g. "Thu". */
+  weekday: string;
+  /** Number of tools that launched this day. */
+  count: number;
+};
+
+/** Response of GET /api/feed/day?date= — one past day's final standings. */
+export type DayArchiveResponse = {
+  date: string;
+  label: string;
+  count: number;
+  rows: FeedRow[];
 };
 
 // ── Submission wizard (PRD §11) — server-side helpers ───────────────────
@@ -232,30 +255,53 @@ export async function listSubmissionsByEmail(
   const positionOf = new Map(queue.map((q, i) => [q.id, i + 1]));
 
   // Domain → launched Tool map (Tool.websiteUrl is stored as submitted).
-  const tools = await db.tool.findMany({
-    select: {
-      slug: true,
-      websiteUrl: true,
-      launch: { select: { launchDate: true, scheduled: true } },
-    },
+  // Approved rows now carry an exact Tool.submissionId FK (set by the editor
+  // decision route) — resolve via the FK first, fall back to domain matching
+  // for tools approved before the column existed.
+  // NOTE: $queryRaw (not ORM) — a long-running dev server's require cache
+  // binds the PRE-generation PrismaClient, which doesn't know submissionId.
+  const toolRows = await db.$queryRaw<
+    {
+      slug: string;
+      websiteUrl: string;
+      submissionId: string | null;
+      launchDate: number | string | null;
+      scheduled: number | boolean | null;
+    }[]
+  >`
+    SELECT t.slug, t.websiteUrl, t.submissionId, l.launchDate, l.scheduled
+    FROM Tool t LEFT JOIN Launch l ON l.toolId = t.id`;
+  const toInfo = (r: (typeof toolRows)[number]) => ({
+    slug: r.slug,
+    launchDate:
+      r.launchDate == null
+        ? ""
+        : typeof r.launchDate === "number"
+          ? new Date(r.launchDate).toISOString()
+          : String(r.launchDate),
+    scheduled: Boolean(r.scheduled),
   });
   const byDomain = new Map<
     string,
     { slug: string; launchDate: string; scheduled: boolean }
   >();
-  for (const t of tools) {
+  const bySubmissionId = new Map<
+    string,
+    { slug: string; launchDate: string; scheduled: boolean }
+  >();
+  for (const t of toolRows) {
+    const info = toInfo(t);
+    if (t.submissionId && !bySubmissionId.has(t.submissionId)) {
+      bySubmissionId.set(t.submissionId, info);
+    }
     const d = domainOf(t.websiteUrl);
     if (d && !byDomain.has(d)) {
-      byDomain.set(d, {
-        slug: t.slug,
-        launchDate: t.launch?.launchDate.toISOString() ?? "",
-        scheduled: t.launch?.scheduled ?? false,
-      });
+      byDomain.set(d, info);
     }
   }
 
   return subs.map((s) => {
-    const tool = byDomain.get(s.domain);
+    const tool = bySubmissionId.get(s.id) ?? byDomain.get(s.domain);
     const live =
       s.status === "approved" &&
       !!tool?.launchDate &&

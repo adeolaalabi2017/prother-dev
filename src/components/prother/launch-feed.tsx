@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, Clock, Triangle, X } from "lucide-react";
+import { ArrowUpRight, Clock, Crown, Triangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import type { FeedRow, TopWeekRow } from "@/lib/prother";
+import type { DayArchiveResponse, FeedRow, TopWeekRow } from "@/lib/prother";
 import { WaitlistForm } from "./waitlist-form";
 import { useFeed } from "./use-feed";
 import { useExplorer } from "./explorer-store";
@@ -163,7 +163,13 @@ function FeedRowItem({
       tabIndex={0}
       role="button"
       aria-label={`View ${row.name} details`}
-      className="group relative flex cursor-pointer gap-4 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:translate-x-0.5 hover:border-ember/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60"
+      className={cn(
+        "group relative flex cursor-pointer gap-4 overflow-hidden rounded-xl border p-4 transition-all hover:translate-x-0.5 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60",
+        // Archive day winner gets a gold-tinted frame on top of the hover ring.
+        rank === 1 && !votingOpen
+          ? "border-amber-400/30 bg-amber-400/[0.04] hover:border-amber-400/60"
+          : "border-white/10 bg-white/[0.02] hover:border-ember/40",
+      )}
     >
       {/* ember accent bar — slides in from the left on hover */}
       <span
@@ -195,6 +201,11 @@ function FeedRowItem({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-lg font-bold text-white">{row.name}</h3>
+          {rank === 1 && !votingOpen && (
+            <BadgeChip className="border-amber-400/40 bg-amber-400/10 text-amber-300">
+              <Crown className="mr-1 size-3" aria-hidden /> DAY WINNER
+            </BadgeChip>
+          )}
           {row.badges.editorsPick && (
             <BadgeChip className="border-ember/30 bg-ember/15 text-ember">⭐ Editor's Pick</BadgeChip>
           )}
@@ -322,6 +333,42 @@ export function LaunchFeed() {
     return t === "top" || t === "tomorrow" || t === "yesterday" ? (t as Tab) : "new";
   });
 
+  // Archive day browser: null = yesterday (served from the main feed payload),
+  // otherwise an ISO day from the strip — fetched once, then cached.
+  const [archiveDate, setArchiveDate] = useState<string | null>(null);
+  const [dayCache, setDayCache] = useState<Record<string, DayArchiveResponse>>({});
+  const [dayLoading, setDayLoading] = useState(false);
+
+  // Fetch (and cache) a selected archive day's final standings.
+  useEffect(() => {
+    if (!archiveDate || dayCache[archiveDate]) return;
+    let alive = true;
+    setDayLoading(true);
+    fetch(`/api/feed/day?date=${encodeURIComponent(archiveDate)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load this archive day");
+        return (await res.json()) as DayArchiveResponse;
+      })
+      .then((data) => {
+        if (alive) setDayCache((c) => ({ ...c, [data.date]: data }));
+      })
+      .catch(() => {
+        if (alive) setArchiveDate(null); // gracefully fall back to yesterday
+      })
+      .finally(() => {
+        if (alive) setDayLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [archiveDate, dayCache]);
+
+  // UTC rollover shifts the whole archive window — drop cached days + selection.
+  useEffect(() => {
+    setDayCache({});
+    setArchiveDate(null);
+  }, [feed?.date]);
+
   // Keep the selected tab in the URL (replaceState — no history spam).
   const setTabSync = useCallback((next: Tab) => {
     setTab(next);
@@ -414,10 +461,17 @@ export function LaunchFeed() {
 
   const rows = useMemo<FeedRow[]>(() => {
     if (!feed) return [];
-    const base = tab === "top" ? feed.top : tab === "yesterday" ? feed.yesterday : feed.new;
+    const base =
+      tab === "top"
+        ? feed.top
+        : tab === "yesterday"
+          ? archiveDate
+            ? dayCache[archiveDate]?.rows ?? []
+            : feed.yesterday
+          : feed.new;
     if (!categoryFilter) return base;
     return base.filter((r) => r.category.slug === categoryFilter);
-  }, [feed, tab, categoryFilter]);
+  }, [feed, tab, categoryFilter, archiveDate, dayCache]);
 
   const tomorrowRows = useMemo(() => {
     if (!feed) return [];
@@ -434,12 +488,16 @@ export function LaunchFeed() {
   const todayCount = feed?.todayCount ?? 0;
   const isTomorrow = tab === "tomorrow";
   const isYesterday = tab === "yesterday";
+  const weekDays = feed?.weekDays ?? [];
+  const archiveLabel = archiveDate
+    ? dayCache[archiveDate]?.label ?? feed?.yesterdayLabel ?? "Archive"
+    : feed?.yesterdayLabel ?? "Yesterday";
 
   const tabs: { key: Tab; label: string; short: string }[] = [
     { key: "new", label: "New", short: "New" },
     { key: "top", label: "Top Today", short: "Top" },
     { key: "tomorrow", label: `Tomorrow (${feed?.tomorrow.length ?? 0})`, short: `Tmrw (${feed?.tomorrow.length ?? 0})` },
-    { key: "yesterday", label: `Yesterday (${feed?.yesterday.length ?? 0})`, short: `Yest. (${feed?.yesterday.length ?? 0})` },
+    { key: "yesterday", label: `Archive (${feed?.yesterday.length ?? 0})`, short: `Arch. (${feed?.yesterday.length ?? 0})` },
   ];
 
   return (
@@ -634,11 +692,60 @@ export function LaunchFeed() {
             {!loading && !error && (
               <>
                 {isYesterday && (
-                  <div className="mb-4 flex items-center gap-2 font-mono text-[11px] tracking-widest text-white/40">
-                    <span className="h-px flex-1 bg-white/10" aria-hidden />
-                    ARCHIVE · {feed?.yesterdayLabel ?? "YESTERDAY"} · FINAL STANDINGS · VOTING CLOSED
-                    <span className="h-px flex-1 bg-white/10" aria-hidden />
-                  </div>
+                  <>
+                    {/* Launch-week day strip — any of the past 6 days is browsable */}
+                    {weekDays.length > 0 && (
+                      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                        <span className="mr-1 font-mono text-[10px] tracking-widest text-white/30">
+                          PAST 6 DAYS
+                        </span>
+                        {weekDays.map((d) => {
+                          const selected =
+                            archiveDate === d.date || (!archiveDate && d.date === weekDays[weekDays.length - 1]?.date);
+                          return (
+                            <button
+                              key={d.date}
+                              type="button"
+                              onClick={() => setArchiveDate(archiveDate === d.date ? null : d.date)}
+                              aria-pressed={selected}
+                              title={`${d.label} · ${d.count} launches — final standings`}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-[11px] transition-all active:scale-95",
+                                selected
+                                  ? "border-ember bg-ember font-semibold text-black"
+                                  : "border-white/10 text-white/55 hover:border-ember/40 hover:text-white",
+                              )}
+                            >
+                              <span className="hidden sm:inline text-white/40 group-hover:text-inherit">{d.weekday}</span>
+                              <span className="hidden sm:inline">·</span>
+                              <span>{d.label}</span>
+                              {/* heat dot — count → ember intensity */}
+                              <span
+                                aria-hidden
+                                className={cn(
+                                  "size-1.5 rounded-full",
+                                  d.count === 0 && (selected ? "bg-black/30" : "bg-white/15"),
+                                  d.count > 0 && (selected ? "bg-black/60" : "bg-ember"),
+                                  d.count >= 2 && !selected && "ring-1 ring-ember/40",
+                                )}
+                              />
+                              <span className={cn("tabular-nums", selected ? "text-black/70" : "text-white/35")}>
+                                {d.count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        <span className="ml-auto hidden font-mono text-[10px] tracking-widest text-white/25 sm:inline">
+                          UTC DAYS
+                        </span>
+                      </div>
+                    )}
+                    <div className="mb-4 flex items-center gap-2 font-mono text-[11px] tracking-widest text-white/40">
+                      <span className="h-px flex-1 bg-white/10" aria-hidden />
+                      ARCHIVE · {archiveLabel.toUpperCase()} · FINAL STANDINGS · VOTING CLOSED
+                      <span className="h-px flex-1 bg-white/10" aria-hidden />
+                    </div>
+                  </>
                 )}
 
                 <div className="space-y-3">
@@ -666,12 +773,17 @@ export function LaunchFeed() {
                       ))}
                 </div>
 
-                {!isTomorrow && rows.length === 0 && (
+                {!isTomorrow && !dayLoading && rows.length === 0 && (
                   <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
                     <p className="font-mono text-sm text-white/60">
                       No{" "}
                       {activeCategory ? activeCategory.short : ""} launches{" "}
-                      {isYesterday ? "yesterday" : "in this list today"}.
+                      {isYesterday
+                        ? archiveDate
+                          ? `on ${archiveLabel}`
+                          : "yesterday"
+                        : "in this list today"}
+                      .
                     </p>
                     {activeCategory && (
                       <button
@@ -682,6 +794,14 @@ export function LaunchFeed() {
                         Show all categories
                       </button>
                     )}
+                  </div>
+                )}
+
+                {isYesterday && dayLoading && (
+                  <div className="space-y-3" aria-busy="true">
+                    {[0, 1].map((i) => (
+                      <Skeleton key={i} className="h-24 w-full rounded-xl bg-white/5" />
+                    ))}
                   </div>
                 )}
 
@@ -700,7 +820,9 @@ export function LaunchFeed() {
 
                 {isYesterday && (
                   <p className="mt-6 font-mono text-xs text-white/40">
-                    Winner gets the top of <span className="text-white/60">tomorrow&apos;s daily email</span>.
+                    {archiveDate
+                      ? "Final standings for this UTC day."
+                      : "Winner gets the top of tomorrow's daily email."}{" "}
                     Voting re-opens at 00:00 UTC.
                   </p>
                 )}
@@ -716,7 +838,7 @@ export function LaunchFeed() {
                       <>→ Back to today&apos;s launches</>
                     ) : (
                       <>
-                        ← Yesterday · {feed?.yesterdayLabel ?? "Sep 18"}
+                        ← Launch-week archive · {archiveLabel}
                         <span className="rounded border border-white/15 px-1.5 py-px font-mono text-[10px] text-white/40 transition-colors group-hover/nav:border-ember/40 group-hover/nav:text-ember">
                           {feed?.yesterday.length ?? 0}
                         </span>

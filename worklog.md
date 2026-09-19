@@ -268,3 +268,29 @@ Stage Summary:
 - Sharing is now real: every tool has a canonical ?tool= link that unfurls with a custom-designed OG card on social/IM platforms, plus the branded site card as default. Copy-link and X-share emit the unfurlable form.
 - The PRD §11 maker loop is fully closed: submit → track → (rejected) → RESUBMIT WITH FIXES re-opens the wizard pre-filled → re-review.
 - Risks/next: (1) OG font is satori's bundled default (not Geist) — close enough visually; a custom font file could be loaded via ImageResponse fonts option if brand fidelity matters later; (2) generateMetadata makes the root route dynamic (fine for this scope); (3) seeded fictional external URLs still pending swap before prod; (4) candidate next: launch-day calendar view, submissionId FK on Tool (exact approved-linking), NextAuth gating, editor-queue real-time updates.
+
+---
+Task ID: 12
+Agent: main orchestrator (Z.ai Code)
+Task: webDevReview cycle #8 — Launch-week archive (browsable day strip + /api/feed/day) + Tool.submissionId FK integrity + db.ts schema-version guard
+
+Work Log:
+- Assessment: server healthy (12 today / 5 tomorrow / 3 yesterday / 414 subs), lint 0 errors, dev.log clean, browser QA: 12 rows, no overflow, no console errors → stable → new-feature cycle (from Task 11's candidate list).
+- NEW — Launch-week archive (generalizes the Yesterday tab into a browsable week):
+  - GET /api/feed now returns `weekDays: WeekDay[]` — the past 6 UTC days (oldest → newest) with {date, label, weekday, count} of non-scheduled launches (one lightweight launch.findMany + in-memory bucketing).
+  - NEW GET /api/feed/day?date=YYYY-MM-DD (DayArchiveResponse) — one past day's final standings: validates format/403 for today-or-future/403 beyond the 6-day window; merges anon votes; votes-desc ranking; no-store.
+  - Feed UI: the "Yesterday" tab is now "Archive (N)" (mobile "Arch. (N)", ?tab=yesterday key unchanged for compat). When active, a PAST 6 DAYS strip renders above the ARCHIVE rule: day chips with weekday·label·heat-dot·count (heat dot = ember for count>0, ring at ≥2), selected chip ember-filled, click toggles selection, re-click returns to yesterday default. Selected day's rows fetch once from /api/feed/day and cache in dayCache; ARCHIVE header shows the selected label ("ARCHIVE · SEP 17 · …"); footnote adapts ("Final standings for this UTC day." vs winner-email copy); empty state covers zero-count days ("No launches on Sep 13."); skeleton row shown while fetching; dayCache + selection reset on UTC rollover (feed.date change). Category filter applies to archive days too.
+  - STYLING: archive rank #1 gets a 👑 DAY WINNER chip (amber) + gold-tinted card frame; day chips are mono with tabular-nums counts and active:scale-95.
+- FIX — Data integrity: Tool.submissionId @unique column (nullable, editor-seeded tools have null):
+  - prisma/schema.prisma + db:push (column verified).
+  - Editor approve route now writes the FK via $queryRaw UPDATE (Tool.submissionId = submission.id).
+  - listSubmissionsByEmail resolves approved → tool via the FK FIRST ($queryRaw JOIN; SQLite ms-epoch launchDate normalized), domain-match kept as fallback for pre-column tools. E2E verified: submit → approve → Tool row carries submissionId → tracker returns toolSlug/launchDate via FK → test rows cleaned (feed counts back to 12/5/8).
+  - PrismaClient runtime lesson (documented in code): `db:push` regenerates node_modules client, but a long-running dev server's require cache keeps binding the PRE-generation runtime — a fresh `new PrismaClient()` still uses the old datamodel, so new fields are ORM-unusable until process restart. First attempt hit "Unknown field `submissionId`" (500 on /api/submit/status) → switched the read to $queryRaw. lib/db.ts now also guards with a SCHEMA_VERSION marker (self-heal re-evaluates on module reload; swap raw→ORM after a real dev-server restart).
+- STYLING DETAILS: day-strip heat dots + selected ember fill + UTC DAYS caption; DAY WINNER gold frame; archive header/toggle copy updated ("← Launch-week archive · Sep 18 [3]").
+- QA artifacts qa/64–66 (mobile tabs+strip, desktop strip with winner, mobile day chips).
+- Verified: lint 0 errors; dev.log clean (all 200s; the one mid-cycle 500 was the stale-client probe, fixed + documented); browser errors empty; /?tab=yesterday restore works; vote toggle regression 48→49→48 (net zero, DB clean); archive day switching (Sep 17 → StackSherpa/EchoGrain + winner chip; Sep 13 zero-day empty state; deselect → SEP 18 default); mobile 390px docsw=390; FK E2E + full cleanup (tomorrow back to 5).
+
+Stage Summary:
+- The feed now covers the full launch week as first-class history: any of the past 6 days is browsable with locked final standings, day winners are celebrated, and the archive participates in category filtering — "what launched, what's climbing" now extends to "what launched this week, day by day".
+- Submission↔Tool linking is exact (FK), removing the domain-collision caveat in the maker tracker; the PrismaClient staleness trap is documented and guarded.
+- Risks/next: (1) ORM still binds the pre-generation client until dev-server restart — Submission queries + submissionId stay on $queryRaw (behavior identical); (2) Turbopack dev-overlay "1 Issue" badge remains a phantom of earlier compile/error artifacts until restart (routes verified 200); (3) day strip has no today/tomorrow chips (back-link + tabs cover it; could add for symmetry); (4) candidate next: launch-day calendar view beyond 6 days needs seed/schema depth (archive retention policy), NextAuth gating, editor-queue live updates, OG font fidelity.

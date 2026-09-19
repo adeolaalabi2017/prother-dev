@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, rankScore, secondsUntilUtcMidnight, toFeedRow } from "@/lib/prother";
-import type { FeedResponse, FeedRow, Teaser, TopWeekRow } from "@/lib/prother";
+import type { FeedResponse, FeedRow, Teaser, TopWeekRow, WeekDay } from "@/lib/prother";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +129,30 @@ export async function GET() {
 
   const editorsPick = top.find((r) => r.badges.editorsPick) ?? null;
 
+  // Launch-week archive summary: launches per past day (today-6 … today-1),
+  // oldest → newest. Powers the day strip in the feed's Archive tab.
+  const pastDayLaunches = await db.launch.findMany({
+    where: { scheduled: false, launchDate: { gte: weekAgo, lt: todayStart } },
+    select: { launchDate: true },
+  });
+  const weekDays: WeekDay[] = [];
+  for (let i = 6; i >= 1; i--) {
+    const d = new Date(todayStart.getTime() - i * 86_400_000);
+    const start = d.getTime();
+    weekDays.push({
+      date: d.toISOString().slice(0, 10),
+      label: d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }),
+      weekday: d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
+      count: pastDayLaunches.filter(
+        (r) => r.launchDate.getTime() >= start && r.launchDate.getTime() < start + 86_400_000
+      ).length,
+    });
+  }
+
   const body: FeedResponse = {
     date: todayStart.toISOString().slice(0, 10),
     dayLabel: now.toLocaleDateString("en-US", {
@@ -148,6 +172,7 @@ export async function GET() {
       day: "numeric",
       timeZone: "UTC",
     }),
+    weekDays,
     categoryCounts,
     topWeek,
     editorsPick,

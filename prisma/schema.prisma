@@ -51,9 +51,13 @@ model Tool {
   makerHandle   String    @default("@prother")
   relaunch      Boolean   @default(false)
   verifiedAt    DateTime?
-  category      Category  @relation(fields: [categoryId], references: [id])
   categoryId    String
+  category      Category  @relation(fields: [categoryId], references: [id])
   launch        Launch?
+  /** Exact link back to the approved Submission (set by the editor decision
+   *  route; nullable for editor-seeded tools). Written via $queryRaw — see
+   *  the stale-PrismaClient note in lib/prother.ts. */
+  submissionId  String?   @unique
   createdAt     DateTime  @default(now())
 }
 

@@ -140,6 +140,11 @@ export async function POST(req: NextRequest) {
 
   await setSubmissionStatus(sub.id, "approved", null);
 
+  // Exact submission↔tool link (data integrity): prefer the FK over the
+  // domain heuristic the maker tracker previously relied on. Written via
+  // $queryRaw per the stale-PrismaClient note in lib/prother.ts.
+  await db.$queryRaw`UPDATE Tool SET submissionId = ${sub.id} WHERE id = ${tool.id}`;
+
   return NextResponse.json({
     ok: true,
     decision: "approved",
