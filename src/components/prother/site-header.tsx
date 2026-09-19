@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Hexagon, Menu, X } from "lucide-react";
+import { Hexagon, Menu, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useExplorer } from "./explorer-store";
 
 const NAV_LINKS = [
   { label: "Feed", href: "#feed" },
@@ -14,6 +15,7 @@ const NAV_LINKS = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const setSearch = useExplorer((s) => s.setSearch);
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-ink/85 backdrop-blur-md">
@@ -36,6 +38,18 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSearch(true)}
+            aria-label="Search tools (Command K)"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white/60 transition-colors hover:border-ember/40 hover:text-white"
+          >
+            <Search className="size-4" aria-hidden />
+            <span className="hidden lg:inline">Search tools</span>
+            <kbd className="hidden rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/50 lg:inline">
+              ⌘K
+            </kbd>
+          </button>
           <a
             href="#feed"
             className="hidden text-sm text-white/70 transition-colors hover:text-white lg:block"
@@ -93,6 +107,16 @@ export function SiteHeader() {
               Submit your tool
             </a>
           </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setSearch(true);
+            }}
+            className="rounded-lg px-3 py-2.5 text-left text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            🔍 Search tools
+          </button>
         </nav>
       </div>
     </header>

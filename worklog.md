@@ -84,3 +84,28 @@ Work Log:
 
 Stage Summary:
 - Project state: Prother landing page (PRD Appendix D copy + §9 feed demo + Cloudflare-inspired design system) live on `/` with Prisma-backed feed/waitlist/vote APIs. Recurring 15-min agent review enabled for continuous iteration.
+
+---
+Task ID: 5
+Agent: main orchestrator (Z.ai Code)
+Task: webDevReview cycle #1 — regression QA + new features (tool detail modal, ⌘K search) + styling details
+
+Work Log:
+- Regression QA (agent-browser): / loads 200, 12 feed rows, no console errors, no overflow (1280/1280). Vote & waitlist flows unaffected.
+- NEW API: GET /api/tools/[slug] (PRD §10.1) — full detail: description, pricing {model,price,note}, links (website/github/docs/twitter), meta (category/status/submitted/launch day), standards S1–S6 checklist (passed=!scheduled for scheduled launches), votes, and `?vk=<voterKey>` → per-visitor voted state (F-14 integrity: modal now reflects existing ballots).
+- NEW shared module: src/lib/standards.ts (STANDARD_DEFS, client-safe); ToolDetailResponse type added to lib/prother.ts.
+- NEW explorer-store.ts (zustand): {slug, searchOpen} shared by header, feed rows, and dialogs.
+- NEW tool-explorer.tsx mounted once in page.tsx:
+  - ToolDetailDialog: dark coal modal — gradient banner header + overlapping emoji logo, badges, action row (Visit website ember / GitHub / Docs / X ghosts + inline upvote), meta grid (CATEGORY · STATUS Verified/In review · SUBMITTED · LAUNCH DAY), ember pricing card, description, QUALITY BAR 6/6 checklist grid, maker footer w/ Claim link. Detail fetch keyed by slug (`key={slug}` remount pattern to satisfy react-hooks/set-state-in-effect lint — 0 errors).
+  - Vote sync: modal dispatches `prother:vote` CustomEvent; LaunchFeed listens and merges into its voteState (feed behind modal stays consistent). Modal initial voted state comes from server via ?vk=.
+  - CommandPalette (⌘K / ctrl+K listener): groups Today's launches / Tomorrow / Top this week / Categories / Actions (Submit, Standards, Jump to feed); fuzzy filter; Enter → closes palette then opens tool modal after 80ms (radix dialog handoff).
+- Feed rows now open the modal (click/Enter, role=button + aria-label); upvote + Claim stopPropagation; "Visit ↗" relabeled "Details ↗" with group-hover ember. TopWeek rows + Editor's Pick card also open the modal (now proper <button>s).
+- Header: new "Search tools ⌘K" button (icon-only on mobile, kbd chip on lg) + mobile menu entry.
+- Styling details: ScrollProgress (fixed 3px ember gradient bar, spring-smoothed, z-60), BackToTop (appears >600px, animated, positioned above mobile submit bar), prefers-reduced-motion support (marquee + transitions), cmdk dark-theme overrides in globals.css ([cmdk-root/input/item/group-heading/separator] scoped under [role=dialog] — the palette inherited light popover tokens from :root).
+- Bugs fixed this cycle: (1) palette light-on-white text (popover token) → scoped dark CSS; (2) mobile modal overflow — DialogContent max-w-2xl overrode viewport-safe default → `max-w-[calc(100vw-2rem)] sm:max-w-2xl` (verified: dialog right=374, docsw=390).
+- Verified: lint 0 errors; dev.log clean (GET / + /api/feed + /api/tools/promptly 200); QA artifacts qa/17–24 (modal, standards checklist, palette filtered "voice" → VoiceLoom, mobile modal, desktop final).
+
+Stage Summary:
+- Prother is now interactive beyond the feed: any tool (today, tomorrow, top week, or via search) opens a rich detail modal with pricing, links, and the quality-bar audit — the PRD §10.1 experience without leaving the landing page.
+- ⌘K command palette is the flagship UX addition (header button + keyboard shortcut + arrow navigation).
+- Risks/next: (1) modal vote count and feed refetch could be unified via a shared vote cache; (2) seeded external URLs are fictional (promptly.ai etc.) — swap for real tools before production; (3) hero social-proof count still lags POST response by 1 until reload; (4) consider share buttons (Copy link / Tweet) in modal footer next cycle.

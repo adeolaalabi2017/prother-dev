@@ -173,3 +173,58 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 138, 61, 0.75);
 }
+
+/* ── Prother: accessibility & motion preferences ──────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* ── Prother: command palette dark theme (cmdk renders inside a light popover) ── */
+[role="dialog"] [cmdk-root] {
+  background-color: #141312;
+  color: #f5f3ee;
+}
+
+[role="dialog"] [cmdk-input] {
+  color: #f5f3ee;
+  caret-color: #ff6a00;
+}
+
+[role="dialog"] [cmdk-input]::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+[role="dialog"] [cmdk-group-heading] {
+  color: rgba(255, 255, 255, 0.4) !important;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+[role="dialog"] [cmdk-item] {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+[role="dialog"] [cmdk-item][data-selected="true"],
+[role="dialog"] [cmdk-item][data-active="true"] {
+  background: rgba(255, 106, 0, 0.12);
+  color: #ff8a3d;
+}
+
+[role="dialog"] [cmdk-separator] {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[role="dialog"] [cmdk-input-wrapper] {
+  border-color: rgba(255, 255, 255, 0.1);
+}

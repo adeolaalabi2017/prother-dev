@@ -48,6 +48,30 @@ export type TopWeekRow = {
   categoryEmoji: string;
 };
 
+export type ToolDetailResponse = {
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string | null;
+  websiteUrl: string;
+  emoji: string;
+  gradient: string;
+  pricing: { model: string; price: string | null; note: string | null };
+  category: { slug: string; name: string; emoji: string };
+  maker: string;
+  track: "editor_seed" | "community";
+  badges: Badge;
+  links: { github: string | null; docs: string | null; twitter: string | null };
+  votes: number;
+  voted: boolean;
+  launchId: string | null;
+  launchDate: string | null;
+  scheduled: boolean;
+  submittedAt: string;
+  verified: boolean;
+  standards: import("@/lib/standards").StandardCheck[];
+};
+
 export type FeedResponse = {
   date: string;
   dayLabel: string;

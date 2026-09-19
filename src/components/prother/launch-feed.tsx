@@ -10,22 +10,12 @@ import { cn } from "@/lib/utils";
 import type { FeedRow, TopWeekRow } from "@/lib/prother";
 import { WaitlistForm } from "./waitlist-form";
 import { useFeed } from "./use-feed";
+import { useExplorer } from "./explorer-store";
+import { getVoterKey } from "./voter";
 import { CATEGORIES } from "./categories";
 
 type Tab = "new" | "top" | "tomorrow";
 type VoteState = Record<string, { votes: number; voted: boolean }>;
-
-const VOTER_KEY_STORAGE = "prother_voter_key";
-
-function getVoterKey(): string {
-  if (typeof window === "undefined") return "";
-  let key = window.localStorage.getItem(VOTER_KEY_STORAGE);
-  if (!key) {
-    key = crypto.randomUUID();
-    window.localStorage.setItem(VOTER_KEY_STORAGE, key);
-  }
-  return key;
-}
 
 function formatCountdown(totalSec: number): string {
   const s = Math.max(0, totalSec);
@@ -105,7 +95,7 @@ function UpvoteButton({
 }: {
   votes: number;
   voted: boolean;
-  onVote: () => void;
+  onVote: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <button
@@ -114,10 +104,8 @@ function UpvoteButton({
       aria-label={voted ? "Remove upvote" : "Upvote"}
       aria-pressed={voted}
       className={cn(
-        "flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border px-3 py-2 transition",
-        voted
-          ? "border-ember bg-ember/10 text-ember"
-          : "border-white/10 text-white/60 hover:border-ember/50 hover:text-ember"
+        "flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border border-white/10 px-3 py-2 transition hover:border-ember/50 hover:text-ember",
+        voted ? "border-ember bg-ember/10 text-ember hover:border-ember" : "text-white/60"
       )}
     >
       <Triangle className="size-4" fill={voted ? "currentColor" : "none"} aria-hidden />
@@ -137,15 +125,30 @@ function FeedRowItem({
   vote?: { votes: number; voted: boolean };
   onVote: (row: FeedRow) => void;
 }) {
+  const openTool = useExplorer((s) => s.openTool);
   return (
-    <article className="flex gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-ember/40 hover:bg-white/5">
+    <article
+      onClick={() => openTool(row.slug)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "BUTTON") {
+          openTool(row.slug);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${row.name} details`}
+      className="group flex cursor-pointer gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-ember/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60"
+    >
       <span className="w-6 pt-1 font-mono text-lg text-white/30" aria-hidden>
         {rank}
       </span>
       <UpvoteButton
         votes={vote?.votes ?? row.votes}
         voted={vote?.voted ?? row.voted}
-        onVote={() => onVote(row)}
+        onVote={(e) => {
+          e.stopPropagation();
+          onVote(row);
+        }}
       />
       <Logo emoji={row.emoji} gradient={row.gradient} size="md" />
       <div className="min-w-0 flex-1">
@@ -165,6 +168,7 @@ function FeedRowItem({
           {row.badges.unclaimed && (
             <a
               href="#submit"
+              onClick={(e) => e.stopPropagation()}
               className="font-mono text-[10px] text-ember underline-offset-2 hover:underline"
             >
               Claim this →
@@ -179,8 +183,8 @@ function FeedRowItem({
         </p>
       </div>
       <div className="hidden items-center md:flex">
-        <span className="inline-flex cursor-default items-center gap-1 text-sm text-white/50 transition-colors hover:text-ember">
-          Visit <ArrowUpRight className="size-3.5" aria-hidden />
+        <span className="inline-flex items-center gap-1 text-sm text-white/50 transition-colors group-hover:text-ember">
+          Details <ArrowUpRight className="size-3.5" aria-hidden />
         </span>
       </div>
     </article>
@@ -202,10 +206,12 @@ function TeaserRow({
   gradient: string;
   goesLiveInH: number;
 }) {
+  const openTool = useExplorer((s) => s.openTool);
   return (
     <article
       key={slug}
-      className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4"
+      onClick={() => openTool(slug)}
+      className="flex cursor-pointer items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-ember/40 hover:bg-white/5"
     >
       <Logo emoji={emoji} gradient={gradient} size="md" />
       <div className="min-w-0 flex-1">
@@ -220,15 +226,22 @@ function TeaserRow({
 }
 
 function TopWeekItem({ row, rank }: { row: TopWeekRow; rank: number }) {
+  const openTool = useExplorer((s) => s.openTool);
   return (
-    <div className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+    <button
+      type="button"
+      onClick={() => openTool(row.slug)}
+      className="flex w-full items-center gap-3 py-2.5 text-left transition-colors first:pt-0 last:pb-0 hover:[&_span[data-name]]:text-ember"
+    >
       <span className="w-5 font-mono text-sm text-white/40" aria-hidden>
         {rank}
       </span>
       <Logo emoji={row.emoji} gradient={row.gradient} size="sm" />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{row.name}</span>
+      <span data-name className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+        {row.name}
+      </span>
       <span className="font-mono text-sm text-ember">▲{row.votes}</span>
-    </div>
+    </button>
   );
 }
 
@@ -257,6 +270,7 @@ function FeedSkeleton() {
 export function LaunchFeed() {
   const { toast } = useToast();
   const { feed, loading, error, refresh } = useFeed();
+  const openTool = useExplorer((s) => s.openTool);
   const [tab, setTab] = useState<Tab>("new");
   const [now, setNow] = useState<number>(() => Date.now());
   const [voteState, setVoteState] = useState<VoteState>({});
@@ -272,6 +286,23 @@ export function LaunchFeed() {
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(iv);
+  }, []);
+
+  // Votes cast inside the tool detail modal sync back into the feed list.
+  useEffect(() => {
+    const onModalVote = (e: Event) => {
+      const d = (e as CustomEvent).detail as {
+        launchId: string;
+        votes: number;
+        voted: boolean;
+      };
+      setVoteState((prev) => ({
+        ...prev,
+        [d.launchId]: { votes: d.votes, voted: d.voted },
+      }));
+    };
+    window.addEventListener("prother:vote", onModalVote);
+    return () => window.removeEventListener("prother:vote", onModalVote);
   }, []);
 
   const remaining = feed ? Math.max(0, Math.round((deadline - now) / 1000)) : null;
@@ -407,7 +438,11 @@ export function LaunchFeed() {
             {feed?.editorsPick && (
               <div className="rounded-2xl border border-ember/30 bg-ember/[0.06] p-5">
                 <h3 className="font-mono text-xs tracking-widest text-ember">⭐ EDITOR&apos;S PICK</h3>
-                <div className="mt-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => openTool(feed.editorsPick!.slug)}
+                  className="mt-3 flex w-full items-center gap-3 text-left"
+                >
                   <Logo
                     emoji={feed.editorsPick.emoji}
                     gradient={feed.editorsPick.gradient}
@@ -417,7 +452,7 @@ export function LaunchFeed() {
                     <p className="font-bold text-white">{feed.editorsPick.name}</p>
                     <p className="truncate text-sm text-white/60">{feed.editorsPick.tagline}</p>
                   </div>
-                </div>
+                </button>
                 <a
                   href="#standards"
                   className="mt-3 inline-block font-mono text-xs text-ember hover:underline"
