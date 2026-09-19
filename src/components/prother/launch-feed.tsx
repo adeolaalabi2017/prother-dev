@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import { ArrowUpRight, Clock, Triangle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowUpRight, Clock, Triangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -104,12 +104,21 @@ function UpvoteButton({
       aria-label={voted ? "Remove upvote" : "Upvote"}
       aria-pressed={voted}
       className={cn(
-        "flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border border-white/10 px-3 py-2 transition hover:border-ember/50 hover:text-ember",
+        "flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border border-white/10 px-3 py-2 transition hover:border-ember/50 hover:text-ember active:scale-95",
         voted ? "border-ember bg-ember/10 text-ember hover:border-ember" : "text-white/60"
       )}
     >
       <Triangle className="size-4" fill={voted ? "currentColor" : "none"} aria-hidden />
-      <span className="font-mono text-sm font-semibold">{votes}</span>
+      {/* key={votes} re-runs the entrance so the number pops on every change */}
+      <motion.span
+        key={votes}
+        initial={{ scale: 1.35, color: "var(--color-ember)" }}
+        animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 500, damping: 22 }}
+        className="font-mono text-sm font-semibold tabular-nums"
+      >
+        {votes}
+      </motion.span>
     </button>
   );
 }
@@ -137,9 +146,20 @@ function FeedRowItem({
       tabIndex={0}
       role="button"
       aria-label={`View ${row.name} details`}
-      className="group flex cursor-pointer gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-ember/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60"
+      className="group relative flex cursor-pointer gap-4 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:translate-x-0.5 hover:border-ember/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60"
     >
-      <span className="w-6 pt-1 font-mono text-lg text-white/30" aria-hidden>
+      {/* ember accent bar — slides in from the left on hover */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-[3px] origin-top scale-y-0 bg-ember transition-transform duration-200 group-hover:scale-y-100"
+      />
+      <span
+        className={cn(
+          "w-6 pt-1 font-mono text-lg tabular-nums",
+          rank === 1 ? "font-bold text-ember" : rank <= 3 ? "text-white/60" : "text-white/30"
+        )}
+        aria-hidden
+      >
         {rank}
       </span>
       <UpvoteButton
@@ -169,9 +189,9 @@ function FeedRowItem({
             <a
               href="#submit"
               onClick={(e) => e.stopPropagation()}
-              className="font-mono text-[10px] text-ember underline-offset-2 hover:underline"
+              className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-ember/40 px-2 py-0.5 font-mono text-[10px] text-ember transition-colors hover:bg-ember/10"
             >
-              Claim this →
+              Claim this <ArrowUpRight className="size-3" aria-hidden />
             </a>
           )}
         </div>
@@ -271,6 +291,8 @@ export function LaunchFeed() {
   const { toast } = useToast();
   const { feed, loading, error, refresh } = useFeed();
   const openTool = useExplorer((s) => s.openTool);
+  const categoryFilter = useExplorer((s) => s.categoryFilter);
+  const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
   const [tab, setTab] = useState<Tab>("new");
   const [now, setNow] = useState<number>(() => Date.now());
   const [voteState, setVoteState] = useState<VoteState>({});
@@ -348,8 +370,21 @@ export function LaunchFeed() {
 
   const rows = useMemo<FeedRow[]>(() => {
     if (!feed) return [];
-    return tab === "top" ? feed.top : feed.new;
-  }, [feed, tab]);
+    const base = tab === "top" ? feed.top : feed.new;
+    if (!categoryFilter) return base;
+    return base.filter((r) => r.category.slug === categoryFilter);
+  }, [feed, tab, categoryFilter]);
+
+  const tomorrowRows = useMemo(() => {
+    if (!feed) return [];
+    if (!categoryFilter) return feed.tomorrow;
+    return feed.tomorrow.filter((t) => t.category.slug === categoryFilter);
+  }, [feed, categoryFilter]);
+
+  const activeCategory = useMemo(
+    () => CATEGORIES.find((c) => c.slug === categoryFilter) ?? null,
+    [categoryFilter]
+  );
 
   const dayLabel = feed?.dayLabel ?? "Today";
   const todayCount = feed?.todayCount ?? 0;
@@ -381,7 +416,7 @@ export function LaunchFeed() {
           </div>
         </motion.div>
 
-        {/* Tabs */}
+        {/* Tabs — sliding ember pill (framer-motion layout animation) */}
         <div className="my-8 inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
           {(
             [
@@ -396,16 +431,49 @@ export function LaunchFeed() {
               onClick={() => setTab(t.key)}
               aria-pressed={tab === t.key}
               className={cn(
-                "rounded-lg px-4 py-2 text-sm transition-colors",
-                tab === t.key
-                  ? "bg-ember font-semibold text-black"
-                  : "text-white/60 hover:text-white"
+                "relative rounded-lg px-4 py-2 text-sm transition-colors",
+                tab === t.key ? "font-semibold text-black" : "text-white/60 hover:text-white"
               )}
             >
-              {t.label}
+              {tab === t.key && (
+                <motion.span
+                  layoutId="feed-tab-pill"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                  className="absolute inset-0 rounded-lg bg-ember"
+                  aria-hidden
+                />
+              )}
+              <span className="relative z-10">{t.label}</span>
             </button>
           ))}
         </div>
+
+        {/* Category filter status (set from BROWSE chips or ⌘K palette) */}
+        <AnimatePresence initial={false}>
+          {activeCategory && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="inline-flex flex-wrap items-center gap-3 rounded-full border border-ember/30 bg-ember/[0.08] py-1.5 pr-1.5 pl-4">
+                <p className="font-mono text-xs text-ember">
+                  FILTER · {activeCategory.emoji} {activeCategory.short}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter(null)}
+                  className="inline-flex items-center gap-1 rounded-full bg-ember px-3 py-1 font-mono text-[10px] font-semibold text-black transition-colors hover:bg-ember-hot"
+                  aria-label="Clear category filter"
+                >
+                  CLEAR <X className="size-3" aria-hidden />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Content grid */}
         <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
@@ -465,19 +533,26 @@ export function LaunchFeed() {
             <div className="rounded-2xl border border-white/10 bg-coal p-5">
               <h3 className="font-mono text-xs tracking-widest text-white/50">BROWSE</h3>
               <div className="mt-3 flex flex-wrap gap-2">
-                {CATEGORIES.map((c) => (
-                  <span
-                    key={c.slug}
-                    role="link"
-                    tabIndex={0}
-                    className="cursor-default rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/70 transition-colors hover:border-ember/40 hover:text-white"
-                  >
-                    {c.emoji} {c.short}
-                  </span>
-                ))}
-                <span className="rounded-full border border-white/10 px-3 py-1.5 font-mono text-xs text-white/50">
-                  +4 more
-                </span>
+                {CATEGORIES.map((c) => {
+                  const active = categoryFilter === c.slug;
+                  return (
+                    <button
+                      key={c.slug}
+                      type="button"
+                      aria-pressed={active}
+                      title={c.name}
+                      onClick={() => setCategoryFilter(active ? null : c.slug)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs transition-all active:scale-95",
+                        active
+                          ? "border-ember bg-ember font-semibold text-black"
+                          : "border-white/10 text-white/70 hover:border-ember/40 hover:text-white"
+                      )}
+                    >
+                      {c.emoji} {c.short}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </aside>
@@ -496,7 +571,7 @@ export function LaunchFeed() {
               <>
                 <div className="space-y-3">
                   {isTomorrow
-                    ? (feed?.tomorrow ?? []).map((t) => (
+                    ? tomorrowRows.map((t) => (
                         <TeaserRow
                           key={t.slug}
                           slug={t.slug}
@@ -517,6 +592,23 @@ export function LaunchFeed() {
                         />
                       ))}
                 </div>
+
+                {!isTomorrow && rows.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
+                    <p className="font-mono text-sm text-white/60">
+                      No {activeCategory ? activeCategory.short : ""} launches in this list today.
+                    </p>
+                    {activeCategory && (
+                      <button
+                        type="button"
+                        onClick={() => setCategoryFilter(null)}
+                        className="mt-3 font-mono text-xs text-ember hover:underline"
+                      >
+                        Show all categories
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {isTomorrow && (
                   <p className="mt-6 font-mono text-xs text-white/40">

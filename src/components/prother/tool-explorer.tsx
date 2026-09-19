@@ -9,6 +9,8 @@ import {
   ExternalLink,
   FileText,
   Github,
+  Link2,
+  Share2,
   Sparkles,
   Triangle,
 } from "lucide-react";
@@ -33,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { ToolDetailResponse } from "@/lib/prother";
 import { CATEGORIES } from "./categories";
-import { useExplorer } from "./explorer-store";
+import { toolHash, useExplorer } from "./explorer-store";
 import { useFeed } from "./use-feed";
 import { getVoterKey } from "./voter";
 
@@ -100,6 +102,7 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
   const [vote, setVote] = useState<{ votes: number; voted: boolean } | null>(
     null,
   );
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -161,6 +164,28 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
   }, [detail, vote, toast]);
 
   const passedCount = detail?.standards.filter((s) => s.passed).length ?? 0;
+
+  const shareUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/${toolHash(slug)}`
+      : "";
+  const shareText = detail
+    ? `🚀 ${detail.name} — ${detail.tagline} is on Prother`
+    : "";
+
+  const onCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      toast({
+        title: "Could not copy the link",
+        description: shareUrl,
+        variant: "destructive",
+      });
+    }
+  }, [shareUrl, toast]);
 
   return (
     <>
@@ -235,7 +260,7 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
                 href={detail.websiteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-semibold text-black transition-colors hover:bg-ember-hot"
+                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-semibold text-black transition hover:bg-ember-hot active:scale-[0.98]"
               >
                 Visit website <ExternalLink className="size-3.5" aria-hidden />
               </a>
@@ -278,6 +303,32 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
                   </svg>
                 </a>
               )}
+              <button
+                type="button"
+                onClick={onCopyLink}
+                aria-label="Copy link to this tool"
+                className={cn(
+                  "inline-flex size-10 items-center justify-center rounded-lg border border-white/10 transition-colors",
+                  copied
+                    ? "border-emerald-500/40 text-emerald-400"
+                    : "text-white/70 hover:border-ember/40 hover:text-ember",
+                )}
+              >
+                {copied ? (
+                  <Check className="size-4" aria-hidden />
+                ) : (
+                  <Link2 className="size-4" aria-hidden />
+                )}
+              </button>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Share ${detail.name} on X`}
+                className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+              >
+                <Share2 className="size-4" aria-hidden />
+              </a>
               <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
@@ -286,7 +337,7 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
                   aria-label={vote.voted ? "Remove upvote" : "Upvote this tool"}
                   aria-pressed={vote.voted}
                   className={cn(
-                    "inline-flex h-10 items-center gap-2 rounded-lg border px-4 font-mono text-sm font-semibold transition",
+                    "inline-flex h-10 items-center gap-2 rounded-lg border px-4 font-mono text-sm font-semibold tabular-nums transition active:scale-95",
                     vote.voted
                       ? "border-ember bg-ember/10 text-ember"
                       : "border-white/10 text-white/70 hover:border-ember/50 hover:text-ember",
@@ -308,7 +359,10 @@ function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
                 <dt className="font-mono text-[10px] tracking-widest text-white/40">
                   CATEGORY
                 </dt>
-                <dd className="mt-1 truncate text-sm text-white/85">
+                <dd
+                  className="mt-1 text-sm leading-snug text-white/85"
+                  title={`${detail.category.emoji} ${detail.category.name}`}
+                >
                   {detail.category.emoji} {detail.category.name}
                 </dd>
               </div>
@@ -468,6 +522,7 @@ function CommandPalette() {
   const searchOpen = useExplorer((s) => s.searchOpen);
   const setSearch = useExplorer((s) => s.setSearch);
   const openTool = useExplorer((s) => s.openTool);
+  const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
 
   const pickTool = useCallback(
     (slug: string) => {
@@ -486,6 +541,14 @@ function CommandPalette() {
       }, 80);
     },
     [setSearch],
+  );
+
+  const filterCategory = useCallback(
+    (slug: string) => {
+      setCategoryFilter(slug);
+      goTo("#feed");
+    },
+    [setCategoryFilter, goTo],
   );
 
   const seen = new Set<string>();
@@ -599,10 +662,13 @@ function CommandPalette() {
             <CommandItem
               key={c.slug}
               value={`category ${c.slug} ${c.name}`}
-              onSelect={() => goTo("#categories")}
+              onSelect={() => filterCategory(c.slug)}
             >
               <span aria-hidden>{c.emoji}</span>
               <span>{c.name}</span>
+              <span className="ml-auto font-mono text-[10px] text-white/30">
+                FILTER
+              </span>
             </CommandItem>
           ))}
         </CommandGroup>
@@ -640,7 +706,9 @@ function CommandPalette() {
 
 export function ToolExplorer() {
   const setSearch = useExplorer((s) => s.setSearch);
+  const openTool = useExplorer((s) => s.openTool);
 
+  // ⌘K / ctrl+K opens the command palette.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -651,6 +719,12 @@ export function ToolExplorer() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [setSearch]);
+
+  // Shareable deep links: /#tool=<slug> opens the detail modal on load.
+  useEffect(() => {
+    const m = window.location.hash.match(/^#tool=([^&]+)$/);
+    if (m?.[1]) openTool(decodeURIComponent(m[1]));
+  }, [openTool]);
 
   return (
     <>

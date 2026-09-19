@@ -109,3 +109,33 @@ Stage Summary:
 - Prother is now interactive beyond the feed: any tool (today, tomorrow, top week, or via search) opens a rich detail modal with pricing, links, and the quality-bar audit — the PRD §10.1 experience without leaving the landing page.
 - ⌘K command palette is the flagship UX addition (header button + keyboard shortcut + arrow navigation).
 - Risks/next: (1) modal vote count and feed refetch could be unified via a shared vote cache; (2) seeded external URLs are fictional (promptly.ai etc.) — swap for real tools before production; (3) hero social-proof count still lags POST response by 1 until reload; (4) consider share buttons (Copy link / Tweet) in modal footer next cycle.
+
+---
+Task ID: 6
+Agent: main orchestrator (Z.ai Code)
+Task: webDevReview cycle #2 — full QA regression + category filtering, shareable deep links, waitlist sync, styling details
+
+Work Log:
+- Assessment: server healthy (GET /, /api/feed, /api/waitlist, /api/tools/* all 200), dev.log clean. Browser QA (agent-browser): 12 feed rows, vote toggle 48→49→48, modal, ⌘K, mobile 390px no overflow, desktop 1280px no overflow, no console errors → phase judged stable, so this cycle = bug fixes + new features.
+- BUG FIX 1 (pre-existing, uncovered by QA): CATEGORIES constant had no `name` field → ⌘K palette category items rendered EMPTY labels (a11y tree announced only "FILTER") and BROWSE chip tooltips were undefined. Added full `name` per category (mirrors seeded DB rows) in src/components/prother/categories.ts.
+- BUG FIX 2: tool modal CATEGORY value truncated ("Generative Ai...") → removed `truncate`, added leading-snug wrap + title attr.
+- BUG FIX 3 (styling): feed "Claim this →" mono arrow rendered as stray dots → restyled as dashed ember chip with lucide ArrowUpRight ("Claim this ↗").
+- NEW FEATURE — category filtering of the launch feed (shared zustand state `categoryFilter` in explorer-store):
+  - BROWSE sidebar chips are now real toggle buttons (ember fill when active, active:scale-95, title=full name).
+  - Filter applies to New/Top rows AND Tomorrow teasers (Teaser type already carried category).
+  - Animated filter status bar above the list ("FILTER · 🤖 Chatbots" + CLEAR button, AnimatePresence height/opacity) + empty state with "Show all categories" reset.
+  - ⌘K palette "Categories" group now APPLIES the filter + smooth-scrolls to #feed (previously scrolled to a static section).
+- NEW FEATURE — shareable tool deep links:
+  - openTool/closeTool now sync `location.hash` via history.replaceState (#tool=<slug>).
+  - ToolExplorer opens the modal from `#tool=<slug>` on page load (fresh-load verified: /#tool=pixelforge).
+  - Modal action row: Copy link button (Link2 → emerald Check for 1.6s, clipboard write, toast fallback on failure) + Share on X (twitter intent with prefilled "🚀 Name — tagline is on Prother" + share URL).
+- NEW FEATURE — waitlist social-proof instant sync: WaitlistForm dispatches `prother:waitlist` {count}; Hero SocialProofCount listens → count updates without reload (verified 414→415 live).
+- NEW FEATURE — hero terminal is now data-driven from the live feed: #1 name/tagline/votes, CLIMBING = top[1]/top[2], Editor's Pick, dayLabel, remaining-launches count (seeded copy kept as fallback).
+- STYLING DETAILS: framer-motion layoutId sliding ember pill on feed tabs; rank #1 ember bold + ranks 2-3 brightened (tabular-nums); vote counts pop via keyed motion.span (spring, ember flash); feed rows get translate-x hover + sliding ember left accent bar; active:scale press feedback on all vote buttons + Visit website; category ticker edge fade masks (ink gradients); modal vote count tabular-nums.
+- QA artifacts qa/25–36. Test vote + test subscriber (sync-test@example.com) removed from DB afterwards.
+- Verified after all changes: `bun run lint` 0 errors; dev.log clean (no runtime errors); reload → 12 rows, no console errors, docsw 1280/390 == viewport, hash cleared after modal close.
+
+Stage Summary:
+- The feed is now genuinely explorable: filter by 10 categories (chips or ⌘K), every tool has a shareable deep link with copy/X-share actions, and all counts (votes, subscribers) update live without reloads.
+- Bugs fixed: empty palette category labels (a11y), modal category truncation, Claim chip rendering.
+- Remaining risks/next: (1) seeded external URLs still fictional (swap before prod); (2) filter state is session-only (no URL sync — could persist via ?cat= query); (3) could add per-category counts in BROWSE chips + ⌘K results; (4) possible next features: recent-launches archive (yesterday), OG meta for #tool deep links, launch-day reminder opt-in.

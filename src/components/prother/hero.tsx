@@ -18,8 +18,15 @@ function SocialProofCount() {
       .catch(() => {
         /* keep placeholder */
       });
+    // Waitlist joins elsewhere on the page (sidebar / final CTA) bump this instantly.
+    const onJoin = (e: Event) => {
+      const c = (e as CustomEvent).detail?.count;
+      if (typeof c === "number") setCount(c);
+    };
+    window.addEventListener("prother:waitlist", onJoin);
     return () => {
       alive = false;
+      window.removeEventListener("prother:waitlist", onJoin);
     };
   }, []);
 
@@ -73,6 +80,14 @@ function HeroBackdrop() {
 export function Hero() {
   const { feed } = useFeed();
   const todayCount = feed ? String(feed.todayCount) : "12";
+
+  // Terminal mirrors the live feed (falls back to seeded copy until loaded).
+  const top1 = feed?.top[0];
+  const top2 = feed?.top[1];
+  const top3 = feed?.top[2];
+  const pick = feed?.editorsPick;
+  const moreCount = feed ? Math.max(0, feed.todayCount - 4) : 8;
+  const dayLabel = feed?.dayLabel ?? "Sat, Sep 19";
 
   return (
     <section id="top" className="relative overflow-hidden pt-16 pb-20 md:pt-20">
@@ -146,23 +161,19 @@ export function Hero() {
             <p className="text-white">
               <span className="text-ember">$</span> prother digest --today
             </p>
-            <p className="text-white/80">⬡ THE DAILY LAUNCH — Sat, Sep 19</p>
+            <p className="text-white/80">⬡ THE DAILY LAUNCH — {dayLabel}</p>
             <p className="mt-2 text-white/80">
-              🏆 #1 Promptly — AI chatbots that never
-              <br />
-              <span className="pl-3">hallucinate citations</span>
-              <span className="float-right text-ember">▲47</span>
+              🏆 #1 {top1?.name ?? "Promptly"} — {top1?.tagline ?? "AI chatbots that never hallucinate citations"}
+              <span className="float-right text-ember">▲{top1?.votes ?? 47}</span>
             </p>
             <p className="mt-2 text-white/80">
-              📈 CLIMBING&nbsp;&nbsp;NectarSearch <span className="text-ember">▲312</span> ·
-              FlowStein <span className="text-ember">▲288</span>
+              📈 CLIMBING&nbsp;&nbsp;{top2?.name ?? "NectarSearch"} <span className="text-ember">▲{top2?.votes ?? 312}</span> ·{" "}
+              {top3?.name ?? "FlowStein"} <span className="text-ember">▲{top3?.votes ?? 288}</span>
             </p>
             <p className="mt-2 text-white/80">
-              ⭐ EDITOR&apos;S PICK&nbsp;&nbsp;PixelForge — sketches in,
-              <br />
-              <span className="pl-3">design systems out</span>
+              ⭐ EDITOR&apos;S PICK&nbsp;&nbsp;{pick?.name ?? "PixelForge"} — {pick?.tagline ?? "sketches in, design systems out"}
             </p>
-            <p className="mt-2 text-white/50">→ 8 more launches · read in 5 min</p>
+            <p className="mt-2 text-white/50">→ {moreCount} more launches · read in 5 min</p>
             <p className="mt-3 flex items-center">
               <span className="text-ember">$</span>
               <span className="ml-2 inline-block h-4 w-2 animate-pulse bg-ember" aria-hidden />

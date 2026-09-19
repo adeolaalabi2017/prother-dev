@@ -38,6 +38,12 @@ export function WaitlistForm({ source, dark = true, compact = false }: WaitlistF
         throw new Error(data.error ?? "Something went wrong. Try again.");
       }
       setDone({ count: data.count ?? 0 });
+      // Let other count displays (hero social proof) update instantly.
+      if (typeof data.count === "number") {
+        window.dispatchEvent(
+          new CustomEvent("prother:waitlist", { detail: { count: data.count } })
+        );
+      }
       toast({
         title: data.alreadySubscribed ? "You're already on the list ✓" : "You're on the list ✓",
         description: "See you at 00:00 UTC — one email a day.",
