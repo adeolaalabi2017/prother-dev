@@ -14,7 +14,7 @@ import { useExplorer } from "./explorer-store";
 import { getVoterKey } from "./voter";
 import { CATEGORIES } from "./categories";
 
-type Tab = "new" | "top" | "tomorrow";
+type Tab = "new" | "top" | "tomorrow" | "yesterday";
 type VoteState = Record<string, { votes: number; voted: boolean }>;
 
 function formatCountdown(totalSec: number): string {
@@ -123,16 +123,33 @@ function UpvoteButton({
   );
 }
 
+/** Final score for closed launch days — voting is locked, count is history. */
+function FinalScore({ votes, rank }: { votes: number; rank: number }) {
+  return (
+    <div
+      title={`Voting closed — final #${rank} score`}
+      className="flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2 text-white/40"
+      aria-label={`Final score ${votes} votes, rank ${rank}`}
+    >
+      <Triangle className="size-4" aria-hidden />
+      <span className="font-mono text-sm font-semibold tabular-nums">{votes}</span>
+    </div>
+  );
+}
+
 function FeedRowItem({
   row,
   rank,
   vote,
   onVote,
+  votingOpen = true,
 }: {
   row: FeedRow;
   rank: number;
   vote?: { votes: number; voted: boolean };
   onVote: (row: FeedRow) => void;
+  /** false for archive days — shows the locked final score instead. */
+  votingOpen?: boolean;
 }) {
   const openTool = useExplorer((s) => s.openTool);
   return (
@@ -162,14 +179,18 @@ function FeedRowItem({
       >
         {rank}
       </span>
-      <UpvoteButton
-        votes={vote?.votes ?? row.votes}
-        voted={vote?.voted ?? row.voted}
-        onVote={(e) => {
-          e.stopPropagation();
-          onVote(row);
-        }}
-      />
+      {votingOpen ? (
+        <UpvoteButton
+          votes={vote?.votes ?? row.votes}
+          voted={vote?.voted ?? row.voted}
+          onVote={(e) => {
+            e.stopPropagation();
+            onVote(row);
+          }}
+        />
+      ) : (
+        <FinalScore votes={row.votes} rank={rank} />
+      )}
       <Logo emoji={row.emoji} gradient={row.gradient} size="md" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -370,7 +391,7 @@ export function LaunchFeed() {
 
   const rows = useMemo<FeedRow[]>(() => {
     if (!feed) return [];
-    const base = tab === "top" ? feed.top : feed.new;
+    const base = tab === "top" ? feed.top : tab === "yesterday" ? feed.yesterday : feed.new;
     if (!categoryFilter) return base;
     return base.filter((r) => r.category.slug === categoryFilter);
   }, [feed, tab, categoryFilter]);
@@ -389,6 +410,14 @@ export function LaunchFeed() {
   const dayLabel = feed?.dayLabel ?? "Today";
   const todayCount = feed?.todayCount ?? 0;
   const isTomorrow = tab === "tomorrow";
+  const isYesterday = tab === "yesterday";
+
+  const tabs: { key: Tab; label: string; short: string }[] = [
+    { key: "new", label: "New", short: "New" },
+    { key: "top", label: "Top Today", short: "Top" },
+    { key: "tomorrow", label: `Tomorrow (${feed?.tomorrow.length ?? 0})`, short: `Tmrw (${feed?.tomorrow.length ?? 0})` },
+    { key: "yesterday", label: `Yesterday (${feed?.yesterday.length ?? 0})`, short: `Yest. (${feed?.yesterday.length ?? 0})` },
+  ];
 
   return (
     <section id="feed" className="bg-ink py-24">
@@ -417,21 +446,15 @@ export function LaunchFeed() {
         </motion.div>
 
         {/* Tabs — sliding ember pill (framer-motion layout animation) */}
-        <div className="my-8 inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
-          {(
-            [
-              { key: "new", label: "New" },
-              { key: "top", label: "Top Today" },
-              { key: "tomorrow", label: `Tomorrow (${feed?.tomorrow.length ?? 0})` },
-            ] as { key: Tab; label: string }[]
-          ).map((t) => (
+        <div className="my-8 flex max-w-full flex-wrap gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/5 p-1 sm:inline-flex">
+          {tabs.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setTab(t.key)}
               aria-pressed={tab === t.key}
               className={cn(
-                "relative rounded-lg px-4 py-2 text-sm transition-colors",
+                "relative shrink-0 rounded-lg px-3.5 py-2 text-sm transition-colors sm:px-4",
                 tab === t.key ? "font-semibold text-black" : "text-white/60 hover:text-white"
               )}
             >
@@ -443,7 +466,10 @@ export function LaunchFeed() {
                   aria-hidden
                 />
               )}
-              <span className="relative z-10">{t.label}</span>
+              <span className="relative z-10">
+                <span className="sm:hidden">{t.short}</span>
+                <span className="hidden sm:inline">{t.label}</span>
+              </span>
             </button>
           ))}
         </div>

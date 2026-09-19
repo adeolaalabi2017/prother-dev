@@ -720,11 +720,26 @@ export function ToolExplorer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [setSearch]);
 
-  // Shareable deep links: /#tool=<slug> opens the detail modal on load.
+  // Shareable deep links: /#tool=<slug> opens the detail modal on load —
+  // and keeps working when the hash is navigated to *after* load
+  // (same-document navigation, pasted links, back/forward).
   useEffect(() => {
-    const m = window.location.hash.match(/^#tool=([^&]+)$/);
-    if (m?.[1]) openTool(decodeURIComponent(m[1]));
+    const applyHash = () => {
+      const m = window.location.hash.match(/^#tool=([^&]+)$/);
+      if (m?.[1]) openTool(decodeURIComponent(m[1]));
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
   }, [openTool]);
+
+  // Restore a shared/filtered category from the URL on load (?cat=<slug>).
+  useEffect(() => {
+    const cat = new URLSearchParams(window.location.search).get("cat");
+    if (cat && CATEGORIES.some((c) => c.slug === cat)) {
+      useExplorer.getState().setCategoryFilter(cat);
+    }
+  }, []);
 
   return (
     <>

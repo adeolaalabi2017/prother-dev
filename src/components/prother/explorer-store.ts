@@ -24,6 +24,28 @@ export function toolHash(slug: string): string {
   return `#tool=${encodeURIComponent(slug)}`;
 }
 
+/**
+ * Keep the active category filter in the URL (?cat=<slug>) so filtered
+ * views are shareable and survive reloads. Uses replaceState — no history spam.
+ */
+function syncCatParam(slug: string | null): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  let changed = false;
+  if (slug) {
+    if (url.searchParams.get("cat") !== slug) {
+      url.searchParams.set("cat", slug);
+      changed = true;
+    }
+  } else if (url.searchParams.has("cat")) {
+    url.searchParams.delete("cat");
+    changed = true;
+  }
+  if (changed) {
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }
+}
+
 export const useExplorer = create<ExplorerState>((set) => ({
   slug: null,
   searchOpen: false,
@@ -46,5 +68,8 @@ export const useExplorer = create<ExplorerState>((set) => ({
     }
   },
   setSearch: (searchOpen) => set({ searchOpen }),
-  setCategoryFilter: (categoryFilter) => set({ categoryFilter }),
+  setCategoryFilter: (categoryFilter) => {
+    set({ categoryFilter });
+    syncCatParam(categoryFilter);
+  },
 }));

@@ -80,6 +80,11 @@ export type FeedResponse = {
   new: FeedRow[];
   top: FeedRow[];
   tomorrow: Teaser[];
+  /** Yesterday's final standings (voting closed), sorted by votes. */
+  yesterday: FeedRow[];
+  yesterdayLabel: string;
+  /** Today's launches per category slug — powers BROWSE chip counts. */
+  categoryCounts: Record<string, number>;
   topWeek: TopWeekRow[];
   editorsPick: FeedRow | null;
   subscriberCount: number;

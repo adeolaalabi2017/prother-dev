@@ -12,8 +12,9 @@ export async function GET() {
   const weekAgo = new Date(todayStart.getTime() - 6 * 86_400_000);
   const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
   const dayAfter = new Date(todayStart.getTime() + 2 * 86_400_000);
+  const yesterdayStart = new Date(todayStart.getTime() - 86_400_000);
 
-  const [tools, weekTools, subscriberCount] = await Promise.all([
+  const [tools, weekTools, yesterdayTools, subscriberCount] = await Promise.all([
     db.tool.findMany({
       where: { launch: { scheduled: false, launchDate: { gte: todayStart, lt: tomorrowStart } } },
       include: { launch: true, category: { select: { slug: true, name: true, emoji: true } } },
@@ -24,13 +25,18 @@ export async function GET() {
       orderBy: { launch: { baseUpvotes: "desc" } },
       take: 5,
     }),
+    db.tool.findMany({
+      where: { launch: { scheduled: false, launchDate: { gte: yesterdayStart, lt: todayStart } } },
+      include: { launch: true, category: { select: { slug: true, name: true, emoji: true } } },
+    }),
     db.subscriber.count(),
   ]);
 
   // Anonymous votes are part of the live tally (baseUpvotes + real votes).
   const todayLaunchIds = tools.map((t) => t.launch!.id);
   const weekLaunchIds = weekTools.map((t) => t.launch!.id).filter(Boolean);
-  const [anonToday, anonWeek] = await Promise.all([
+  const yesterdayLaunchIds = yesterdayTools.map((t) => t.launch!.id).filter(Boolean);
+  const [anonToday, anonWeek, anonYesterday] = await Promise.all([
     db.vote.groupBy({
       by: ["launchId"],
       _count: { _all: true },
@@ -43,12 +49,19 @@ export async function GET() {
           where: { launchId: { in: weekLaunchIds } },
         })
       : Promise.resolve([] as { launchId: string; _count: { _all: number } }[]),
+    yesterdayLaunchIds.length
+      ? db.vote.groupBy({
+          by: ["launchId"],
+          _count: { _all: true },
+          where: { launchId: { in: yesterdayLaunchIds } },
+        })
+      : Promise.resolve([] as { launchId: string; _count: { _all: number } }[]),
   ]);
   const anonByLaunch = new Map<string, number>();
-  for (const g of [...anonToday, ...anonWeek]) {
+  for (const g of [...anonToday, ...anonWeek, ...anonYesterday]) {
     anonByLaunch.set(g.launchId, g._count._all);
   }
-  for (const t of [...tools, ...weekTools]) {
+  for (const t of [...tools, ...weekTools, ...yesterdayTools]) {
     if (t.launch) {
       t.launch.baseUpvotes += anonByLaunch.get(t.launch.id) ?? 0;
     }
@@ -93,6 +106,17 @@ export async function GET() {
       ),
     }));
 
+  // Yesterday's final standings: voting closed, ranked by total upvotes.
+  const yesterdayRows: FeedRow[] = yesterdayTools
+    .map((t) => toFeedRow(t, t.category, votedSet))
+    .sort((a, b) => b.votes - a.votes);
+
+  // Per-category counts of today's launches — powers BROWSE chip counts.
+  const categoryCounts: Record<string, number> = {};
+  for (const r of rows) {
+    categoryCounts[r.category.slug] = (categoryCounts[r.category.slug] ?? 0) + 1;
+  }
+
   // Top Week sidebar: raw upvotes (PRD §9 wireframe)
   const topWeek: TopWeekRow[] = weekTools.map((t) => ({
     slug: t.slug,
@@ -118,6 +142,13 @@ export async function GET() {
     new: newRows,
     top,
     tomorrow,
+    yesterday: yesterdayRows,
+    yesterdayLabel: new Date(todayStart.getTime() - 86_400_000).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }),
+    categoryCounts,
     topWeek,
     editorsPick,
     subscriberCount,
