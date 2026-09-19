@@ -170,6 +170,90 @@ export async function pendingQueuePosition(id: string): Promise<number> {
   return idx >= 0 ? idx + 1 : rows.length;
 }
 
+// ── Editor review queue (PRD §12 adaptation — demo passcode gate) ───────
+
+/** Demo stand-in for real auth (NextAuth ships in the stack for Phase 2). */
+export const EDITOR_KEY = "ember-dev";
+
+export type SubmissionRow = {
+  id: string;
+  email: string;
+  websiteUrl: string;
+  domain: string;
+  name: string;
+  tagline: string;
+  description: string;
+  categorySlug: string;
+  tags: string;
+  pricingModel: string;
+  startingPrice: string | null;
+  pricingNote: string | null;
+  hasApi: number;
+  githubUrl: string | null;
+  docsUrl: string | null;
+  twitterUrl: string | null;
+  logoEmoji: string;
+  logoGradient: string;
+  isOwner: number;
+  confirmedLive: number;
+  agreedStandards: number;
+  status: string;
+  createdAt: string;
+};
+
+export async function listPendingSubmissions(): Promise<SubmissionRow[]> {
+  return db.$queryRaw<SubmissionRow[]>`
+    SELECT id, email, websiteUrl, domain, name, tagline, description,
+           categorySlug, tags, pricingModel, startingPrice, pricingNote,
+           hasApi, githubUrl, docsUrl, twitterUrl, logoEmoji, logoGradient,
+           isOwner, confirmedLive, agreedStandards, status, createdAt
+    FROM Submission
+    WHERE status = 'pending'
+    ORDER BY createdAt ASC`;
+}
+
+export async function countSubmissionsByStatus(): Promise<Record<string, number>> {
+  const rows = await db.$queryRaw<{ status: string; n: number }[]>`
+    SELECT status, COUNT(*) as n FROM Submission GROUP BY status`;
+  const out: Record<string, number> = { pending: 0, approved: 0, rejected: 0 };
+  for (const r of rows) out[r.status] = Number(r.n);
+  return out;
+}
+
+export async function setSubmissionStatus(
+  id: string,
+  status: "approved" | "rejected",
+  reviewNote: string | null
+): Promise<void> {
+  await db.$queryRaw`
+    UPDATE Submission SET status = ${status}, reviewNote = ${reviewNote}
+    WHERE id = ${id}`;
+}
+
+/** Unique slug for an approved tool (name → slug, -2/-3 on collision). */
+export function slugifyName(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 48) || "tool"
+  );
+}
+
+export async function uniqueToolSlug(base: string): Promise<string> {
+  const taken = await db.tool.findMany({
+    select: { slug: true },
+    where: { slug: { startsWith: base } },
+  });
+  const takenSet = new Set(taken.map((t) => t.slug));
+  if (!takenSet.has(base)) return base;
+  for (let i = 2; i < 50; i++) {
+    if (!takenSet.has(`${base}-${i}`)) return `${base}-${i}`;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+}
+
 // ── Ranking (PRD F-36): score = weighted_upvotes / hours^1.2 ────────────
 export function rankScore(votes: number, launchStart: Date, now = Date.now()): number {
   const hours = Math.max(0.5, (now - launchStart.getTime()) / 3_600_000);

@@ -191,3 +191,31 @@ Stage Summary:
 - Track B is live end-to-end: founders submit via the PRD §11 wizard (5 steps, live preview, dup interstitial, rate limits, confirm gates) into a persisted moderation queue with position tracking — closing the last major P0 gap in the landing scope.
 - All conversion surfaces now lead to the wizard; feed state (?tab=) joins ?cat= and #tool= as shareable URLs.
 - Risks/next: (1) dev-server-restart would let the $queryRaw shim be replaced by ORM calls (cosmetic); (2) PRD auth gate before Step 1 is approximated by email field (note in worklog; NextAuth exists in stack if wanted); (3) editor review queue UI (approve/reject/schedule) is the natural admin follow-up — data model already supports it via status/reviewNote; (4) seeded fictional URLs still pending swap before prod.
+
+---
+Task ID: 9
+Agent: main orchestrator (Z.ai Code)
+Task: webDevReview cycle #5 — Editor review console (PRD §12 adaptation) closing the Track-B loop: submit → review → approve → Tomorrow teaser
+
+Work Log:
+- Assessment: server healthy (feed 12 today / 4 tomorrow / 3 yesterday), no overflow, no console errors → stable. This cycle: the natural next step from Task 8 — the editor/moderation side of the submission pipeline.
+- NEW APIs (both gated by demo passcode header x-editor-key, EDITOR_KEY="ember-dev" — documented stand-in for Phase-2 NextAuth):
+  - GET /api/editor/queue → pending submissions oldest-first (PRD fairness) + counts + capacity {today, tomorrow, floor:5, cap:15} (PRD §12 capacity chip model).
+  - POST /api/editor/decision → approve | reject (zod discriminated union). Approve: Submission → Tool (slug via slugifyName + uniqueToolSlug -2/-3 dedupe, track=community, claimed=isOwner, maker @email-prefix, verifiedAt=now) + Launch scheduled for TOMORROW UTC midnight → appears as a teaser immediately, goes live at rollover. Reject: status=rejected + reviewNote "Failed: S1, S4 — note" (PRD §7 "rejections must cite failed standard(s)"). 401 wrong key · 404 unknown id · 409 already-decided.
+  - Submission table access stays on $queryRaw helpers (stale-PrismaClient workaround, see Task 8); Tool/Launch/Category via normal ORM (present in pre-generation client).
+- NEW editor-console.tsx (Dialog, mounted once in page.tsx):
+  - Passcode gate (mono input + click-to-fill demo key hint, sessionStorage "prother_editor_key").
+  - Header chips: 🟢/🟡/🔴 TODAY n/cap · TMRW n/cap · PENDING n (live after every decision).
+  - Pending cards: emoji/gradient logo, OWNER vs 3RD PARTY badge, domain + "Nh in queue", expandable detail (description, category, pricing, email, tag chips, Visit site ↗), S1–S6 reviewer strip (self-declared S1/S3 show emerald checks, rest dashed), Approve → schedule tomorrow (ember) / Reject… panel with 6 S-checkbox chips + note + "Reject with N citations" (disabled until ≥1 cited).
+  - After any decision: queue reload + window.dispatchEvent("prother:feed-refresh") → use-feed listens and refetches, so Tomorrow counts update LIVE without reload.
+- use-feed.ts: added prother:feed-refresh listener (module cache bust via fetchFeed(true)).
+- Footer: real "EDITOR ACCESS" mono button (bottom bar, ⌘⇧E shortcut also opens the console); footer "Submit your tool" / "For makers" links now open the §11 wizard instead of dead-ends.
+- BUGS fixed during self-QA: (1) missing db import in queue route (ReferenceError); (2) $queryRaw returns SQLite booleans as true/false, not 1/0 → normalized in queue API + client type/comparisons (OWNER badge was wrong) + decision route (claimed/hasApi via Boolean()); (3) approve created Launch with launchDate=todayStart + scheduled=true → invisible in BOTH today and tomorrow windows; fixed to tomorrowStart (+ one-off DB fix for DriftBoard).
+- VERIFIED END-TO-END (browser): submitted DriftBoard via /api/submit → console showed card (chips 🟡 TODAY 12/15 · TMRW 4/15 · PENDING 1) → Approve → toast + queue clear → TMRW chip 5/15 → Tomorrow tab lists "Turbine, LingoLoop, Verity, CanvasOps, DriftBoard" → GET /api/tools/driftboard 200 (community listing, @mira, QUALITY BAR 0/6 PENDING until rollover = PRD-consistent). Reject path: QuickNote (a waitlist-violating S1/S4 submission) → Reject panel with S1+S4 cited → DB row status=rejected, reviewNote="Failed: S1, S4". 404 on unknown id. Test row cleaned; DriftBoard intentionally kept as demo of the loop.
+- QA artifacts qa/50–54 (gate, queue, expanded card, reject panel, tomorrow-with-approved).
+- lint 0 errors; dev.log clean; docsw 1280/390 both clean. Known cosmetic: Next dev-overlay "1 Issue" badge shows a STALE compile-error artifact ("domainOf doesn't exist in prother.ts") — the import was fixed in cycle #4 and every route returns 200; Turbopack keeps the phantom in its issue list until a dev-server restart flushes it. No user-facing impact.
+
+Stage Summary:
+- The moderation pipeline is now complete and CLOSED-LOOP: maker submits (§11 wizard) → editor reviews (S1–S6 audit strip) → approve → Tool+Launch created → teaser in Tomorrow → auto-live at 00:00 UTC rollover; or reject with cited standards → reviewNote persisted for the maker email.
+- Prother now exercises the full PRD §8 dual-track supply model (editor seed + community submit) on a single landing route: feed, detail modals, ⌘K, wizard, and console all share one zustand store and design system.
+- Risks/next: (1) demo passcode auth — swap for NextAuth before any real deployment (documented); (2) dev-overlay phantom issue flushes on dev-server restart (also re-caches PrismaClient fresh — the $queryRaw shims can then be swapped back to ORM if desired); (3) rejected-submission status tracking for makers (PRD §11 "status tracking") is a natural Phase-2 UI; (4) DriftBoard tool kept as approved-demo data — remove if unwanted (slug driftboard).

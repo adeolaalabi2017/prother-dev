@@ -13,12 +13,15 @@ type ExplorerState = {
   searchOpen: boolean;
   /** Whether the submission wizard (PRD §11) is open. */
   submitOpen: boolean;
+  /** Whether the editor review console (PRD §12 adaptation) is open. */
+  editorOpen: boolean;
   /** Category slug currently filtering the launch feed, if any. */
   categoryFilter: string | null;
   openTool: (slug: string) => void;
   closeTool: () => void;
   setSearch: (open: boolean) => void;
   setSubmitOpen: (open: boolean) => void;
+  setEditorOpen: (open: boolean) => void;
   setCategoryFilter: (slug: string | null) => void;
 };
 
@@ -53,6 +56,7 @@ export const useExplorer = create<ExplorerState>((set) => ({
   slug: null,
   searchOpen: false,
   submitOpen: false,
+  editorOpen: false,
   categoryFilter: null,
   openTool: (slug) => {
     set({ slug });
@@ -73,6 +77,7 @@ export const useExplorer = create<ExplorerState>((set) => ({
   },
   setSearch: (searchOpen) => set({ searchOpen }),
   setSubmitOpen: (submitOpen) => set({ submitOpen }),
+  setEditorOpen: (editorOpen) => set({ editorOpen }),
   setCategoryFilter: (categoryFilter) => {
     set({ categoryFilter });
     syncCatParam(categoryFilter);

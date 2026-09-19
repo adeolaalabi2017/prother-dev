@@ -42,6 +42,17 @@ export function useFeed() {
     };
   }, []);
 
+  // Editor decisions (approve/reject) change tomorrow's teasers — refetch.
+  useEffect(() => {
+    const onFeedRefresh = () => {
+      fetchFeed(true)
+        .then((data) => setFeed(data))
+        .catch(() => {});
+    };
+    window.addEventListener("prother:feed-refresh", onFeedRefresh);
+    return () => window.removeEventListener("prother:feed-refresh", onFeedRefresh);
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       const data = await fetchFeed(true);

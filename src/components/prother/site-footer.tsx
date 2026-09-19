@@ -1,4 +1,7 @@
+"use client";
+
 import { Hexagon } from "lucide-react";
+import { useExplorer } from "./explorer-store";
 
 const COLS = [
   {
@@ -7,7 +10,7 @@ const COLS = [
       { label: "The feed", href: "#feed" },
       { label: "Categories", href: "#categories" },
       { label: "Standards", href: "#standards" },
-      { label: "Submit your tool", href: "#submit" },
+      { label: "Submit your tool", href: "#submit", wizard: true },
     ],
   },
   {
@@ -15,7 +18,7 @@ const COLS = [
     links: [
       { label: "The Daily Launch", href: "#feed" },
       { label: "FAQ", href: "#faq" },
-      { label: "For makers", href: "#submit" },
+      { label: "For makers", href: "#submit", wizard: true },
       { label: "Listing standards", href: "#standards" },
     ],
   },
@@ -31,6 +34,8 @@ const COLS = [
 ];
 
 export function SiteFooter() {
+  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
+  const setEditorOpen = useExplorer((s) => s.setEditorOpen);
   return (
     <footer className="mt-auto border-t border-white/10 bg-ink">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
@@ -53,12 +58,22 @@ export function SiteFooter() {
               <ul className="space-y-2">
                 {col.links.map((l) => (
                   <li key={l.label}>
-                    <a
-                      href={l.href}
-                      className="text-sm text-white/50 transition-colors hover:text-ember"
-                    >
-                      {l.label}
-                    </a>
+                    {"wizard" in l && l.wizard ? (
+                      <button
+                        type="button"
+                        onClick={() => setSubmitOpen(true)}
+                        className="text-sm text-white/50 transition-colors hover:text-ember"
+                      >
+                        {l.label}
+                      </button>
+                    ) : (
+                      <a
+                        href={l.href}
+                        className="text-sm text-white/50 transition-colors hover:text-ember"
+                      >
+                        {l.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -72,7 +87,18 @@ export function SiteFooter() {
           <p className="font-mono text-xs text-white/40">
             © 2026 Prother — Curation is never sold.
           </p>
-          <p className="font-mono text-xs text-white/40">STANDARDS · PRIVACY · STATUS</p>
+          <div className="flex items-center gap-2 font-mono text-xs text-white/40">
+            <span>STANDARDS · PRIVACY · STATUS</span>
+            <span aria-hidden>·</span>
+            <button
+              type="button"
+              onClick={() => setEditorOpen(true)}
+              className="rounded px-1 py-0.5 transition-colors hover:text-ember"
+              title="Editor review console (⌘⇧E)"
+            >
+              EDITOR ACCESS
+            </button>
+          </div>
         </div>
       </div>
     </footer>

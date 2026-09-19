@@ -10,7 +10,7 @@ import {
 import { TAG_VOCAB, domainOf } from "@/lib/submit";
 import { CATEGORIES } from "@/components/prother/categories";
 
-export const dynamic = "force-dynamic"; // revalidate: always live
+export const dynamic = "force-dynamic"; 
 
 /**
  * POST /api/submit — PRD §11 Submission Wizard (Track B: community submit).
