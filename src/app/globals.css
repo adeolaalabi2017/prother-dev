@@ -321,3 +321,92 @@
 [role="dialog"] [cmdk-input-wrapper] {
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+/* ── Journal article body (.post-body) — markdown output typography ────── */
+.post-body {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.975rem;
+  line-height: 1.75;
+}
+.post-body > * + * {
+  margin-top: 1em;
+}
+.post-body h2 {
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 2em;
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.post-body h2::before {
+  content: "## ";
+  color: #ff6a00;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8em;
+  font-weight: 700;
+}
+.post-body h3 {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: 1.6em;
+}
+.post-body p strong {
+  color: #fff;
+}
+.post-body .md-list {
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+.post-body .md-list li::marker {
+  color: #ff6a00;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+}
+.post-body .md-code {
+  background: rgba(255, 106, 0, 0.1);
+  border: 1px solid rgba(255, 106, 0, 0.25);
+  color: #ff8a3d;
+  border-radius: 6px;
+  padding: 0.1em 0.4em;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+}
+.post-body .md-pre {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid #ff6a00;
+  border-radius: 12px;
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+.post-body .md-quote {
+  border-left: 3px solid #ff6a00;
+  background: rgba(255, 106, 0, 0.05);
+  border-radius: 0 12px 12px 0;
+  padding: 0.8em 1.2em;
+  color: rgba(255, 255, 255, 0.85);
+  font-style: italic;
+}
+.post-body .md-hr {
+  border: 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+.post-body a {
+  color: #ff8a3d;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.post-body a:hover {
+  color: #ffb877;
+}
+
+/* post-body qa marker */

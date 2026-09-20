@@ -13,6 +13,9 @@ import { ToolExplorer } from "@/components/prother/tool-explorer";
 import { SubmitWizard } from "@/components/prother/submit-wizard";
 import { StatusTracker } from "@/components/prother/status-tracker";
 import { EditorConsole } from "@/components/prother/editor-console";
+import { AdminConsole } from "@/components/prother/admin-console";
+import { Journal } from "@/components/prother/journal";
+import { PostReader } from "@/components/prother/post-reader";
 import { ScrollProgress } from "@/components/prother/scroll-progress";
 import { BackToTop } from "@/components/prother/back-to-top";
 import { db } from "@/lib/prother";
@@ -31,9 +34,46 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const params = await searchParams;
   const toolParam = params.tool;
-  const slug = (Array.isArray(toolParam) ? toolParam[0] : toolParam)?.trim();
+  const postParam = params.post;
+  const toolSlug = (Array.isArray(toolParam) ? toolParam[0] : toolParam)?.trim();
+  const postSlug = (Array.isArray(postParam) ? postParam[0] : postParam)?.trim();
 
-  if (!slug) return {};
+  // Journal deep link (?post=slug) — article-level unfurl metadata.
+  if (postSlug && !toolSlug) {
+    const post = await db.post.findUnique({ where: { slug: postSlug } });
+    if (post && post.status === "published") {
+      const title = post.seoTitle || `${post.title} | Prother Journal`;
+      const description = clamp(post.seoDescription || post.excerpt, 200);
+      return {
+        title,
+        description,
+        keywords: post.keywords
+          ? post.keywords.split(",").map((k) => k.trim()).filter(Boolean)
+          : undefined,
+        openGraph: {
+          title,
+          description,
+          type: "article",
+          publishedTime: post.publishedAt?.toISOString(),
+          authors: [post.author],
+          images: [
+            { url: `/api/og?post=${encodeURIComponent(post.slug)}`, width: 1200, height: 630 },
+          ],
+        },
+        twitter: {
+          card: "summary_large_image",
+          title,
+          description,
+          images: [`/api/og?post=${encodeURIComponent(post.slug)}`],
+        },
+      };
+    }
+    return {};
+  }
+
+  if (!toolSlug) return {};
+
+  const slug = toolSlug;
 
   const tool = await db.tool.findUnique({
     where: { slug },
@@ -84,6 +124,7 @@ export default function Page() {
         <LaunchFeed />
         <AgentEra />
         <Standards />
+        <Journal />
         <Faq />
         <FinalCta />
       </main>
@@ -92,6 +133,8 @@ export default function Page() {
       <SubmitWizard />
       <StatusTracker />
       <EditorConsole />
+      <AdminConsole />
+      <PostReader />
       <BackToTop />
     </div>
   );

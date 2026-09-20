@@ -17,11 +17,13 @@ const COLS = [
   {
     title: "Resources",
     links: [
-      { label: "The Daily Launch", href: "#feed" },
+      { label: "The Journal", href: "#journal" },
+      { label: "Launch playbooks", href: "#journal" },
       { label: "FAQ", href: "#faq" },
       { label: "For makers", href: "#submit", wizard: true },
       { label: "Listing standards", href: "#standards" },
-      { label: "RSS feed", href: "/api/rss" },
+      { label: "RSS — launches", href: "/api/rss" },
+      { label: "RSS — journal", href: "/api/rss?kind=journal" },
     ],
   },
   {
@@ -39,6 +41,7 @@ export function SiteFooter() {
   const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   const setEditorOpen = useExplorer((s) => s.setEditorOpen);
   const setTrackOpen = useExplorer((s) => s.setTrackOpen);
+  const setAdminOpen = useExplorer((s) => s.setAdminOpen);
   return (
     <footer className="mt-auto border-t border-white/10 bg-ink">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
@@ -59,6 +62,9 @@ export function SiteFooter() {
               </kbd>
               <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] tracking-wider text-white/45 transition-colors hover:border-ember/40 hover:text-ember">
                 <span className="text-white/80">⌘⇧E</span> EDITOR
+              </kbd>
+              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] tracking-wider text-white/45 transition-colors hover:border-ember/40 hover:text-ember">
+                <span className="text-white/80">⌘⇧A</span> ADMIN
               </kbd>
             </div>
           </div>
@@ -116,6 +122,15 @@ export function SiteFooter() {
               title="Editor review console (⌘⇧E)"
             >
               EDITOR ACCESS
+            </button>
+            <span aria-hidden>·</span>
+            <button
+              type="button"
+              onClick={() => setAdminOpen(true)}
+              className="rounded px-1 py-0.5 transition-colors hover:text-ember"
+              title="Admin console (⌘⇧A)"
+            >
+              ADMIN
             </button>
           </div>
         </div>

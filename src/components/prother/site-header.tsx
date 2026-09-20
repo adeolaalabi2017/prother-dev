@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Hexagon, Menu, Search, X } from "lucide-react";
+import { Hexagon, Menu, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { label: "Feed", href: "#feed", id: "feed" },
   { label: "Categories", href: "#categories", id: "categories" },
   { label: "Standards", href: "#standards", id: "standards" },
+  { label: "Journal", href: "#journal", id: "journal" },
   { label: "FAQ", href: "#faq", id: "faq" },
 ];
 
@@ -18,6 +19,7 @@ export function SiteHeader() {
   const [active, setActive] = useState<string | null>(null);
   const setSearch = useExplorer((s) => s.setSearch);
   const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
+  const setAdminOpen = useExplorer((s) => s.setAdminOpen);
 
   // Scroll-spy: highlight the section currently in view (desktop nav).
   useEffect(() => {
@@ -95,6 +97,15 @@ export function SiteHeader() {
           >
             The Daily
           </a>
+          <button
+            type="button"
+            onClick={() => setAdminOpen(true)}
+            aria-label="Open admin console (Command Shift A)"
+            title="Admin console (⌘⇧A)"
+            className="inline-flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:border-ember/40 hover:text-ember"
+          >
+            <Settings2 className="size-4" aria-hidden />
+          </button>
           <Button
             asChild
             className="hidden rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot sm:inline-flex dark:text-black"
@@ -151,6 +162,16 @@ export function SiteHeader() {
               Submit your tool
             </button>
           </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setAdminOpen(true);
+            }}
+            className="rounded-lg px-3 py-2.5 text-left text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            ⚙️ Admin console
+          </button>
           <button
             type="button"
             onClick={() => {

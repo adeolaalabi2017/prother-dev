@@ -42,6 +42,40 @@ export function Hero() {
   const { feed } = useFeed();
   const todayCount = feed ? String(feed.todayCount) : "12";
 
+  // Admin-manageable site copy (/api/site ← Site settings KV). Falls back to
+  // the locked defaults when the store is empty — the hero never breaks.
+  const [copy, setCopy] = useState({
+    announcement: "Now onboarding founding makers — first 500 get launch priority",
+    headline: "Where AI products launch.",
+    subline:
+      "Every day, a fresh batch of AI tools goes live on one page. Prother shows you what launched, what’s climbing, and what’s actually worth your time — before your feed does.",
+  });
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/site")
+      .then((r) => r.json() as Promise<{ settings: Record<string, string> }>)
+      .then((d) => {
+        if (!alive || !d.settings) return;
+        setCopy((prev) => ({
+          announcement: d.settings["hero.announcement"] || prev.announcement,
+          headline: d.settings["hero.headline"] || prev.headline,
+          subline: d.settings["hero.subline"] || prev.subline,
+        }));
+      })
+      .catch(() => {
+        /* defaults hold */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Last word renders in ember — “Where AI products launch.” → launch.
+  const headlineWords = copy.headline.split(" ");
+  const headlineBody = headlineWords.slice(0, -1).join(" ");
+  const headlineAccent = headlineWords.at(-1) ?? "";
+
   // Terminal mirrors the live feed (falls back to seeded copy until loaded).
   const top1 = feed?.top[0];
   const top2 = feed?.top[1];
@@ -83,19 +117,23 @@ export function Hero() {
               className="mr-2 inline-block size-1.5 rounded-full bg-ember animate-status-pulse"
               aria-hidden
             />
-            Now onboarding founding makers — first 500 get launch priority
+            {copy.announcement}
           </p>
 
           <h1 className="mt-6 text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl xl:text-8xl">
-            Where AI products
-            <br />
-            <span className="text-ember">launch.</span>
+            {headlineBody ? (
+              <>
+                {headlineBody}
+                <br />
+                <span className="text-ember">{headlineAccent}</span>
+              </>
+            ) : (
+              <span className="text-ember">{headlineAccent}</span>
+            )}
           </h1>
 
           <p className="mt-6 max-w-xl text-lg text-white/70">
-            Every day, a fresh batch of AI tools goes live on one page. Prother shows you what
-            launched, what&apos;s climbing, and what&apos;s actually worth your time — before your
-            feed does.
+            {copy.subline}
           </p>
 
           <div className="mt-8 max-w-md">

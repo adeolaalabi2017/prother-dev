@@ -44,6 +44,19 @@ async function getToolData(slug: string) {
   };
 }
 
+async function getPostData(slug: string) {
+  const post = await db.post.findUnique({ where: { slug } });
+  if (!post || post.status !== "published") return null;
+  return {
+    title: post.title,
+    excerpt: post.excerpt,
+    emoji: post.coverEmoji,
+    gradient: GRADIENT_HEX[post.coverGradient] ?? OG_FALLBACK_GRADIENT,
+    category: post.category,
+    readingMinutes: post.readingMinutes,
+  };
+}
+
 function Chip({
   children,
   borderColor,
@@ -74,8 +87,11 @@ function Chip({
 }
 
 export async function GET(req: Request) {
-  const slug = new URL(req.url).searchParams.get("tool");
-  const tool = slug ? await getToolData(slug) : null;
+  const sp = new URL(req.url).searchParams;
+  const postSlug = sp.get("post");
+  const slug = sp.get("tool");
+  const tool = postSlug ? null : slug ? await getToolData(slug) : null;
+  const post = postSlug ? await getPostData(postSlug) : null;
 
   // Shared shell: ink canvas, ember glow top-left, faint dot texture.
   const shell = {
@@ -248,6 +264,82 @@ export async function GET(req: Request) {
         </Chip>
         <Chip borderColor="rgba(255,106,0,0.45)" color={C.ember}>
           {tool.votes} VOTES
+        </Chip>
+      </div>
+      {bottomBar}
+    </div>
+  ) : post ? (
+    <div style={shell}>
+      {topBar}
+      <div style={{ display: "flex", alignItems: "center", gap: 44 }}>
+        <div
+          style={{
+            width: 156,
+            height: 156,
+            borderRadius: 36,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 80,
+            border: "2px solid rgba(255,255,255,0.16)",
+            backgroundImage: `linear-gradient(135deg, ${post.gradient[0]}, ${post.gradient[1]})`,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+          }}
+        >
+          {post.emoji}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            maxWidth: 820,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              fontFamily: MONO,
+              fontSize: 20,
+              letterSpacing: 5,
+              color: C.ember,
+              marginBottom: 14,
+            }}
+          >
+            PROTHER JOURNAL · {post.category.toUpperCase()}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: post.title.length > 44 ? 56 : post.title.length > 26 ? 68 : 80,
+              fontWeight: 900,
+              color: C.white,
+              letterSpacing: -2,
+              lineHeight: 1.06,
+              fontFamily: SANS,
+            }}
+          >
+            {clamp(post.title, 64)}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 26,
+              color: C.white70,
+              marginTop: 16,
+              lineHeight: 1.35,
+              fontFamily: SANS,
+            }}
+          >
+            {clamp(post.excerpt, 90)}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <Chip borderColor={C.white18} color={C.white70}>
+          {post.readingMinutes} MIN READ
+        </Chip>
+        <Chip borderColor="rgba(255,106,0,0.45)" color={C.ember}>
+          NOTES FROM THE LAUNCH LAYER
         </Chip>
       </div>
       {bottomBar}

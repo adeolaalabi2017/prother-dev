@@ -11,8 +11,11 @@ function esc(s: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** GET /api/rss — RSS 2.0 feed of today's launches (UTC day window). */
+/** GET /api/rss — RSS 2.0 feed. Default: today's launches. ?kind=journal: posts. */
 export async function GET(req: Request) {
+  const kind = new URL(req.url).searchParams.get("kind");
+  if (kind === "journal") return journalFeed(req);
+
   const now = new Date();
   const todayStart = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
@@ -59,6 +62,52 @@ export async function GET(req: Request) {
     <lastBuildDate>${buildDate}</lastBuildDate>
     <ttl>60</ttl>
     <atom:link href="${esc(`${origin}/api/rss`)}" rel="self" type="application/rss+xml" />
+${items}
+  </channel>
+</rss>`;
+
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/rss+xml; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+/** Journal (blog) RSS feed — /api/rss?kind=journal. */
+async function journalFeed(req: Request) {
+  const posts = await db.post.findMany({
+    where: { status: "published" },
+    orderBy: { publishedAt: "desc" },
+    take: 30,
+  });
+
+  const origin = new URL(req.url).origin;
+
+  const items = posts
+    .map((p) => {
+      const link = `${origin}/?post=${encodeURIComponent(p.slug)}`;
+      return `    <item>
+      <title>${esc(p.title)}</title>
+      <link>${esc(link)}</link>
+      <guid isPermaLink="false">${esc(`prother-post-${p.slug}`)}</guid>
+      <pubDate>${(p.publishedAt ?? p.updatedAt).toUTCString()}</pubDate>
+      <description>${esc(p.excerpt)}</description>
+      <category>${esc(p.category)}</category>
+    </item>`;
+    })
+    .join("\n");
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Prother Journal — notes from the AI launch layer</title>
+    <link>${esc(origin)}</link>
+    <description>Launch playbooks, ranking explainers, and ecosystem data from Prother — where AI products launch.</description>
+    <language>en-us</language>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <ttl>1440</ttl>
+    <atom:link href="${esc(`${origin}/api/rss?kind=journal`)}" rel="self" type="application/rss+xml" />
 ${items}
   </channel>
 </rss>`;

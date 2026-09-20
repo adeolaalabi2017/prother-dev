@@ -28,6 +28,10 @@ type ExplorerState = {
   trackEmail: string;
   /** Category slug currently filtering the launch feed, if any. */
   categoryFilter: string | null;
+  /** Slug of the journal post shown in the reader modal, if any. */
+  postSlug: string | null;
+  /** Whether the full Admin Console (site + content management) is open. */
+  adminOpen: boolean;
   openTool: (slug: string) => void;
   closeTool: () => void;
   setSearch: (open: boolean) => void;
@@ -35,11 +39,19 @@ type ExplorerState = {
   setEditorOpen: (open: boolean) => void;
   setTrackOpen: (open: boolean, email?: string) => void;
   setCategoryFilter: (slug: string | null) => void;
+  openPost: (slug: string) => void;
+  closePost: () => void;
+  setAdminOpen: (open: boolean) => void;
 };
 
 /** URL hash used for shareable tool deep links (#tool=<slug>). */
 export function toolHash(slug: string): string {
   return `#tool=${encodeURIComponent(slug)}`;
+}
+
+/** URL hash used for shareable journal deep links (#post=<slug>). */
+export function postHash(slug: string): string {
+  return `#post=${encodeURIComponent(slug)}`;
 }
 
 /**
@@ -73,6 +85,8 @@ export const useExplorer = create<ExplorerState>((set) => ({
   trackOpen: false,
   trackEmail: "",
   categoryFilter: null,
+  postSlug: null,
+  adminOpen: false,
   openTool: (slug) => {
     set({ slug });
     // Keep the URL in sync so the modal state is shareable (no history entries).
@@ -105,4 +119,22 @@ export const useExplorer = create<ExplorerState>((set) => ({
     set({ categoryFilter });
     syncCatParam(categoryFilter);
   },
+  openPost: (slug) => {
+    set({ postSlug: slug });
+    if (typeof window !== "undefined") {
+      // Canonical share form: ?post=<slug> (crawlers see it), hash stays synced too.
+      const url = new URL(window.location.href);
+      url.searchParams.set("post", slug);
+      window.history.replaceState(null, "", url.pathname + url.search + postHash(slug));
+    }
+  },
+  closePost: () => {
+    set({ postSlug: null });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("post");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  },
+  setAdminOpen: (adminOpen) => set({ adminOpen }),
 }));

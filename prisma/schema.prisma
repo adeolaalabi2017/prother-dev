@@ -50,6 +50,11 @@ model Tool {
   claimed       Boolean   @default(false)
   makerHandle   String    @default("@prother")
   relaunch      Boolean   @default(false)
+  /** Lifecycle per PRD §16: draft → pending_review → approved → live → removed
+   *  (soft delete — history and votes survive). Admin-managed. */
+  status        String    @default("live")
+  /** Editorial pin rank 0–3 (0 = unpinned). Pinned rows lead today's feed. */
+  pinned        Int       @default(0)
   verifiedAt    DateTime?
   categoryId    String
   category      Category  @relation(fields: [categoryId], references: [id])
@@ -130,4 +135,53 @@ model Comment {
   createdAt DateTime @default(now())
 
   @@index([toolId, createdAt])
+}
+
+// ── Journal (blog) — SEO workhorse layer (user-requested feature) ────────
+// Long-form articles: launch playbooks, ranking explainers, ecosystem notes.
+// SEO fields (seoTitle/seoDescription/keywords) feed metas, JSON-LD Article
+// schema, sitemap.xml and the RSS journal feed.
+model Post {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  title          String
+  excerpt        String // 80–200 chars, used in cards + meta description
+  body           String // markdown
+  coverEmoji     String    @default("📝")
+  coverGradient  String    @default("from-orange-500 to-amber-700")
+  category       String    @default("Playbooks") // editorial bucket label
+  tags           String    @default("") // pipe-separated free labels
+  status         String    @default("draft") // draft | published
+  author         String    @default("Prother Editorial")
+  readingMinutes Int       @default(4)
+  views          Int       @default(0)
+  seoTitle       String? // ≤60 chars — falls back to title
+  seoDescription String? // ≤160 chars — falls back to excerpt
+  keywords       String? // comma-separated SEO keywords
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+// ── Site settings — KV store the Admin Console writes, the site reads ────
+// Lets the editor manage frontend copy (hero, announcement, footer) without
+// deploys. Absent keys fall back to in-code defaults.
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// ── Audit log — who did what in the Admin Console (PRD §16: audit trail) ─
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String // e.g. "tool.update", "post.publish", "submission.approve"
+  entity    String // tool | post | category | submission | settings | import
+  entityId  String   @default("")
+  meta      String   @default("") // short human-readable detail
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
