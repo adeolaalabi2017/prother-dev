@@ -5,6 +5,7 @@ import { Hexagon, Menu, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
+import { AuthMenu } from "./auth-menu";
 
 const NAV_LINKS = [
   { label: "Feed", href: "#feed", id: "feed" },
@@ -97,6 +98,7 @@ export function SiteHeader() {
           >
             The Daily
           </a>
+          <AuthMenu />
           <button
             type="button"
             onClick={() => setAdminOpen(true)}

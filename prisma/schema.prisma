@@ -44,12 +44,19 @@ model Tool {
   docsUrl       String?
   twitterUrl    String?
   tags          String    @default("") // pipe-separated, ≤5 (controlled vocab §13)
+  /** Claim owner's account email (set when a claim is verified — F-30). */
+  makerEmail    String?
   track         String    @default("editor_seed") // editor_seed | community
   editorsPick   Boolean   @default(false)
   curated       Boolean   @default(false)
   claimed       Boolean   @default(false)
   makerHandle   String    @default("@prother")
   relaunch      Boolean   @default(false)
+  /** F-35: number of successful re-launches + latest version label. */
+  relaunchCount Int       @default(0)
+  relaunchNote  String?
+  /** UTC date of the ORIGINAL launch window (survives re-launches). */
+  originalLaunchDate DateTime?
   /** Lifecycle per PRD §16: draft → pending_review → approved → live → removed
    *  (soft delete — history and votes survive). Admin-managed. */
   status        String    @default("live")
@@ -64,6 +71,10 @@ model Tool {
    *  the stale-PrismaClient note in lib/prother.ts. */
   submissionId  String?   @unique
   comments      Comment[]
+  reviews       Review[]
+  claims        Claim[]
+  collectionItems CollectionItem[]
+  relaunchEvents  RelaunchEvent[]
   createdAt     DateTime  @default(now())
 }
 
@@ -184,4 +195,174 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// ── NextAuth (F-37: email magic links + Google OAuth) ────────────────────
+// Standard v4 Prisma-adapter shape; lib/auth.ts implements the adapter.
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  /** Public handle, e.g. "@dana" — derived from the email prefix at creation. */
+  handle        String?   @unique
+  bio           String?
+  createdAt     DateTime  @default(now())
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires      DateTime
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── Reviews (F-16) — account-gated, 3 ratings + body, maker self-block ───
+// Aggregate display unlocks at ≥3 reviews (P3 policy). Accounts <48h old
+// land in the soft-moderation filter (status "filtered").
+model Review {
+  id        String   @id @default(cuid())
+  tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  toolId    String
+  userId    String
+  author    String // display name at review time (e.g. "@dana")
+  /** The three PRD ratings, 1–5 each: Ease / Power / Value. */
+  ease      Int
+  power     Int
+  value     Int
+  body      String // 20–2000 chars
+  /** "published" | "filtered" (<48h soft-moderation). */
+  status    String   @default("published")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([toolId, userId])
+  @@index([toolId, createdAt])
+}
+
+// ── Claims (F-30) — ownership verification for unclaimed listings ────────
+// Method "meta_tag": maker adds <meta name="prother-claim" content=TOKEN> to
+// their site head; verify fetches the site and matches. Method "email_domain"
+// auto-verifies when the signed-in email domain == the tool's domain.
+model Claim {
+  id         String    @id @default(cuid())
+  tool       Tool      @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  toolId     String
+  userEmail  String
+  userName   String
+  method     String    @default("meta_tag") // meta_tag | email_domain
+  token      String    @unique
+  /** pending | verified | failed | disputed */
+  status     String    @default("pending")
+  note       String?
+  createdAt  DateTime  @default(now())
+  verifiedAt DateTime?
+
+  @@index([toolId])
+  @@index([userEmail])
+}
+
+// ── Collections (F-39 personal / F-40 public shareable) ──────────────────
+model Collection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String   @default("")
+  isPublic    Boolean  @default(false)
+  ownerEmail  String
+  ownerName   String
+  items       CollectionItem[]
+  createdAt   DateTime @default(now())
+
+  @@index([ownerEmail])
+}
+
+model CollectionItem {
+  id           String     @id @default(cuid())
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId String
+  tool         Tool       @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  toolId       String
+  position     Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  @@unique([collectionId, toolId])
+  @@index([toolId])
+}
+
+// ── Follows (F-41) — follow tools / categories / makers ──────────────────
+model Follow {
+  id         String   @id @default(cuid())
+  userEmail  String
+  /** tool | category | maker */
+  targetType String
+  /** tool slug, category slug, or maker handle (with @). */
+  targetId   String
+  targetLabel String
+  createdAt  DateTime @default(now())
+
+  @@unique([userEmail, targetType, targetId])
+  @@index([userEmail])
+}
+
+// ── Re-launch history (F-35) — archived launch windows + fresh vote pool ─
+// On re-launch the current Launch row is reset (new date, votes cleared) and
+// the previous window is archived here so launch history survives.
+model RelaunchEvent {
+  id         String   @id @default(cuid())
+  tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  toolId     String
+  version    String // e.g. "v2.0"
+  note       String?
+  /** UTC date of the archived (previous) launch window. */
+  launchedAt DateTime
+  totalVotes Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([toolId, createdAt])
+}
+
+// ── Comparison log (F-08) — powers "popular comparisons" ─────────────────
+model Comparison {
+  id        String   @id @default(cuid())
+  aSlug     String
+  bSlug     String
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([aSlug, bSlug])
+  @@index([views])
 }

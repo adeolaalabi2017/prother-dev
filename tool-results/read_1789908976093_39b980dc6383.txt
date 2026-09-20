@@ -1,0 +1,1176 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useCallback, useEffect, useState } from "react";
+     4→     4→import { motion } from "framer-motion";
+     5→     5→import {
+     6→     6→  ArrowUpRight,
+     7→     7→  Check,
+     8→     8→  CircleDashed,
+     9→     9→  Clock,
+    10→    10→  ExternalLink,
+    11→    11→  FileText,
+    12→    12→  Github,
+    13→    13→  Link2,
+    14→    14→  Loader2,
+    15→    15→  MailSearch,
+    16→    16→  MessageSquare,
+    17→    17→  Send,
+    18→    18→  Share2,
+    19→    19→  Sparkles,
+    20→    20→  Triangle,
+    21→    21→} from "lucide-react";
+    22→    22→import {
+    23→    23→  CommandDialog,
+    24→    24→  CommandEmpty,
+    25→    25→  CommandGroup,
+    26→    26→  CommandInput,
+    27→    27→  CommandItem,
+    28→    28→  CommandList,
+    29→    29→  CommandSeparator,
+    30→    30→} from "@/components/ui/command";
+    31→    31→import {
+    32→    32→  Dialog,
+    33→    33→  DialogContent,
+    34→    34→  DialogDescription,
+    35→    35→  DialogTitle,
+    36→    36→} from "@/components/ui/dialog";
+    37→    37→// DialogTitle/DialogDescription are used by ToolDetailDialog above.
+    38→    38→import { Skeleton } from "@/components/ui/skeleton";
+    39→    39→import { useToast } from "@/hooks/use-toast";
+    40→    40→import { cn } from "@/lib/utils";
+    41→    41→import type { CommentRow, ToolDetailResponse } from "@/lib/prother";
+    42→    42→import { CATEGORIES } from "./categories";
+    43→    43→import { useExplorer } from "./explorer-store";
+    44→    44→import { useFeed } from "./use-feed";
+    45→    45→import { getVoterKey } from "./voter";
+    46→    46→
+    47→    47→// ── Tool detail modal ────────────────────────────────────────────────────
+    48→    48→
+    49→    49→const PRICING_LABEL: Record<string, string> = {
+    50→    50→  free: "Free",
+    51→    51→  freemium: "Freemium",
+    52→    52→  paid: "Paid",
+    53→    53→  open_source: "Open Source",
+    54→    54→};
+    55→    55→
+    56→    56→function fmtDate(iso: string | null): string {
+    57→    57→  if (!iso) return "—";
+    58→    58→  return new Date(iso).toLocaleDateString("en-US", {
+    59→    59→    month: "short",
+    60→    60→    day: "numeric",
+    61→    61→    timeZone: "UTC",
+    62→    62→  });
+    63→    63→}
+    64→    64→
+    65→    65→function DetailSkeleton() {
+    66→    66→  return (
+    67→    67→    <div className="space-y-5 p-6">
+    68→    68→      <div className="flex items-end gap-4">
+    69→    69→        <Skeleton className="size-16 rounded-2xl bg-white/10" />
+    70→    70→        <div className="flex-1 space-y-2 pb-1">
+    71→    71→          <Skeleton className="h-6 w-40 bg-white/10" />
+    72→    72→          <Skeleton className="h-4 w-64 bg-white/10" />
+    73→    73→        </div>
+    74→    74→      </div>
+    75→    75→      {[0, 1, 2, 3].map((i) => (
+    76→    76→        <Skeleton key={i} className="h-16 w-full rounded-xl bg-white/5" />
+    77→    77→      ))}
+    78→    78→    </div>
+    79→    79→  );
+    80→    80→}
+    81→    81→
+    82→    82→// ── Launch discussion (comments) ─────────────────────────────────────────
+    83→    83→
+    84→    84→const COMMENT_BODY_MAX = 280;
+    85→    85→const COMMENT_BODY_WARN = 224; // 80% — counter turns ember
+    86→    86→const COMMENT_NAME_MAX = 24;
+    87→    87→const COMMENT_NAME_STORAGE = "prother_comment_name";
+    88→    88→
+    89→    89→const AVATAR_GRADIENTS = [
+    90→    90→  "from-orange-400 to-rose-600",
+    91→    91→  "from-amber-400 to-orange-600",
+    92→    92→  "from-emerald-400 to-teal-600",
+    93→    93→  "from-rose-400 to-red-600",
+    94→    94→  "from-yellow-400 to-amber-600",
+    95→    95→  "from-lime-400 to-green-600",
+    96→    96→  "from-fuchsia-400 to-purple-600",
+    97→    97→  "from-red-400 to-orange-600",
+    98→    98→] as const;
+    99→    99→
+   100→   100→function avatarGradient(author: string): string {
+   101→   101→  let h = 0;
+   102→   102→  for (let i = 0; i < author.length; i++) h = (h * 31 + author.charCodeAt(i)) >>> 0;
+   103→   103→  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
+   104→   104→}
+   105→   105→
+   106→   106→function relTime(iso: string): string {
+   107→   107→  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+   108→   108→  if (s < 60) return "just now";
+   109→   109→  const m = Math.floor(s / 60);
+   110→   110→  if (m < 60) return `${m}m ago`;
+   111→   111→  const h = Math.floor(m / 60);
+   112→   112→  if (h < 24) return `${h}h ago`;
+   113→   113→  return `${Math.floor(h / 24)}d ago`;
+   114→   114→}
+   115→   115→
+   116→   116→function Discussion({
+   117→   117→  slug,
+   118→   118→  makerHandle,
+   119→   119→}: {
+   120→   120→  slug: string;
+   121→   121→  makerHandle: string;
+   122→   122→}) {
+   123→   123→  const { toast } = useToast();
+   124→   124→  const [items, setItems] = useState<CommentRow[] | null>(null);
+   125→   125→  const [loading, setLoading] = useState(true);
+   126→   126→  const [loadError, setLoadError] = useState(false);
+   127→   127→  const [name, setName] = useState("");
+   128→   128→  const [body, setBody] = useState("");
+   129→   129→  const [posting, setPosting] = useState(false);
+   130→   130→  const [postedFlash, setPostedFlash] = useState(false);
+   131→   131→
+   132→   132→  useEffect(() => {
+   133→   133→    let alive = true;
+   134→   134→    setLoading(true);
+   135→   135→    setLoadError(false);
+   136→   136→    setItems(null);
+   137→   137→    fetch(`/api/tools/${encodeURIComponent(slug)}/comments`)
+   138→   138→      .then(async (res) => {
+   139→   139→        if (!res.ok) throw new Error("Failed to load discussion");
+   140→   140→        return (await res.json()) as { items: CommentRow[] };
+   141→   141→      })
+   142→   142→      .then((data) => {
+   143→   143→        if (alive) setItems(data.items);
+   144→   144→      })
+   145→   145→      .catch(() => {
+   146→   146→        if (alive) setLoadError(true);
+   147→   147→      })
+   148→   148→      .finally(() => {
+   149→   149→        if (alive) setLoading(false);
+   150→   150→      });
+   151→   151→    return () => {
+   152→   152→      alive = false;
+   153→   153→    };
+   154→   154→  }, [slug]);
+   155→   155→
+   156→   156→  // Remember the commenter's display name (per browser).
+   157→   157→  useEffect(() => {
+   158→   158→    setName(window.localStorage.getItem(COMMENT_NAME_STORAGE) ?? "");
+   159→   159→  }, []);
+   160→   160→
+   161→   161→  const canPost =
+   162→   162→    name.trim().length >= 2 && body.trim().length >= 4 && !posting;
+   163→   163→
+   164→   164→  const onPost = useCallback(async () => {
+   165→   165→    if (!canPost) return;
+   166→   166→    setPosting(true);
+   167→   167→    try {
+   168→   168→      const res = await fetch(
+   169→   169→        `/api/tools/${encodeURIComponent(slug)}/comments`,
+   170→   170→        {
+   171→   171→          method: "POST",
+   172→   172→          headers: { "Content-Type": "application/json" },
+   173→   173→          body: JSON.stringify({ author: name.trim(), body: body.trim() }),
+   174→   174→        },
+   175→   175→      );
+   176→   176→      const data = (await res.json()) as CommentRow & { error?: string };
+   177→   177→      if (!res.ok)
+   178→   178→        throw new Error(data.error ?? "Could not post — please try again.");
+   179→   179→      setItems((prev) => [...(prev ?? []), data]);
+   180→   180→      setBody("");
+   181→   181→      window.localStorage.setItem(COMMENT_NAME_STORAGE, name.trim());
+   182→   182→      setPostedFlash(true);
+   183→   183→      window.setTimeout(() => setPostedFlash(false), 1600);
+   184→   184→      toast({ title: "Comment posted" });
+   185→   185→    } catch (err) {
+   186→   186→      toast({
+   187→   187→        title: "Could not post comment",
+   188→   188→        description:
+   189→   189→          err instanceof Error ? err.message : "Please try again.",
+   190→   190→        variant: "destructive",
+   191→   191→      });
+   192→   192→    } finally {
+   193→   193→      setPosting(false);
+   194→   194→    }
+   195→   195→  }, [canPost, slug, name, body, toast]);
+   196→   196→
+   197→   197→  const count = items?.length ?? 0;
+   198→   198→  const counterTone =
+   199→   199→    body.length >= COMMENT_BODY_MAX
+   200→   200→      ? "text-red-400"
+   201→   201→      : body.length >= COMMENT_BODY_WARN
+   202→   202→        ? "text-ember"
+   203→   203→        : "text-white/35";
+   204→   204→
+   205→   205→  return (
+   206→   206→    <div>
+   207→   207→      <div className="flex items-center justify-between gap-2">
+   208→   208→        <p className="font-mono text-[10px] tracking-widest text-white/40">
+   209→   209→          DISCUSSION ({count})
+   210→   210→        </p>
+   211→   211→        <p className="font-mono text-[10px] tracking-wider text-white/25">
+   212→   212→          MODERATED PER S6
+   213→   213→        </p>
+   214→   214→      </div>
+   215→   215→
+   216→   216→      <div
+   217→   217→        className="mt-2 max-h-96 space-y-2 overflow-y-auto"
+   218→   218→        aria-live="polite"
+   219→   219→        aria-label={`Discussion for this tool, ${count} comments`}
+   220→   220→      >
+   221→   221→        {loading && (
+   222→   222→          <>
+   223→   223→            <Skeleton className="h-16 w-full rounded-xl bg-white/5" />
+   224→   224→            <Skeleton className="h-16 w-5/6 rounded-xl bg-white/5" />
+   225→   225→          </>
+   226→   226→        )}
+   227→   227→
+   228→   228→        {!loading && loadError && (
+   229→   229→          <p className="rounded-lg border border-red-500/25 bg-red-500/[0.04] p-3 text-xs text-red-300">
+   230→   230→            Couldn&apos;t load the discussion. It will appear next time you
+   231→   231→            open this listing.
+   232→   232→          </p>
+   233→   233→        )}
+   234→   234→
+   235→   235→        {!loading && !loadError && count === 0 && (
+   236→   236→          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-white/15 p-6 text-center">
+   237→   237→            <MessageSquare className="size-4 text-white/30" aria-hidden />
+   238→   238→            <p className="text-sm text-white/70">No comments yet.</p>
+   239→   239→            <p className="text-xs text-white/40">
+   240→   240→              Start the discussion — ask {makerHandle} anything.
+   241→   241→            </p>
+   242→   242→          </div>
+   243→   243→        )}
+   244→   244→
+   245→   245→        {items?.map((c) => (
+   246→   246→          <motion.div
+   247→   247→            key={c.id}
+   248→   248→            initial={{ opacity: 0, y: 8 }}
+   249→   249→            animate={{ opacity: 1, y: 0 }}
+   250→   250→            transition={{ duration: 0.25, ease: "easeOut" }}
+   251→   251→            className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/25"
+   252→   252→          >
+   253→   253→            <span
+   254→   254→              aria-hidden
+   255→   255→              className={cn(
+   256→   256→                "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-black",
+   257→   257→                avatarGradient(c.author),
+   258→   258→              )}
+   259→   259→            >
+   260→   260→              {c.author.replace(/^@/, "").charAt(0).toUpperCase()}
+   261→   261→            </span>
+   262→   262→            <div className="min-w-0 flex-1">
+   263→   263→              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+   264→   264→                <span className="text-sm font-semibold text-white/90">
+   265→   265→                  {c.author}
+   266→   266→                </span>
+   267→   267→                {c.isMaker && (
+   268→   268→                  <span className="rounded-full border border-ember/40 bg-ember/15 px-1.5 py-px font-mono text-[9px] tracking-wider text-ember">
+   269→   269→                    MAKER
+   270→   270→                  </span>
+   271→   271→                )}
+   272→   272→                <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] text-white/35">
+   273→   273→                  {relTime(c.createdAt)}
+   274→   274→                </span>
+   275→   275→              </div>
+   276→   276→              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-white/75">
+   277→   277→                {c.body}
+   278→   278→              </p>
+   279→   279→            </div>
+   280→   280→          </motion.div>
+   281→   281→        ))}
+   282→   282→      </div>
+   283→   283→
+   284→   284→      {/* Composer */}
+   285→   285→      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 transition-colors focus-within:border-ember/40">
+   286→   286→        <label htmlFor={`c-name-${slug}`} className="sr-only">
+   287→   287→          Your display name
+   288→   288→        </label>
+   289→   289→        <input
+   290→   290→          id={`c-name-${slug}`}
+   291→   291→          value={name}
+   292→   292→          onChange={(e) => setName(e.target.value.slice(0, COMMENT_NAME_MAX))}
+   293→   293→          placeholder="Your name"
+   294→   294→          maxLength={COMMENT_NAME_MAX}
+   295→   295→          autoComplete="name"
+   296→   296→          className="w-full border-b border-white/10 bg-transparent pb-2 font-mono text-sm text-white placeholder:text-white/30 focus:border-ember/60 focus:outline-none"
+   297→   297→        />
+   298→   298→        <label htmlFor={`c-body-${slug}`} className="sr-only">
+   299→   299→          Write a comment
+   300→   300→        </label>
+   301→   301→        <textarea
+   302→   302→          id={`c-body-${slug}`}
+   303→   303→          value={body}
+   304→   304→          onChange={(e) =>
+   305→   305→            setBody(e.target.value.slice(0, COMMENT_BODY_MAX))
+   306→   306→          }
+   307→   307→          onKeyDown={(e) => {
+   308→   308→            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+   309→   309→              e.preventDefault();
+   310→   310→              void onPost();
+   311→   311→            }
+   312→   312→          }}
+   313→   313→          placeholder="Add to the discussion…"
+   314→   314→          rows={3}
+   315→   315→          maxLength={COMMENT_BODY_MAX}
+   316→   316→          className={cn(
+   317→   317→            "mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-white placeholder:text-white/30 focus:outline-none",
+   318→   318→            body.length >= COMMENT_BODY_MAX && "text-red-300",
+   319→   319→          )}
+   320→   320→        />
+   321→   321→        <div className="mt-2 flex items-center justify-between gap-3">
+   322→   322→          <p className="font-mono text-[10px] text-white/30">
+   323→   323→            ⌘↵ TO POST · BE CONSTRUCTIVE (S6)
+   324→   324→          </p>
+   325→   325→          <div className="flex items-center gap-3">
+   326→   326→            <span
+   327→   327→              className={cn(
+   328→   328→                "font-mono text-[10px] tabular-nums transition-colors",
+   329→   329→                counterTone,
+   330→   330→              )}
+   331→   331→              aria-live="polite"
+   332→   332→            >
+   333→   333→              {body.length}/{COMMENT_BODY_MAX}
+   334→   334→            </span>
+   335→   335→            <button
+   336→   336→              type="button"
+   337→   337→              onClick={() => void onPost()}
+   338→   338→              disabled={!canPost}
+   339→   339→              aria-label="Post comment"
+   340→   340→              className={cn(
+   341→   341→                "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition active:scale-95",
+   342→   342→                postedFlash
+   343→   343→                  ? "bg-emerald-500 text-black"
+   344→   344→                  : "bg-ember text-black hover:bg-ember-hot",
+   345→   345→                !canPost && !posting && "cursor-not-allowed opacity-40",
+   346→   346→              )}
+   347→   347→            >
+   348→   348→              {posting ? (
+   349→   349→                <>
+   350→   350→                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+   351→   351→                  Posting…
+   352→   352→                </>
+   353→   353→              ) : postedFlash ? (
+   354→   354→                <>
+   355→   355→                  <Check className="size-3.5" aria-hidden />
+   356→   356→                  Posted
+   357→   357→                </>
+   358→   358→              ) : (
+   359→   359→                <>
+   360→   360→                  <Send className="size-3.5" aria-hidden />
+   361→   361→                  Post
+   362→   362→                </>
+   363→   363→              )}
+   364→   364→            </button>
+   365→   365→          </div>
+   366→   366→        </div>
+   367→   367→      </div>
+   368→   368→    </div>
+   369→   369→  );
+   370→   370→}
+   371→   371→
+   372→   372→function ToolDetailDialog() {
+   373→   373→  const slug = useExplorer((s) => s.slug);
+   374→   374→  const closeTool = useExplorer((s) => s.closeTool);
+   375→   375→
+   376→   376→  return (
+   377→   377→    <Dialog open={!!slug} onOpenChange={(open) => !open && closeTool()}>
+   378→   378→      <DialogContent
+   379→   379→        showCloseButton
+   380→   380→        className="max-h-[90vh] max-w-[calc(100vw-2rem)] gap-0 overflow-y-auto border-white/10 bg-coal p-0 text-white sm:max-w-2xl"
+   381→   381→      >
+   382→   382→        <DialogTitle className="sr-only">Tool details</DialogTitle>
+   383→   383→        <DialogDescription className="sr-only">
+   384→   384→          Full listing, pricing, and quality-bar verification for this tool.
+   385→   385→        </DialogDescription>
+   386→   386→        {slug && <DetailBody key={slug} slug={slug} onClose={closeTool} />}
+   387→   387→      </DialogContent>
+   388→   388→    </Dialog>
+   389→   389→  );
+   390→   390→}
+   391→   391→
+   392→   392→function DetailBody({ slug, onClose }: { slug: string; onClose: () => void }) {
+   393→   393→  const { toast } = useToast();
+   394→   394→  const openTool = useExplorer((s) => s.openTool);
+   395→   395→  const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
+   396→   396→  const [detail, setDetail] = useState<ToolDetailResponse | null>(null);
+   397→   397→  const [loading, setLoading] = useState(true);
+   398→   398→  const [error, setError] = useState<string | null>(null);
+   399→   399→  const [vote, setVote] = useState<{ votes: number; voted: boolean } | null>(
+   400→   400→    null,
+   401→   401→  );
+   402→   402→  const [copied, setCopied] = useState(false);
+   403→   403→
+   404→   404→  useEffect(() => {
+   405→   405→    let alive = true;
+   406→   406→    fetch(`/api/tools/${slug}?vk=${encodeURIComponent(getVoterKey())}`)
+   407→   407→      .then(async (res) => {
+   408→   408→        if (!res.ok)
+   409→   409→          throw new Error(
+   410→   410→            res.status === 404 ? "Tool not found" : "Failed to load tool",
+   411→   411→          );
+   412→   412→        return (await res.json()) as ToolDetailResponse;
+   413→   413→      })
+   414→   414→      .then((data) => {
+   415→   415→        if (alive) {
+   416→   416→          setDetail(data);
+   417→   417→          setVote({ votes: data.votes, voted: data.voted });
+   418→   418→        }
+   419→   419→      })
+   420→   420→      .catch((err: unknown) => {
+   421→   421→        if (alive)
+   422→   422→          setError(err instanceof Error ? err.message : "Failed to load tool");
+   423→   423→      })
+   424→   424→      .finally(() => {
+   425→   425→        if (alive) setLoading(false);
+   426→   426→      });
+   427→   427→    return () => {
+   428→   428→      alive = false;
+   429→   429→    };
+   430→   430→  }, [slug]);
+   431→   431→
+   432→   432→  const onVote = useCallback(async () => {
+   433→   433→    if (!detail?.launchId || !vote) return;
+   434→   434→    const nextVoted = !vote.voted;
+   435→   435→    setVote({ votes: vote.votes + (nextVoted ? 1 : -1), voted: nextVoted });
+   436→   436→    try {
+   437→   437→      const res = await fetch("/api/vote", {
+   438→   438→        method: "POST",
+   439→   439→        headers: { "Content-Type": "application/json" },
+   440→   440→        body: JSON.stringify({
+   441→   441→          launchId: detail.launchId,
+   442→   442→          voterKey: getVoterKey(),
+   443→   443→        }),
+   444→   444→      });
+   445→   445→      const data = (await res.json()) as { voted: boolean; votes: number };
+   446→   446→      setVote({ votes: data.votes, voted: data.voted });
+   447→   447→      // Sync the feed list behind the modal.
+   448→   448→      window.dispatchEvent(
+   449→   449→        new CustomEvent("prother:vote", {
+   450→   450→          detail: { launchId: detail.launchId, votes: data.votes, voted: data.voted },
+   451→   451→        }),
+   452→   452→      );
+   453→   453→    } catch {
+   454→   454→      setVote(vote);
+   455→   455→      toast({
+   456→   456→        title: "Vote failed",
+   457→   457→        description: "Please try again.",
+   458→   458→        variant: "destructive",
+   459→   459→      });
+   460→   460→    }
+   461→   461→  }, [detail, vote, toast]);
+   462→   462→
+   463→   463→  const passedCount = detail?.standards.filter((s) => s.passed).length ?? 0;
+   464→   464→
+   465→   465→  const shareUrl =
+   466→   466→    typeof window !== "undefined"
+   467→   467→      ? `${window.location.origin}/?tool=${encodeURIComponent(slug)}`
+   468→   468→      : "";
+   469→   469→  const shareText = detail
+   470→   470→    ? `🚀 ${detail.name} — ${detail.tagline} is on Prother`
+   471→   471→    : "";
+   472→   472→
+   473→   473→  const onCopyLink = useCallback(async () => {
+   474→   474→    try {
+   475→   475→      await navigator.clipboard.writeText(shareUrl);
+   476→   476→      setCopied(true);
+   477→   477→      window.setTimeout(() => setCopied(false), 1600);
+   478→   478→    } catch {
+   479→   479→      toast({
+   480→   480→        title: "Could not copy the link",
+   481→   481→        description: shareUrl,
+   482→   482→        variant: "destructive",
+   483→   483→      });
+   484→   484→    }
+   485→   485→  }, [shareUrl, toast]);
+   486→   486→
+   487→   487→  // Cross-link: close the modal, filter the feed to this category, scroll there.
+   488→   488→  const browseCategory = useCallback(() => {
+   489→   489→    if (!detail) return;
+   490→   490→    const cat = detail.category.slug;
+   491→   491→    onClose();
+   492→   492→    window.setTimeout(() => {
+   493→   493→      setCategoryFilter(cat);
+   494→   494→      document
+   495→   495→        .querySelector("#feed")
+   496→   496→        ?.scrollIntoView({ behavior: "smooth" });
+   497→   497→    }, 80);
+   498→   498→  }, [detail, onClose, setCategoryFilter]);
+   499→   499→
+   500→   500→  return (
+   501→   501→    <>
+   502→   502→      {loading && <DetailSkeleton />}
+   503→   503→
+   504→   504→      {!loading && error && (
+   505→   505→        <div className="p-10 text-center">
+   506→   506→          <p className="text-sm text-white/60">{error}</p>
+   507→   507→          <button
+   508→   508→            type="button"
+   509→   509→            onClick={onClose}
+   510→   510→            className="mt-4 font-mono text-xs text-ember hover:underline"
+   511→   511→          >
+   512→   512→            ← Close
+   513→   513→          </button>
+   514→   514→        </div>
+   515→   515→      )}
+   516→   516→
+   517→   517→      {!loading && !error && detail && vote && (
+   518→   518→        <>
+   519→   519→          {/* Header with gradient banner + ember glow / dot texture */}
+   520→   520→          <div className="relative">
+   521→   521→            <div
+   522→   522→              aria-hidden
+   523→   523→              className={cn(
+   524→   524→                "h-20 w-full bg-gradient-to-br opacity-30",
+   525→   525→                detail.gradient,
+   526→   526→              )}
+   527→   527→            />
+   528→   528→            <div
+   529→   529→              aria-hidden
+   530→   530→              className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(340px_120px_at_85%_0%,rgba(255,106,0,0.22),transparent_70%)]"
+   531→   531→            />
+   532→   532→            <div
+   533→   533→              aria-hidden
+   534→   534→              className="pointer-events-none absolute inset-x-0 top-0 h-20 opacity-[0.14] [background-image:radial-gradient(rgba(255,255,255,0.55)_1px,transparent_1px)] [background-size:12px_12px]"
+   535→   535→            />
+   536→   536→            <div className="relative flex items-end gap-4 px-6 pb-4">
+   537→   537→              <div
+   538→   538→                aria-hidden
+   539→   539→                className={cn(
+   540→   540→                  "-mt-9 flex size-16 shrink-0 items-center justify-center rounded-2xl border-4 border-coal bg-gradient-to-br text-2xl shadow-xl",
+   541→   541→                  detail.gradient,
+   542→   542→                )}
+   543→   543→              >
+   544→   544→                {detail.emoji}
+   545→   545→              </div>
+   546→   546→              <div className="min-w-0 pb-1">
+   547→   547→                <div className="flex flex-wrap items-center gap-2">
+   548→   548→                  <h2 className="text-2xl font-black tracking-tight">
+   549→   549→                    {detail.name}
+   550→   550→                  </h2>
+   551→   551→                  {detail.badges.editorsPick && (
+   552→   552→                    <span className="rounded-full border border-ember/30 bg-ember/15 px-2 py-0.5 font-mono text-[10px] text-ember">
+   553→   553→                      ⭐ EDITOR&apos;S PICK
+   554→   554→                    </span>
+   555→   555→                  )}
+   556→   556→                  {detail.badges.curated && (
+   557→   557→                    <span className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 font-mono text-[10px] text-yellow-500">
+   558→   558→                      CURATED
+   559→   559→                    </span>
+   560→   560→                  )}
+   561→   561→                  {detail.badges.relaunch && (
+   562→   562→                    <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+   563→   563→                      🔁 RE-LAUNCH
+   564→   564→                    </span>
+   565→   565→                  )}
+   566→   566→                </div>
+   567→   567→                <p className="truncate text-sm text-white/60">
+   568→   568→                  {detail.tagline}
+   569→   569→                </p>
+   570→   570→              </div>
+   571→   571→            </div>
+   572→   572→          </div>
+   573→   573→
+   574→   574→          <div className="space-y-6 border-t border-white/10 p-6">
+   575→   575→            {/* Actions */}
+   576→   576→            <div className="flex flex-wrap items-center gap-2">
+   577→   577→              <a
+   578→   578→                href={detail.websiteUrl}
+   579→   579→                target="_blank"
+   580→   580→                rel="noopener noreferrer"
+   581→   581→                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-semibold text-black transition hover:bg-ember-hot active:scale-[0.98]"
+   582→   582→              >
+   583→   583→                Visit website <ExternalLink className="size-3.5" aria-hidden />
+   584→   584→              </a>
+   585→   585→              {detail.links.github && (
+   586→   586→                <a
+   587→   587→                  href={detail.links.github}
+   588→   588→                  target="_blank"
+   589→   589→                  rel="noopener noreferrer"
+   590→   590→                  aria-label={`${detail.name} on GitHub`}
+   591→   591→                  className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+   592→   592→                >
+   593→   593→                  <Github className="size-4" aria-hidden />
+   594→   594→                </a>
+   595→   595→              )}
+   596→   596→              {detail.links.docs && (
+   597→   597→                <a
+   598→   598→                  href={detail.links.docs}
+   599→   599→                  target="_blank"
+   600→   600→                  rel="noopener noreferrer"
+   601→   601→                  aria-label={`${detail.name} documentation`}
+   602→   602→                  className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+   603→   603→                >
+   604→   604→                  <FileText className="size-4" aria-hidden />
+   605→   605→                </a>
+   606→   606→              )}
+   607→   607→              {detail.links.twitter && (
+   608→   608→                <a
+   609→   609→                  href={detail.links.twitter}
+   610→   610→                  target="_blank"
+   611→   611→                  rel="noopener noreferrer"
+   612→   612→                  aria-label={`${detail.name} on X`}
+   613→   613→                  className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+   614→   614→                >
+   615→   615→                  <svg
+   616→   616→                    viewBox="0 0 24 24"
+   617→   617→                    className="size-4 fill-current"
+   618→   618→                    aria-hidden
+   619→   619→                  >
+   620→   620→                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+   621→   621→                  </svg>
+   622→   622→                </a>
+   623→   623→              )}
+   624→   624→              <button
+   625→   625→                type="button"
+   626→   626→                onClick={onCopyLink}
+   627→   627→                aria-label="Copy link to this tool"
+   628→   628→                className={cn(
+   629→   629→                  "inline-flex size-10 items-center justify-center rounded-lg border border-white/10 transition-colors",
+   630→   630→                  copied
+   631→   631→                    ? "border-emerald-500/40 text-emerald-400"
+   632→   632→                    : "text-white/70 hover:border-ember/40 hover:text-ember",
+   633→   633→                )}
+   634→   634→              >
+   635→   635→                {copied ? (
+   636→   636→                  <Check className="size-4" aria-hidden />
+   637→   637→                ) : (
+   638→   638→                  <Link2 className="size-4" aria-hidden />
+   639→   639→                )}
+   640→   640→              </button>
+   641→   641→              <a
+   642→   642→                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
+   643→   643→                target="_blank"
+   644→   644→                rel="noopener noreferrer"
+   645→   645→                aria-label={`Share ${detail.name} on X`}
+   646→   646→                className="inline-flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/70 transition-colors hover:border-ember/40 hover:text-ember"
+   647→   647→              >
+   648→   648→                <Share2 className="size-4" aria-hidden />
+   649→   649→              </a>
+   650→   650→              <div className="ml-auto flex items-center gap-2">
+   651→   651→                <button
+   652→   652→                  type="button"
+   653→   653→                  onClick={onVote}
+   654→   654→                  disabled={!detail.launchId}
+   655→   655→                  aria-label={vote.voted ? "Remove upvote" : "Upvote this tool"}
+   656→   656→                  aria-pressed={vote.voted}
+   657→   657→                  className={cn(
+   658→   658→                    "inline-flex h-10 items-center gap-2 rounded-lg border px-4 font-mono text-sm font-semibold tabular-nums transition active:scale-95",
+   659→   659→                    vote.voted
+   660→   660→                      ? "border-ember bg-ember/10 text-ember"
+   661→   661→                      : "border-white/10 text-white/70 hover:border-ember/50 hover:text-ember",
+   662→   662→                  )}
+   663→   663→                >
+   664→   664→                  <Triangle
+   665→   665→                    className="size-4"
+   666→   666→                    fill={vote.voted ? "currentColor" : "none"}
+   667→   667→                    aria-hidden
+   668→   668→                  />
+   669→   669→                  {vote.votes}
+   670→   670→                </button>
+   671→   671→              </div>
+   672→   672→            </div>
+   673→   673→
+   674→   674→            {/* Meta grid */}
+   675→   675→            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:grid-cols-4">
+   676→   676→              <div>
+   677→   677→                <dt className="font-mono text-[10px] tracking-widest text-white/40">
+   678→   678→                  CATEGORY
+   679→   679→                </dt>
+   680→   680→                <dd
+   681→   681→                  className="mt-1 text-sm leading-snug text-white/85"
+   682→   682→                  title={`${detail.category.emoji} ${detail.category.name}`}
+   683→   683→                >
+   684→   684→                  {detail.category.emoji} {detail.category.name}
+   685→   685→                </dd>
+   686→   686→              </div>
+   687→   687→              <div>
+   688→   688→                <dt className="font-mono text-[10px] tracking-widest text-white/40">
+   689→   689→                  STATUS
+   690→   690→                </dt>
+   691→   691→                <dd className="mt-1 text-sm">
+   692→   692→                  {detail.verified ? (
+   693→   693→                    <span className="inline-flex items-center gap-1 text-emerald-400">
+   694→   694→                      <Check className="size-3.5" aria-hidden /> Verified
+   695→   695→                    </span>
+   696→   696→                  ) : detail.scheduled ? (
+   697→   697→                    <span className="inline-flex items-center gap-1 text-white/60">
+   698→   698→                      <CircleDashed className="size-3.5" aria-hidden /> In
+   699→   699→                      review
+   700→   700→                    </span>
+   701→   701→                  ) : (
+   702→   702→                    <span className="text-white/60">Unverified</span>
+   703→   703→                  )}
+   704→   704→                </dd>
+   705→   705→              </div>
+   706→   706→              <div>
+   707→   707→                <dt className="font-mono text-[10px] tracking-widest text-white/40">
+   708→   708→                  SUBMITTED
+   709→   709→                </dt>
+   710→   710→                <dd className="mt-1 text-sm text-white/85">
+   711→   711→                  {fmtDate(detail.submittedAt)}
+   712→   712→                </dd>
+   713→   713→              </div>
+   714→   714→              <div>
+   715→   715→                <dt className="font-mono text-[10px] tracking-widest text-white/40">
+   716→   716→                  {detail.scheduled ? "GOES LIVE" : "LAUNCH DAY"}
+   717→   717→                </dt>
+   718→   718→                <dd className="mt-1 inline-flex items-center gap-1 text-sm text-white/85">
+   719→   719→                  {detail.scheduled && (
+   720→   720→                    <Clock className="size-3.5 text-ember" aria-hidden />
+   721→   721→                  )}
+   722→   722→                  {fmtDate(detail.launchDate)}
+   723→   723→                </dd>
+   724→   724→              </div>
+   725→   725→            </dl>
+   726→   726→
+   727→   727→            {/* Pricing */}
+   728→   728→            <div className="flex items-center justify-between gap-4 rounded-xl border border-ember/25 bg-ember/[0.05] p-4">
+   729→   729→              <div>
+   730→   730→                <p className="font-mono text-[10px] tracking-widest text-white/40">
+   731→   731→                  PRICING
+   732→   732→                </p>
+   733→   733→                <p className="mt-1 font-semibold text-white">
+   734→   734→                  {PRICING_LABEL[detail.pricing.model] ?? "Free"}
+   735→   735→                  {detail.pricing.price && (
+   736→   736→                    <span className="ml-2 font-mono text-ember">
+   737→   737→                      {detail.pricing.price}/mo
+   738→   738→                    </span>
+   739→   739→                  )}
+   740→   740→                </p>
+   741→   741→                {detail.pricing.note && (
+   742→   742→                  <p className="mt-0.5 text-xs text-white/50">
+   743→   743→                    {detail.pricing.note}
+   744→   744→                  </p>
+   745→   745→                )}
+   746→   746→              </div>
+   747→   747→              <div className="flex shrink-0 gap-1.5">
+   748→   748→                {detail.badges.openSource && (
+   749→   749→                  <span className="rounded-full border border-white/15 px-2.5 py-1 font-mono text-[10px] text-white/60">
+   750→   750→                    OSS
+   751→   751→                  </span>
+   752→   752→                )}
+   753→   753→                {detail.badges.hasApi && (
+   754→   754→                  <span className="rounded-full border border-white/15 px-2.5 py-1 font-mono text-[10px] text-white/60">
+   755→   755→                    API
+   756→   756→                  </span>
+   757→   757→                )}
+   758→   758→              </div>
+   759→   759→            </div>
+   760→   760→
+   761→   761→            {/* Description */}
+   762→   762→            {detail.description && (
+   763→   763→              <p className="text-sm leading-relaxed text-white/70">
+   764→   764→                {detail.description}
+   765→   765→              </p>
+   766→   766→            )}
+   767→   767→
+   768→   768→            {/* Standards */}
+   769→   769→            <div>
+   770→   770→              <p className="font-mono text-[10px] tracking-widest text-white/40">
+   771→   771→                QUALITY BAR — {passedCount}/{detail.standards.length}{" "}
+   772→   772→                {detail.scheduled ? "PENDING" : "PASSED"}
+   773→   773→              </p>
+   774→   774→              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+   775→   775→                {detail.standards.map((s) => (
+   776→   776→                  <div
+   777→   777→                    key={s.id}
+   778→   778→                    className="flex items-start gap-2.5 rounded-lg border border-white/10 bg-white/[0.02] p-3"
+   779→   779→                  >
+   780→   780→                    <span
+   781→   781→                      className={cn(
+   782→   782→                        "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full",
+   783→   783→                        s.passed
+   784→   784→                          ? "bg-emerald-500/15 text-emerald-400"
+   785→   785→                          : "bg-white/10 text-white/40",
+   786→   786→                      )}
+   787→   787→                    >
+   788→   788→                      {s.passed ? (
+   789→   789→                        <Check className="size-2.5" aria-hidden />
+   790→   790→                      ) : (
+   791→   791→                        <CircleDashed className="size-2.5" aria-hidden />
+   792→   792→                      )}
+   793→   793→                    </span>
+   794→   794→                    <div className="min-w-0">
+   795→   795→                      <p className="text-xs font-semibold text-white/85">
+   796→   796→                        <span className="mr-1.5 font-mono text-ember">
+   797→   797→                          {s.id}
+   798→   798→                        </span>
+   799→   799→                        {s.title}
+   800→   800→                      </p>
+   801→   801→                      <p className="mt-0.5 text-[11px] leading-snug text-white/45">
+   802→   802→                        {s.blurb}
+   803→   803→                      </p>
+   804→   804→                    </div>
+   805→   805→                  </div>
+   806→   806→                ))}
+   807→   807→              </div>
+   808→   808→            </div>
+   809→   809→
+   810→   810→            {/* Discussion — comments on this listing */}
+   811→   811→            <Discussion slug={detail.slug} makerHandle={detail.maker} />
+   812→   812→
+   813→   813→            {/* More like this — same category, live tools only */}
+   814→   814→            {detail.related && detail.related.length > 0 && (
+   815→   815→              <div>
+   816→   816→                <div className="flex items-center justify-between gap-2">
+   817→   817→                  <p className="font-mono text-[10px] tracking-widest text-white/40">
+   818→   818→                    MORE LIKE THIS
+   819→   819→                  </p>
+   820→   820→                  <button
+   821→   821→                    type="button"
+   822→   822→                    onClick={browseCategory}
+   823→   823→                    className="font-mono text-[10px] tracking-wider text-ember transition-colors hover:text-ember-hot"
+   824→   824→                  >
+   825→   825→                    ALL {detail.category.name.toUpperCase()} →
+   826→   826→                  </button>
+   827→   827→                </div>
+   828→   828→                <ul className="mt-2 space-y-2">
+   829→   829→                  {detail.related.map((r) => (
+   830→   830→                    <li key={r.slug}>
+   831→   831→                      <button
+   832→   832→                        type="button"
+   833→   833→                        onClick={() => openTool(r.slug)}
+   834→   834→                        aria-label={`Open ${r.name} details`}
+   835→   835→                        className="group flex w-full items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] p-2.5 text-left transition-colors hover:border-ember/40 hover:bg-ember/[0.05]"
+   836→   836→                      >
+   837→   837→                        <span
+   838→   838→                          aria-hidden
+   839→   839→                          className={cn(
+   840→   840→                            "flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-base transition-transform group-hover:scale-105",
+   841→   841→                            r.gradient,
+   842→   842→                          )}
+   843→   843→                        >
+   844→   844→                          {r.emoji}
+   845→   845→                        </span>
+   846→   846→                        <span className="min-w-0 flex-1">
+   847→   847→                          <span className="flex items-center justify-between gap-2">
+   848→   848→                            <span className="truncate text-sm font-semibold text-white/90 group-hover:text-white">
+   849→   849→                              {r.name}
+   850→   850→                            </span>
+   851→   851→                            <span className="shrink-0 font-mono text-xs tabular-nums text-ember">
+   852→   852→                              ▲{r.votes}
+   853→   853→                            </span>
+   854→   854→                          </span>
+   855→   855→                          <span className="mt-0.5 block truncate text-xs text-white/45">
+   856→   856→                            {r.tagline}
+   857→   857→                          </span>
+   858→   858→                        </span>
+   859→   859→                        <ArrowUpRight
+   860→   860→                          className="size-3.5 shrink-0 text-white/25 transition-colors group-hover:text-ember"
+   861→   861→                          aria-hidden
+   862→   862→                        />
+   863→   863→                      </button>
+   864→   864→                    </li>
+   865→   865→                  ))}
+   866→   866→                </ul>
+   867→   867→              </div>
+   868→   868→            )}
+   869→   869→
+   870→   870→            {/* Maker footer */}
+   871→   871→            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-4">
+   872→   872→              <p className="font-mono text-xs text-white/50">
+   873→   873→                by <span className="text-ember">{detail.maker}</span>
+   874→   874→                {" · "}
+   875→   875→                {detail.track === "community"
+   876→   876→                  ? "community submit"
+   877→   877→                  : "editor seed"}
+   878→   878→              </p>
+   879→   879→              {detail.badges.unclaimed && (
+   880→   880→                <a
+   881→   881→                  href="#submit"
+   882→   882→                  onClick={onClose}
+   883→   883→                  className="font-mono text-xs text-ember hover:underline"
+   884→   884→                >
+   885→   885→                  Is this you? Claim this listing →
+   886→   886→                </a>
+   887→   887→              )}
+   888→   888→            </div>
+   889→   889→          </div>
+   890→   890→        </>
+   891→   891→      )}
+   892→   892→    </>
+   893→   893→  );
+   894→   894→}
+   895→   895→
+   896→   896→// ── ⌘K command palette ───────────────────────────────────────────────────
+   897→   897→
+   898→   898→function CommandPalette() {
+   899→   899→  const { feed } = useFeed();
+   900→   900→  const searchOpen = useExplorer((s) => s.searchOpen);
+   901→   901→  const setSearch = useExplorer((s) => s.setSearch);
+   902→   902→  const openTool = useExplorer((s) => s.openTool);
+   903→   903→  const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
+   904→   904→  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
+   905→   905→  const setTrackOpen = useExplorer((s) => s.setTrackOpen);
+   906→   906→
+   907→   907→  const pickTool = useCallback(
+   908→   908→    (slug: string) => {
+   909→   909→      setSearch(false);
+   910→   910→      // Let the command dialog finish closing before opening the detail modal.
+   911→   911→      window.setTimeout(() => openTool(slug), 80);
+   912→   912→    },
+   913→   913→    [setSearch, openTool],
+   914→   914→  );
+   915→   915→
+   916→   916→  const goTo = useCallback(
+   917→   917→    (hash: string) => {
+   918→   918→      setSearch(false);
+   919→   919→      window.setTimeout(() => {
+   920→   920→        document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
+   921→   921→      }, 80);
+   922→   922→    },
+   923→   923→    [setSearch],
+   924→   924→  );
+   925→   925→
+   926→   926→  const filterCategory = useCallback(
+   927→   927→    (slug: string) => {
+   928→   928→      setCategoryFilter(slug);
+   929→   929→      goTo("#feed");
+   930→   930→    },
+   931→   931→    [setCategoryFilter, goTo],
+   932→   932→  );
+   933→   933→
+   934→   934→  const seen = new Set<string>();
+   935→   935→  const todayTools = (feed?.top ?? []).filter((r) => {
+   936→   936→    if (seen.has(r.slug)) return false;
+   937→   937→    seen.add(r.slug);
+   938→   938→    return true;
+   939→   939→  });
+   940→   940→
+   941→   941→  return (
+   942→   942→    <CommandDialog
+   943→   943→      open={searchOpen}
+   944→   944→      onOpenChange={setSearch}
+   945→   945→      className="border-white/10 bg-coal text-white [&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-input]]:text-white [&_[cmdk-input]::placeholder]:text-white/30 [&_[cmdk-item]]:text-white/80 [&_[cmdk-item][data-selected=true]]:bg-ember/15 [&_[cmdk-item][data-selected=true]]:text-ember [&_[cmdk-separator]]:bg-white/10"
+   946→   946→    >
+   947→   947→      <CommandInput placeholder="Search tools, categories, actions…" />
+   948→   948→      <CommandList className="max-h-[420px]">
+   949→   949→        <CommandEmpty>
+   950→   950→          No results — try &quot;agents&quot; or &quot;voice&quot;.
+   951→   951→        </CommandEmpty>
+   952→   952→
+   953→   953→        {todayTools.length > 0 && (
+   954→   954→          <CommandGroup heading="Today's launches">
+   955→   955→            {todayTools.map((r) => (
+   956→   956→              <CommandItem
+   957→   957→                key={r.slug}
+   958→   958→                value={`${r.name} ${r.tagline} ${r.category.name}`}
+   959→   959→                onSelect={() => pickTool(r.slug)}
+   960→   960→              >
+   961→   961→                <span
+   962→   962→                  aria-hidden
+   963→   963→                  className={cn(
+   964→   964→                    "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
+   965→   965→                    r.gradient,
+   966→   966→                  )}
+   967→   967→                >
+   968→   968→                  {r.emoji}
+   969→   969→                </span>
+   970→   970→                <span className="font-semibold">{r.name}</span>
+   971→   971→                <span className="truncate text-white/40">{r.tagline}</span>
+   972→   972→                <span className="ml-auto font-mono text-xs text-ember">
+   973→   973→                  ▲{r.votes}
+   974→   974→                </span>
+   975→   975→              </CommandItem>
+   976→   976→            ))}
+   977→   977→          </CommandGroup>
+   978→   978→        )}
+   979→   979→
+   980→   980→        {(feed?.tomorrow.length ?? 0) > 0 && (
+   981→   981→          <>
+   982→   982→            <CommandSeparator />
+   983→   983→            <CommandGroup heading="Tomorrow">
+   984→   984→              {feed!.tomorrow.map((t) => (
+   985→   985→                <CommandItem
+   986→   986→                  key={t.slug}
+   987→   987→                  value={`${t.name} ${t.tagline} ${t.category.name} tomorrow`}
+   988→   988→                  onSelect={() => pickTool(t.slug)}
+   989→   989→                >
+   990→   990→                  <span
+   991→   991→                    aria-hidden
+   992→   992→                    className={cn(
+   993→   993→                      "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
+   994→   994→                      t.gradient,
+   995→   995→                    )}
+   996→   996→                  >
+   997→   997→                    {t.emoji}
+   998→   998→                  </span>
+   999→   999→                  <span className="font-semibold">{t.name}</span>
+  1000→  1000→                  <span className="truncate text-white/40">{t.tagline}</span>
+  1001→  1001→                  <span className="ml-auto font-mono text-[10px] text-white/40">
+  1002→  1002→                    IN {t.goesLiveInH}H
+  1003→  1003→                  </span>
+  1004→  1004→                </CommandItem>
+  1005→  1005→              ))}
+  1006→  1006→            </CommandGroup>
+  1007→  1007→          </>
+  1008→  1008→        )}
+  1009→  1009→
+  1010→  1010→        {(feed?.topWeek.length ?? 0) > 0 && (
+  1011→  1011→          <>
+  1012→  1012→            <CommandSeparator />
+  1013→  1013→            <CommandGroup heading="Top this week">
+  1014→  1014→              {feed!.topWeek.map((t) => (
+  1015→  1015→                <CommandItem
+  1016→  1016→                  key={t.slug}
+  1017→  1017→                  value={`${t.name} top week`}
+  1018→  1018→                  onSelect={() => pickTool(t.slug)}
+  1019→  1019→                >
+  1020→  1020→                  <span
+  1021→  1021→                    aria-hidden
+  1022→  1022→                    className={cn(
+  1023→  1023→                      "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
+  1024→  1024→                      t.gradient,
+  1025→  1025→                    )}
+  1026→  1026→                  >
+  1027→  1027→                    {t.emoji}
+  1028→  1028→                  </span>
+  1029→  1029→                  <span className="font-semibold">{t.name}</span>
+  1030→  1030→                  <span className="ml-auto font-mono text-xs text-ember">
+  1031→  1031→                    ▲{t.votes}
+  1032→  1032→                  </span>
+  1033→  1033→                </CommandItem>
+  1034→  1034→              ))}
+  1035→  1035→            </CommandGroup>
+  1036→  1036→          </>
+  1037→  1037→        )}
+  1038→  1038→
+  1039→  1039→        <CommandSeparator />
+  1040→  1040→        <CommandGroup heading="Categories">
+  1041→  1041→          {CATEGORIES.map((c) => {
+  1042→  1042→            const count = feed?.categoryCounts?.[c.slug] ?? 0;
+  1043→  1043→            return (
+  1044→  1044→              <CommandItem
+  1045→  1045→                key={c.slug}
+  1046→  1046→                value={`category ${c.slug} ${c.name}`}
+  1047→  1047→                onSelect={() => filterCategory(c.slug)}
+  1048→  1048→              >
+  1049→  1049→                <span aria-hidden>{c.emoji}</span>
+  1050→  1050→                <span>{c.name}</span>
+  1051→  1051→                {count > 0 && (
+  1052→  1052→                  <span className="rounded-full bg-white/10 px-1.5 font-mono text-[10px] tabular-nums text-white/50">
+  1053→  1053→                    {count} today
+  1054→  1054→                  </span>
+  1055→  1055→                )}
+  1056→  1056→                <span className="ml-auto font-mono text-[10px] text-white/30">
+  1057→  1057→                  FILTER
+  1058→  1058→                </span>
+  1059→  1059→              </CommandItem>
+  1060→  1060→            );
+  1061→  1061→          })}
+  1062→  1062→        </CommandGroup>
+  1063→  1063→
+  1064→  1064→        <CommandSeparator />
+  1065→  1065→        <CommandGroup heading="Actions">
+  1066→  1066→          <CommandItem
+  1067→  1067→            value="submit your tool launch wizard"
+  1068→  1068→            onSelect={() => {
+  1069→  1069→              setSearch(false);
+  1070→  1070→              window.setTimeout(() => setSubmitOpen(true), 80);
+  1071→  1071→            }}
+  1072→  1072→          >
+  1073→  1073→            <Sparkles aria-hidden />
+  1074→  1074→            <span>Submit your tool</span>
+  1075→  1075→          </CommandItem>
+  1076→  1076→          <CommandItem
+  1077→  1077→            value="track my submission status makers"
+  1078→  1078→            onSelect={() => {
+  1079→  1079→              setSearch(false);
+  1080→  1080→              window.setTimeout(() => setTrackOpen(true), 80);
+  1081→  1081→            }}
+  1082→  1082→          >
+  1083→  1083→            <MailSearch aria-hidden />
+  1084→  1084→            <span>Track my submission</span>
+  1085→  1085→          </CommandItem>
+  1086→  1086→          <CommandItem
+  1087→  1087→            value="read the standards quality bar"
+  1088→  1088→            onSelect={() => goTo("#standards")}
+  1089→  1089→          >
+  1090→  1090→            <Check aria-hidden />
+  1091→  1091→            <span>Read the standards</span>
+  1092→  1092→          </CommandItem>
+  1093→  1093→          <CommandItem
+  1094→  1094→            value="get the daily feed newsletter"
+  1095→  1095→            onSelect={() => goTo("#feed")}
+  1096→  1096→          >
+  1097→  1097→            <ArrowUpRight aria-hidden />
+  1098→  1098→            <span>Jump to the feed</span>
+  1099→  1099→          </CommandItem>
+  1100→  1100→        </CommandGroup>
+  1101→  1101→      </CommandList>
+  1102→  1102→    </CommandDialog>
+  1103→  1103→  );
+  1104→  1104→}
+  1105→  1105→
+  1106→  1106→// ── Mounted-once explorer + ⌘K shortcut ──────────────────────────────────
+  1107→  1107→
+  1108→  1108→export function ToolExplorer() {
+  1109→  1109→  const setSearch = useExplorer((s) => s.setSearch);
+  1110→  1110→  const openTool = useExplorer((s) => s.openTool);
+  1111→  1111→
+  1112→  1112→  // ⌘K / ctrl+K opens the command palette.
+  1113→  1113→  useEffect(() => {
+  1114→  1114→    const onKey = (e: KeyboardEvent) => {
+  1115→  1115→      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+  1116→  1116→        e.preventDefault();
+  1117→  1117→        setSearch(true);
+  1118→  1118→      }
+  1119→  1119→    };
+  1120→  1120→    window.addEventListener("keydown", onKey);
+  1121→  1121→    return () => window.removeEventListener("keydown", onKey);
+  1122→  1122→  }, [setSearch]);
+  1123→  1123→
+  1124→  1124→  // Shareable deep links open the detail modal:
+  1125→  1125→  //  - /#tool=<slug>     hash form (works on load AND same-document nav)
+  1126→  1126→  //  - /?tool=<slug>     canonical form (server-reachable → real OG unfurl;
+  1127→  1127→  //                      copied by the modal's Copy-link action)
+  1128→  1128→  // Clearing the hash (e.g. browser Back) closes the modal again.
+  1129→  1129→  useEffect(() => {
+  1130→  1130→    const applyHash = (initial = false) => {
+  1131→  1131→      const m = window.location.hash.match(/^#tool=([^&]+)$/);
+  1132→  1132→      if (m?.[1]) openTool(decodeURIComponent(m[1]));
+  1133→  1133→      else if (!initial) useExplorer.getState().closeTool();
+  1134→  1134→    };
+  1135→  1135→    applyHash(true);
+  1136→  1136→    const onHash = () => applyHash(false);
+  1137→  1137→    window.addEventListener("hashchange", onHash);
+  1138→  1138→    return () => window.removeEventListener("hashchange", onHash);
+  1139→  1139→  }, [openTool]);
+  1140→  1140→
+  1141→  1141→  // Canonical ?tool= form: open the modal once at mount, then normalize the
+  1142→  1142→  // URL to the hash form (keeps ?cat=/?tab=, drops the query param) so the
+  1143→  1143→  // address bar matches what in-app navigation produces.
+  1144→  1144→  useEffect(() => {
+  1145→  1145→    const t = new URLSearchParams(window.location.search).get("tool");
+  1146→  1146→    if (!t) return;
+  1147→  1147→    openTool(t);
+  1148→  1148→    const url = new URL(window.location.href);
+  1149→  1149→    url.searchParams.delete("tool");
+  1150→  1150→    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  1151→  1151→  }, [openTool]);
+  1152→  1152→
+  1153→  1153→  // Restore a shared/filtered category from the URL on load (?cat=<slug>)
+  1154→  1154→  // and jump straight to the feed — a shared ?cat= link is an intent to browse.
+  1155→  1155→  useEffect(() => {
+  1156→  1156→    const cat = new URLSearchParams(window.location.search).get("cat");
+  1157→  1157→    if (cat && CATEGORIES.some((c) => c.slug === cat)) {
+  1158→  1158→      useExplorer.getState().setCategoryFilter(cat);
+  1159→  1159→      // Wait a beat for the feed to render before smooth-scrolling to it.
+  1160→  1160→      const t = window.setTimeout(() => {
+  1161→  1161→        document
+  1162→  1162→          .querySelector("#feed")
+  1163→  1163→          ?.scrollIntoView({ behavior: "smooth" });
+  1164→  1164→      }, 500);
+  1165→  1165→      return () => window.clearTimeout(t);
+  1166→  1166→    }
+  1167→  1167→  }, []);
+  1168→  1168→
+  1169→  1169→  return (
+  1170→  1170→    <>
+  1171→  1171→      <CommandPalette />
+  1172→  1172→      <ToolDetailDialog />
+  1173→  1173→    </>
+  1174→  1174→  );
+  1175→  1175→}
+  1176→  1176→

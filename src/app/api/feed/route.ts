@@ -74,8 +74,8 @@ export async function GET() {
   const top = [...rows].sort((a, b) => {
     const at = tools.find((t) => t.slug === a.slug)!;
     const bt = tools.find((t) => t.slug === b.slug)!;
-    const as = rankScore(a.votes, at.launch!.launchDate, now);
-    const bs = rankScore(b.votes, bt.launch!.launchDate, now);
+    const as = rankScore(a.votes, at.launch!.launchDate, now.getTime());
+    const bs = rankScore(b.votes, bt.launch!.launchDate, now.getTime());
     return bs - as;
   });
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
   const status = sp.get("status") ?? "";
   const category = sp.get("category") ?? "";
 
-  const where: Parameters<typeof db.tool.findMany>[0]["where"] = {};
+  const where: Prisma.ToolWhereInput = {};
   if (q) {
     where.OR = [
       { name: { contains: q } },

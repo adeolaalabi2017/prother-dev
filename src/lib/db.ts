@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client'
  * models/fields. Editing this file also triggers a Turbopack module reload,
  * which re-evaluates the check and swaps in a fresh client.
  */
-const SCHEMA_VERSION = 2 // v2: Submission model + Tool.submissionId column
+const SCHEMA_VERSION = 3 // v3: NextAuth models (User/Account/Session/VerificationToken)
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

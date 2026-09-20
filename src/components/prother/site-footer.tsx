@@ -110,7 +110,7 @@ export function SiteFooter() {
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col justify-between gap-3 px-4 py-6 sm:px-6 md:flex-row md:items-center">
           <p className="font-mono text-xs text-white/40">
-            © 2026 Prother — Curation is never sold.
+           © 2026 Prother — Curation is never sold.
           </p>
           <div className="flex items-center gap-2 font-mono text-xs text-white/40">
             <span>STANDARDS · PRIVACY · STATUS</span>
