@@ -32,6 +32,7 @@ import { BackToTop } from "@/components/prother/back-to-top";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
+// hero-rebalance: single-column centered hero (daily-digest panel removed per feedback)
 
 /**
  * Server-side unfurl metadata for the single-route deep links. Post-sandbox

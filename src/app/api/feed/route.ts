@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { attachCommentCounts, db, rankScore, secondsUntilUtcMidnight, toFeedRow } from "@/lib/prother";
+import { attachCommentCounts, db, ensureDemoDayAnchored, rankScore, secondsUntilUtcMidnight, toFeedRow } from "@/lib/prother";
 import type { FeedResponse, FeedRow, Teaser, TopWeekRow, WeekDay } from "@/lib/prother";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // Demo freshness: if the seeded batch drifted into the past (calendar moved
+  // on), re-anchor it to today before computing the windows.
+  await ensureDemoDayAnchored();
+
   const now = new Date();
   const todayStart = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())

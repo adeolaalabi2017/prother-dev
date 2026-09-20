@@ -483,6 +483,65 @@ export function secondsUntilUtcMidnight(now = new Date()): number {
   return Math.max(0, Math.floor((next - now.getTime()) / 1000));
 }
 
+// ── Demo day re-anchor ───────────────────────────────────────────────────
+// The seed pins its launch batch to the day it ran. On a long-lived demo
+// database the calendar moves on, "today" goes empty and the homepage reads
+// "0 launches today" with an empty feed. Once per server day — and only when
+// today genuinely has no live launches — shift the entire Launch timeline
+// forward by whole days so the newest live batch lands on today again.
+// Votes, comments, reviews and the week archive all ride along unchanged;
+// scheduled teasers keep their +1-day offset from the batch.
+let anchoredForDay: string | null = null;
+
+export async function ensureDemoDayAnchored(now = new Date()): Promise<boolean> {
+  const todayStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+  const key = todayStart.toISOString().slice(0, 10);
+  // Fast path: already checked/shifted for this calendar day.
+  if (anchoredForDay === key) return false;
+
+  const dayMs = 86_400_000;
+  const todayLive = await db.launch.count({
+    where: {
+      scheduled: false,
+      launchDate: { gte: todayStart, lt: new Date(todayStart.getTime() + dayMs) },
+    },
+  });
+  if (todayLive > 0) {
+    anchoredForDay = key;
+    return false;
+  }
+
+  const latest = await db.launch.findFirst({
+    where: { scheduled: false },
+    orderBy: { launchDate: "desc" },
+    select: { launchDate: true },
+  });
+  if (!latest) {
+    anchoredForDay = key;
+    return false;
+  }
+
+  const d = latest.launchDate;
+  const latestDayStart = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  );
+  const deltaMs = todayStart.getTime() - latestDayStart.getTime();
+  if (deltaMs <= 0) {
+    anchoredForDay = key;
+    return false;
+  }
+
+  // Shift the whole timeline forward. SQLite stores Prisma DateTimes as
+  // ms-since-epoch INTEGERs, so plain integer addition is exact. Tool
+  // .originalLaunchDate follows to keep re-launch histories coherent.
+  await db.$executeRaw`UPDATE Launch SET launchDate = launchDate + ${deltaMs}`;
+  await db.$executeRaw`UPDATE Tool SET originalLaunchDate = originalLaunchDate + ${deltaMs} WHERE originalLaunchDate IS NOT NULL`;
+  anchoredForDay = key;
+  return true;
+}
+
 // ── Serialization helpers ────────────────────────────────────────────────
 type ToolWithLaunch = Awaited<ReturnType<typeof db.tool.findMany>>[number] & {
   launch: { baseUpvotes: number; launchDate: Date; id: string } | null;
