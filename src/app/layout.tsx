@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
   ),
-  title: "Prother — Where AI products launch",
+  title: "Prother — Where AI products get discovered",
   description:
-    "Every day, the newest AI tools launch on one page. Get the daily launch feed and never miss the tool that changes how you work.",
+    "Discover every new AI tool the day it launches. A fresh batch of AI products daily — upvote, review, compare, and never miss the one that changes how you work.",
   keywords: [
     "Prother",
     "AI launches",
@@ -29,18 +29,18 @@ export const metadata: Metadata = {
     "AI products",
   ],
   openGraph: {
-    title: "Prother — Where AI products launch",
+    title: "Prother — Where AI products get discovered",
     description:
-      "Every day, the newest AI tools launch on one page. Get the daily launch feed and never miss the tool that changes how you work.",
+      "Discover every new AI tool the day it launches. A fresh batch of AI products daily — upvote, review, compare, and never miss the one that changes how you work.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Prother — Where AI products launch",
+    title: "Prother — Where AI products get discovered",
     description:
-      "Every day, the newest AI tools launch on one page. Get the daily launch feed and never miss the tool that changes how you work.",
+      "Discover every new AI tool the day it launches. A fresh batch of AI products daily — upvote, review, compare, and never miss the one that changes how you work.",
     images: ["/api/og"],
   },
   alternates: {

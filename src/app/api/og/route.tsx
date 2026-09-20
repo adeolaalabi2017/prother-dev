@@ -372,9 +372,9 @@ export async function GET(req: Request) {
             fontFamily: SANS,
           }}
         >
-          <span>Where AI products</span>
+          <span>Where AI products get</span>
           <span>
-            launch.
+            discovered.
             <span style={{ color: C.ember }}>_</span>
           </span>
         </div>

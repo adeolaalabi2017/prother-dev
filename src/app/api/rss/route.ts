@@ -55,7 +55,7 @@ export async function GET(req: Request) {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Prother — Where AI products launch</title>
+    <title>Prother — Where AI products get discovered</title>
     <link>${esc(origin)}</link>
     <description>Today's AI tool launches on Prother (${todayStart.toISOString().slice(0, 10)} UTC). A fresh batch every day.</description>
     <language>en-us</language>

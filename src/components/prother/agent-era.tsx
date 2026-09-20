@@ -22,34 +22,43 @@ const POINTS = [
 
 export function AgentEra() {
   return (
-    <section className="bg-ember py-24 text-black">
-      <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
+    <section className="relative overflow-hidden bg-coal py-24 text-white">
+      {/* Faint ember glow — brand warmth without the loud orange block. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 80% 24%, rgba(255,106,0,0.09) 0%, rgba(255,106,0,0.03) 38%, transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.55, ease: "easeOut" }}
         >
-          <p className="font-mono text-xs tracking-[0.3em] text-black/60">
+          <p className="font-mono text-xs tracking-[0.3em] text-ember/80">
             BUILT FOR THE LAUNCH ERA
           </p>
-          <h2 className="mt-4 text-5xl leading-[0.95] font-black tracking-tighter md:text-6xl">
+          <h2 className="mt-4 text-5xl leading-[0.95] font-black tracking-tighter text-white md:text-6xl">
             Your tool needs a launch day, not a link drop.
           </h2>
-          <p className="mt-6 text-lg text-black/70">
+          <p className="mt-6 text-lg text-white/70">
             Coding agents build, test, and review in loops. A launch on Prother gives every loop a
             real audience — for screenshots, webhooks, evals, or a human who wants to click around.
           </p>
 
-          <ul className="mt-8 divide-y divide-black/15 border-y border-black/15">
+          <ul className="mt-8 divide-y divide-white/10 border-y border-white/10">
             {POINTS.map((p) => (
               <li key={p.n} className="flex gap-5 py-4">
-                <span className="w-8 shrink-0 font-mono text-sm text-black/60" aria-hidden>
+                <span className="w-8 shrink-0 font-mono text-sm text-ember/70" aria-hidden>
                   {p.n}
                 </span>
                 <div>
-                  <h3 className="font-bold">{p.title}</h3>
-                  <p className="mt-0.5 text-sm text-black/70">{p.body}</p>
+                  <h3 className="font-bold text-white">{p.title}</h3>
+                  <p className="mt-0.5 text-sm text-white/60">{p.body}</p>
                 </div>
               </li>
             ))}
@@ -61,7 +70,7 @@ export function AgentEra() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
-          className="overflow-hidden rounded-2xl border border-black/20 bg-ink shadow-2xl"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-ink shadow-2xl ring-1 ring-white/[0.03]"
         >
           <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
             <span className="size-3 rounded-full bg-white/15" aria-hidden />

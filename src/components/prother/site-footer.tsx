@@ -52,8 +52,8 @@ export function SiteFooter() {
               <span className="text-lg font-black tracking-tight text-white">Prother</span>
             </div>
             <p className="mt-3 max-w-xs text-sm text-white/50">
-              Where AI products launch. The daily feed for AI tools, makers, and the people who
-              evaluate them.
+              Where AI products get discovered. The daily feed for AI tools, makers, and the
+              people who evaluate them.
             </p>
             <p className="mt-4 font-mono text-xs text-white/30">@PROTHER_DEV · PROTHER.DEV</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">

@@ -14,7 +14,7 @@ export function Hero() {
   // the locked defaults when the store is empty — the hero never breaks.
   const [copy, setCopy] = useState({
     announcement: "Now onboarding founding makers — first 500 get launch priority",
-    headline: "Where AI products launch.",
+    headline: "Where AI products get discovered.",
     subline:
       "Every day, a fresh batch of AI tools goes live on one page. Prother shows you what launched, what’s climbing, and what’s actually worth your time — before your feed does.",
   });
@@ -39,7 +39,7 @@ export function Hero() {
     };
   }, []);
 
-  // Last word renders in ember — “Where AI products launch.” → launch.
+  // Last word renders in ember — “Where AI products get discovered.” → discovered.
   const headlineWords = copy.headline.split(" ");
   const headlineBody = headlineWords.slice(0, -1).join(" ");
   const headlineAccent = headlineWords.at(-1) ?? "";

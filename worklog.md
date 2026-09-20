@@ -487,3 +487,19 @@ Work Log:
 Stage Summary:
 - Hero is now discovery-first: comprehensive search system (live grouped results over tools+categories+journal, ranked relevance, keyboard-first, recents+trending, deep-links into full pages) replaced the email capture; waitlist remains in the daily digest + final CTA.
 - Next candidates: D1/Turso migration (Workers blocker), real routes /tool/{slug} etc. post-sandbox, search ranking upgrades (synonyms/typo tolerance), search analytics (top queries → Admin console).
+
+---
+Task ID: 19
+Agent: main orchestrator (Z.ai Code)
+Task: Feedback round — headline accent → "discovered" (discovery-first positioning); AgentEra section orange → subtle coal background; fixed recurring hydration error (stale dev-server lock)
+
+Work Log:
+- Feedback 1 (h1 accent span "launch." → discovered): updated the ember accent word to carry the discovery moat. Changed hero.tsx default headline to "Where AI products get discovered." (splits as "Where AI products get" + ember "discovered."). CRITICAL: the rendered copy comes from the SiteSetting KV — updated DB rows hero.headline + seo.defaultTitle via a Prisma upsert script (bun from project root; note: prisma client only resolves inside the project dir, not /tmp).
+- Tagline consistency sweep: layout.tsx metadata title/og/twitter ×3 → "Prother — Where AI products get discovered" + discovery-first descriptions; site-footer blurb; /api/rss channel title; /api/og hero card spans ("Where AI products get" / "discovered._") — og verified 200 image/png.
+- Feedback 2 (section.py-24 "BUILT FOR THE LAUNCH ERA" orange): agent-era.tsx redesigned from full bg-ember/text-black block to relative overflow-hidden bg-coal (#141312) with a faint radial ember glow (rgba(255,106,0,0.09→transparent)) overlay; kicker → text-ember/80, list dividers/borders → white/10, numbers → text-ember/70, body text white/60 + white/70; terminal card border-white/10 + ring-white/[0.03]. Ember is now accent-only, matching the ink/coal design language.
+- BUG (recurring "1 Issue" hydration badge): fresh loads still logged "Hydration failed … text didn't match" at h1 (Hero, hero.tsx:82) — server served the stale prerendered "launch." headline while client had "discovered.". Same wedged-SSR pattern as Task 17. Controlled restart: SIGTERM next-server (pid 1185) → port freed, but Next 16 relaunch failed with "Another next dev server is already running (PID 1185)" — a STALE .next/dev/lock; removed .next/dev/ entirely → python3 double-fork daemonize relaunch → 200. Post-restart: h1 correct, ZERO hydration errors in dev.log, dev-overlay badge gone. New operational note for restarts: `rm -rf .next/dev` is required after killing the server (Next 16 lock).
+- QA: eslint on all 6 touched files clean; agent-browser fresh load — headline "Where AI products get / discovered." (ember accent), search still works ("voice" → VoiceLoom ▲18 + MailMuse ▲87), era section bg-coal, mobile 390px no overflow, era + hero screenshots verified; GET / 200; GET /api/og 200.
+Stage Summary:
+- Site positioning now reads discovery-first everywhere: hero h1 accent "discovered.", metadata/OG/RSS/footer taglines aligned, DB-managed copy updated at the source (SiteSetting rows) so admin console stays authoritative.
+- AgentEra section is visually integrated (subtle coal + ember glow) instead of a loud orange block.
+- Recurring hydration badge root-caused and fixed via controlled restart; documented the Next 16 stale dev-lock gotcha (.next/dev must be removed between restarts).
