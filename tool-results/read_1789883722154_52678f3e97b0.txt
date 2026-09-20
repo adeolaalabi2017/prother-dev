@@ -1,0 +1,708 @@
+     1→You are given a task to integrate an existing React component in the codebase
+     2→
+     3→The codebase should support:
+     4→- shadcn project structure  
+     5→- Tailwind CSS
+     6→- Typescript
+     7→
+     8→If it doesn't, provide instructions on how to setup project via shadcn CLI, install Tailwind or Typescript.
+     9→
+    10→Determine the default path for components and styles. 
+    11→If default path for components is not /components/ui, provide instructions on why it's important to create this folder
+    12→Copy-paste this component to /components/ui folder:
+    13→```tsx
+    14→gateway-flow.tsx
+    15→"use client";
+    16→
+    17→import {
+    18→  useEffect,
+    19→  useMemo,
+    20→  useRef,
+    21→  useState,
+    22→  type CSSProperties,
+    23→} from "react";
+    24→
+    25→type NeuformMode = "dark" | "light";
+    26→type NeuformModePreference = NeuformMode | "auto";
+    27→
+    28→type FocusTarget = {
+    29→  selector: string;
+    30→  role: "background" | "ui";
+    31→  width?: string;
+    32→};
+    33→
+    34→type BakeKnobs = {
+    35→  size: number;
+    36→  gap: number;
+    37→  length: number;
+    38→  density: number;
+    39→  strokeWidth: number;
+    40→  mode: NeuformMode;
+    41→};
+    42→
+    43→type EffectDefinition = {
+    44→  title: string;
+    45→  source: string;
+    46→  background: string | ((mode: NeuformMode) => string);
+    47→  defaultMode?: NeuformModePreference;
+    48→  supportsMode?: boolean;
+    49→  targets: readonly FocusTarget[];
+    50→  focusCss?: string;
+    51→  patch?: (source: string, knobs: BakeKnobs) => string;
+    52→};
+    53→
+    54→export type GatewayFlowProps = {
+    55→  mode?: NeuformModePreference;
+    56→  speed?: number;
+    57→  size?: number;
+    58→  gap?: number;
+    59→  length?: number;
+    60→  density?: number;
+    61→  strokeWidth?: number;
+    62→  opacity?: number;
+    63→  hue?: number;
+    64→  saturation?: number;
+    65→  brightness?: number;
+    66→  className?: string;
+    67→  style?: CSSProperties;
+    68→};
+    69→
+    70→const GATEWAY_FLOW_DEFAULTS = {
+    71→  mode: "dark" as NeuformMode,
+    72→  speed: 1,
+    73→  size: 1,
+    74→  gap: 2,
+    75→  length: 1,
+    76→  density: 1,
+    77→  strokeWidth: 1,
+    78→  opacity: 1,
+    79→  hue: 0,
+    80→  saturation: 1,
+    81→  brightness: 1,
+    82→} as const;
+    83→
+    84→const LIGHT_PAPER = "#eef1f6";
+    85→
+    86→function clamp(value: number, minimum: number, maximum: number) {
+    87→  return Math.min(maximum, Math.max(minimum, value));
+    88→}
+    89→
+    90→function scaleCount(base: number, density: number, minimum = 1) {
+    91→  return Math.max(minimum, Math.round(base * density));
+    92→}
+    93→
+    94→function resolveMode(
+    95→  mode: NeuformMode | number | string | undefined,
+    96→  fallback: NeuformMode = "dark",
+    97→): NeuformMode {
+    98→  if (mode === undefined || mode === null) return fallback;
+    99→  if (mode === "light" || mode === 1 || mode === "1") return "light";
+   100→  return "dark";
+   101→}
+   102→
+   103→function readAutomaticMode(): NeuformMode {
+   104→  if (typeof document === "undefined" || typeof window === "undefined")
+   105→    return "dark";
+   106→  const root = document.documentElement;
+   107→  const declared = root.dataset.scheme ?? root.dataset.theme;
+   108→  if (declared === "light" || declared === "dark") return declared;
+   109→  return window.matchMedia("(prefers-color-scheme: dark)").matches
+   110→    ? "dark"
+   111→    : "light";
+   112→}
+   113→
+   114→function useAutomaticMode(enabled: boolean) {
+   115→  const [mode, setMode] = useState<NeuformMode>(readAutomaticMode);
+   116→
+   117→  useEffect(() => {
+   118→    if (
+   119→      !enabled ||
+   120→      typeof document === "undefined" ||
+   121→      typeof window === "undefined"
+   122→    )
+   123→      return undefined;
+   124→    const root = document.documentElement;
+   125→    const media = window.matchMedia("(prefers-color-scheme: dark)");
+   126→    const update = () => setMode(readAutomaticMode());
+   127→    const observer = new MutationObserver(update);
+   128→    observer.observe(root, {
+   129→      attributes: true,
+   130→      attributeFilter: ["data-scheme", "data-theme"],
+   131→    });
+   132→    media.addEventListener("change", update);
+   133→    update();
+   134→    return () => {
+   135→      observer.disconnect();
+   136→      media.removeEventListener("change", update);
+   137→    };
+   138→  }, [enabled]);
+   139→
+   140→  return mode;
+   141→}
+   142→
+   143→function resolveBackground(
+   144→  background: EffectDefinition["background"],
+   145→  mode: NeuformMode,
+   146→) {
+   147→  return typeof background === "function" ? background(mode) : background;
+   148→}
+   149→
+   150→const gatewayFlowSource = `<!DOCTYPE html>
+   151→<html lang="en">
+   152→<head>
+   153→    <meta charset="UTF-8">
+   154→    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   155→    <title>Nexus Gateway</title>
+   156→    <script src="https://cdn.tailwindcss.com"></script>
+   157→    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+   158→    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+   159→    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+   160→    <link rel="preconnect" href="https://fonts.googleapis.com">
+   161→    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   162→    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300&display=swap" rel="stylesheet">
+   163→</head>
+   164→<body class="bg-black text-slate-300 antialiased min-h-screen flex flex-col selection:bg-slate-700 selection:text-white relative" style="font-family: 'Inter', sans-serif;">
+   165→
+   166→    <!-- Global Dither Overlay -->
+   167→    <div class="fixed inset-0 z-50 pointer-events-none opacity-[0.15]" style="background-image: url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%202%202%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%221%22%20height%3D%221%22%20fill%3D%22%23ffffff%22%2F%3E%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%221%22%20height%3D%221%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E'); background-size: 2px 2px;"></div>
+   168→
+   169→    <!-- Visualization Background -->
+   170→    <div class="fixed inset-0 z-0 overflow-hidden bg-black">
+   171→        <div class="absolute inset-0 z-0 opacity-10" style="background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.01) 0%, rgba(0, 0, 0, 0) 80%);"></div>
+   172→        <canvas id="flow-canvas" class="absolute inset-0 w-full h-full z-10"></canvas>
+   173→    </div>
+   174→
+   175→    <!-- Main Content -->
+   176→    <main class="flex-grow flex flex-col items-center justify-center relative z-30 px-6 py-12 min-h-screen w-full">
+   177→        
+   178→        <!-- Premium Login Card with Hover Border Gradient -->
+   179→        <div class="max-w-md w-full bg-black/95 backdrop-blur-xl rounded-2xl p-7 md:p-8 shadow-2xl flex flex-col relative group">
+   180→            
+   181→            <!-- Base Border -->
+   182→            <div class="absolute inset-0 border border-white/[0.04] rounded-2xl pointer-events-none transition-colors duration-500 group-hover:border-transparent"></div>
+   183→            
+   184→            <!-- Hover Gradient Border -->
+   185→            <div class="absolute inset-0 p-[1px] bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.15),transparent)] [mask-image:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] [mask-composite:exclude] [-webkit-mask-composite:xor] pointer-events-none rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
+   186→
+   187→            <!-- Header Text -->
+   188→            <div class="text-center mb-8 w-full relative z-20">
+   189→                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-black/50 border border-slate-700/50 mb-6 shadow-inner">
+   190→                    <iconify-icon icon="solar:cpu-bolt-linear" width="24" height="24" stroke-width="1.5" class="text-slate-200"></iconify-icon>
+   191→                </div>
+   192→                <h1 id="reveal-title" class="text-3xl md:text-4xl font-thin tracking-tight text-white leading-tight mb-3 uppercase flex flex-wrap justify-center gap-x-2">
+   193→                    <span class="overflow-hidden inline-block pt-1"><span class="reveal-word inline-block translate-y-[120%]">Nexus</span></span>
+   194→                    <span class="overflow-hidden inline-block pt-1"><span class="reveal-word inline-block translate-y-[120%]">Gateway</span></span>
+   195→                </h1>
+   196→                <p class="text-sm text-slate-500 font-extralight leading-relaxed">
+   197→                    Verify identity to initialize secure connection with the primary framework. Oversee active protocols and routing.
+   198→                </p>
+   199→            </div>
+   200→
+   201→            <!-- Form -->
+   202→            <form class="space-y-5 relative z-20">
+   203→                <div>
+   204→                    <label for="identifier" class="text-xs font-light text-slate-400 mb-1.5 block uppercase tracking-widest">Operative ID</label>
+   205→                    <div class="relative rounded-lg bg-black/80 group/input">
+   206→                        <div class="absolute inset-0 border border-slate-800/80 rounded-lg pointer-events-none transition-colors duration-300 group-hover/input:border-transparent focus-within:border-transparent"></div>
+   207→                        <div class="absolute inset-0 p-[1px] bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.25),transparent)] [mask-image:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] [mask-composite:exclude] [-webkit-mask-composite:xor] pointer-events-none rounded-lg opacity-0 group-hover/input:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-10"></div>
+   208→                        <input type="text" id="identifier" class="relative w-full bg-transparent px-3 py-2 text-sm text-slate-200 focus:outline-none z-20 placeholder-slate-700 font-extralight" placeholder="operative@nexus.net">
+   209→                    </div>
+   210→                </div>
+   211→                <div>
+   212→                    <div class="flex justify-between items-center mb-1.5">
+   213→                        <label for="key" class="text-xs font-light text-slate-400 block uppercase tracking-widest">Security Key</label>
+   214→                        <a href="#" class="text-xs font-extralight text-slate-400 hover:text-white transition-colors underline decoration-slate-700 underline-offset-2">Recover access</a>
+   215→                    </div>
+   216→                    <div class="relative rounded-lg bg-black/80 group/input">
+   217→                        <div class="absolute inset-0 border border-slate-800/80 rounded-lg pointer-events-none transition-colors duration-300 group-hover/input:border-transparent focus-within:border-transparent"></div>
+   218→                        <div class="absolute inset-0 p-[1px] bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.25),transparent)] [mask-image:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] [mask-composite:exclude] [-webkit-mask-composite:xor] pointer-events-none rounded-lg opacity-0 group-hover/input:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-10"></div>
+   219→                        <input type="password" id="key" class="relative w-full bg-transparent pl-3 pr-10 py-2 text-sm text-slate-200 focus:outline-none z-20 placeholder-slate-700 font-extralight" placeholder="••••••••">
+   220→                        <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors z-30" aria-label="Toggle visibility">
+   221→                            <iconify-icon icon="solar:eye-linear" width="16" height="16" stroke-width="1.5"></iconify-icon>
+   222→                        </button>
+   223→                    </div>
+   224→                </div>
+   225→                <div class="flex items-center gap-2 pt-1">
+   226→                    <div class="relative flex items-center justify-center w-4 h-4">
+   227→                        <input type="checkbox" id="session" class="peer appearance-none w-4 h-4 border border-slate-700 rounded bg-black/50 checked:bg-slate-300 checked:border-slate-300 cursor-pointer transition-colors">
+   228→                        <iconify-icon icon="solar:check-linear" width="12" height="12" stroke-width="1.5" class="absolute text-black opacity-0 peer-checked:opacity-100 pointer-events-none"></iconify-icon>
+   229→                    </div>
+   230→                    <label for="session" class="text-xs font-extralight text-slate-400 cursor-pointer select-none uppercase tracking-wider">Maintain persistent uplink</label>
+   231→                </div>
+   232→                
+   233→                <!-- Primary Button -->
+   234→                <button type="submit" class="w-full bg-[#0a0a0a] hover:bg-[#111] text-white text-sm font-light py-2.5 rounded-lg transition-all mt-2 uppercase tracking-widest relative group/btn shadow-[0_0_20px_rgba(255,255,255,0.03)] hover:shadow-[0_0_25px_rgba(255,255,255,0.06)]">
+   235→                    <div class="absolute inset-0 border border-white/10 rounded-lg pointer-events-none transition-colors duration-300 group-hover/btn:border-transparent"></div>
+   236→                    <div class="absolute inset-0 p-[1px] bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.4),transparent)] [mask-image:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] [mask-composite:exclude] [-webkit-mask-composite:xor] pointer-events-none rounded-lg opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300 z-10"></div>
+   237→                    <span class="relative z-20">Initialize Uplink</span>
+   238→                </button>
+   239→            </form>
+   240→
+   241→            <!-- Divider -->
+   242→            <div class="relative flex items-center py-6 z-20">
+   243→                <div class="flex-grow border-t border-slate-800/60"></div>
+   244→                <span class="flex-shrink-0 px-4 text-xs font-extralight text-slate-600 uppercase tracking-widest">Alternative Auth</span>
+   245→                <div class="flex-grow border-t border-slate-800/60"></div>
+   246→            </div>
+   247→
+   248→            <!-- Alternative Options -->
+   249→            <div class="grid grid-cols-2 gap-3 z-20">
+   250→                <button type="button" class="relative flex items-center justify-center gap-2 w-full bg-black/40 hover:bg-slate-900 rounded-lg py-2.5 text-sm text-slate-400 hover:text-slate-200 transition-colors font-extralight group/alt">
+   251→                    <div class="absolute inset-0 border border-slate-800/80 rounded-lg pointer-events-none transition-colors duration-300 group-hover/alt:border-transparent"></div>
+   252→                    <div class="absolute inset-0 p-[1px] bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.25),transparent)] [mask-image:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] [mask-composite:exclude] [-webkit-mask-composite:xor] pointer-events-none rounded-lg opacity-0 group-hover/alt:opacity-100 transition-opacity duration-300 z-10"></div>
+   253→                    <span class="relative z-20 flex items-center gap-2"><iconify-icon icon="solar:buildings-linear" width="18" height="18" stroke-width="1.5"></iconify-icon> Corporate SSO</span>
+   254→                </button>
+   255→                <button type="button" class="relative flex items-center justify-center gap-2 w-full bg-black/40 hover:bg-slate-900 rounded-lg py-2.5 text-sm text-slate-400 hover:text-slate-200 transition-colors font-extralight group/alt">
+   256→                    <div class="absolute inset-0 border border-slate-800/80 rounded-lg pointer-events-none transition-colors duration-300 group-hover/alt:border-transparent"></div>
+   257→                    <div class="absolute inset-0 p-[1px] bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.25),transparent)] [mask-image:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] [mask-composite:exclude] [-webkit-mask-composite:xor] pointer-events-none rounded-lg opacity-0 group-hover/alt:opacity-100 transition-opacity duration-300 z-10"></div>
+   258→                    <span class="relative z-20 flex items-center gap-2"><iconify-icon icon="solar:code-circle-linear" width="18" height="18" stroke-width="1.5"></iconify-icon> Git Auth</span>
+   259→                </button>
+   260→            </div>
+   261→        </div>
+   262→
+   263→        <!-- Social Proof -->
+   264→        <div class="mt-8 flex flex-col items-center gap-4 relative z-20">
+   265→            <div class="flex -space-x-2">
+   266→                <img src="https://cdn.21st.dev/assets/localized/bba3220f058938fca64a658ed7bc7e88e92151754b572a90a2a3634979517541.jpg" alt="Active Node" class="w-10 h-10 rounded-full border border-slate-800 bg-black object-cover shadow-lg">
+   267→                <img src="https://cdn.21st.dev/assets/localized/2739f91b816b2962674544bbf18e60661b4447bd222366cc57c8bf8c1ff3db5d.jpg" alt="Active Node" class="w-10 h-10 rounded-full border border-slate-800 bg-black object-cover shadow-lg">
+   268→                <img src="https://cdn.21st.dev/assets/localized/380665b3fe4d47990da36c79a8c8ac09779534d1d9687430bb2a8a750843bada.jpg" alt="Active Node" class="w-10 h-10 rounded-full border border-slate-800 bg-black object-cover shadow-lg">
+   269→                <div class="w-10 h-10 rounded-full border border-slate-700 bg-slate-900 flex items-center justify-center text-xs text-slate-300 font-extralight shadow-lg">+</div>
+   270→            </div>
+   271→            <p class="text-xs text-slate-600 font-extralight uppercase tracking-widest">Validated by distributed consensus nodes</p>
+   272→        </div>
+   273→
+   274→    </main>
+   275→
+   276→    <script>
+   277→        document.addEventListener('DOMContentLoaded', () => {
+   278→            // GSAP Masked Reveal for Heading
+   279→            gsap.registerPlugin(ScrollTrigger);
+   280→            gsap.to(".reveal-word", {
+   281→                y: "0%",
+   282→                duration: 1.2,
+   283→                ease: "power4.out",
+   284→                stagger: 0.15,
+   285→                scrollTrigger: {
+   286→                    trigger: "#reveal-title",
+   287→                    start: "top 95%",
+   288→                }
+   289→            });
+   290→
+   291→            // Flow Canvas Animation
+   292→            const canvas = document.getElementById('flow-canvas');
+   293→            const ctx = canvas.getContext('2d');
+   294→            
+   295→            let width, height;
+   296→            let explosions = [];
+   297→
+   298→            function resize() {
+   299→                const dpr = window.devicePixelRatio || 1;
+   300→                width = window.innerWidth;
+   301→                height = window.innerHeight;
+   302→                canvas.width = width * dpr;
+   303→                canvas.height = height * dpr;
+   304→                ctx.scale(dpr, dpr);
+   305→            }
+   306→            window.addEventListener('resize', resize);
+   307→            resize();
+   308→
+   309→            window.addEventListener('click', (e) => {
+   310→                explosions.push({ x: e.clientX, y: e.clientY, radius: 0, life: 1 });
+   311→            });
+   312→
+   313→            const paths = [];
+   314→            const numPaths = 80;
+   315→            
+   316→            for(let i = 0; i < numPaths; i++) {
+   317→                paths.push({
+   318→                    isLeft: i % 2 === 0,
+   319→                    startY: (i / numPaths) * height * 1.4 - height * 0.2,
+   320→                    particles: [{
+   321→                        t: Math.random(),
+   322→                        speed: 0.0015 + Math.random() * 0.002
+   323→                    }]
+   324→                });
+   325→            }
+   326→
+   327→            function getBezierPoint(t, p0, p1, p2, p3) {
+   328→                const u = 1 - t;
+   329→                return {
+   330→                    x: u**3 * p0.x + 3 * u**2 * t * p1.x + 3 * u * t**2 * p2.x + t**3 * p3.x,
+   331→                    y: u**3 * p0.y + 3 * u**2 * t * p1.y + 3 * u * t**2 * p2.y + t**3 * p3.y
+   332→                };
+   333→            }
+   334→
+   335→            function render() {
+   336→                ctx.clearRect(0, 0, width, height);
+   337→                const centerX = width / 2;
+   338→                const centerY = height / 2;
+   339→
+   340→                explosions.forEach(exp => {
+   341→                    exp.radius += 15;
+   342→                    exp.life -= 0.015;
+   343→                });
+   344→                explosions = explosions.filter(exp => exp.life > 0);
+   345→
+   346→                paths.forEach(path => {
+   347→                    const p0 = { x: path.isLeft ? 0 : width, y: path.startY };
+   348→                    const p1 = { x: path.isLeft ? centerX * 0.5 : width - centerX * 0.5, y: path.startY };
+   349→                    const p2 = { x: path.isLeft ? centerX * 0.8 : width - centerX * 0.8, y: centerY };
+   350→                    const p3 = { x: centerX, y: centerY };
+   351→
+   352→                    ctx.beginPath();
+   353→                    ctx.moveTo(p0.x, p0.y);
+   354→                    ctx.bezierCurveTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+   355→                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+   356→                    ctx.lineWidth = 1.2;
+   357→                    ctx.setLineDash([1, 4]);
+   358→                    ctx.stroke();
+   359→                    ctx.setLineDash([]);
+   360→
+   361→                    path.particles.forEach(p => {
+   362→                        p.t += p.speed;
+   363→                        if (p.t > 1) {
+   364→                            p.t = 0;
+   365→                            path.startY += (Math.random() - 0.5) * 10;
+   366→                        }
+   367→
+   368→                        let pos = getBezierPoint(p.t, p0, p1, p2, p3);
+   369→
+   370→                        let dxTotal = 0, dyTotal = 0;
+   371→                        explosions.forEach(exp => {
+   372→                            let dx = pos.x - exp.x;
+   373→                            let dy = pos.y - exp.y;
+   374→                            let dist = Math.hypot(dx, dy);
+   375→                            if (dist < exp.radius + 120 && dist > exp.radius - 120) {
+   376→                                let force = (1 - Math.abs(dist - exp.radius) / 120) * exp.life;
+   377→                                dxTotal += (dx / dist) * force * 80;
+   378→                                dyTotal += (dy / dist) * force * 80;
+   379→                            }
+   380→                        });
+   381→                        
+   382→                        pos.x += dxTotal;
+   383→                        pos.y += dyTotal;
+   384→
+   385→                        ctx.fillStyle = `rgba(255, 255, 255, 0.7)`;
+   386→                        ctx.fillRect(pos.x - 1.5, pos.y - 1.5, 3, 3);
+   387→                    });
+   388→                });
+   389→                
+   390→                requestAnimationFrame(render);
+   391→            }
+   392→            
+   393→            render();
+   394→        });
+   395→    </script>
+   396→</body>
+   397→</html>`;
+   398→
+   399→const GATEWAY_FLOW_DEFINITION: EffectDefinition = {
+   400→  title: "Gateway Flow",
+   401→  source: gatewayFlowSource,
+   402→  supportsMode: true,
+   403→  background: (mode) => (mode === "light" ? LIGHT_PAPER : "#000000"),
+   404→  targets: [{ selector: "#flow-canvas", role: "background" }],
+   405→  patch(source, { size, density, mode }) {
+   406→    let next = source
+   407→      .replace(
+   408→        "const numPaths = 80;",
+   409→        `const numPaths = ${scaleCount(80, density, 12)};`,
+   410→      )
+   411→      .replace(
+   412→        "p.t += p.speed;",
+   413→        "p.t += p.speed * ((window.__SF_CONTROLS&&window.__SF_CONTROLS.speed)||1);",
+   414→      )
+   415→      .replace(
+   416→        "ctx.lineWidth = 1.2;",
+   417→        `ctx.lineWidth = ${Number((1.2 * size).toFixed(2))};`,
+   418→      );
+   419→    if (mode === "light") {
+   420→      next = next
+   421→        .replace(
+   422→          "ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';",
+   423→          "ctx.strokeStyle = 'rgba(26, 31, 42, 0.4)';",
+   424→        )
+   425→        .replace(
+   426→          "ctx.fillStyle = `rgba(255, 255, 255, 0.7)`;",
+   427→          "ctx.fillStyle = `rgba(26, 31, 42, 0.75)`;",
+   428→        );
+   429→    }
+   430→    return next;
+   431→  },
+   432→};
+   433→
+   434→function buildFocusedDocument(
+   435→  definition: EffectDefinition,
+   436→  knobs: BakeKnobs & { speed: number; opacity: number },
+   437→) {
+   438→  const mode = knobs.mode;
+   439→  const background = resolveBackground(definition.background, mode);
+   440→  const targetJson = JSON.stringify(definition.targets).replace(
+   441→    /</g,
+   442→    "\\u003c",
+   443→  );
+   444→  const controlsJson = JSON.stringify({
+   445→    mode,
+   446→    speed: knobs.speed,
+   447→    size: knobs.size,
+   448→    gap: knobs.gap,
+   449→    length: knobs.length,
+   450→    density: knobs.density,
+   451→    strokeWidth: knobs.strokeWidth,
+   452→    opacity: knobs.opacity,
+   453→  }).replace(/</g, "\\u003c");
+   454→  const patchedSource = definition.patch
+   455→    ? definition.patch(definition.source, {
+   456→        size: knobs.size,
+   457→        gap: knobs.gap,
+   458→        length: knobs.length,
+   459→        density: knobs.density,
+   460→        strokeWidth: knobs.strokeWidth,
+   461→        mode,
+   462→      })
+   463→    : definition.source;
+   464→  const focusStyle = `<style data-threeui-focus>
+   465→html, body { width: 100% !important; height: 100% !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; background: ${background} !important; }
+   466→body { position: relative !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+   467→body > * { visibility: hidden !important; }
+   468→body[data-threeui-ready] > [data-threeui-role] { visibility: visible !important; }
+   469→[data-threeui-residual] { display: none !important; }
+   470→[data-threeui-role="background"] { position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; z-index: 0 !important; opacity: 1 !important; pointer-events: none !important; }
+   471→[data-threeui-role="ui"] { position: relative !important; z-index: 1 !important; width: min(calc(100% - 32px), var(--threeui-target-width, 1040px)) !important; max-width: none !important; max-height: calc(100% - 32px) !important; margin: auto !important; overflow: auto !important; opacity: 1 !important; transform: none !important; filter: none !important; flex: none !important; box-sizing: border-box !important; }
+   472→${definition.focusCss ?? ""}
+   473→</style>`;
+   474→  const controlScript = `<script data-threeui-controls>
+   475→(function () {
+   476→  var controls = ${controlsJson};
+   477→  window.__SF_CONTROLS = controls;
+   478→  var origin = performance.now();
+   479→  var virtual = 0;
+   480→  var last = origin;
+   481→  var performanceNow = performance.now.bind(performance);
+   482→  var dateNow = Date.now.bind(Date);
+   483→  var dateOrigin = dateNow();
+   484→  performance.now = function () {
+   485→    var real = performanceNow();
+   486→    virtual += (real - last) * (controls.speed || 1);
+   487→    last = real;
+   488→    return origin + virtual;
+   489→  };
+   490→  Date.now = function () {
+   491→    return dateOrigin + (performance.now() - origin);
+   492→  };
+   493→  var raf = window.requestAnimationFrame.bind(window);
+   494→  window.requestAnimationFrame = function (callback) {
+   495→    return raf(function () {
+   496→      callback(performance.now());
+   497→    });
+   498→  };
+   499→  function applyVisual() {
+   500→    var opacity = controls.opacity == null ? 1 : controls.opacity;
+   501→    var size = controls.size == null ? 1 : controls.size;
+   502→    Array.prototype.forEach.call(document.querySelectorAll('[data-threeui-role]'), function (element) {
+   503→      element.style.opacity = String(opacity);
+   504→      if (element.getAttribute('data-threeui-role') === 'ui') {
+   505→        element.style.transform = 'scale(' + size + ')';
+   506→        element.style.transformOrigin = 'center center';
+   507→      }
+   508→    });
+   509→  }
+   510→  window.addEventListener('message', function (event) {
+   511→    if (!event.data || event.data.type !== 'threeui-controls') return;
+   512→    var next = event.data.controls || {};
+   513→    Object.keys(next).forEach(function (key) { controls[key] = next[key]; });
+   514→    applyVisual();
+   515→  });
+   516→  window.__SF_APPLY_CONTROLS = applyVisual;
+   517→})();
+   518→</script>`;
+   519→  const focusScript = `<script data-threeui-focus>
+   520→(function () {
+   521→  var isolated = false;
+   522→  function isolate() {
+   523→    if (isolated) return;
+   524→    var specs = ${targetJson};
+   525→    var roots = [];
+   526→    specs.forEach(function (spec) {
+   527→      var element = document.querySelector(spec.selector);
+   528→      if (!element) return;
+   529→      element.setAttribute('data-threeui-role', spec.role);
+   530→      if (spec.width) element.style.setProperty('--threeui-target-width', spec.width);
+   531→      if (!roots.some(function (root) { return root.contains(element); })) roots.push(element);
+   532→    });
+   533→    if (!roots.length) return;
+   534→    isolated = true;
+   535→    roots.forEach(function (root) { document.body.appendChild(root); });
+   536→    Array.from(document.body.children).forEach(function (element) {
+   537→      if (roots.indexOf(element) !== -1) return;
+   538→      element.setAttribute('data-threeui-residual', '');
+   539→      element.setAttribute('aria-hidden', 'true');
+   540→      if ('inert' in element) element.inert = true;
+   541→    });
+   542→    document.body.setAttribute('data-threeui-ready', '');
+   543→    if (window.__SF_APPLY_CONTROLS) window.__SF_APPLY_CONTROLS();
+   544→    requestAnimationFrame(function () { window.dispatchEvent(new Event('resize')); });
+   545→  }
+   546→  function scheduleIsolation() { setTimeout(isolate, 100); }
+   547→  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scheduleIsolation, { once: true });
+   548→  else scheduleIsolation();
+   549→  window.addEventListener('load', isolate, { once: true });
+   550→})();
+   551→</script>`;
+   552→  return patchedSource
+   553→    .replace(/<head([^>]*)>/i, `<head$1>${controlScript}${focusStyle}`)
+   554→    .replace(/<\/body>/i, `${focusScript}</body>`);
+   555→}
+   556→
+   557→function GatewayFlowFrame({
+   558→  definition,
+   559→  mode,
+   560→  speed = GATEWAY_FLOW_DEFAULTS.speed,
+   561→  size = GATEWAY_FLOW_DEFAULTS.size,
+   562→  gap = GATEWAY_FLOW_DEFAULTS.gap,
+   563→  length = GATEWAY_FLOW_DEFAULTS.length,
+   564→  density = GATEWAY_FLOW_DEFAULTS.density,
+   565→  strokeWidth = GATEWAY_FLOW_DEFAULTS.strokeWidth,
+   566→  opacity = GATEWAY_FLOW_DEFAULTS.opacity,
+   567→  hue = GATEWAY_FLOW_DEFAULTS.hue,
+   568→  saturation = GATEWAY_FLOW_DEFAULTS.saturation,
+   569→  brightness = GATEWAY_FLOW_DEFAULTS.brightness,
+   570→  className,
+   571→  style,
+   572→}: GatewayFlowProps & { definition: EffectDefinition }) {
+   573→  const iframeRef = useRef<HTMLIFrameElement>(null);
+   574→  const requestedMode =
+   575→    mode ?? definition.defaultMode ?? GATEWAY_FLOW_DEFAULTS.mode;
+   576→  const automaticMode = useAutomaticMode(requestedMode === "auto");
+   577→  const resolvedMode =
+   578→    requestedMode === "auto"
+   579→      ? automaticMode
+   580→      : resolveMode(requestedMode, GATEWAY_FLOW_DEFAULTS.mode);
+   581→  const background = resolveBackground(definition.background, resolvedMode);
+   582→  const safeSpeed = clamp(speed, 0, 3);
+   583→  const safeSize = clamp(size, 0.05, 200);
+   584→  const safeGap = clamp(gap, 0, 64);
+   585→  const safeLength = clamp(length, 0.35, 2.5);
+   586→  const safeDensity = clamp(density, 0.25, 2.5);
+   587→  const safeStrokeWidth = clamp(strokeWidth, 0.25, 8);
+   588→  const safeOpacity = clamp(opacity, 0.05, 1);
+   589→  const safeHue = clamp(hue, -180, 180);
+   590→  const safeSaturation = clamp(saturation, 0, 2);
+   591→  const safeBrightness = clamp(brightness, 0.35, 1.65);
+   592→
+   593→  // Rebuild when baked geometry/mode knobs change. Speed/opacity stay live via postMessage + time wrap.
+   594→  const source = useMemo(
+   595→    () =>
+   596→      buildFocusedDocument(definition, {
+   597→        mode: resolvedMode,
+   598→        speed: GATEWAY_FLOW_DEFAULTS.speed,
+   599→        size: safeSize,
+   600→        gap: safeGap,
+   601→        length: safeLength,
+   602→        density: safeDensity,
+   603→        strokeWidth: safeStrokeWidth,
+   604→        opacity: GATEWAY_FLOW_DEFAULTS.opacity,
+   605→      }),
+   606→    [
+   607→      definition,
+   608→      resolvedMode,
+   609→      safeDensity,
+   610→      safeGap,
+   611→      safeLength,
+   612→      safeSize,
+   613→      safeStrokeWidth,
+   614→    ],
+   615→  );
+   616→
+   617→  useEffect(() => {
+   618→    const frame = iframeRef.current?.contentWindow;
+   619→    if (!frame) return;
+   620→    frame.postMessage(
+   621→      {
+   622→        type: "threeui-controls",
+   623→        controls: {
+   624→          mode: resolvedMode,
+   625→          speed: safeSpeed,
+   626→          size: safeSize,
+   627→          gap: safeGap,
+   628→          length: safeLength,
+   629→          density: safeDensity,
+   630→          strokeWidth: safeStrokeWidth,
+   631→          opacity: safeOpacity,
+   632→        },
+   633→      },
+   634→      "*",
+   635→    );
+   636→  }, [
+   637→    resolvedMode,
+   638→    safeDensity,
+   639→    safeGap,
+   640→    safeLength,
+   641→    safeOpacity,
+   642→    safeSize,
+   643→    safeSpeed,
+   644→    safeStrokeWidth,
+   645→    source,
+   646→  ]);
+   647→
+   648→  const filter =
+   649→    safeHue === 0 && safeSaturation === 1 && safeBrightness === 1
+   650→      ? undefined
+   651→      : `hue-rotate(${safeHue}deg) saturate(${safeSaturation}) brightness(${safeBrightness})`;
+   652→
+   653→  return (
+   654→    <iframe
+   655→      ref={iframeRef}
+   656→      className={className}
+   657→      title={definition.title}
+   658→      srcDoc={source}
+   659→      sandbox="allow-scripts"
+   660→      loading="eager"
+   661→      style={{
+   662→        display: "block",
+   663→        width: "100%",
+   664→        height: "100%",
+   665→        border: 0,
+   666→        background,
+   667→        filter,
+   668→        ...style,
+   669→      }}
+   670→    />
+   671→  );
+   672→}
+   673→
+   674→export default function GatewayFlow(props: GatewayFlowProps) {
+   675→  return <GatewayFlowFrame {...props} definition={GATEWAY_FLOW_DEFINITION} />;
+   676→}
+   677→
+   678→
+   679→demo.tsx
+   680→import GatewayFlow from "@/components/ui/gateway-flow";
+   681→
+   682→export default function GatewayFlowDemo() {
+   683→  return (
+   684→    <div className="relative h-[520px] w-full overflow-hidden rounded-xl border border-border bg-black">
+   685→      <GatewayFlow className="h-full w-full" />
+   686→    </div>
+   687→  );
+   688→}
+   689→
+   690→```
+   691→
+   692→Implementation Guidelines
+   693→ 1. Analyze the component structure and identify all required dependencies
+   694→ 2. Review the component's argumens and state
+   695→ 3. Identify any required context providers or hooks and install them
+   696→ 4. Questions to Ask
+   697→ - What data/props will be passed to this component?
+   698→ - Are there any specific state management requirements?
+   699→ - Are there any required assets (images, icons, etc.)?
+   700→ - What is the expected responsive behavior?
+   701→ - What is the best place to use this component in the app?
+   702→
+   703→Steps to integrate
+   704→ 0. Copy paste all the code above in the correct directories
+   705→ 1. Install external dependencies
+   706→ 2. Fill image assets with Unsplash stock images you know exist
+   707→ 3. Use lucide-react icons for svgs or logos if component requires them
+   708→

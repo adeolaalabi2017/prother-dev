@@ -167,13 +167,13 @@
   animation-play-state: paused;
 }
 
-/* ── Prother × try.cloudflare.com — hero animation layer ────────────────
-   Ported from the Quick Tunnels hero (their exact curves & durations):
+/* ── Prother — hero micro-animation layer (terminal & status) ───────────
    · line-in       terminal lines stagger in (translateY 4px → 0, .22s ease-out)
    · caret-blink   steps(1) block-cursor blink (harsh ON/OFF, 1s)
    · status-pulse  announcement-pill dot opacity breathing (2s)
-   · dash-march    SVG rays march via stroke-dashoffset → -32 (dasharray 8 8)
    · float-y       gentle ±6px hover on the terminal panel (5s)
+   (The hero BACKGROUND animation is the canvas-based <GatewayFlow /> —
+   src/components/ui/gateway-flow.tsx.)
    Reduced motion: global guard below + explicit term-line visibility fix. */
 @keyframes line-in {
   from {
@@ -217,12 +217,6 @@
   }
 }
 
-@keyframes dash-march {
-  to {
-    stroke-dashoffset: -32;
-  }
-}
-
 .term-line {
   opacity: 0;
   animation: line-in 0.22s ease-out forwards;
@@ -238,11 +232,6 @@
 
 .animate-float-y {
   animation: float-y 5s ease-in-out infinite;
-}
-
-.flow-dash {
-  stroke-dasharray: 8 8;
-  animation: dash-march 1.4s linear infinite;
 }
 
 /* Prother — thin ember scrollbar */
@@ -280,8 +269,7 @@
   }
   .animate-caret,
   .animate-status-pulse,
-  .animate-float-y,
-  .flow-dash {
+  .animate-float-y {
     animation: none !important;
   }
   *,

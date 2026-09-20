@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import GatewayFlow from "@/components/ui/gateway-flow";
 import { WaitlistForm } from "./waitlist-form";
 import { useFeed } from "./use-feed";
 
@@ -37,87 +38,6 @@ function SocialProofCount() {
   );
 }
 
-/** SVG rays — ported from try.cloudflare.com: dashed strokes marching via
-    stroke-dashoffset (dash-march), radiating from the ember glow center. */
-function HeroRays() {
-  const rays = Array.from({ length: 12 }, (_, i) => i * 30);
-  const cx = 350;
-  const cy = 350;
-  return (
-    <svg
-      aria-hidden
-      className="absolute right-[-530px] top-[-210px] size-[700px] text-ember/35"
-      viewBox="0 0 700 700"
-      fill="none"
-    >
-      {rays.map((a) => {
-        const rad = (a * Math.PI) / 180;
-        const r1 = 150;
-        const r2 = 320 + (a % 60 === 0 ? 50 : 0);
-        // Rounded to 2 decimals — raw trig output differs in far decimals
-        // between server and client FPUs and breaks hydration.
-        const n = (v: number) => Number(v.toFixed(2));
-        return (
-          <line
-            key={a}
-            className="flow-dash"
-            x1={n(cx + r1 * Math.cos(rad))}
-            y1={n(cy + r1 * Math.sin(rad))}
-            x2={n(cx + r2 * Math.cos(rad))}
-            y2={n(cy + r2 * Math.sin(rad))}
-            stroke="currentColor"
-            strokeWidth="1"
-            opacity={a % 60 === 0 ? 0.9 : 0.5}
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
-/** Decorative hero background — glow, concentric rings, ember dashes. */
-function HeroBackdrop() {
-  const rings = [
-    { size: 400, cls: "right-[-60px] top-[60px]" },
-    { size: 560, cls: "right-[-140px] top-[-20px]" },
-    { size: 720, cls: "right-[-220px] top-[-100px]" },
-    { size: 900, cls: "right-[-300px] top-[-190px]" },
-  ];
-  const dashes = [
-    { cls: "right-[8%] top-[18%] rotate-45" },
-    { cls: "right-[30%] top-[10%] -rotate-12" },
-    { cls: "right-[16%] top-[62%] rotate-[65deg]" },
-    { cls: "right-[42%] top-[70%] -rotate-45" },
-    { cls: "right-[4%] top-[42%] rotate-12" },
-    { cls: "right-[26%] top-[38%] rotate-[30deg]" },
-  ];
-
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* big radial ember glow */}
-      <div className="absolute right-[-120px] top-[-160px] h-[600px] w-[600px] rounded-full bg-ember/25 blur-[120px]" />
-      <div className="absolute left-[-180px] bottom-[-260px] h-[420px] w-[420px] rounded-full bg-ember/10 blur-[120px]" />
-
-      {/* concentric rings */}
-      {rings.map((r) => (
-        <div
-          key={r.size}
-          className={`absolute rounded-full border border-white/5 ${r.cls}`}
-          style={{ width: r.size, height: r.size }}
-        />
-      ))}
-
-      {/* thin rotated ember dashes */}
-      {dashes.map((d, i) => (
-        <div key={i} className={`absolute h-px w-24 bg-ember/40 ${d.cls}`} />
-      ))}
-
-      {/* marching dashed rays (try.cloudflare.com hero DNA) */}
-      <HeroRays />
-    </div>
-  );
-}
-
 export function Hero() {
   const { feed } = useFeed();
   const todayCount = feed ? String(feed.todayCount) : "12";
@@ -132,7 +52,24 @@ export function Hero() {
 
   return (
     <section id="top" className="relative overflow-hidden pt-16 pb-20 md:pt-20">
-      <HeroBackdrop />
+      {/* Gateway Flow background — dashed bezier streams converge on the hero
+          center with ember particles riding the curves; clicking the hero fires
+          a shockwave that bends the flow. Replaces the rings/rays backdrop. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(circle at 50% 46%, rgba(255,106,0,0.13) 0%, rgba(255,106,0,0.05) 34%, transparent 62%)",
+          }}
+        />
+        <GatewayFlow
+          className="absolute inset-0"
+          speed={0.9}
+          density={0.85}
+          opacity={0.9}
+        />
+      </div>
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1.1fr_1fr]">
         {/* Left */}
