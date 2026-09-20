@@ -465,3 +465,25 @@ Stage Summary:
 - User feedback item closed (hero terminal removed, hero centered). Real hydration mismatch fixed by controlled dev-server restart (stale SSR cache + dead watcher). Seed-date drift made structurally impossible by the once-a-day demo re-anchor in the feed route.
 - Editor console is now a 3-tab moderation desk: Submissions (existing), Claims arbitration (closes the F-30 "disputes → editor arbitration" loop), Filtered-review moderation (closes F-16's <48h hold loop). All decisions audited via AuditLog; ownership transfer reuses the exact automated-verify path.
 - Remaining roadmap: (1) D1/Turso migration still the Cloudflare Workers blocker; (2) real routes /tool/{slug} etc. post-sandbox (metadata plumbing ready); (3) re-launch editor gate (currently direct execution when eligible) — could reuse the same arbitration pattern if PRD compliance is wanted; (4) Google OAuth env keys for production sign-in.
+
+---
+Task ID: 18
+Agent: main orchestrator (Z.ai Code)
+Task: Feedback round — replace hero email-capture block with a comprehensive search bar system (discovery-first moat)
+
+Work Log:
+- Feedback path: section#top > div.mx-auto.mt-8.max-w-md > WaitlistForm (div.w-full.space-y-2, "Get the daily feed →"). User comment: discovery-first before launch → robust hero search across thousands of AI tools.
+- NEW /api/search (src/app/api/search/route.ts): unified grouped search — tools (live + scheduled=false, OR-match name/tagline/tags/description, relevance-ranked name.startsWith 100 > name.includes 80 > tagline 55 > tags 40 > description 25, votes tiebreak, take 6 of 40-pool), categories (name/slug match w/ _count.tools, take 4), journal posts (published, title/excerpt/tags, take 3), counts {tools, posts} always returned. Exported SearchResponse type consumed by the client. no-store.
+- NEW src/components/prother/hero-search.tsx (~560 lines): h-14 rounded-2xl ember-focus search bar (Search icon, loading spinner, clear button, "/" kbd hint) + live dropdown (max-h min(58vh,440px), #141210/95 backdrop-blur, border-white/10 shadow-2xl):
+  · Empty state: RECENT (localStorage prother:recent-tools, lazy-loaded on open — lint-safe) + TRENDING THIS WEEK (api/trending top 5 w/ #rank badges) + BROWSE CATEGORIES (all 10 static rows)
+  · Query state: grouped AI TOOLS (emoji tile, tagline, category label, ▲votes) / CATEGORIES (count) / JOURNAL (reading min) + footer hints bar (↑↓ NAVIGATE · ↵ OPEN · ESC CLOSE · "{n} TOOLS INDEXED" from api)
+  · No-matches: mono "NO MATCHES" + 10 category quick-chips fallback
+  · Keyboard: "/" global focus (skips inputs), ArrowUp/Down wrap across flat item list, Enter opens active-or-best (tool-first), Esc closes+blurs; aria combobox/listbox/option + aria-activedescendant
+  · Actions: tool/recent → openTool deep link + pushRecent (localStorage, max 4, dedupe); category → openCategory; post → openPost. ⌘K palette intentionally untouched (no conflict — hero uses "/")
+  · TRY: chips under the bar (top-4 trending names) fill the query to demo live search
+  · Derived-state pattern: shown/loading/activeIdx computed from {q,data} results + {q,i} active — zero setState-in-effect (react-hooks/set-state-in-effect clean after moving recents load into openDropdown callback)
+- hero.tsx: removed WaitlistForm block + SocialProofCount (waitlist still lives in #feed digest + final CTA); inserted max-w-xl HeroSearch. Announcement/headline/subline (admin-managed) and stat chips untouched.
+- QA (agent-browser): empty-state groups render; "prompt"→Promptly ▲48; "writing"→"AI Writing & Productivity 2 TOOLS"; "voice"→VoiceLoom; "promptprompt"→no-matches chips; ArrowDown+Enter (dispatched keydown) opened /?tool=promptly full listing (region "Promptly — full listing", body scroll-lock confirmed); mouse option-click same; Esc closed page + URL reverted; TRY chip filled query; recents persisted across interactions (RECENT group shows Promptly); mobile 390px no overflow (scrollWidth 390=390); desktop screenshots verified visuals (ember focus ring, footer hints bar). bun run lint exit 0; GET / 200; dev.log no errors. Note: agent-browser `key` events sometimes land on BODY after `type` (focus artifact) — dispatch KeyboardEvents via eval for reliable keyboard testing.
+Stage Summary:
+- Hero is now discovery-first: comprehensive search system (live grouped results over tools+categories+journal, ranked relevance, keyboard-first, recents+trending, deep-links into full pages) replaced the email capture; waitlist remains in the daily digest + final CTA.
+- Next candidates: D1/Turso migration (Workers blocker), real routes /tool/{slug} etc. post-sandbox, search ranking upgrades (synonyms/typo tolerance), search analytics (top queries → Admin console).

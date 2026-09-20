@@ -3,40 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import GatewayFlow from "@/components/ui/gateway-flow";
-import { WaitlistForm } from "./waitlist-form";
+import { HeroSearch } from "./hero-search";
 import { useFeed } from "./use-feed";
-
-function SocialProofCount() {
-  const [count, setCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/waitlist")
-      .then((r) => r.json() as Promise<{ count: number }>)
-      .then((d) => {
-        if (alive) setCount(d.count);
-      })
-      .catch(() => {
-        /* keep placeholder */
-      });
-    // Waitlist joins elsewhere on the page (sidebar / final CTA) bump this instantly.
-    const onJoin = (e: Event) => {
-      const c = (e as CustomEvent).detail?.count;
-      if (typeof c === "number") setCount(c);
-    };
-    window.addEventListener("prother:waitlist", onJoin);
-    return () => {
-      alive = false;
-      window.removeEventListener("prother:waitlist", onJoin);
-    };
-  }, []);
-
-  return (
-    <strong className="font-semibold text-white/80">
-      {count === null ? "412+" : count.toLocaleString("en-US")}
-    </strong>
-  );
-}
 
 export function Hero() {
   const { feed } = useFeed();
@@ -127,14 +95,11 @@ export function Hero() {
             {copy.subline}
           </p>
 
-          <div className="mx-auto mt-8 max-w-md">
-            <WaitlistForm source="hero" dark />
+          {/* Discovery-first hero: comprehensive search replaces the email
+              capture (waitlist lives in the daily digest + final CTA). */}
+          <div className="mx-auto mt-8 w-full max-w-xl">
+            <HeroSearch />
           </div>
-
-          <p className="mt-4 text-sm text-white/50">
-            Join <SocialProofCount /> founders, developers, and AI-curious builders already on the
-            list.
-          </p>
 
           <ul className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2">
             {[
