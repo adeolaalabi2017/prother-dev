@@ -5,6 +5,7 @@ import { db } from "@/lib/prother";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/journal" },
   title: "The Journal — Prother",
   description:
     "Launch playbooks, ranking explainers, and weekly ecosystem data from Prother — written by the people who watch every AI launch cross the feed.",

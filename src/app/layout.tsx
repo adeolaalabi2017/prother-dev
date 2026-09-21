@@ -34,7 +34,9 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+    // Same fallback as robots.ts/sitemap.ts — a mismatched default would put
+    // localhost into every og:image/canonical URL in production.
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev"
   ),
   title: "Prother — Where AI products get discovered",
   description:

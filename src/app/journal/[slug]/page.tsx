@@ -28,6 +28,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return {
     title,
     description,
+    alternates: { canonical: `/journal/${post.slug}` },
     keywords: post.keywords
       ? post.keywords.split(",").map((k) => k.trim()).filter(Boolean)
       : undefined,

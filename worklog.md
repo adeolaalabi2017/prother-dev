@@ -664,3 +664,19 @@ Stage Summary:
 - TEMP to remove after next dev-server restart: back-to-top.tsx mounts <SavedFullPage /> because the running server's root layout was stale at mount time (layout.tsx already mounts it; single-instance claim makes duplicates harmless).
 - Ops: webDevReview cron recreated as job 403972 (fixed_rate 900s) — old 401862 vanished between sessions.
 - Next candidates: journal_bar + category_spotlight serving UI (only feed_row serves today), ad frequency capping + analytics rollup, admin Overview integration of open-report/ad counters, D1/Turso migration (still the Workers blocker).
+
+---
+Task ID: 24
+Agent: main orchestrator (Z.ai Code)
+Task: Overall SEO audit (site-wide incl. blog + forum) + quick-win fixes + roadmap
+
+Work Log:
+- Audit (live + source): every route has unique title/description/OG/Twitter + dynamic OG endpoint (/api/og, 200 image/png); exactly 1 H1 per page; structured data present on /tools (ItemList), /journal (Blog+BlogPosting), /journal/[slug] (article meta + BlogPosting), /forums/[slug] (DiscussionForumPosting, verified live); hidden threads noindexed; /admin noindexed; RSS launches+journal 200; sitemap 48 URLs w/ lastmod.
+- Gaps found: (1) tool detail content exists ONLY as client overlays — /?tool=slug serves homepage HTML, zero crawlable <a href> to tools anywhere (rows are role=button divs) = flagship gap; (2) zero canonical URLs site-wide; (3) homepage had 0 JSON-LD (no WebSite/Organization); (4) sitemap listed duplicate ?post= URLs + hidden forum threads; (5) robots.txt allowed /admin + /api/auth/dev-inbox (magic-link inbox!); (6) metadataBase fallback was localhost:3000 vs prother.dev elsewhere; (7) /forums index had no ItemList.
+- Fixed (LIVE, verified in served output): robots.txt += /admin, /api/auth/dev-inbox disallows; sitemap: ?post= dupes removed (0 now), ForumThread WHERE hidden=0 (verified in SQL log); feed rows now render real <a href="/?tool=slug"> anchors with tool-name anchor text (verified in hydrated browser DOM; onClick still opens overlay).
+- Fixed (on disk, lint+tsc clean — SSR page tree of the running dev server is frozen per known stale-module limitation; these emit on next restart): canonicals on ALL routes (default/?UI-overlays → /, ?post → /journal/slug, ?tool/?category/?launches/?compare/?collection self, static pages self, journal+forum details self); homepage JSON-LD WebSite+Organization graph (no SearchAction — /tools doesn't render ?q= yet, refused to fake it); /forums ItemList (top 25 hot threads); layout metadataBase fallback → https://prother.dev.
+- Verification: bun run lint exit 0; tsc --noEmit shows no errors in touched files (pre-existing errors only in examples/, skills/, api/submit); robots.txt + sitemap.xml verified live via curl; feed anchors verified via agent-browser; DB state restored after hidden-thread test.
+
+Stage Summary:
+- Site is now canonical-clean, entity-marked (WebSite+Organization on home), leak-free robots, deduped sitemap, and feed rows carry real anchors. Remaining SSR-emitted bits (canonicals/JSON-LD) land on next dev-server restart — code is on disk and type-checked.
+- NEXT (ranked): Task 25 = real /tools/[slug] SSR detail routes (the big one — tool content currently invisible to crawlers; switch feed/directory/search/sitemap links to it, overlay stays as enhancement) → /tools?q= SERP + honest SearchAction → BreadcrumbList on journal/forums/tools → real /categories/[slug] routes → /tools pagination → set NEXT_PUBLIC_SITE_URL + submit sitemap in GSC on deploy. Legacy: D1/Turso (deploy blocker), search ranking (synonyms/typos), search analytics.

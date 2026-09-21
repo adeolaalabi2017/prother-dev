@@ -45,6 +45,8 @@ export async function generateMetadata({
         keywords: post.keywords
           ? post.keywords.split(",").map((k) => k.trim()).filter(Boolean)
           : undefined,
+        // The overlay serves homepage HTML — fold it into the real article.
+        alternates: { canonical: `/journal/${post.slug}` },
         openGraph: {
           title,
           description,
@@ -85,6 +87,9 @@ export async function generateMetadata({
       return {
         title,
         description,
+        // Indexable state until /tools/[slug] ships (Task 25): self-canonical
+        // keeps ?tool= URLs distinct instead of folding into the homepage.
+        alternates: { canonical: `/?tool=${encodeURIComponent(toolSlug)}` },
         openGraph: {
           title,
           description,
@@ -118,7 +123,7 @@ export async function generateMetadata({
           `Side-by-side comparison: ${a.name} (${a.tagline}) vs ${b.name} (${b.tagline}) — votes, ratings, pricing, and more.`,
           200,
         );
-        return { title, description, robots: { index: true, follow: true } };
+        return { title, description, alternates: { canonical: `/?compare=${encodeURIComponent(compareRaw)}` } };
       }
     }
     return {};
@@ -136,7 +141,11 @@ export async function generateMetadata({
         `${c.description || `A curated collection of ${c._count.items} AI tools`}, hand-picked by ${c.ownerName} on Prother.`,
         200,
       );
-      return { title, description };
+      return {
+        title,
+        description,
+        alternates: { canonical: `/?collection=${encodeURIComponent(collectionSlug)}` },
+      };
     }
     return {};
   }
@@ -151,7 +160,11 @@ export async function generateMetadata({
       const blurb = CATEGORY_BLURBS[cat.slug] ?? "";
       const title = `${cat.name} — AI tools, ranked | Prother`;
       const description = clamp(`${blurb} ${cat._count.tools} tools listed.`, 200);
-      return { title, description };
+      return {
+        title,
+        description,
+        alternates: { canonical: `/?category=${encodeURIComponent(categorySlug)}` },
+      };
     }
     return {};
   }
@@ -179,6 +192,7 @@ export async function generateMetadata({
             : `The AI launch archive for ${label} on Prother — where AI products launch.`,
           200,
         ),
+        alternates: { canonical: `/?launches=${launchesDate}` },
       };
     }
     return {};
@@ -186,16 +200,59 @@ export async function generateMetadata({
 
   // Personal space (?mine=collections) — never indexed.
   if (mineView) {
-    return { title: "My collections & follows | Prother", robots: { index: false } };
+    return {
+      title: "My collections & follows | Prother",
+      robots: { index: false },
+      alternates: { canonical: "/" },
+    };
   }
 
-  return {};
+  // Default (incl. pure-UI overlays like ?saved=mine): fold query variants
+  // into the clean homepage URL so crawlers never index duplicate shells.
+  return { alternates: { canonical: "/" } };
 }
 
 /** pb-16 clears the feed's mobile sticky submit bar (fixed, md:hidden). */
 export default function Page() {
+  // Homepage entity graph: WebSite + Organization (brand identity for the
+  // knowledge panel). No SearchAction yet — /tools does not render ?q=
+  // server-side; add it with the SERP route rather than fake it.
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${base}/#website`,
+        url: `${base}/`,
+        name: "Prother",
+        description:
+          "Discover every new AI tool the day it launches — a fresh batch of AI products daily, ranked by the community.",
+        publisher: { "@id": `${base}/#organization` },
+        inLanguage: "en",
+      },
+      {
+        "@type": "Organization",
+        "@id": `${base}/#organization`,
+        url: `${base}/`,
+        name: "Prother",
+        logo: {
+          "@type": "ImageObject",
+          url: `${base}/api/og`,
+          width: 1200,
+          height: 630,
+        },
+        description:
+          "Prother is where AI products get discovered — daily AI tool launches, community rankings, reviews and comparisons.",
+      },
+    ],
+  };
   return (
     <div className="pb-16 md:pb-0">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Hero />
       <CategoryTicker />
       <LaunchFeed />

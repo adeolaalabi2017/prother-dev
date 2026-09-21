@@ -5,6 +5,7 @@ import { Standards } from "@/components/prother/standards";
 import { Faq } from "@/components/prother/faq";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/about" },
   title: "About Prother — where AI products get discovered",
   description:
     "How Prother works: one curated launch batch per day, ranked live by the community, reviewed against six published standards. No link dumps, no pay-to-win.",

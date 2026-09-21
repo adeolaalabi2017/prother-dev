@@ -38,8 +38,27 @@ export default async function ForumsPage() {
   // the client shell re-fetches with the viewer's voterKey after mount.
   const initial = await forumListPayload("all", "hot");
 
+  // ItemList over the SSR'd hot threads — gives crawlers thread discovery
+  // straight from the index page (thread pages carry DiscussionForumPosting).
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Hot forum threads",
+    itemListElement: initial.threads.slice(0, 25).map((t, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: `${base}/forums/${t.slug}`,
+      name: t.title,
+    })),
+  };
+
   return (
     <div className="bg-ink pb-16 md:pb-0">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <ForumIndex initial={initial} />
     </div>
   );

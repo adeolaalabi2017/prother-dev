@@ -46,21 +46,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  // Real journal article routes (crawlable) + the legacy ?post= deep link.
-  const postUrls: MetadataRoute.Sitemap = posts.flatMap((p) => [
-    {
-      url: `${base}/journal/${encodeURIComponent(p.slug)}`,
-      lastModified: p.updatedAt,
-      changeFrequency: "monthly" as const,
-      priority: 0.8,
-    },
-    {
-      url: `${base}/?post=${encodeURIComponent(p.slug)}`,
-      lastModified: p.updatedAt,
-      changeFrequency: "monthly" as const,
-      priority: 0.7,
-    },
-  ]);
+  // Journal articles live at their real /journal/[slug] routes — the
+  // /?post= overlay serves homepage HTML and canonicalizes there, so it
+  // must NOT be listed as a separate URL.
+  const postUrls: MetadataRoute.Sitemap = posts.map((p) => ({
+    url: `${base}/journal/${encodeURIComponent(p.slug)}`,
+    lastModified: p.updatedAt,
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
 
   // Forum threads are read through the raw-SQL access layer (src/lib/forum.ts)
   // because the long-running dev server caches the pre-forums Prisma client.
@@ -70,7 +64,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const threads = await db.$queryRaw<
       { slug: string; createdAt: Date; updatedAt: Date }[]
     >`
-      SELECT slug, createdAt, updatedAt FROM ForumThread ORDER BY createdAt DESC LIMIT 500`;
+      SELECT slug, createdAt, updatedAt FROM ForumThread
+      WHERE hidden = 0
+      ORDER BY createdAt DESC LIMIT 500`;
     forumUrls = threads.map((t) => ({
       url: `${base}/forums/${encodeURIComponent(t.slug)}`,
       lastModified: t.updatedAt ?? t.createdAt,

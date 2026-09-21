@@ -8,6 +8,7 @@ import { PrismaClient } from '@prisma/client'
  * which re-evaluates the check and swaps in a fresh client.
  */
 const SCHEMA_VERSION = 5 // v5: User.role/status, Report, Bookmark, AdCampaign, ForumThread/Reply.hidden
+// (touch: force module-graph re-evaluation — see stale-module notes in worklog)
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

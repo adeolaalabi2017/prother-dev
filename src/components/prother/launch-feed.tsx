@@ -225,7 +225,22 @@ function FeedRowItem({
           >
             {rank}.
           </span>
-          <h3 className="text-lg font-bold text-white">{row.name}</h3>
+          <h3 className="text-lg font-bold text-white">
+            {/* Crawlable anchor with the tool name as anchor text. JS users
+                still get the overlay (preventDefault → openTool); crawlers
+                and middle-click get the deep-link URL. */}
+            <a
+              href={`/?tool=${encodeURIComponent(row.slug)}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openTool(row.slug);
+              }}
+              className="transition-colors hover:text-ember"
+            >
+              {row.name}
+            </a>
+          </h3>
           {rank === 1 && !votingOpen && (
             <BadgeChip className="border-amber-400/40 bg-amber-400/10 text-amber-300">
               <Crown className="mr-1 size-3" aria-hidden /> DAY WINNER

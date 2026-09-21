@@ -14,6 +14,7 @@ import { db } from "@/lib/prother";
 import { CATEGORIES } from "@/components/prother/categories";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/advertise" },
   title: "Advertise on Prother",
   description:
     "Put your product in front of the builders, founders, and early adopters who search, compare, and vote on AI tools every day. Clearly-labeled placements, one sponsor per slot.",

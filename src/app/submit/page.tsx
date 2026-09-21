@@ -4,6 +4,7 @@ import { SubmitOpenButton } from "@/components/prother/submit-open-button";
 import { StatusTrackerOpenButton } from "@/components/prother/status-tracker-open-button";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/submit" },
   title: "Submit your AI tool — Prother",
   description:
     "Submitting is free. Every approved product gets a launch day on the Prother homepage feed — reviewed against six published standards, ranked by the community.",

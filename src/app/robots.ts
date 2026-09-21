@@ -8,7 +8,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/admin", "/api/editor"],
+        disallow: [
+          "/admin", // console shell (also noindexed)
+          "/api/admin",
+          "/api/editor",
+          "/api/auth/dev-inbox", // sandbox magic-link inbox — never crawl
+        ],
       },
     ],
     sitemap: `${base}/sitemap.xml`,
