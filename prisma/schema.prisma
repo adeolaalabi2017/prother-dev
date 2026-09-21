@@ -7,15 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── Newsletter / waitlist (PRD Appendix D, F-45) ────────────────────────
-model Subscriber {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  source    String   @default("waitlist") // waitlist | hero | footer | exit
-  confirmed Boolean  @default(false)
-  createdAt DateTime @default(now())
-}
-
 // ── Taxonomy (PRD §13 — 10 primary categories) ──────────────────────────
 model Category {
   id        String @id @default(cuid())

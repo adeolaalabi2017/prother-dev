@@ -2,6 +2,24 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/components/prother/auth-provider";
+import { ScrollProgress } from "@/components/prother/scroll-progress";
+import { SiteHeader } from "@/components/prother/site-header";
+import { SiteFooter } from "@/components/prother/site-footer";
+import { ToolExplorer } from "@/components/prother/tool-explorer";
+import { SubmitWizard } from "@/components/prother/submit-wizard";
+import { StatusTracker } from "@/components/prother/status-tracker";
+import { EditorConsole } from "@/components/prother/editor-console";
+import { CompareTray } from "@/components/prother/compare-tray";
+import { DeepLinkHost } from "@/components/prother/deep-link-host";
+import { CollectionsMineFullPage } from "@/components/prother/collections-mine-full-page";
+import { CollectionFullPage } from "@/components/prother/collection-full-page";
+import { CategoryFullPage } from "@/components/prother/category-full-page";
+import { LaunchesFullPage } from "@/components/prother/launches-full-page";
+import { CompareFullPage } from "@/components/prother/compare-full-page";
+import { PostFullPage } from "@/components/prother/post-full-page";
+import { ToolFullPage } from "@/components/prother/tool-full-page";
+import { BackToTop } from "@/components/prother/back-to-top";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,6 +66,12 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Shared chrome — header, footer, overlays, and the full-page deep-link
+ * stack live here so every dedicated route (/tools, /journal, /about,
+ * /submit) gets the same shell. Stack order matters: later components
+ * render on top (higher in DOM).
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -58,7 +82,29 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        {children}
+        <AuthProvider>
+          <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
+            <ScrollProgress />
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+            <ToolExplorer />
+            <SubmitWizard />
+            <StatusTracker />
+            <EditorConsole />
+            <CompareTray />
+            <DeepLinkHost />
+            {/* ── Full-page deep-link stack (each renders null when closed) ── */}
+            <CollectionsMineFullPage />
+            <CollectionFullPage />
+            <CategoryFullPage />
+            <LaunchesFullPage />
+            <CompareFullPage />
+            <PostFullPage />
+            <ToolFullPage />
+            <BackToTop />
+          </div>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

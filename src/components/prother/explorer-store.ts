@@ -43,8 +43,6 @@ type ExplorerState = {
   categoryFilter: string | null;
   /** Slug of the journal article full page, if any. */
   postSlug: string | null;
-  /** Whether the full Admin Console is open. */
-  adminOpen: boolean;
   /** Category browse full page slug. */
   categoryView: string | null;
   /** Launch archive full page date (YYYY-MM-DD). */
@@ -66,7 +64,6 @@ type ExplorerState = {
   setCategoryFilter: (slug: string | null) => void;
   openPost: (slug: string, opts?: OpenOpts) => void;
   closePost: (opts?: OpenOpts) => void;
-  setAdminOpen: (open: boolean) => void;
   openCategory: (slug: string, opts?: OpenOpts) => void;
   closeCategory: (opts?: OpenOpts) => void;
   openLaunches: (date: string, opts?: OpenOpts) => void;
@@ -142,7 +139,6 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   trackEmail: "",
   categoryFilter: null,
   postSlug: null,
-  adminOpen: false,
   categoryView: null,
   launchesDate: null,
   compare: [],
@@ -195,7 +191,6 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
       withParam("post", null, opts?.replace ?? false);
     }
   },
-  setAdminOpen: (adminOpen) => set({ adminOpen }),
   openCategory: (slug, opts) => {
     set({ categoryView: slug });
     if (opts?.sync !== false && typeof window !== "undefined") {

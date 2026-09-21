@@ -18,7 +18,7 @@ export async function GET() {
   const dayAfter = new Date(todayStart.getTime() + 2 * 86_400_000);
   const yesterdayStart = new Date(todayStart.getTime() - 86_400_000);
 
-  const [tools, weekTools, yesterdayTools, subscriberCount] = await Promise.all([
+  const [tools, weekTools, yesterdayTools] = await Promise.all([
     db.tool.findMany({
       where: { launch: { scheduled: false, launchDate: { gte: todayStart, lt: tomorrowStart } } },
       include: { launch: true, category: { select: { slug: true, name: true, emoji: true } } },
@@ -33,7 +33,6 @@ export async function GET() {
       where: { launch: { scheduled: false, launchDate: { gte: yesterdayStart, lt: todayStart } } },
       include: { launch: true, category: { select: { slug: true, name: true, emoji: true } } },
     }),
-    db.subscriber.count(),
   ]);
 
   // Anonymous votes are part of the live tally (baseUpvotes + real votes).
@@ -185,7 +184,6 @@ export async function GET() {
     categoryCounts,
     topWeek,
     editorsPick,
-    subscriberCount,
   };
 
   return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });

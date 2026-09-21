@@ -1,47 +1,72 @@
 "use client";
 
+import Link from "next/link";
 import { Hexagon } from "lucide-react";
 import { useExplorer } from "./explorer-store";
 
-const COLS = [
+type FooterLink = {
+  label: string;
+  href: string;
+  /** Opens the maker status tracker overlay instead of navigating. */
+  tracker?: boolean;
+  /** External / non-route href (mailto:, /api/*) — rendered as <a>. */
+  external?: boolean;
+};
+
+const COLS: { title: string; links: FooterLink[] }[] = [
   {
     title: "Product",
     links: [
-      { label: "The feed", href: "#feed" },
-      { label: "Categories", href: "#categories" },
-      { label: "Standards", href: "#standards" },
-      { label: "Submit your tool", href: "#submit", wizard: true },
+      { label: "The feed", href: "/#feed" },
+      { label: "Browse tools", href: "/tools" },
+      { label: "Categories", href: "/tools" },
+      { label: "Submit your tool", href: "/submit" },
       { label: "Check submission status", href: "#", tracker: true },
     ],
   },
   {
     title: "Resources",
     links: [
-      { label: "The Journal", href: "#journal" },
-      { label: "Launch playbooks", href: "#journal" },
-      { label: "FAQ", href: "#faq" },
-      { label: "For makers", href: "#submit", wizard: true },
-      { label: "Listing standards", href: "#standards" },
-      { label: "RSS — launches", href: "/api/rss" },
-      { label: "RSS — journal", href: "/api/rss?kind=journal" },
+      { label: "The Journal", href: "/journal" },
+      { label: "Launch playbooks", href: "/journal" },
+      { label: "FAQ", href: "/about" },
+      { label: "For makers", href: "/submit" },
+      { label: "Listing standards", href: "/about" },
+      { label: "RSS — launches", href: "/api/rss", external: true },
+      { label: "RSS — journal", href: "/api/rss?kind=journal", external: true },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "About", href: "#" },
-      { label: "Press", href: "#" },
-      { label: "Contact", href: "#" },
-      { label: "Trademark", href: "#" },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "mailto:makers@prother.dev", external: true },
+      { label: "Press", href: "/about" },
+      { label: "Trademark", href: "/about" },
     ],
   },
 ];
 
+function FooterAnchor({ link }: { link: FooterLink }) {
+  const className =
+    "text-sm text-white/50 transition-colors hover:text-ember";
+  if (link.external) {
+    return (
+      <a href={link.href} className={className}>
+        {link.label}
+      </a>
+    );
+  }
+  return (
+    <Link href={link.href} className={className}>
+      {link.label}
+    </Link>
+  );
+}
+
 export function SiteFooter() {
-  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   const setEditorOpen = useExplorer((s) => s.setEditorOpen);
   const setTrackOpen = useExplorer((s) => s.setTrackOpen);
-  const setAdminOpen = useExplorer((s) => s.setAdminOpen);
   return (
     <footer className="mt-auto border-t border-white/10 bg-ink">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
@@ -75,15 +100,7 @@ export function SiteFooter() {
               <ul className="space-y-2">
                 {col.links.map((l) => (
                   <li key={l.label}>
-                    {"wizard" in l && l.wizard ? (
-                      <button
-                        type="button"
-                        onClick={() => setSubmitOpen(true)}
-                        className="text-sm text-white/50 transition-colors hover:text-ember"
-                      >
-                        {l.label}
-                      </button>
-                    ) : "tracker" in l && l.tracker ? (
+                    {l.tracker ? (
                       <button
                         type="button"
                         onClick={() => setTrackOpen(true)}
@@ -92,12 +109,7 @@ export function SiteFooter() {
                         {l.label}
                       </button>
                     ) : (
-                      <a
-                        href={l.href}
-                        className="text-sm text-white/50 transition-colors hover:text-ember"
-                      >
-                        {l.label}
-                      </a>
+                      <FooterAnchor link={l} />
                     )}
                   </li>
                 ))}
@@ -124,14 +136,13 @@ export function SiteFooter() {
               EDITOR ACCESS
             </button>
             <span aria-hidden>·</span>
-            <button
-              type="button"
-              onClick={() => setAdminOpen(true)}
+            <Link
+              href="/admin"
               className="rounded px-1 py-0.5 transition-colors hover:text-ember"
               title="Admin console (⌘⇧A)"
             >
               ADMIN
-            </button>
+            </Link>
           </div>
         </div>
       </div>

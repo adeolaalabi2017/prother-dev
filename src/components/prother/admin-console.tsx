@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BadgeCheck,
   BarChart3,
@@ -8,37 +8,35 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
-  Clock,
   Database,
   ExternalLink,
   FileText,
+  Hexagon,
   KeyRound,
   LayoutDashboard,
   ListChecks,
   Loader2,
   Mail,
+  Menu,
   Pencil,
   Pin,
   Plus,
   RotateCcw,
   Save,
+  Search,
   Settings as SettingsIcon,
   ShieldCheck,
+  Star,
   Tags,
   Trash2,
-  Users,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -46,18 +44,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { STANDARD_DEFS } from "@/lib/standards";
-import { useExplorer } from "./explorer-store";
 
 /**
- * Admin Console (PRD F-49/F-50 expansion) — one backstage surface managing
- * the whole site: overview KPIs, moderation queue, launch calendar, listings,
- * Journal posts, taxonomy, subscribers, and frontend copy — no deploys.
- * Demo key auth (`x-editor-key`) shared with the editor desk; NextAuth in P2.
+ * Admin Console — /admin route (Task 20-c redesign).
+ * Sidebar dashboard shell per the admin design reference: logo + jump-to
+ * search + grouped nav + promo card on the left; big section title, key
+ * status chip and lock action up top; overview mirrors the reference's
+ * KPI-stat row → charts row → data-table row layout.
+ *
+ * Everything is painted with Prother tokens ONLY (ink/coal panels,
+ * white/10 borders, rounded-2xl, ember #FF6A00 as the single accent,
+ * cream text moments, mono micro-labels) — semantic green/red appear
+ * only in positive/negative delta pills, as elsewhere on the site.
+ * Demo key auth (`x-editor-key`) shared with the editor desk; NextAuth P2.
  */
 
 // ── shared helpers ───────────────────────────────────────────────────────
@@ -66,11 +86,18 @@ const KEY_STORAGE = "prother_editor_key";
 const DEMO_HINT = "ember-dev";
 
 function useAdminKey() {
-  // Lazy init (guarded for SSR) — the dialog content only renders after the
-  // user opens it, so restoring the key at mount never causes a hydration gap.
-  const [key, setKey] = useState<string | null>(() =>
-    typeof window !== "undefined" ? sessionStorage.getItem(KEY_STORAGE) : null
-  );
+  // Start locked on BOTH server and client first paint — reading
+  // sessionStorage during the hydration render would mismatch the SSR'd
+  // locked chip/gate (React 19 hydration error). The stored key is
+  // restored in a microtask right after mount (async, so the
+  // react-hooks/set-state-in-effect rule stays satisfied).
+  const [key, setKey] = useState<string | null>(null);
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      const stored = sessionStorage.getItem(KEY_STORAGE);
+      if (stored) setKey(stored);
+    });
+  }, []);
   const unlock = useCallback((k: string) => {
     sessionStorage.setItem(KEY_STORAGE, k);
     setKey(k);
@@ -127,87 +154,79 @@ function Spinner() {
   );
 }
 
-function Kpi({
-  icon,
-  label,
-  value,
-  accent,
+/** Card shell shared by dashboard panels (reference density, Prother skin). */
+function Panel({
+  className,
+  children,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  accent?: boolean;
+  className?: string;
+  children: React.ReactNode;
 }) {
   return (
     <div
       className={cn(
-        "rounded-xl border p-4",
-        accent
-          ? "border-ember/40 bg-ember/10"
-          : "border-white/10 bg-white/[0.03]"
+        "rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5",
+        className
       )}
     >
-      <p className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] text-white/45 uppercase">
-        {icon}
-        {label}
-      </p>
-      <p
-        className={cn(
-          "mt-1.5 text-2xl font-black tracking-tight",
-          accent ? "text-ember" : "text-white"
-        )}
-      >
-        {value}
-      </p>
+      {children}
     </div>
   );
 }
 
-// ── Gate ─────────────────────────────────────────────────────────────────
+// ── Gate (locked state) ──────────────────────────────────────────────────
 
 function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
   const [value, setValue] = useState("");
   return (
-    <div className="flex flex-col items-center px-8 py-16 text-center">
-      <div className="flex size-14 items-center justify-center rounded-2xl border border-ember/30 bg-ember/10">
-        <KeyRound className="size-6 text-ember" aria-hidden />
+    <div className="flex min-h-[68vh] items-center justify-center px-1 py-10">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-coal p-6 text-center shadow-2xl shadow-black/50 sm:p-8">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-ember/30 bg-ember/10">
+          <KeyRound className="size-5 text-ember" aria-hidden />
+        </div>
+        <p className="mt-4 font-mono text-[10px] tracking-[0.3em] text-ember uppercase">
+          Restricted
+        </p>
+        <h2 className="mt-1 text-xl font-black tracking-tight text-white">
+          Enter the backstage
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-white/50">
+          Listings, launch calendar, journal, taxonomy and site copy — one key,
+          no deploys. Demo key:{" "}
+          <button
+            type="button"
+            onClick={() => setValue(DEMO_HINT)}
+            className="font-mono text-ember underline-offset-2 hover:underline"
+          >
+            {DEMO_HINT}
+          </button>
+        </p>
+        <form
+          className="mt-6 space-y-2.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (value.trim()) onUnlock(value.trim());
+          }}
+        >
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Admin key"
+            type="password"
+            aria-label="Admin key"
+            className={inputCx}
+          />
+          <Button
+            type="submit"
+            className="w-full rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+          >
+            Unlock console
+          </Button>
+        </form>
+        <p className="mt-5 font-mono text-[9px] leading-relaxed tracking-wider text-white/25 uppercase">
+          Key lives in this tab&apos;s session only · sent as x-editor-key
+        </p>
       </div>
-      <h2 className="mt-5 text-xl font-black tracking-tight text-white">
-        Admin access
-      </h2>
-      <p className="mt-1.5 max-w-xs text-sm text-white/50">
-        Full backstage: listings, calendar, journal, taxonomy, subscribers, and
-        site copy. Demo key:{" "}
-        <button
-          type="button"
-          onClick={() => setValue(DEMO_HINT)}
-          className="font-mono text-ember underline-offset-2 hover:underline"
-        >
-          {DEMO_HINT}
-        </button>
-      </p>
-      <form
-        className="mt-6 flex w-full max-w-xs gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (value.trim()) onUnlock(value.trim());
-        }}
-      >
-        <Input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Admin key"
-          type="password"
-          aria-label="Admin key"
-          className={inputCx}
-        />
-        <Button
-          type="submit"
-          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
-        >
-          Unlock
-        </Button>
-      </form>
     </div>
   );
 }
@@ -216,7 +235,6 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
 
 type Overview = {
   kpis: {
-    subscribers: number;
     toolsLive: number;
     toolsDraft: number;
     toolsRemoved: number;
@@ -224,15 +242,28 @@ type Overview = {
     launchesTomorrow: number;
     pendingSubs: number;
     votes: number;
+    votesToday: number;
+    votesYesterday: number;
     comments: number;
     postsPublished: number;
     postsDrafts: number;
     postViews: number;
     categories: number;
   };
+  launchesByDay: number[];
+  votesByDay: number[];
+  categoryMix: { name: string; count: number }[];
+  pricingMix: { model: string; count: number }[];
   queueAgeH: number;
   oldestPending: string | null;
-  audit: { id: string; action: string; entity: string; meta: string; at: string }[];
+  audit: {
+    id: string;
+    action: string;
+    entity: string;
+    entityId: string;
+    meta: string;
+    at: string;
+  }[];
 };
 
 type AdminTool = {
@@ -327,79 +358,7 @@ type ScheduleData = {
   }[];
 };
 
-// ── Tab: Overview ────────────────────────────────────────────────────────
-
-function OverviewTab({ data }: { data: Overview }) {
-  const k = data.kpis;
-  return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi icon={<Users className="size-3" aria-hidden />} label="Subscribers" value={k.subscribers.toLocaleString()} />
-        <Kpi icon={<Database className="size-3" aria-hidden />} label="Live listings" value={k.toolsLive} />
-        <Kpi
-          icon={<CalendarDays className="size-3" aria-hidden />}
-          label="Launches today"
-          value={k.launchesToday}
-          accent={k.launchesToday < 5}
-        />
-        <Kpi
-          icon={<ListChecks className="size-3" aria-hidden />}
-          label="Queue pending"
-          value={k.pendingSubs}
-          accent={k.pendingSubs > 0}
-        />
-        <Kpi icon={<BarChart3 className="size-3" aria-hidden />} label="Total votes" value={k.votes.toLocaleString()} />
-        <Kpi icon={<Mail className="size-3" aria-hidden />} label="Comments" value={k.comments} />
-        <Kpi icon={<FileText className="size-3" aria-hidden />} label="Journal posts" value={`${k.postsPublished}${k.postsDrafts ? ` +${k.postsDrafts} d` : ""}`} />
-        <Kpi icon={<ExternalLink className="size-3" aria-hidden />} label="Post views" value={k.postViews.toLocaleString()} />
-      </div>
-
-      {data.oldestPending && data.queueAgeH > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-ember/30 bg-ember/5 px-4 py-3">
-          <Clock className="size-4 shrink-0 text-ember" aria-hidden />
-          <p className="text-sm text-white/70">
-            Oldest queue item: <strong className="text-white">{data.oldestPending}</strong>{" "}
-            — waiting {data.queueAgeH}h
-            {data.queueAgeH > 14 && (
-              <span className="ml-2 font-mono text-[10px] tracking-wider text-red-300 uppercase">
-                past 14h SLA
-              </span>
-            )}
-          </p>
-        </div>
-      )}
-
-      <div>
-        <p className={labelCx}>Recent admin activity (audit trail)</p>
-        <div className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
-          {data.audit.length === 0 && (
-            <p className="py-6 text-center text-sm text-white/30">
-              No admin actions recorded yet.
-            </p>
-          )}
-          {data.audit.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2"
-            >
-              <span className="rounded bg-ember/10 px-1.5 py-0.5 font-mono text-[10px] text-ember">
-                {a.action}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-xs text-white/60">
-                {a.meta || a.entity}
-              </span>
-              <span className="shrink-0 font-mono text-[10px] text-white/30">
-                {new Date(a.at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Tab: Queue (quick moderation) ────────────────────────────────────────
+// ── Section: Submissions (moderation queue) ──────────────────────────────
 
 type PendingSub = {
   id: string;
@@ -582,7 +541,7 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
   );
 }
 
-// ── Tab: Calendar ────────────────────────────────────────────────────────
+// ── Section: Schedule (launch calendar) ──────────────────────────────────
 
 function CalendarTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
   const { toast } = useToast();
@@ -670,7 +629,7 @@ function CalendarTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
                     >
                       <span aria-hidden>{t.logoEmoji}</span>
                       {t.name}
-                      {t.editorsPick && <span aria-hidden>⭐</span>}
+                      {t.editorsPick && <Star className="size-3 text-ember" aria-label="Editor's Pick" />}
                       {!d.locked && (
                         <button
                           type="button"
@@ -738,7 +697,7 @@ function CalendarTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   );
 }
 
-// ── Tab: Listings ────────────────────────────────────────────────────────
+// ── Section: Tools (listings CRUD) ───────────────────────────────────────
 
 const GRADIENTS = [
   "from-orange-500 to-amber-700",
@@ -969,7 +928,7 @@ function ListingEditor({
       <div className="flex flex-wrap gap-5">
         {(
           [
-            ["editorsPick", "Editor's Pick ⭐", f.editorsPick],
+            ["editorsPick", "Editor's Pick", f.editorsPick],
             ["curated", "Curated badge", f.curated],
             ["claimed", "Claimed", f.claimed],
           ] as const
@@ -1079,7 +1038,7 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
                 <p className="flex items-center gap-1.5 truncate text-sm font-bold text-white">
                   {t.name}
                   {t.pinned > 0 && <Pin className="size-3 text-ember" aria-hidden />}
-                  {t.editorsPick && <span aria-hidden title="Editor's Pick">⭐</span>}
+                  {t.editorsPick && <Star className="size-3 shrink-0 text-ember" aria-label="Editor's Pick" />}
                   {t.status !== "live" && (
                     <span className="rounded bg-white/10 px-1.5 py-px font-mono text-[9px] text-white/60">
                       {t.status}
@@ -1115,7 +1074,7 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   );
 }
 
-// ── Tab: Journal (blog CRUD) ─────────────────────────────────────────────
+// ── Section: Journal (blog CRUD) ─────────────────────────────────────────
 
 type PostDraft = {
   id?: string;
@@ -1196,7 +1155,7 @@ function PostEditor({
       }
       toast({
         title: publishOverride === "published" ? "Published" : "Saved",
-        description: d.slug ? `/?post=${d.slug}` : undefined,
+        description: d.slug ? `/journal/${d.slug}` : undefined,
       });
       onDone(publishOverride === "published" ? d.slug : undefined);
     } catch {
@@ -1447,7 +1406,7 @@ function BlogTab({
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-white">{p.title}</p>
               <p className="truncate font-mono text-[10px] text-white/40">
-                /?post={p.slug} · {p.category} · {p.readingMinutes} min · {p.views} views
+                /journal/{p.slug} · {p.category} · {p.readingMinutes} min · {p.views} views
                 {p.seoTitle || p.seoDescription || p.keywords ? " · SEO ✓" : " · SEO —"}
               </p>
             </div>
@@ -1507,7 +1466,7 @@ function BlogTab({
   );
 }
 
-// ── Tab: Taxonomy ────────────────────────────────────────────────────────
+// ── Section: Categories (taxonomy CRUD) ──────────────────────────────────
 
 function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
   const { toast } = useToast();
@@ -1671,64 +1630,7 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   );
 }
 
-// ── Tab: Subscribers ─────────────────────────────────────────────────────
-
-function SubscribersTab({ apiKey }: { apiKey: string }) {
-  const [data, setData] = useState<{
-    total: number;
-    confirmed: number;
-    bySource: { source: string; count: number }[];
-    rows: { email: string; source: string; confirmed: boolean; createdAt: string }[];
-  } | null>(null);
-
-  useEffect(() => {
-    adminFetch(apiKey, "/api/admin/subscribers")
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => {});
-  }, [apiKey]);
-
-  if (!data) return <Spinner />;
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi icon={<Users className="size-3" aria-hidden />} label="Total" value={data.total.toLocaleString()} />
-        <Kpi icon={<BadgeCheck className="size-3" aria-hidden />} label="Confirmed" value={data.confirmed.toLocaleString()} />
-        {data.bySource.slice(0, 2).map((s) => (
-          <Kpi key={s.source} icon={<Mail className="size-3" aria-hidden />} label={s.source} value={s.count.toLocaleString()} />
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between">
-        <p className={labelCx}>Latest {data.rows.length}</p>
-        <a
-          href={`/api/admin/subscribers?format=csv&key=${encodeURIComponent(apiKey)}`}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[11px] text-white/60 transition-colors hover:border-ember/40 hover:text-ember"
-        >
-          <Database className="size-3.5" aria-hidden /> Export CSV
-        </a>
-      </div>
-
-      <div className="max-h-80 space-y-1 overflow-y-auto rounded-xl border border-white/10 p-2">
-        {data.rows.map((r, i) => (
-          <div
-            key={`${r.email}-${i}`}
-            className="flex items-center gap-3 rounded-lg px-2 py-1.5 font-mono text-xs hover:bg-white/[0.03]"
-          >
-            <span className="min-w-0 flex-1 truncate text-white/70">{r.email}</span>
-            <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/45">{r.source}</span>
-            <span className="w-24 shrink-0 text-right text-[10px] text-white/30">
-              {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Tab: Settings ────────────────────────────────────────────────────────
+// ── Section: Settings (site copy KV) ─────────────────────────────────────
 
 const SETTING_FIELDS: { key: string; label: string; multiline?: boolean; hint?: string }[] = [
   { key: "hero.headline", label: "Hero headline", hint: "Last word renders in ember." },
@@ -1831,173 +1733,880 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   );
 }
 
-// ── The console shell ────────────────────────────────────────────────────
+// ── Overview: stat cards (delta pills + mini sparkline) ──────────────────
 
-const TABS = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "queue", label: "Queue", icon: ListChecks },
-  { id: "calendar", label: "Calendar", icon: CalendarDays },
-  { id: "listings", label: "Listings", icon: Database },
-  { id: "blog", label: "Journal", icon: FileText },
-  { id: "taxonomy", label: "Taxonomy", icon: Tags },
-  { id: "subscribers", label: "Subscribers", icon: Users },
-  { id: "settings", label: "Site copy", icon: SettingsIcon },
-] as const;
+type Delta = { text: string; dir: "up" | "down" | "flat"; title: string };
 
-type TabId = (typeof TABS)[number]["id"];
+/** Honest delta vs yesterday — no fabrication when the base is zero. */
+function computeDelta(cur: number, prev: number): Delta {
+  if (prev === 0 && cur === 0)
+    return { text: "±0", dir: "flat", title: "No change vs yesterday" };
+  if (prev === 0)
+    return { text: "▲ new", dir: "up", title: `${cur} today · none yesterday` };
+  const pct = Math.round(((cur - prev) / prev) * 100);
+  if (pct === 0)
+    return { text: "±0%", dir: "flat", title: `${cur} today vs ${prev} yesterday` };
+  return pct > 0
+    ? { text: `▲ ${pct}%`, dir: "up", title: `${cur} today vs ${prev} yesterday` }
+    : { text: `▼ ${Math.abs(pct)}%`, dir: "down", title: `${cur} today vs ${prev} yesterday` };
+}
 
-export function AdminConsole() {
-  const open = useExplorer((s) => s.adminOpen);
-  const setOpen = useExplorer((s) => s.setAdminOpen);
-  const setEditorOpen = useExplorer((s) => s.setEditorOpen);
-  const openPost = useExplorer((s) => s.openPost);
-  const { toast } = useToast();
-  const { key, unlock, lock } = useAdminKey();
-  const [tab, setTab] = useState<TabId>("overview");
-  const [overview, setOverview] = useState<Overview | null>(null);
+const DELTA_CX: Record<Delta["dir"], string> = {
+  up: "bg-emerald-400/10 text-emerald-400/80",
+  down: "bg-red-400/10 text-red-400/80",
+  flat: "bg-white/5 text-white/40",
+};
 
-  const bumpOverview = useCallback(() => {
-    if (tab === "overview") {
-      adminFetch(key ?? "", "/api/admin/overview")
-        .then((r) => r.json())
-        .then(setOverview)
-        .catch(() => {});
-    }
-  }, [key, tab]);
-
-  useEffect(() => {
-    if (open && key && tab === "overview") void bumpOverview();
-  }, [open, key, tab, bumpOverview]);
-
-  // ⌘⇧A shortcut + #admin deep link.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === "a") {
-        e.preventDefault();
-        setOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    if (window.location.hash === "#admin") setOpen(true);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [setOpen]);
-
-  if (!open) return null;
-
+function DeltaPill({ delta }: { delta: Delta }) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent
-        showCloseButton
-        className="flex max-h-[94vh] flex-col gap-0 overflow-hidden border-white/10 bg-coal p-0 text-white max-w-[calc(100vw-1rem)] sm:max-w-4xl"
+    <span
+      title={delta.title}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px]",
+        DELTA_CX[delta.dir]
+      )}
+    >
+      {delta.text}
+    </span>
+  );
+}
+
+function MiniSpark({ data, className }: { data: number[]; className?: string }) {
+  const max = Math.max(...data, 1);
+  return (
+    <div className={cn("flex h-8 items-end gap-[3px]", className)} aria-hidden>
+      {data.map((v, i) => (
+        <span
+          key={i}
+          className={cn(
+            "min-w-[3px] flex-1 rounded-sm",
+            i === data.length - 1 ? "bg-ember" : "bg-white/15"
+          )}
+          style={{ height: `${Math.max(8, Math.round((v / max) * 100))}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  delta,
+  caption,
+  spark,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  delta?: Delta;
+  caption?: string;
+  spark?: number[];
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-4 sm:p-5",
+        accent ? "border-ember/40 bg-ember/[0.06]" : "border-white/10 bg-white/[0.02]"
+      )}
+    >
+      <p className="font-mono text-[10px] tracking-[0.2em] text-white/45 uppercase">
+        {label}
+      </p>
+      <p className="mt-1.5 text-3xl font-black tracking-tight text-white">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
+      {spark && <MiniSpark data={spark} className="mt-3" />}
+      {(delta || caption) && (
+        <div className="mt-2.5 flex min-h-5 flex-wrap items-center gap-2">
+          {delta && <DeltaPill delta={delta} />}
+          {caption && (
+            <span className="min-w-0 truncate font-mono text-[10px] text-white/30">
+              {caption}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Overview: charts row ─────────────────────────────────────────────────
+
+function dayLabel(utcDayIndex: number): string {
+  // Index 13 = today (UTC). Labels are display-only.
+  const d = new Date(Date.now() - (13 - utcDayIndex) * 86_400_000);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+function LaunchesChartCard({ byDay }: { byDay: number[] }) {
+  const max = Math.max(...byDay, 1);
+  const total = byDay.reduce((a, b) => a + b, 0);
+  return (
+    <Panel>
+      <div className="flex items-center justify-between gap-2">
+        <p className={labelCx}>Launches — last 14 days</p>
+        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+          {total} total
+        </span>
+      </div>
+      <div
+        role="img"
+        aria-label={`Launches per day over the last 14 days, ${total} total`}
+        className="mt-5 flex h-40 items-end gap-1.5 border-b border-white/10 pb-px"
       >
-        <DialogTitle className="sr-only">Admin console</DialogTitle>
-        <DialogDescription className="sr-only">
-          Manage listings, the launch calendar, journal posts, taxonomy, subscribers,
-          and site copy.
-        </DialogDescription>
-
-        {!key ? (
-          <Gate onUnlock={unlock} />
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-            {/* tab rail */}
-            <nav
-              aria-label="Admin sections"
-              className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 p-2 sm:w-48 sm:flex-col sm:overflow-y-auto sm:border-r sm:border-b-0 sm:p-3"
+        {byDay.map((v, i) => (
+          <div
+            key={i}
+            title={`${dayLabel(i)} · ${v} launch${v === 1 ? "" : "es"}`}
+            className="group flex h-full flex-1 items-end"
+          >
+            <span
+              className={cn(
+                "w-full rounded-t-[3px] transition-colors",
+                i === 13 ? "bg-ember" : "bg-white/15 group-hover:bg-white/30"
+              )}
+              style={{ height: `${Math.max(3, Math.round((v / max) * 100))}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex gap-1.5" aria-hidden>
+        {byDay.map((_, i) =>
+          i % 3 === 0 || i === 13 ? (
+            <span
+              key={i}
+              className={cn(
+                "flex-1 text-center font-mono text-[8px]",
+                i === 13 ? "text-ember" : "text-white/30"
+              )}
             >
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  aria-current={tab === t.id ? "true" : undefined}
-                  className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                    tab === t.id
-                      ? "bg-ember/15 text-ember"
-                      : "text-white/60 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  <t.icon className="size-4 shrink-0" aria-hidden />
-                  <span className="whitespace-nowrap">{t.label}</span>
-                  {t.id === "queue" && (overview?.kpis.pendingSubs ?? 0) > 0 && (
-                    <span className="ml-auto rounded-full bg-ember px-1.5 font-mono text-[9px] text-black">
-                      {overview?.kpis.pendingSubs}
-                    </span>
-                  )}
-                </button>
-              ))}
-              <div className="mt-auto hidden gap-1 sm:flex sm:flex-col">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    setEditorOpen(true);
-                  }}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-white/40 transition-colors hover:bg-white/5 hover:text-white"
-                >
-                  <ShieldCheck className="size-3.5" aria-hidden />
-                  Full review desk
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    lock();
-                    toast({ title: "Locked", description: "Admin session ended." });
-                  }}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-white/40 transition-colors hover:bg-white/5 hover:text-white"
-                >
-                  <KeyRound className="size-3.5" aria-hidden />
-                  Lock console
-                </button>
-              </div>
-            </nav>
+              {dayLabel(i)}
+            </span>
+          ) : (
+            <span key={i} className="flex-1" />
+          )
+        )}
+      </div>
+    </Panel>
+  );
+}
 
-            {/* tab content */}
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
-              <p className="font-mono text-[10px] tracking-[0.25em] text-ember uppercase">
-                PROTHER ADMIN
-              </p>
-              <h2 className="mt-1 mb-4 text-xl font-black tracking-tight">
-                {TABS.find((t) => t.id === tab)?.label}
-              </h2>
+/* Monochrome-plus-ember dot palette (brand tones only — no rainbow). */
+const MIX_COLORS = [
+  "#FF6A00",
+  "#FFB877",
+  "#F1EDE4",
+  "rgba(255,255,255,0.55)",
+  "rgba(255,255,255,0.32)",
+  "rgba(255,255,255,0.16)",
+];
 
-              {tab === "overview" &&
-                (overview ? (
-                  <OverviewTab data={overview} />
-                ) : (
-                  <Spinner />
-                ))}
-              {tab === "queue" && (
-                <QueueTab apiKey={key} onChanged={bumpOverview} />
-              )}
-              {tab === "calendar" && (
-                <CalendarTab apiKey={key} onChanged={bumpOverview} />
-              )}
-              {tab === "listings" && (
-                <ListingsTab apiKey={key} onChanged={bumpOverview} />
-              )}
-              {tab === "blog" && (
-                <BlogTab
-                  apiKey={key}
-                  onChanged={bumpOverview}
-                  onPreview={(slug) => {
-                    setOpen(false);
-                    openPost(slug);
-                  }}
-                />
-              )}
-              {tab === "taxonomy" && (
-                <TaxonomyTab apiKey={key} onChanged={bumpOverview} />
-              )}
-              {tab === "subscribers" && <SubscribersTab apiKey={key} />}
-              {tab === "settings" && (
-                <SettingsTab apiKey={key} onChanged={bumpOverview} />
-              )}
+function CategoryMixCard({ mix }: { mix: { name: string; count: number }[] }) {
+  const top = mix.slice(0, 6);
+  const rest = mix.slice(6).reduce((a, b) => a + b.count, 0);
+  const rows = rest > 0 ? [...top, { name: "Other", count: rest }] : top;
+  const total = mix.reduce((a, b) => a + b.count, 0);
+  return (
+    <Panel>
+      <div className="flex items-center justify-between gap-2">
+        <p className={labelCx}>Category mix</p>
+        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+          {total} live
+        </span>
+      </div>
+      <div className="mt-4 space-y-3.5">
+        {rows.map((r, i) => (
+          <div key={r.name}>
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: MIX_COLORS[i % MIX_COLORS.length] }}
+              />
+              <span className="min-w-0 flex-1 truncate text-sm text-white/70">{r.name}</span>
+              <span className="font-mono text-xs text-white/45">{r.count}</span>
+            </div>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${total ? Math.max(2, Math.round((r.count / total) * 100)) : 0}%`,
+                  backgroundColor: MIX_COLORS[i % MIX_COLORS.length],
+                }}
+              />
             </div>
           </div>
+        ))}
+        {rows.length === 0 && (
+          <p className="py-10 text-center text-sm text-white/30">No live listings yet.</p>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </Panel>
   );
+}
+
+const PRICING_ORDER = ["free", "freemium", "paid", "open_source"] as const;
+const PRICING_COLORS: Record<string, string> = {
+  free: "#FF6A00",
+  freemium: "#FFB877",
+  paid: "#F1EDE4",
+  open_source: "rgba(255,255,255,0.45)",
+};
+
+function PricingDonutCard({ mix }: { mix: { model: string; count: number }[] }) {
+  const rows = PRICING_ORDER.map((m) => ({
+    model: m,
+    count: mix.find((x) => x.model === m)?.count ?? 0,
+  })).filter((r) => r.count > 0);
+  const total = rows.reduce((a, b) => a + b.count, 0);
+  let acc = 0;
+  const stops = rows.map((r) => {
+    const start = (acc / total) * 100;
+    acc += r.count;
+    const end = (acc / total) * 100;
+    return `${PRICING_COLORS[r.model] ?? "rgba(255,255,255,0.4)"} ${start}% ${end}%`;
+  });
+  return (
+    <Panel>
+      <p className={labelCx}>Pricing mix</p>
+      <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row">
+        <div
+          role="img"
+          aria-label={`Pricing mix across ${total} live tools`}
+          className="relative size-36 shrink-0 rounded-full ring-1 ring-white/10"
+          style={{ background: total > 0 ? `conic-gradient(${stops.join(",")})` : "rgba(255,255,255,0.05)" }}
+        >
+          <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-ink">
+            <span className="text-2xl font-black tracking-tight text-white">
+              {total.toLocaleString()}
+            </span>
+            <span className="font-mono text-[8px] tracking-[0.2em] text-white/40 uppercase">
+              tools
+            </span>
+          </div>
+        </div>
+        <div className="w-full space-y-2">
+          {rows.map((r) => (
+            <div key={r.model} className="flex items-center gap-2 font-mono text-[11px]">
+              <span
+                aria-hidden
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: PRICING_COLORS[r.model] }}
+              />
+              <span className="flex-1 text-white/60">{r.model.replace("_", " ")}</span>
+              <span className="text-white/40">{r.count}</span>
+            </div>
+          ))}
+          {total === 0 && (
+            <p className="text-sm text-white/30">No live listings yet.</p>
+          )}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+// ── Overview: activity table + queue aging ───────────────────────────────
+
+function ActivityCard({
+  audit,
+  className,
+}: {
+  audit: Overview["audit"];
+  className?: string;
+}) {
+  return (
+    <Panel className={cn("flex min-w-0 flex-col", className)}>
+      <div className="flex items-center justify-between gap-2">
+        <p className={labelCx}>Recent activity</p>
+        <span className="font-mono text-[10px] text-white/30">audit trail</span>
+      </div>
+      <div className="mt-3 max-h-80 overflow-y-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/10 hover:bg-transparent">
+              <TableHead className="h-8 font-mono text-[9px] tracking-[0.2em] text-white/35 uppercase">
+                Time
+              </TableHead>
+              <TableHead className="h-8 font-mono text-[9px] tracking-[0.2em] text-white/35 uppercase">
+                Action
+              </TableHead>
+              <TableHead className="hidden h-8 font-mono text-[9px] tracking-[0.2em] text-white/35 uppercase md:table-cell">
+                Target
+              </TableHead>
+              <TableHead className="h-8 font-mono text-[9px] tracking-[0.2em] text-white/35 uppercase">
+                Meta
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {audit.map((a) => {
+              const d = new Date(a.at);
+              return (
+                <TableRow key={a.id} className="border-white/[0.06]">
+                  <TableCell className="py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        aria-hidden
+                        className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-ember/20 bg-ember/10 font-mono text-[10px] font-bold text-ember uppercase"
+                      >
+                        {(a.entity || a.action).slice(0, 1)}
+                      </span>
+                      <span className="whitespace-nowrap font-mono text-[10px] text-white/40">
+                        {d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                        {" · "}
+                        {d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2.5">
+                    <span className="whitespace-nowrap rounded bg-ember/10 px-1.5 py-0.5 font-mono text-[10px] text-ember">
+                      {a.action}
+                    </span>
+                  </TableCell>
+                  <TableCell className="hidden py-2.5 font-mono text-[10px] text-white/50 md:table-cell">
+                    {a.entity}
+                    {a.entityId ? `…${a.entityId.slice(-4)}` : ""}
+                  </TableCell>
+                  <TableCell className="max-w-[180px] truncate py-2.5 text-xs text-white/60">
+                    {a.meta || "—"}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {audit.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="py-10 text-center text-sm text-white/30">
+                  No admin actions recorded yet.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </Panel>
+  );
+}
+
+const QUEUE_SLA_H = 14;
+
+function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number }) {
+  const pct = Math.min(100, Math.round((ageH / QUEUE_SLA_H) * 100));
+  return (
+    <Panel>
+      <div className="flex items-center justify-between gap-2">
+        <p className={labelCx}>Queue aging</p>
+        {oldest && ageH > QUEUE_SLA_H && (
+          <span className="rounded-full bg-red-400/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-red-400/80 uppercase">
+            past SLA
+          </span>
+        )}
+      </div>
+      {oldest ? (
+        <>
+          <p className="mt-3 text-3xl font-black tracking-tight text-white">
+            {ageH}
+            <span className="ml-1 text-base font-bold text-white/40">h</span>
+          </p>
+          <p className="mt-1 truncate text-xs text-white/50">
+            oldest pending · <span className="text-white/80">{oldest}</span>
+          </p>
+          <Progress
+            value={pct}
+            aria-label={`Oldest pending submission: ${ageH} hours of the ${QUEUE_SLA_H} hour SLA`}
+            className="mt-4 h-1.5 bg-white/10 [&_[data-slot=progress-indicator]]:bg-ember"
+          />
+          <p className="mt-2 font-mono text-[10px] text-white/30">
+            SLA {QUEUE_SLA_H}h · {pct}% elapsed
+          </p>
+        </>
+      ) : (
+        <div className="flex flex-col items-center py-8 text-center">
+          <CheckCircle2 className="size-8 text-emerald-400" aria-hidden />
+          <p className="mt-2.5 font-mono text-sm text-white/60">Queue clear</p>
+          <p className="mt-1 text-xs text-white/30">Nothing waiting on review.</p>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function OverviewSkeleton() {
+  return (
+    <div className="space-y-4 sm:space-y-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-[118px] rounded-2xl bg-white/[0.04]" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-64 rounded-2xl bg-white/[0.04]" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
+        <Skeleton className="h-72 rounded-2xl bg-white/[0.04] lg:col-span-2" />
+        <Skeleton className="h-72 rounded-2xl bg-white/[0.04]" />
+      </div>
+    </div>
+  );
+}
+
+function OverviewView({ data }: { data: Overview }) {
+  const k = data.kpis;
+  return (
+    <div className="space-y-4 sm:space-y-5">
+      {/* KPI row — reference layout: 4 stat cards with delta pills */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Live tools"
+          value={k.toolsLive}
+          caption={`across ${k.categories} categories`}
+        />
+        <StatCard
+          label="Launches today"
+          value={k.launchesToday}
+          delta={computeDelta(data.launchesByDay[13] ?? 0, data.launchesByDay[12] ?? 0)}
+          spark={data.launchesByDay}
+        />
+        <StatCard
+          label="Pending submissions"
+          value={k.pendingSubs}
+          accent={k.pendingSubs > 0}
+          caption={
+            k.pendingSubs > 0 && data.oldestPending
+              ? `oldest · ${data.oldestPending} · ${data.queueAgeH}h`
+              : "queue clear"
+          }
+        />
+        <StatCard
+          label="Total votes"
+          value={k.votes}
+          delta={computeDelta(k.votesToday, k.votesYesterday)}
+          caption={`${k.votesToday} cast today`}
+        />
+      </div>
+
+      {/* Charts row — 3 cards like the reference */}
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
+        <LaunchesChartCard byDay={data.launchesByDay} />
+        <CategoryMixCard mix={data.categoryMix} />
+        <PricingDonutCard mix={data.pricingMix} />
+      </div>
+
+      {/* Table row — audit trail + queue aging side card */}
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
+        <ActivityCard audit={data.audit} className="lg:col-span-2" />
+        <QueueAgingCard oldest={data.oldestPending} ageH={data.queueAgeH} />
+      </div>
+    </div>
+  );
+}
+
+// ── Shell: navigation config ─────────────────────────────────────────────
+
+type SectionId =
+  | "overview"
+  | "submissions"
+  | "tools"
+  | "schedule"
+  | "categories"
+  | "journal"
+  | "settings";
+
+const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: LucideIcon }[] }[] = [
+  {
+    label: "Overview",
+    items: [{ id: "overview", label: "Overview", icon: LayoutDashboard }],
+  },
+  {
+    label: "Manage",
+    items: [
+      { id: "submissions", label: "Submissions", icon: ListChecks },
+      { id: "tools", label: "Tools", icon: Database },
+      { id: "schedule", label: "Schedule", icon: CalendarDays },
+      { id: "categories", label: "Categories", icon: Tags },
+    ],
+  },
+  {
+    label: "Content",
+    items: [{ id: "journal", label: "Journal", icon: FileText }],
+  },
+  {
+    label: "Config",
+    items: [{ id: "settings", label: "Settings", icon: SettingsIcon }],
+  },
+];
+
+const SECTION_TITLES: Record<SectionId, string> = {
+  overview: "Overview",
+  submissions: "Submissions",
+  tools: "Tools",
+  schedule: "Launch schedule",
+  categories: "Categories",
+  journal: "Journal",
+  settings: "Site settings",
+};
+
+const SECTION_NOTES: Record<SectionId, string> = {
+  overview: "Launch velocity, moderation load and the live audit trail.",
+  submissions: "Community queue — approve schedules tomorrow, rejections cite standards.",
+  tools: "Every listing: edit copy, pricing, status, pins and verification.",
+  schedule: "14-day launch calendar, floor/cap guardrails, unscheduled pool.",
+  categories: "Primary taxonomy — names, emoji, slugs, tool counts.",
+  journal: "SEO workhorse: markdown posts with drafts, SERP preview and views.",
+  settings: "KV site copy — hero, announcement, footer, SEO defaults. No deploys.",
+};
+
+// ── Shell: sidebar ───────────────────────────────────────────────────────
+
+function SidebarContent({
+  section,
+  onNavigate,
+  pending,
+}: {
+  section: SectionId;
+  onNavigate: (id: SectionId) => void;
+  pending: number;
+}) {
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const groups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => !needle || i.label.toLowerCase().includes(needle)),
+  })).filter((g) => g.items.length > 0);
+
+  return (
+    <div className="flex h-full flex-col overflow-y-auto p-4">
+      {/* logo row */}
+      <a
+        href="/"
+        className="flex shrink-0 items-center gap-2.5 rounded-lg px-1 py-1"
+        aria-label="Prother — back to home page"
+      >
+        <span
+          aria-hidden
+          className="flex size-8 items-center justify-center rounded-lg border border-ember/30 bg-ember/15"
+        >
+          <Hexagon className="size-4 text-ember" />
+        </span>
+        <span className="text-base font-black tracking-tight text-white">Prother</span>
+        <span className="rounded border border-ember/30 bg-ember/10 px-1.5 py-px font-mono text-[9px] tracking-[0.2em] text-ember">
+          ADMIN
+        </span>
+      </a>
+
+      {/* jump-to search (filters nav) */}
+      <div className="relative mt-4 shrink-0">
+        <Search
+          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/30"
+          aria-hidden
+        />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Jump to…"
+          aria-label="Filter admin sections"
+          className="h-9 border-white/10 bg-white/5 pl-8 pr-10 text-sm text-white placeholder:text-white/25"
+        />
+        <kbd
+          aria-hidden
+          title="Filters the sections below"
+          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-white/10 bg-white/5 px-1 font-mono text-[9px] text-white/35"
+        >
+          ⌘K
+        </kbd>
+      </div>
+
+      {/* grouped nav */}
+      <nav aria-label="Admin sections" className="mt-5 flex-1 space-y-5">
+        {groups.map((g) => (
+          <div key={g.label}>
+            <p className="px-2 pb-1.5 font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">
+              {g.label}
+            </p>
+            <div className="space-y-0.5">
+              {g.items.map((item) => {
+                const active = section === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onNavigate(item.id)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
+                      active
+                        ? "bg-ember/10 text-ember"
+                        : "text-white/60 hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    {active && (
+                      <span
+                        aria-hidden
+                        className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-ember"
+                      />
+                    )}
+                    <item.icon className="size-4 shrink-0" aria-hidden />
+                    <span className="truncate">{item.label}</span>
+                    {item.id === "submissions" && pending > 0 && (
+                      <span className="ml-auto rounded-full bg-ember px-1.5 py-px font-mono text-[9px] font-bold text-black">
+                        {pending}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {groups.length === 0 && (
+          <p className="px-2 py-4 font-mono text-[10px] tracking-wider text-white/25 uppercase">
+            No section matches “{q.trim()}”
+          </p>
+        )}
+      </nav>
+
+      {/* promo card — honest pointer to the home-page editor desk */}
+      <div className="mt-5 shrink-0 rounded-xl border border-ember/25 bg-ember/[0.06] p-3.5">
+        <p className="font-mono text-[9px] tracking-[0.25em] text-ember uppercase">
+          Editor desk
+        </p>
+        <p className="mt-1.5 text-xs leading-relaxed text-white/55">
+          Claims arbitration &amp; filtered-review moderation run on the home
+          page review desk.
+        </p>
+        <a
+          href="/#feed"
+          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-2.5 py-1.5 font-mono text-[10px] tracking-[0.15em] text-ember uppercase transition-colors hover:bg-ember/20"
+        >
+          Open on home
+        </a>
+        <p className="mt-2 text-center font-mono text-[9px] text-white/30">
+          or press ⌘⇧E on the home page
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Shell: the dashboard ─────────────────────────────────────────────────
+
+export function AdminDashboard() {
+  const { toast } = useToast();
+  const { key, unlock, lock } = useAdminKey();
+  const [section, setSection] = useState<SectionId>("overview");
+  const [navOpen, setNavOpen] = useState(false);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [overviewError, setOverviewError] = useState(false);
+
+  const loadOverview = useCallback(() => {
+    adminFetch(key ?? "", "/api/admin/overview")
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
+      .then((d: Overview) => {
+        setOverview(d);
+        setOverviewError(false);
+      })
+      .catch(() => setOverviewError(true));
+  }, [key]);
+
+  useEffect(() => {
+    if (key) loadOverview();
+  }, [key, loadOverview]);
+
+  const bumpOverview = loadOverview;
+
+  const onNavigate = useCallback((id: SectionId) => {
+    setSection(id);
+    setNavOpen(false);
+    window.scrollTo(0, 0);
+  }, []);
+
+  const onLock = useCallback(() => {
+    lock();
+    toast({ title: "Locked", description: "Admin session ended." });
+  }, [lock, toast]);
+
+  const retryOverview = useCallback(() => {
+    setOverview(null);
+    setOverviewError(false);
+    loadOverview();
+  }, [loadOverview]);
+
+  // Journal previews live on the landing page's deep-link stack — open a tab.
+  const previewPost = useCallback((slug: string) => {
+    window.open(`/journal/${encodeURIComponent(slug)}`, "_blank", "noopener");
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-ink text-white">
+      <div className="mx-auto flex w-full max-w-[1440px]">
+        {/* desktop sidebar */}
+        <aside
+          aria-label="Admin sidebar"
+          className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 border-r border-white/10 bg-coal lg:block"
+        >
+          <SidebarContent
+            section={section}
+            onNavigate={onNavigate}
+            pending={overview?.kpis.pendingSubs ?? 0}
+          />
+        </aside>
+
+        {/* mobile sidebar */}
+        <Sheet open={navOpen} onOpenChange={setNavOpen}>
+          <SheetContent
+            side="left"
+            className="w-[276px] border-white/10 bg-coal p-0 text-white sm:max-w-[276px]"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Admin navigation</SheetTitle>
+              <SheetDescription>Move between admin sections.</SheetDescription>
+            </SheetHeader>
+            <SidebarContent
+              section={section}
+              onNavigate={onNavigate}
+              pending={overview?.kpis.pendingSubs ?? 0}
+            />
+          </SheetContent>
+        </Sheet>
+
+        {/* main column */}
+        <div className="min-w-0 flex-1">
+          {/* topbar */}
+          <header className="sticky top-16 z-30 border-b border-white/10 bg-ink/90 px-4 py-3.5 backdrop-blur sm:px-6">
+            <div className="flex items-center gap-3">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setNavOpen(true)}
+                aria-label="Open admin navigation"
+                aria-expanded={navOpen}
+                className="size-9 shrink-0 rounded-lg text-white/70 hover:bg-white/5 hover:text-white lg:hidden"
+              >
+                <Menu className="size-4.5" aria-hidden />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-[9px] tracking-[0.3em] text-ember uppercase">
+                  Prother admin
+                </p>
+                <h1 className="truncate text-xl font-black tracking-tight text-white sm:text-2xl">
+                  {SECTION_TITLES[section]}
+                </h1>
+              </div>
+              <span
+                aria-live="polite"
+                className={cn(
+                  "hidden items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[9px] tracking-[0.2em] uppercase sm:inline-flex",
+                  key
+                    ? "border-ember/30 bg-ember/10 text-ember"
+                    : "border-white/10 bg-white/5 text-white/40"
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    key ? "animate-status-pulse bg-ember" : "bg-white/30"
+                  )}
+                />
+                {key ? "Key active" : "Locked"}
+              </span>
+              {key && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onLock}
+                  className="h-9 shrink-0 rounded-lg border-white/15 px-3 text-white/70 shadow-none hover:bg-white/5 hover:text-white"
+                >
+                  <KeyRound className="size-3.5" aria-hidden />
+                  <span className="hidden sm:inline">Lock</span>
+                  <span className="sr-only sm:hidden">Lock console</span>
+                </Button>
+              )}
+            </div>
+          </header>
+
+          {/* content */}
+          <main className="px-4 py-5 sm:px-6 sm:py-6">
+            {!key ? (
+              <Gate onUnlock={unlock} />
+            ) : section === "overview" ? (
+              <section aria-label="Overview" className="space-y-3">
+                <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                  {SECTION_NOTES.overview}
+                </p>
+                {overviewError ? (
+                  <div className="rounded-2xl border border-red-400/25 bg-red-400/[0.04] p-10 text-center">
+                    <p className="font-mono text-[10px] tracking-[0.25em] text-red-300 uppercase">
+                      Overview unavailable
+                    </p>
+                    <p className="mx-auto mt-2 max-w-sm text-sm text-white/60">
+                      Couldn&apos;t load dashboard data — check the admin key or
+                      network, then retry.
+                    </p>
+                    <Button
+                      onClick={retryOverview}
+                      className="mt-5 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+                    >
+                      <RotateCcw className="size-4" aria-hidden />
+                      Retry
+                    </Button>
+                  </div>
+                ) : overview ? (
+                  <OverviewView data={overview} />
+                ) : (
+                  <OverviewSkeleton />
+                )}
+              </section>
+            ) : (
+              <section aria-label={SECTION_TITLES[section]} className="space-y-3">
+                <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                  {SECTION_NOTES[section]}
+                </p>
+                <Panel>
+                  {section === "submissions" && (
+                    <QueueTab apiKey={key} onChanged={bumpOverview} />
+                  )}
+                  {section === "tools" && (
+                    <ListingsTab apiKey={key} onChanged={bumpOverview} />
+                  )}
+                  {section === "schedule" && (
+                    <CalendarTab apiKey={key} onChanged={bumpOverview} />
+                  )}
+                  {section === "categories" && (
+                    <TaxonomyTab apiKey={key} onChanged={bumpOverview} />
+                  )}
+                  {section === "journal" && (
+                    <BlogTab
+                      apiKey={key}
+                      onChanged={bumpOverview}
+                      onPreview={previewPost}
+                    />
+                  )}
+                  {section === "settings" && (
+                    <SettingsTab apiKey={key} onChanged={bumpOverview} />
+                  )}
+                </Panel>
+              </section>
+            )}
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Deprecated — the admin console is a real route now (/admin, Task 20-c).
+ * Kept as an explicit no-op so the landing page's legacy <AdminConsole />
+ * mount stays harmless until the site-chrome pass removes it.
+ */
+export function AdminConsole() {
+  return null;
 }

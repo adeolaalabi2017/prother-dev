@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   Check,
@@ -23,6 +24,7 @@ import { useFeed } from "./use-feed";
 
 // ── Command palette (⌘K) ────────────────────────────────────────────────
 function CommandPalette() {
+  const router = useRouter();
   const { feed } = useFeed();
   const searchOpen = useExplorer((s) => s.searchOpen);
   const setSearch = useExplorer((s) => s.setSearch);
@@ -40,20 +42,19 @@ function CommandPalette() {
     [setSearch, openTool],
   );
 
+  // The palette works on every route now — jump targets are real navigation.
   const goTo = useCallback(
-    (hash: string) => {
+    (href: string) => {
       setSearch(false);
-      window.setTimeout(() => {
-        document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
-      }, 80);
+      window.setTimeout(() => router.push(href), 80);
     },
-    [setSearch],
+    [setSearch, router],
   );
 
   const filterCategory = useCallback(
     (slug: string) => {
       setCategoryFilter(slug);
-      goTo("#feed");
+      goTo("/#feed");
     },
     [setCategoryFilter, goTo],
   );
@@ -212,14 +213,14 @@ function CommandPalette() {
           </CommandItem>
           <CommandItem
             value="read the standards quality bar"
-            onSelect={() => goTo("#standards")}
+            onSelect={() => goTo("/about#standards")}
           >
             <Check aria-hidden />
             <span>Read the standards</span>
           </CommandItem>
           <CommandItem
             value="get the daily feed newsletter"
-            onSelect={() => goTo("#feed")}
+            onSelect={() => goTo("/#feed")}
           >
             <ArrowUpRight aria-hidden />
             <span>Jump to the feed</span>
@@ -233,6 +234,7 @@ function CommandPalette() {
 // ── Mounted-once explorer + ⌘K shortcut ──────────────────────────────────
 
 export function ToolExplorer() {
+  const router = useRouter();
   const setSearch = useExplorer((s) => s.setSearch);
   const openTool = useExplorer((s) => s.openTool);
 
@@ -247,6 +249,22 @@ export function ToolExplorer() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [setSearch]);
+
+  // ⌘⇧A / ctrl+⇧A navigates to the admin console route.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "a"
+      ) {
+        e.preventDefault();
+        router.push("/admin");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [router]);
 
   // Restore a shared/filtered category from the URL on load (?cat=<slug>)
   // and jump straight to the feed — a shared ?cat= link is an intent to browse.

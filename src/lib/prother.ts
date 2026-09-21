@@ -104,7 +104,6 @@ export type FeedResponse = {
   categoryCounts: Record<string, number>;
   topWeek: TopWeekRow[];
   editorsPick: FeedRow | null;
-  subscriberCount: number;
 };
 
 /** One past launch day in the archive day strip. */

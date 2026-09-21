@@ -1,11 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Rocket } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useExplorer } from "./explorer-store";
-import { WaitlistForm } from "./waitlist-form";
 
+/**
+ * Closing band — the feed is open, so this points at discovery (the
+ * /tools directory) and the submission wizard. No email capture.
+ */
 export function FinalCta() {
   const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   return (
@@ -24,29 +28,31 @@ export function FinalCta() {
           transition={{ duration: 0.55, ease: "easeOut" }}
           className="text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl"
         >
-          Be there on
+          The feed is
           <br />
-          <span className="text-ember">day one.</span>
+          <span className="text-ember">open.</span>
         </motion.h2>
         <p className="mt-4 text-white/60">
-          The first feed lands the morning we open. Waitlist members get first pick of launch
-          dates.
+          Every launch, every day — ranked by the people who show up for AI.
+          No gates, no waiting.
         </p>
-        <div className="mx-auto mt-8 max-w-md">
-          <WaitlistForm source="cta" dark />
-        </div>
-        <div className="mt-6">
-          <p className="font-mono text-[11px] tracking-widest text-white/35">
-            BUILT SOMETHING? SKIP THE LINE —
-          </p>
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Button
+            asChild
+            className="h-12 rounded-lg bg-ember px-6 text-base font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+          >
+            <Link href="/tools">
+              Browse today&apos;s launches
+              <ArrowRight className="ml-1 size-4" aria-hidden />
+            </Link>
+          </Button>
           <Button
             asChild
             variant="outline"
-            className="mt-2 rounded-lg border-ember/40 bg-transparent font-semibold text-ember hover:bg-ember/10 hover:text-ember-hot"
+            className="h-12 rounded-lg border-ember/40 bg-transparent px-6 text-base font-semibold text-ember hover:bg-ember/10 hover:text-ember-hot"
           >
             <button type="button" onClick={() => setSubmitOpen(true)}>
-              <Rocket className="size-4" aria-hidden />
-              Submit your tool for review
+              Submit your tool
             </button>
           </Button>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -121,7 +122,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
           </div>
         </div>
         <p className="mt-3 font-mono text-[11px] text-white/40">
-          {category ? `${category.emoji} ${category.name}` : "🏷️ Category"} · {pricing}
+          {category ? `${category.emoji} ${category.name}` : "Category"} · {pricing}
           {form.hasApi && " · API"}
           {form.tags.includes("open-source") && " · OSS"}
           {domainOf(form.websiteUrl) && ` · ${domainOf(form.websiteUrl)}`}
@@ -228,6 +229,7 @@ function DuplicateBanner({
 
 export function SubmitWizard() {
   const { toast } = useToast();
+  const router = useRouter();
   const open = useExplorer((s) => s.submitOpen);
   const setOpen = useExplorer((s) => s.setSubmitOpen);
   const submitPrefill = useExplorer((s) => s.submitPrefill);
@@ -924,15 +926,12 @@ export function SubmitWizard() {
                       <span className="text-sm text-white/75">
                         I&apos;ve read the{" "}
                         <a
-                          href="#standards"
+                          href="/about#standards"
                           onClick={(e) => {
                             e.preventDefault();
                             onOpenChange(false);
-                            window.setTimeout(() => {
-                              document
-                                .getElementById("standards")
-                                ?.scrollIntoView({ behavior: "smooth" });
-                            }, 120);
+                            // Standards live on /about now — navigate there from any route.
+                            router.push("/about#standards");
                           }}
                           className="text-ember underline-offset-2 hover:underline"
                         >

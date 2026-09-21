@@ -12,7 +12,7 @@ import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
  * a FullPageShell (proper full-page reading experience, no floating panel).
  * All logic is preserved: derived loading state, /api/blog/[slug] fetch,
  * one view ping per slug, document.title + meta description sync,
- * BlogPosting JSON-LD inject/remove, copy-link share (/?post=<slug>),
+ * BlogPosting JSON-LD inject/remove, copy-link share (/journal/<slug>),
  * related posts, and tag chips.
  */
 
@@ -134,7 +134,7 @@ export function PostFullPage() {
       dateModified: post.publishedAt,
       articleSection: post.category,
       keywords: post.tags.join(", "),
-      url: `${window.location.origin}/?post=${encodeURIComponent(post.slug)}`,
+      url: `${window.location.origin}/journal/${encodeURIComponent(post.slug)}`,
     });
     document.head.appendChild(ld);
 
@@ -187,7 +187,7 @@ export function PostFullPage() {
       onClose={closePost}
       ariaLabel="Journal article"
       kicker={post ? `Prother Journal · ${post.category}` : "Prother Journal"}
-      shareUrl={post ? `/?post=${encodeURIComponent(post.slug)}` : undefined}
+      shareUrl={post ? `/journal/${encodeURIComponent(post.slug)}` : undefined}
     >
       {loading && <PageSkeleton />}
 
@@ -284,7 +284,7 @@ export function PostFullPage() {
           <footer className="mt-10 border-t border-white/10 pt-6">
             <p className="font-mono text-[10px] leading-relaxed tracking-wider text-white/25 uppercase">
               Published {dateLabel(post.publishedAt)} · {post.views} views ·
-              Permalink: /?post={post.slug}
+              Permalink: /journal/{post.slug}
             </p>
           </footer>
         </article>

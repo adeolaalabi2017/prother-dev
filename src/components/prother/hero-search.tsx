@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   History,
@@ -70,9 +71,9 @@ export function HeroSearch() {
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const router = useRouter();
   const openTool = useExplorer((s) => s.openTool);
   const openCategory = useExplorer((s) => s.openCategory);
-  const openPost = useExplorer((s) => s.openPost);
 
   // Recents load lazily each time the dropdown opens — fresher than an
   // effect-on-mount and avoids setState-during-effect cascades.
@@ -284,12 +285,14 @@ export function HeroSearch() {
         inputRef.current?.blur();
         openCategory(item.slug);
       } else {
+        // Journal posts are real routes now — navigate instead of opening
+        // the overlay (PostFullPage stays for legacy ?post= deep links).
         setOpen(false);
         inputRef.current?.blur();
-        openPost(item.slug);
+        router.push(`/journal/${item.slug}`);
       }
     },
-    [pushRecent, openTool, openCategory, openPost]
+    [pushRecent, openTool, openCategory, router]
   );
 
   const onKeyDown = useCallback(
@@ -464,7 +467,7 @@ export function HeroSearch() {
                               <span className="font-mono text-[10px] font-bold text-ember">#{rank}</span>
                             )}
                             <span className="truncate text-sm font-semibold text-white">
-                              {item.name}
+                              {"name" in item ? item.name : item.title}
                             </span>
                             {item.kind === "tool" && item.category.name && (
                               <span className="hidden truncate font-mono text-[10px] uppercase tracking-wider text-white/30 sm:inline">

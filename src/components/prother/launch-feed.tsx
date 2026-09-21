@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, Clock, Crown, MessageSquare, Triangle, X } from "lucide-react";
+import { ArrowUpRight, Clock, Crown, MessageSquare, Star, Triangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { DayArchiveResponse, FeedRow, TopWeekRow } from "@/lib/prother";
-import { WaitlistForm } from "./waitlist-form";
 import { useFeed } from "./use-feed";
 import { useExplorer } from "./explorer-store";
 import { getVoterKey } from "./voter";
@@ -207,7 +207,9 @@ function FeedRowItem({
             </BadgeChip>
           )}
           {row.badges.editorsPick && (
-            <BadgeChip className="border-ember/30 bg-ember/15 text-ember">⭐ Editor's Pick</BadgeChip>
+            <BadgeChip className="border-ember/30 bg-ember/15 text-ember">
+              <Star className="mr-1 size-3" aria-hidden /> Editor&apos;s Pick
+            </BadgeChip>
           )}
           {row.badges.curated && (
             <BadgeChip className="border-yellow-500/30 bg-yellow-500/10 text-yellow-500">
@@ -601,17 +603,21 @@ export function LaunchFeed() {
           {/* Sidebar — first on mobile, last on desktop */}
           <aside className="order-first min-w-0 space-y-6 lg:order-last">
             <div className="rounded-2xl border border-white/10 bg-coal p-5">
-              <h3 className="font-mono text-xs tracking-widest text-ember">📬 THE DAILY LAUNCH</h3>
+              <h3 className="font-mono text-xs tracking-widest text-ember">BROWSE THE ARCHIVE</h3>
               <p className="mt-2 text-sm text-white/60">
-                One email a day. Today&apos;s launches in a 5-minute scan.
+                Every tool that ever launched — searchable, ranked, free.
               </p>
-              <div className="mt-4">
-                <WaitlistForm compact source="daily" dark />
-              </div>
+              <Link
+                href="/tools"
+                className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-ember px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-ember-hot"
+              >
+                Open the directory
+                <ArrowUpRight className="size-4" aria-hidden />
+              </Link>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-coal p-5">
-              <h3 className="font-mono text-xs tracking-widest text-ember">🏆 TOP WEEK</h3>
+              <h3 className="font-mono text-xs tracking-widest text-ember">TOP WEEK</h3>
               <div className="mt-3 divide-y divide-white/5">
                 {(feed?.topWeek ?? []).map((row, i) => (
                   <TopWeekItem key={row.slug} row={row} rank={i + 1} />
@@ -626,7 +632,7 @@ export function LaunchFeed() {
 
             {feed?.editorsPick && (
               <div className="rounded-2xl border border-ember/30 bg-ember/[0.06] p-5">
-                <h3 className="font-mono text-xs tracking-widest text-ember">⭐ EDITOR&apos;S PICK</h3>
+                <h3 className="font-mono text-xs tracking-widest text-ember">EDITOR&apos;S PICK</h3>
                 <button
                   type="button"
                   onClick={() => openTool(feed.editorsPick!.slug)}
@@ -643,7 +649,7 @@ export function LaunchFeed() {
                   </div>
                 </button>
                 <a
-                  href="#standards"
+                  href="/about#standards"
                   className="mt-3 inline-block font-mono text-xs text-ember hover:underline"
                 >
                   Why we picked it →

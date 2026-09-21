@@ -10,20 +10,20 @@ import {
 
 const FAQS = [
   {
-    q: "When does Prother go live?",
-    a: "We're onboarding the first launch cohort now. Waitlist members get in the morning we open — the first daily feed lands that same day.",
+    q: "Do I need an invite?",
+    a: "No. The feed is open — browse, search, and vote without an account. Signing in only unlocks collections and follows.",
   },
   {
     q: "What kind of tools get listed?",
     a: "Live, working AI products. Every listing passes our published quality standards before it can launch — no vaporware, no 'coming soon' pages.",
   },
   {
-    q: "What does the email look like?",
-    a: "One short email each morning: today's launches, yesterday's top climbers, one editor's pick. Skimmable in under five minutes.",
+    q: "How do I follow the feed?",
+    a: "Bookmark the homepage or subscribe to the launch RSS. Today's batch, yesterday's standings, and the launch archive are all public.",
   },
   {
-    q: "I'm building an AI product.",
-    a: "Submit it free when we open. Every approved product gets a launch day on the homepage — waitlist members get first pick of dates.",
+    q: "Is submitting free?",
+    a: "Yes — submitting and launching are free. Approved products get a launch day on the homepage; you pick the date from the open calendar.",
   },
 ];
 

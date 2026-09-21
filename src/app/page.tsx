@@ -1,44 +1,20 @@
 import type { Metadata } from "next";
-import { SiteHeader } from "@/components/prother/site-header";
 import { Hero } from "@/components/prother/hero";
 import { CategoryTicker } from "@/components/prother/category-ticker";
-import { HowItWorks } from "@/components/prother/how-it-works";
 import { LaunchFeed } from "@/components/prother/launch-feed";
-import { AgentEra } from "@/components/prother/agent-era";
 import { TrendingStrip } from "@/components/prother/trending-strip";
-import { Standards } from "@/components/prother/standards";
-import { Journal } from "@/components/prother/journal";
-import { Faq } from "@/components/prother/faq";
 import { FinalCta } from "@/components/prother/final-cta";
-import { SiteFooter } from "@/components/prother/site-footer";
-import { ToolExplorer } from "@/components/prother/tool-explorer";
-import { SubmitWizard } from "@/components/prother/submit-wizard";
-import { StatusTracker } from "@/components/prother/status-tracker";
-import { EditorConsole } from "@/components/prother/editor-console";
-import { AdminConsole } from "@/components/prother/admin-console";
-import { AuthProvider } from "@/components/prother/auth-provider";
-import { AuthMenu } from "@/components/prother/auth-menu";
-import { DeepLinkHost } from "@/components/prother/deep-link-host";
-import { CompareTray } from "@/components/prother/compare-tray";
-import { ToolFullPage } from "@/components/prother/tool-full-page";
-import { PostFullPage } from "@/components/prother/post-full-page";
-import { CategoryFullPage } from "@/components/prother/category-full-page";
-import { LaunchesFullPage } from "@/components/prother/launches-full-page";
-import { CompareFullPage } from "@/components/prother/compare-full-page";
-import { CollectionFullPage } from "@/components/prother/collection-full-page";
-import { CollectionsMineFullPage } from "@/components/prother/collections-mine-full-page";
-import { ScrollProgress } from "@/components/prother/scroll-progress";
-import { BackToTop } from "@/components/prother/back-to-top";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
-// hero-rebalance: single-column centered hero (daily-digest panel removed per feedback)
 
 /**
- * Server-side unfurl metadata for the single-route deep links. Post-sandbox
- * these become real routes: /tool/{slug} · /journal/{slug} · /category/{slug}
- * · /launches/{date} · /compare/{a}/{b} · /collections/{slug} — the metadata
- * plumbing below moves over one-to-one.
+ * The landing page — hero + today's feed. Discovery-first: everything else
+ * lives on dedicated routes (/tools, /journal, /about, /submit).
+ *
+ * The metadata plumbing below serves the single-route deep links (?tool=,
+ * ?post=, ?category=, ?launches=, ?compare=, ?collection=) — post-sandbox
+ * these become real routes one-to-one.
  */
 export async function generateMetadata({
   searchParams,
@@ -216,46 +192,17 @@ export async function generateMetadata({
   return {};
 }
 
-/** Stack order matters: later components render on top (higher in DOM). */
+/** pb-16 clears the feed's mobile sticky submit bar (fixed, md:hidden). */
 export default function Page() {
   return (
-    <AuthProvider>
-      <div className="flex min-h-screen flex-col overflow-x-clip bg-ink pb-16 text-foreground md:pb-0">
-        <ScrollProgress />
-        <SiteHeader />
-        <main className="flex-1">
-          <Hero />
-          <CategoryTicker />
-          <HowItWorks />
-          <LaunchFeed />
-          <AgentEra />
-          <TrendingStrip />
-          <Standards />
-          <Journal />
-          <Faq />
-          <FinalCta />
-        </main>
-        <SiteFooter />
-        <ToolExplorer />
-        <SubmitWizard />
-        <StatusTracker />
-        <EditorConsole />
-        <AdminConsole />
-        <CompareTray />
-        <DeepLinkHost />
-        {/* ── Full-page deep-link stack (each renders null when closed) ── */}
-        <CollectionsMineFullPage />
-        <CollectionFullPage />
-        <CategoryFullPage />
-        <LaunchesFullPage />
-        <CompareFullPage />
-        <PostFullPage />
-        <ToolFullPage />
-        <BackToTop />
-      </div>
-    </AuthProvider>
+    <div className="pb-16 md:pb-0">
+      <Hero />
+      <CategoryTicker />
+      <LaunchFeed />
+      <TrendingStrip />
+      <FinalCta />
+    </div>
   );
 }
 
 // full-page router — PostReader dialog retired (see worklog Task 16)
-

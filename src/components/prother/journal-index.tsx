@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowUpRight, CalendarDays, Clock3, Feather } from "lucide-react";
-import { useExplorer } from "./explorer-store";
+import { ArrowUpRight, CalendarDays, Clock3, Feather, Rss } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * The Prother Journal — SEO content layer (BlogPosting JSON-LD + cards).
- * Posts come from /api/blog (published only); the reader modal opens via
- * the shared explorer store. Category chips filter client-side.
+ * /journal — index client shell. Same card language as the landing section,
+ * but cards are real <Link>s to /journal/[slug] (SEO-friendly navigation).
+ * Category chips filter client-side.
  */
 
-type PostCard = {
+export type JournalCard = {
   slug: string;
   title: string;
   excerpt: string;
@@ -34,94 +34,47 @@ function dateLabel(iso: string | null): string {
   });
 }
 
-export function Journal() {
-  const openPost = useExplorer((s) => s.openPost);
-  const [posts, setPosts] = useState<PostCard[] | null>(null);
+export function JournalIndex({ initialPosts }: { initialPosts: JournalCard[] }) {
   const [active, setActive] = useState<string>("all");
 
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/blog?limit=12")
-      .then((r) => r.json() as Promise<{ posts: PostCard[] }>)
-      .then((d) => {
-        if (alive) setPosts(d.posts);
-      })
-      .catch(() => {
-        /* section degrades to skeleton */
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   const categories = useMemo(() => {
-    const set = new Set((posts ?? []).map((p) => p.category));
+    const set = new Set(initialPosts.map((p) => p.category));
     return ["all", ...Array.from(set)];
-  }, [posts]);
+  }, [initialPosts]);
 
   const shown = useMemo(
-    () => (posts ?? []).filter((p) => active === "all" || p.category === active),
-    [posts, active]
+    () => initialPosts.filter((p) => active === "all" || p.category === active),
+    [initialPosts, active]
   );
 
-  // Blog JSON-LD — list of BlogPostings for crawlers.
-  const blogJsonLd = useMemo(() => {
-    if (!posts?.length) return null;
-    return {
-      "@context": "https://schema.org",
-      "@type": "Blog",
-      name: "Prother Journal",
-      description:
-        "Launch playbooks, ranking explainers, and ecosystem data from Prother — where AI products launch.",
-      blogPost: posts.slice(0, 10).map((p) => ({
-        "@type": "BlogPosting",
-        headline: p.title,
-        description: p.excerpt,
-        author: { "@type": "Organization", name: p.author },
-        datePublished: p.publishedAt,
-        url: `?post=${encodeURIComponent(p.slug)}`,
-      })),
-    };
-  }, [posts]);
-
   return (
-    <section id="journal" className="bg-ink py-24">
-      {blogJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }}
-        />
-      )}
+    <section className="bg-ink py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.55, ease: "easeOut" }}
-          >
+          <div>
             <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
               <Feather className="size-3.5" aria-hidden />
               The Prother Journal
             </p>
-            <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
+            <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
               Notes from the
               <br />
               launch layer.
-            </h2>
+            </h1>
             <p className="mt-4 max-w-xl text-lg text-white/60">
-              Playbooks, algorithm explainers, and weekly ecosystem data — written
-              by the people who watch every launch cross the feed.
+              Playbooks, algorithm explainers, and weekly ecosystem data —
+              written by the people who watch every launch cross the feed.
             </p>
-          </motion.div>
-          <a
+          </div>
+          <Link
             href="/api/rss?kind=journal"
             className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 py-2 font-mono text-xs text-white/60 transition-colors hover:border-ember/40 hover:text-ember sm:inline-flex"
             title="Journal RSS feed"
           >
-            RSS <ArrowUpRight className="size-3.5" aria-hidden />
-          </a>
+            <Rss className="size-3.5" aria-hidden />
+            RSS
+          </Link>
         </div>
 
         {/* category chips */}
@@ -146,15 +99,7 @@ export function Journal() {
 
         {/* cards */}
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {posts === null &&
-            Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-72 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]"
-              />
-            ))}
-
-          {posts?.length === 0 && (
+          {shown.length === 0 && (
             <div className="col-span-full rounded-2xl border border-dashed border-white/15 p-12 text-center text-white/40">
               The first issue ships soon.
             </div>
@@ -168,9 +113,8 @@ export function Journal() {
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.4, delay: i * 0.05, ease: "easeOut" }}
             >
-              <button
-                type="button"
-                onClick={() => openPost(p.slug)}
+              <Link
+                href={`/journal/${p.slug}`}
                 className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-1 hover:border-ember/40 hover:bg-white/[0.04]"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -188,9 +132,9 @@ export function Journal() {
                   </span>
                 </div>
 
-                <h3 className="mt-4 text-lg leading-snug font-bold text-white transition-colors group-hover:text-ember">
+                <h2 className="mt-4 text-lg leading-snug font-bold text-white transition-colors group-hover:text-ember">
                   {p.title}
-                </h3>
+                </h2>
                 <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-white/55">
                   {p.excerpt}
                 </p>
@@ -209,7 +153,7 @@ export function Journal() {
                     aria-hidden
                   />
                 </div>
-              </button>
+              </Link>
             </motion.article>
           ))}
         </div>

@@ -76,7 +76,6 @@ async function main() {
   await db.launch.deleteMany();
   await db.tool.deleteMany();
   await db.category.deleteMany();
-  await db.subscriber.deleteMany();
 
   for (const c of categories) await db.category.create({ data: c });
 
@@ -129,15 +128,7 @@ async function main() {
     seeded++;
   }
 
-  // Seed subscriber count so social proof has a real baseline
-  const baseSubs = 412;
-  for (let i = 0; i < baseSubs; i++) {
-    await db.subscriber.create({
-      data: { email: `founder${i}@prother.dev`, source: "seed", confirmed: true },
-    });
-  }
-
-  console.log(`✅ Seeded ${seeded} tools, ${categories.length} categories, ${baseSubs} subscribers.`);
+  console.log(`✅ Seeded ${seeded} tools, ${categories.length} categories.`);
 }
 
 main()

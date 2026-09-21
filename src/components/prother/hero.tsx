@@ -13,7 +13,7 @@ export function Hero() {
   // Admin-manageable site copy (/api/site ← Site settings KV). Falls back to
   // the locked defaults when the store is empty — the hero never breaks.
   const [copy, setCopy] = useState({
-    announcement: "Now onboarding founding makers — first 500 get launch priority",
+    announcement: "Open now — today's launches are live on the feed",
     headline: "Where AI products get discovered.",
     subline:
       "Every day, a fresh batch of AI tools goes live on one page. Prother shows you what launched, what’s climbing, and what’s actually worth your time — before your feed does.",
@@ -96,7 +96,7 @@ export function Hero() {
           </p>
 
           {/* Discovery-first hero: comprehensive search replaces the email
-              capture (waitlist lives in the daily digest + final CTA). */}
+              capture. The feed is open — no gates. */}
           <div className="mx-auto mt-8 w-full max-w-xl">
             <HeroSearch />
           </div>
@@ -106,7 +106,6 @@ export function Hero() {
               { label: `${todayCount} launches today` },
               { label: "10 categories" },
               { label: "6 standards" },
-              { label: "1 email a day" },
               { label: "$0 forever" },
             ].map((s) => (
               <li

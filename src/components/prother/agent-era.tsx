@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
 const POINTS = [
@@ -20,7 +21,114 @@ const POINTS = [
   },
 ];
 
+const COMMAND = "prother launch --day 2026-09-19";
+// Indices 0–3 are the ✓ output lines; index 4 is the idle prompt + cursor.
+const OUTPUT_COUNT = 4;
+
+// Complete final transcript for assistive tech (announced once, never per-char).
+const TRANSCRIPT = [
+  "$ prother launch --day 2026-09-19",
+  "✓ Standards S1–S6 — 6/6 passed",
+  "✓ Slot reserved — 09:00 UTC",
+  "✓ Launch kit sent — makers@prother.dev",
+  "✓ Live on the feed — rank #2 · ▲31",
+  "$ ▊",
+].join("\n");
+
 export function AgentEra() {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const typedRef = useRef<HTMLSpanElement | null>(null);
+  // Invisible twin of the typed span holding the not-yet-typed remainder, so the
+  // command line is always its full final width — the card can never reflow.
+  const sizerRef = useRef<HTMLSpanElement | null>(null);
+  const caretRef = useRef<HTMLSpanElement | null>(null);
+  const revealRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+
+  const setRevealRef = (index: number) => (el: HTMLParagraphElement | null) => {
+    revealRefs.current[index] = el;
+  };
+
+  useEffect(() => {
+    const timers: number[] = [];
+    let observer: IntersectionObserver | null = null;
+
+    const later = (fn: () => void, ms: number) => {
+      timers.push(window.setTimeout(fn, ms));
+    };
+
+    // Output lines are pre-rendered `invisible` (height reserved up front — zero
+    // layout shift); revealing just flips the classes with a 150ms ease-out.
+    const reveal = (el: HTMLParagraphElement | null | undefined) => {
+      el?.classList.remove("invisible", "opacity-0", "translate-y-1");
+    };
+
+    // prefers-reduced-motion (or missing refs): paint the finished terminal, no animation.
+    const finishInstantly = () => {
+      if (typedRef.current) typedRef.current.textContent = COMMAND;
+      if (sizerRef.current) sizerRef.current.textContent = "";
+      if (caretRef.current) caretRef.current.style.display = "none";
+      for (const el of revealRefs.current) reveal(el);
+    };
+
+    const run = () => {
+      let i = 0;
+      const typeNext = () => {
+        const typed = typedRef.current;
+        const sizer = sizerRef.current;
+        if (!typed || !sizer) return; // unmounted
+        i += 1;
+        // Visible part grows while the invisible sizer shrinks: line width (and
+        // therefore card height) stays constant for the whole animation.
+        typed.textContent = COMMAND.slice(0, i);
+        sizer.textContent = COMMAND.slice(i);
+        if (i < COMMAND.length) {
+          later(typeNext, 24 + Math.random() * 30); // human-ish cadence
+          return;
+        }
+        // Command finished → park the inline caret, then after a short pause the
+        // output arrives whole, one line at a time…
+        if (caretRef.current) caretRef.current.style.display = "none";
+        revealRefs.current.slice(0, OUTPUT_COUNT).forEach((el, idx) => {
+          later(() => reveal(el), idx * 380);
+        });
+        // …and finally the idle prompt with its blinking ember cursor.
+        later(
+          () => reveal(revealRefs.current[OUTPUT_COUNT]),
+          (OUTPUT_COUNT - 1) * 380 + 420,
+        );
+      };
+      typeNext();
+    };
+
+    const card = cardRef.current;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduced || !card) {
+      finishInstantly();
+    } else {
+      // Play once. The first observer callback reports the mount-time state
+      // (already in view → short 400ms beat); later ones are real scroll arrivals.
+      let firstCallback = true;
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[entries.length - 1];
+          const isFirst = firstCallback;
+          firstCallback = false;
+          if (!entry || !entry.isIntersecting) return;
+          observer?.disconnect();
+          later(run, isFirst ? 400 : 0);
+        },
+        { threshold: 0.35 },
+      );
+      observer.observe(card);
+    }
+
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+      observer?.disconnect();
+    };
+  }, []);
+
   return (
     <section className="relative overflow-hidden bg-coal py-24 text-white">
       {/* Faint ember glow — brand warmth without the loud orange block. */}
@@ -66,41 +174,72 @@ export function AgentEra() {
         </motion.div>
 
         <motion.div
+          ref={cardRef}
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
           className="overflow-hidden rounded-2xl border border-white/10 bg-ink shadow-2xl ring-1 ring-white/[0.03]"
+          aria-label={TRANSCRIPT}
         >
+          <p className="sr-only">{TRANSCRIPT}</p>
           <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
             <span className="ml-2 font-mono text-xs text-white/50">launch-day — zsh</span>
           </div>
-          <div className="space-y-1.5 p-5 font-mono text-[13px] text-white/90">
+          <div
+            className="space-y-1.5 p-5 font-mono text-[13px] text-white/90"
+            aria-hidden="true"
+            aria-live="off"
+          >
             <p>
-              <span className="text-ember">$</span> prother launch --day 2026-09-19
+              <span className="text-ember">$</span>{" "}
+              <span ref={typedRef} />
+              <span
+                ref={caretRef}
+                className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-ember align-[-2px]"
+                aria-hidden
+              />
+              <span ref={sizerRef} className="invisible">
+                {COMMAND}
+              </span>
             </p>
-            <p>
+            <p
+              ref={setRevealRef(0)}
+              className="invisible translate-y-1 opacity-0 transition-[opacity,transform] duration-150 ease-out"
+            >
               <span className="text-emerald-400">✓</span> Standards S1–S6
               <span className="float-right text-white/60">6/6 passed</span>
             </p>
-            <p>
+            <p
+              ref={setRevealRef(1)}
+              className="invisible translate-y-1 opacity-0 transition-[opacity,transform] duration-150 ease-out"
+            >
               <span className="text-emerald-400">✓</span> Slot reserved
               <span className="float-right text-white/60">09:00 UTC</span>
             </p>
-            <p>
+            <p
+              ref={setRevealRef(2)}
+              className="invisible translate-y-1 opacity-0 transition-[opacity,transform] duration-150 ease-out"
+            >
               <span className="text-emerald-400">✓</span> Launch kit sent
               <span className="float-right text-white/60">makers@prother.dev</span>
             </p>
-            <p>
+            <p
+              ref={setRevealRef(3)}
+              className="invisible translate-y-1 opacity-0 transition-[opacity,transform] duration-150 ease-out"
+            >
               <span className="text-emerald-400">✓</span> Live on the feed
               <span className="float-right">
                 rank #2 · <span className="text-ember-hot">▲31</span>
               </span>
             </p>
-            <p className="flex items-center pt-2">
+            <p
+              ref={setRevealRef(4)}
+              className="invisible translate-y-1 flex items-center pt-2 opacity-0 transition-[opacity,transform] duration-150 ease-out"
+            >
               <span className="text-ember">$</span>
               <span className="ml-2 inline-block h-4 w-2 animate-pulse bg-ember" aria-hidden />
             </p>

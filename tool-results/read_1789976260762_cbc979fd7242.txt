@@ -466,3 +466,41 @@
    466→- Editor console is now a 3-tab moderation desk: Submissions (existing), Claims arbitration (closes the F-30 "disputes → editor arbitration" loop), Filtered-review moderation (closes F-16's <48h hold loop). All decisions audited via AuditLog; ownership transfer reuses the exact automated-verify path.
    467→- Remaining roadmap: (1) D1/Turso migration still the Cloudflare Workers blocker; (2) real routes /tool/{slug} etc. post-sandbox (metadata plumbing ready); (3) re-launch editor gate (currently direct execution when eligible) — could reuse the same arbitration pattern if PRD compliance is wanted; (4) Google OAuth env keys for production sign-in.
    468→
+   469→---
+   470→Task ID: 18
+   471→Agent: main orchestrator (Z.ai Code)
+   472→Task: Feedback round — replace hero email-capture block with a comprehensive search bar system (discovery-first moat)
+   473→
+   474→Work Log:
+   475→- Feedback path: section#top > div.mx-auto.mt-8.max-w-md > WaitlistForm (div.w-full.space-y-2, "Get the daily feed →"). User comment: discovery-first before launch → robust hero search across thousands of AI tools.
+   476→- NEW /api/search (src/app/api/search/route.ts): unified grouped search — tools (live + scheduled=false, OR-match name/tagline/tags/description, relevance-ranked name.startsWith 100 > name.includes 80 > tagline 55 > tags 40 > description 25, votes tiebreak, take 6 of 40-pool), categories (name/slug match w/ _count.tools, take 4), journal posts (published, title/excerpt/tags, take 3), counts {tools, posts} always returned. Exported SearchResponse type consumed by the client. no-store.
+   477→- NEW src/components/prother/hero-search.tsx (~560 lines): h-14 rounded-2xl ember-focus search bar (Search icon, loading spinner, clear button, "/" kbd hint) + live dropdown (max-h min(58vh,440px), #141210/95 backdrop-blur, border-white/10 shadow-2xl):
+   478→  · Empty state: RECENT (localStorage prother:recent-tools, lazy-loaded on open — lint-safe) + TRENDING THIS WEEK (api/trending top 5 w/ #rank badges) + BROWSE CATEGORIES (all 10 static rows)
+   479→  · Query state: grouped AI TOOLS (emoji tile, tagline, category label, ▲votes) / CATEGORIES (count) / JOURNAL (reading min) + footer hints bar (↑↓ NAVIGATE · ↵ OPEN · ESC CLOSE · "{n} TOOLS INDEXED" from api)
+   480→  · No-matches: mono "NO MATCHES" + 10 category quick-chips fallback
+   481→  · Keyboard: "/" global focus (skips inputs), ArrowUp/Down wrap across flat item list, Enter opens active-or-best (tool-first), Esc closes+blurs; aria combobox/listbox/option + aria-activedescendant
+   482→  · Actions: tool/recent → openTool deep link + pushRecent (localStorage, max 4, dedupe); category → openCategory; post → openPost. ⌘K palette intentionally untouched (no conflict — hero uses "/")
+   483→  · TRY: chips under the bar (top-4 trending names) fill the query to demo live search
+   484→  · Derived-state pattern: shown/loading/activeIdx computed from {q,data} results + {q,i} active — zero setState-in-effect (react-hooks/set-state-in-effect clean after moving recents load into openDropdown callback)
+   485→- hero.tsx: removed WaitlistForm block + SocialProofCount (waitlist still lives in #feed digest + final CTA); inserted max-w-xl HeroSearch. Announcement/headline/subline (admin-managed) and stat chips untouched.
+   486→- QA (agent-browser): empty-state groups render; "prompt"→Promptly ▲48; "writing"→"AI Writing & Productivity 2 TOOLS"; "voice"→VoiceLoom; "promptprompt"→no-matches chips; ArrowDown+Enter (dispatched keydown) opened /?tool=promptly full listing (region "Promptly — full listing", body scroll-lock confirmed); mouse option-click same; Esc closed page + URL reverted; TRY chip filled query; recents persisted across interactions (RECENT group shows Promptly); mobile 390px no overflow (scrollWidth 390=390); desktop screenshots verified visuals (ember focus ring, footer hints bar). bun run lint exit 0; GET / 200; dev.log no errors. Note: agent-browser `key` events sometimes land on BODY after `type` (focus artifact) — dispatch KeyboardEvents via eval for reliable keyboard testing.
+   487→Stage Summary:
+   488→- Hero is now discovery-first: comprehensive search system (live grouped results over tools+categories+journal, ranked relevance, keyboard-first, recents+trending, deep-links into full pages) replaced the email capture; waitlist remains in the daily digest + final CTA.
+   489→- Next candidates: D1/Turso migration (Workers blocker), real routes /tool/{slug} etc. post-sandbox, search ranking upgrades (synonyms/typo tolerance), search analytics (top queries → Admin console).
+   490→
+   491→---
+   492→Task ID: 19
+   493→Agent: main orchestrator (Z.ai Code)
+   494→Task: Feedback round — headline accent → "discovered" (discovery-first positioning); AgentEra section orange → subtle coal background; fixed recurring hydration error (stale dev-server lock)
+   495→
+   496→Work Log:
+   497→- Feedback 1 (h1 accent span "launch." → discovered): updated the ember accent word to carry the discovery moat. Changed hero.tsx default headline to "Where AI products get discovered." (splits as "Where AI products get" + ember "discovered."). CRITICAL: the rendered copy comes from the SiteSetting KV — updated DB rows hero.headline + seo.defaultTitle via a Prisma upsert script (bun from project root; note: prisma client only resolves inside the project dir, not /tmp).
+   498→- Tagline consistency sweep: layout.tsx metadata title/og/twitter ×3 → "Prother — Where AI products get discovered" + discovery-first descriptions; site-footer blurb; /api/rss channel title; /api/og hero card spans ("Where AI products get" / "discovered._") — og verified 200 image/png.
+   499→- Feedback 2 (section.py-24 "BUILT FOR THE LAUNCH ERA" orange): agent-era.tsx redesigned from full bg-ember/text-black block to relative overflow-hidden bg-coal (#141312) with a faint radial ember glow (rgba(255,106,0,0.09→transparent)) overlay; kicker → text-ember/80, list dividers/borders → white/10, numbers → text-ember/70, body text white/60 + white/70; terminal card border-white/10 + ring-white/[0.03]. Ember is now accent-only, matching the ink/coal design language.
+   500→- BUG (recurring "1 Issue" hydration badge): fresh loads still logged "Hydration failed … text didn't match" at h1 (Hero, hero.tsx:82) — server served the stale prerendered "launch." headline while client had "discovered.". Same wedged-SSR pattern as Task 17. Controlled restart: SIGTERM next-server (pid 1185) → port freed, but Next 16 relaunch failed with "Another next dev server is already running (PID 1185)" — a STALE .next/dev/lock; removed .next/dev/ entirely → python3 double-fork daemonize relaunch → 200. Post-restart: h1 correct, ZERO hydration errors in dev.log, dev-overlay badge gone. New operational note for restarts: `rm -rf .next/dev` is required after killing the server (Next 16 lock).
+   501→- QA: eslint on all 6 touched files clean; agent-browser fresh load — headline "Where AI products get / discovered." (ember accent), search still works ("voice" → VoiceLoom ▲18 + MailMuse ▲87), era section bg-coal, mobile 390px no overflow, era + hero screenshots verified; GET / 200; GET /api/og 200.
+   502→Stage Summary:
+   503→- Site positioning now reads discovery-first everywhere: hero h1 accent "discovered.", metadata/OG/RSS/footer taglines aligned, DB-managed copy updated at the source (SiteSetting rows) so admin console stays authoritative.
+   504→- AgentEra section is visually integrated (subtle coal + ember glow) instead of a loud orange block.
+   505→- Recurring hydration badge root-caused and fixed via controlled restart; documented the Next 16 stale dev-lock gotcha (.next/dev must be removed between restarts).
+   506→

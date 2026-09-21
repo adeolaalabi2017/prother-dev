@@ -33,12 +33,14 @@ export type DirectoryRow = {
 };
 
 const PRICING_FILTERS = new Set(["free", "freemium", "paid", "open_source"]);
-const SORTS = new Set(["votes", "new", "trending"]);
+const SORTS = new Set(["votes", "top", "new", "trending"]);
 
 /**
  * GET /api/tools — public directory (PRD F-02/03/05).
  * ?category=&q=&pricing=free|freemium|paid|open_source&tag=
- * &sort=votes|new|trending&window=week|month&limit=1..60
+ * &sort=votes|top|new|trending&window=week|month&limit=1..60
+ * ("top" is an alias of "votes" — same ranking, friendlier name for the
+ * /tools directory's segmented control.)
  * Only status="live" tools with launch.scheduled=false are listed.
  */
 export async function GET(req: Request) {
@@ -50,7 +52,7 @@ export async function GET(req: Request) {
   const pricing = pricingRaw && PRICING_FILTERS.has(pricingRaw) ? pricingRaw : null;
   const tag = sp.get("tag")?.trim() || null;
   const sortRaw = sp.get("sort")?.trim() || "votes";
-  const sort = SORTS.has(sortRaw) ? sortRaw : "votes";
+  const sort = SORTS.has(sortRaw) ? (sortRaw === "top" ? "votes" : sortRaw) : "votes";
   const window: TrendingWindow = sp.get("window") === "month" ? "month" : "week";
   const limitRaw = Number.parseInt(sp.get("limit") ?? "", 10);
   const limit = Number.isFinite(limitRaw) ? Math.min(60, Math.max(1, limitRaw)) : 40;

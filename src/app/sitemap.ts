@@ -3,9 +3,11 @@ import { db } from "@/lib/prother";
 
 /**
  * Auto sitemap (PRD NFR: SEO — auto sitemaps). Metadata route, not a page.
- * Indexes: homepage, live tool deep-links (?tool=slug), published journal
- * posts (?post=slug), and category anchors. Daily tools get honest lastmod
- * dates from their launch day; posts from publishedAt/updatedAt.
+ * Indexes: homepage, the dedicated routes (/tools, /journal, /about,
+ * /submit), live tool deep-links (?tool=slug), published journal posts
+ * (real /journal/[slug] routes + legacy ?post=slug), and category anchors.
+ * Daily tools get honest lastmod dates from their launch day; posts from
+ * publishedAt/updatedAt.
  */
 export const dynamic = "force-dynamic";
 
@@ -27,8 +29,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const statics: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
-    { url: `${base}/#standards`, changeFrequency: "monthly", priority: 0.5 },
-    { url: `${base}/#faq`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${base}/tools`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/journal`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/about`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${base}/submit`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/about#standards`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${base}/about#faq`, changeFrequency: "monthly", priority: 0.4 },
   ];
 
   const toolUrls: MetadataRoute.Sitemap = tools.map((t) => ({
@@ -38,12 +44,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  const postUrls: MetadataRoute.Sitemap = posts.map((p) => ({
-    url: `${base}/?post=${encodeURIComponent(p.slug)}`,
-    lastModified: p.updatedAt,
-    changeFrequency: "monthly",
-    priority: 0.7,
-  }));
+  // Real journal article routes (crawlable) + the legacy ?post= deep link.
+  const postUrls: MetadataRoute.Sitemap = posts.flatMap((p) => [
+    {
+      url: `${base}/journal/${encodeURIComponent(p.slug)}`,
+      lastModified: p.updatedAt,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    },
+    {
+      url: `${base}/?post=${encodeURIComponent(p.slug)}`,
+      lastModified: p.updatedAt,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    },
+  ]);
 
   return [...statics, ...toolUrls, ...postUrls];
 }

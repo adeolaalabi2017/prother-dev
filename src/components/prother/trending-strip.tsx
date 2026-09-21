@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { Flame } from "lucide-react";
 import { useExplorer } from "./explorer-store";
 import { cn } from "@/lib/utils";
 
@@ -74,8 +75,9 @@ export function TrendingStrip() {
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.55, ease: "easeOut" }}
           >
-            <p className="font-mono text-[10px] tracking-[0.25em] text-white/40 uppercase">
-              🔥 Trending
+            <p className="inline-flex items-center font-mono text-[10px] tracking-[0.25em] text-white/40 uppercase">
+              <Flame className="mr-1.5 size-3.5 text-ember" aria-hidden />
+              Trending
             </p>
             <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
               On the rise.
