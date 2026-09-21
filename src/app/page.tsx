@@ -87,9 +87,9 @@ export async function generateMetadata({
       return {
         title,
         description,
-        // Indexable state until /tools/[slug] ships (Task 25): self-canonical
-        // keeps ?tool= URLs distinct instead of folding into the homepage.
-        alternates: { canonical: `/?tool=${encodeURIComponent(toolSlug)}` },
+        // /tools/[slug] shipped (Task 25) — fold the legacy ?tool= deep link
+        // into the real tool page's canonical URL.
+        alternates: { canonical: `/tools/${encodeURIComponent(toolSlug)}` },
         openGraph: {
           title,
           description,
@@ -163,7 +163,8 @@ export async function generateMetadata({
       return {
         title,
         description,
-        alternates: { canonical: `/?category=${encodeURIComponent(categorySlug)}` },
+        // Categories live at their real /categories/[slug] routes (Task 25).
+        alternates: { canonical: `/categories/${encodeURIComponent(categorySlug)}` },
       };
     }
     return {};
@@ -209,14 +210,21 @@ export async function generateMetadata({
 
   // Default (incl. pure-UI overlays like ?saved=mine): fold query variants
   // into the clean homepage URL so crawlers never index duplicate shells.
-  return { alternates: { canonical: "/" } };
+  // NOTE: page-level alternates REPLACE the layout's (shallow merge), so the
+  // default homepage branch re-advertises the main RSS feed itself.
+  return {
+    alternates: {
+      canonical: "/",
+      types: { "application/rss+xml": "/api/rss" },
+    },
+  };
 }
 
 /** pb-16 clears the feed's mobile sticky submit bar (fixed, md:hidden). */
 export default function Page() {
   // Homepage entity graph: WebSite + Organization (brand identity for the
-  // knowledge panel). No SearchAction yet — /tools does not render ?q=
-  // server-side; add it with the SERP route rather than fake it.
+  // knowledge panel). The SearchAction is honest since Task 25: /tools?q=…
+  // renders scored results server-side.
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
   const jsonLd = {
     "@context": "https://schema.org",
@@ -230,6 +238,14 @@ export default function Page() {
           "Discover every new AI tool the day it launches — a fresh batch of AI products daily, ranked by the community.",
         publisher: { "@id": `${base}/#organization` },
         inLanguage: "en",
+        potentialAction: {
+          "@type": "SearchAction",
+          target: {
+            "@type": "EntryPoint",
+            urlTemplate: `${base}/tools?q={search_term_string}`,
+          },
+          "query-input": "required name=search_term_string",
+        },
       },
       {
         "@type": "Organization",

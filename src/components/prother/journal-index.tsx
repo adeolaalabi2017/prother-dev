@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowUpRight, CalendarDays, Clock3, Feather, Rss } from "lucide-react";
@@ -34,7 +34,14 @@ function dateLabel(iso: string | null): string {
   });
 }
 
-export function JournalIndex({ initialPosts }: { initialPosts: JournalCard[] }) {
+export function JournalIndex({
+  initialPosts,
+  breadcrumbs,
+}: {
+  initialPosts: JournalCard[];
+  /** Server-rendered slot (Breadcrumbs) — mounted inside the container, above the H1. */
+  breadcrumbs?: ReactNode;
+}) {
   const [active, setActive] = useState<string>("all");
 
   const categories = useMemo(() => {
@@ -50,6 +57,7 @@ export function JournalIndex({ initialPosts }: { initialPosts: JournalCard[] }) 
   return (
     <section className="bg-ink py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {breadcrumbs && <div className="mb-8">{breadcrumbs}</div>}
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>

@@ -3,19 +3,13 @@
 import { useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { SavedFullPage } from "./saved-full-page";
 
 /**
  * Floating back-to-top button — appears after the first viewport of scrolling.
  *
- * TEMP (Task 23-c): also mounts <SavedFullPage /> because the long-running
- * `next dev` has the ROOT LAYOUT module graph pinned (child files hot-apply;
- * layout.tsx's own compiled output does not — documented stale-dev gotcha).
- * layout.tsx on disk already mounts the Saved overlay in the deep-link stack;
- * until the orchestrator's next controlled restart this temporary mount keeps
- * ?saved=mine alive. saved-full-page.tsx enforces a single live instance, so
- * the duplicate is harmless before AND after that restart. Orchestrator:
- * remove this line after the restart.
+ * (Task 25): the TEMP <SavedFullPage /> mount from Task 23-c was removed after
+ * the controlled dev-server restart — layout.tsx (its permanent home) now
+ * serves freshly and mounts the Saved overlay in the deep-link stack.
  */
 export function BackToTop() {
   const [visible, setVisible] = useState(false);
@@ -29,7 +23,6 @@ export function BackToTop() {
 
   return (
     <>
-      <SavedFullPage />
       <AnimatePresence>
         {visible && (
           <motion.button

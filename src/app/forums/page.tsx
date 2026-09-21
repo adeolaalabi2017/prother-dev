@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ForumIndex } from "@/components/prother/forum-index";
 import { forumListPayload } from "@/lib/forum";
+import { Breadcrumbs } from "@/lib/breadcrumbs";
+import { siteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +42,7 @@ export default async function ForumsPage() {
 
   // ItemList over the SSR'd hot threads — gives crawlers thread discovery
   // straight from the index page (thread pages carry DiscussionForumPosting).
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
+  const base = siteUrl();
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -59,7 +61,10 @@ export default async function ForumsPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ForumIndex initial={initial} />
+      <ForumIndex
+        initial={initial}
+        breadcrumbs={<Breadcrumbs trail={[{ name: "Home", href: "/" }, { name: "Forums" }]} />}
+      />
     </div>
   );
 }

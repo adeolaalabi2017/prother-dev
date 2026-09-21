@@ -1,21 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ArrowUpRight, Compass, Search, SearchX, Triangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
-import { useExplorer } from "./explorer-store";
 import type { DirectoryRow } from "@/app/api/tools/route";
 
 /**
  * /tools — the open discovery directory. Search + category chips + sort,
- * all client-side against GET /api/tools. Cards open the shared tool
- * full-page overlay (mounted in the layout) — URL becomes /tools?tool=slug.
+ * all client-side against GET /api/tools. Cards are real links to the
+ * server-rendered /tools/[slug] pages (Task 25) — the overlay stays a
+ * homepage-feed-only enhancement.
+ *
+ * The page can bootstrap this component with the first page of live tools
+ * (`initialRows`/`initialTotal`, rendered by /tools) so the HTML carries real
+ * content before any client fetch; on top of the SERP (`?q=`) it renders with
+ * `hideHeader` (the SERP header owns the page's H1) and `initialQuery` so the
+ * toolbar mirrors the searched query.
  */
 
 type Sort = "top" | "new";
 
 const PAGE_LIMIT = 60;
+
+export type ToolsDirectoryProps = {
+  /** SSR'd first page (directory default ordering) — skips the boot fetch. */
+  initialRows?: DirectoryRow[];
+  initialTotal?: number;
+  /** Hide the big hero/head block (used on the ?q= SERP). */
+  hideHeader?: boolean;
+  /** Query the page already rendered results for (mirrored into the input). */
+  initialQuery?: string;
+};
 
 function pricingLabel(row: DirectoryRow): string {
   const { model, price } = row.pricing;
@@ -42,21 +59,47 @@ function launchLabel(row: DirectoryRow): string {
   });
 }
 
-export function ToolsDirectory() {
-  const [query, setQuery] = useState("");
+export function ToolsDirectory({
+  initialRows,
+  initialTotal,
+  hideHeader = false,
+  initialQuery,
+}: ToolsDirectoryProps) {
+  // Hydration-safe: the server rendered the same value via the initialQuery
+  // prop when a query is in the URL; the window fallback covers mounts
+  // without the prop (both read the same ?q=, so server/client agree).
+  const [query, setQuery] = useState(
+    () =>
+      initialQuery ??
+      (typeof window === "undefined"
+        ? ""
+        : (new URLSearchParams(window.location.search).get("q") ?? "")
+            .trim()
+            .slice(0, 64))
+  );
   const [category, setCategory] = useState<string>("all");
   const [sort, setSort] = useState<Sort>("top");
-  const [rows, setRows] = useState<DirectoryRow[] | null>(null);
-  const [total, setTotal] = useState(0);
+  const [rows, setRows] = useState<DirectoryRow[] | null>(initialRows ?? null);
+  const [total, setTotal] = useState(initialTotal ?? 0);
   const [failed, setFailed] = useState(false);
 
-  const openTool = useExplorer((s) => s.openTool);
+  // Boot guard: while the visitor hasn't touched a filter, the SSR'd rows
+  // stand — no redundant mount fetch. Handlers flip this before the effect runs.
+  const interactedRef = useRef(false);
 
   // Debounced directory fetch (250ms) — results land in async continuations.
+  // The query is mirrored into the URL (replaceState) alongside the fetch so
+  // /tools?q=… stays shareable without a navigation.
   useEffect(() => {
+    if (!interactedRef.current && initialRows) return;
     const q = query.trim();
     const ctrl = new AbortController();
     const t = window.setTimeout(() => {
+      window.history.replaceState(
+        null,
+        "",
+        q ? `/tools?q=${encodeURIComponent(q)}` : "/tools"
+      );
       const sp = new URLSearchParams({ sort, limit: String(PAGE_LIMIT) });
       if (q) sp.set("q", q);
       if (category !== "all") sp.set("category", category);
@@ -80,7 +123,7 @@ export function ToolsDirectory() {
       ctrl.abort();
       window.clearTimeout(t);
     };
-  }, [query, category, sort]);
+  }, [query, category, sort, initialRows]);
 
   const activeCat = useMemo(
     () => CATEGORIES.find((c) => c.slug === category) ?? null,
@@ -91,12 +134,14 @@ export function ToolsDirectory() {
   const count = rows?.length ?? 0;
 
   const clearFilters = useCallback(() => {
+    interactedRef.current = true;
     setQuery("");
     setCategory("all");
   }, []);
 
   const openCategoryInDirectory = useCallback(
     (slug: string) => {
+      interactedRef.current = true;
       setCategory(slug);
     },
     []
@@ -105,21 +150,23 @@ export function ToolsDirectory() {
   return (
     <section className="bg-ink">
       {/* Page head */}
-      <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
-        <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
-          <Compass className="size-3.5" aria-hidden />
-          The directory
-        </p>
-        <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
-          Every AI tool.
-          <br />
-          One shelf.
-        </h1>
-        <p className="mt-4 max-w-xl text-lg text-white/60">
-          Search the full archive of launches — ranked by community votes or
-          newest first. Free, open, no account needed.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
+          <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
+            <Compass className="size-3.5" aria-hidden />
+            The directory
+          </p>
+          <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
+            Every AI tool.
+            <br />
+            One shelf.
+          </h1>
+          <p className="mt-4 max-w-xl text-lg text-white/60">
+            Search the full archive of launches — ranked by community votes or
+            newest first. Free, open, no account needed.
+          </p>
+        </div>
+      )}
 
       {/* Sticky toolbar */}
       <div className="sticky top-16 z-30 mt-8 border-y border-white/10 bg-ink/90 backdrop-blur-md">
@@ -136,7 +183,10 @@ export function ToolsDirectory() {
                 role="searchbox"
                 aria-label="Search tools by name or tagline"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  interactedRef.current = true;
+                  setQuery(e.target.value);
+                }}
                 placeholder="Search tools…"
                 autoComplete="off"
                 spellCheck={false}
@@ -145,7 +195,10 @@ export function ToolsDirectory() {
               {query && (
                 <button
                   type="button"
-                  onClick={() => setQuery("")}
+                  onClick={() => {
+                    interactedRef.current = true;
+                    setQuery("");
+                  }}
                   aria-label="Clear search"
                   className="absolute right-2.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-white/40 transition-colors hover:text-ember"
                 >
@@ -169,7 +222,10 @@ export function ToolsDirectory() {
                 <button
                   key={s.key}
                   type="button"
-                  onClick={() => setSort(s.key)}
+                  onClick={() => {
+                    interactedRef.current = true;
+                    setSort(s.key);
+                  }}
                   aria-pressed={sort === s.key}
                   className={cn(
                     "rounded-md px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
@@ -188,7 +244,7 @@ export function ToolsDirectory() {
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
-              onClick={() => setCategory("all")}
+              onClick={() => openCategoryInDirectory("all")}
               aria-pressed={category === "all"}
               className={cn(
                 "shrink-0 rounded-full border px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-all active:scale-95",
@@ -285,10 +341,9 @@ export function ToolsDirectory() {
         {!loading && !failed && count > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {rows!.map((row) => (
-              <button
+              <Link
                 key={row.slug}
-                type="button"
-                onClick={() => openTool(row.slug)}
+                href={`/tools/${row.slug}`}
                 aria-label={`${row.name} — ${row.tagline}. Open full listing.`}
                 className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
               >
@@ -330,7 +385,7 @@ export function ToolsDirectory() {
                     />
                   </span>
                 </div>
-              </button>
+              </Link>
             ))}
           </div>
         )}

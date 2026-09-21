@@ -74,7 +74,7 @@ ${items}
   });
 }
 
-/** Journal (blog) RSS feed — /api/rss?kind=journal. */
+/** Journal (blog) RSS feed — /api/rss?kind=journal. Items link to the real /journal/[slug] routes. */
 async function journalFeed(req: Request) {
   const posts = await db.post.findMany({
     where: { status: "published" },
@@ -86,7 +86,8 @@ async function journalFeed(req: Request) {
 
   const items = posts
     .map((p) => {
-      const link = `${origin}/?post=${encodeURIComponent(p.slug)}`;
+      // Real article route — the legacy /?post= overlay canonicalizes here.
+      const link = `${origin}/journal/${encodeURIComponent(p.slug)}`;
       return `    <item>
       <title>${esc(p.title)}</title>
       <link>${esc(link)}</link>

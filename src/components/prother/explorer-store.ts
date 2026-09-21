@@ -92,9 +92,9 @@ export type OpenOpts = {
   replace?: boolean;
 };
 
-/** Canonical share URL for a tool (?tool=<slug>). */
+/** Canonical share URL for a tool (real /tools/[slug] route — Task 25). */
 export function toolShareUrl(slug: string): string {
-  return `/?tool=${encodeURIComponent(slug)}`;
+  return `/tools/${encodeURIComponent(slug)}`;
 }
 
 /** Legacy hash helpers kept for back-compat with older shared links. */

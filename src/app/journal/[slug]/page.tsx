@@ -6,6 +6,7 @@ import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { renderMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
+import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { PostViewPing } from "@/components/prother/post-view-ping";
 
 export const dynamic = "force-dynamic";
@@ -94,6 +95,17 @@ export default async function JournalArticlePage({ params }: Params) {
       <PostViewPing slug={post.slug} />
 
       <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
+        {/* breadcrumbs — visible nav + BreadcrumbList JSON-LD, above the H1 */}
+        <div className="mb-6">
+          <Breadcrumbs
+            trail={[
+              { name: "Home", href: "/" },
+              { name: "Journal", href: "/journal" },
+              { name: post.title },
+            ]}
+          />
+        </div>
+
         {/* back */}
         <Link
           href="/journal"

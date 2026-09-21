@@ -5,6 +5,7 @@ import { ArrowLeft, Pin, ShieldX } from "lucide-react";
 import { getForumThreadDetail, isForumThreadHidden } from "@/lib/forum";
 import { clamp } from "@/lib/og";
 import { FORUM_TOPIC_LABELS } from "@/lib/forum-topics";
+import { Breadcrumbs } from "@/lib/breadcrumbs";
 import {
   ForumThreadActions,
   ForumTime,
@@ -126,6 +127,18 @@ export default async function ForumThreadPage({ params }: Params) {
       />
 
       <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
+        {/* breadcrumbs — visible nav + BreadcrumbList JSON-LD, above the H1.
+            Deliberately NOT rendered on the "removed by moderators" branch. */}
+        <div className="mb-6">
+          <Breadcrumbs
+            trail={[
+              { name: "Home", href: "/" },
+              { name: "Forums", href: "/forums" },
+              { name: thread.title },
+            ]}
+          />
+        </div>
+
         {/* back */}
         <Link
           href="/forums"

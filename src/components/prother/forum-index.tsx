@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -74,7 +74,14 @@ const TOPIC_HINTS: Record<TopicFilter, string> = {
   introduce: "Say hi — what you worked on before, what you are building now.",
 };
 
-export function ForumIndex({ initial }: { initial: ForumListResponse }) {
+export function ForumIndex({
+  initial,
+  breadcrumbs,
+}: {
+  initial: ForumListResponse;
+  /** Server-rendered slot (Breadcrumbs) — mounted inside the container, above the H1. */
+  breadcrumbs?: ReactNode;
+}) {
   const [topic, setTopic] = useState<TopicFilter>("all");
   const [sort, setSort] = useState<ForumSort>("hot");
   const [data, setData] = useState<ForumListResponse>(initial);
@@ -154,6 +161,7 @@ export function ForumIndex({ initial }: { initial: ForumListResponse }) {
   return (
     <section className="py-14 sm:py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {breadcrumbs && <div className="mb-8">{breadcrumbs}</div>}
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>

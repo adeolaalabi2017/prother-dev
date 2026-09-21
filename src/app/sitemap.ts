@@ -4,22 +4,24 @@ import { db } from "@/lib/prother";
 /**
  * Auto sitemap (PRD NFR: SEO — auto sitemaps). Metadata route, not a page.
  * Indexes: homepage, the dedicated routes (/tools, /forums, /journal, /about,
- * /submit, /advertise), live tool deep-links (?tool=slug), published journal
- * posts (real /journal/[slug] routes + legacy ?post=slug), forum threads,
- * and category anchors. Daily tools get honest lastmod dates from their
- * launch day; posts from publishedAt/updatedAt.
+ * /submit, /advertise), live tool deep-links (/tools/[slug] — Task 25),
+ * category pages (/categories/[slug]), published journal posts (real
+ * /journal/[slug] routes + legacy ?post=slug), and forum threads. Daily
+ * tools get honest lastmod dates from their launch day; posts from
+ * publishedAt/updatedAt.
  */
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
 
-  const [tools, posts] = await Promise.all([
+  const [tools, categories, posts] = await Promise.all([
     db.tool.findMany({
       where: { status: "live" },
       select: { slug: true, createdAt: true, launch: { select: { launchDate: true } } },
       take: 5000,
     }),
+    db.category.findMany({ select: { slug: true } }),
     db.post.findMany({
       where: { status: "published" },
       select: { slug: true, updatedAt: true, publishedAt: true },
@@ -39,11 +41,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/about#faq`, changeFrequency: "monthly", priority: 0.4 },
   ];
 
+  // Tools live at their real /tools/[slug] routes (Task 25) — the /?tool=
+  // overlay serves homepage HTML and canonicalizes there.
   const toolUrls: MetadataRoute.Sitemap = tools.map((t) => ({
-    url: `${base}/?tool=${encodeURIComponent(t.slug)}`,
+    url: `${base}/tools/${encodeURIComponent(t.slug)}`,
     lastModified: t.launch?.launchDate ?? t.createdAt,
     changeFrequency: "weekly",
     priority: 0.8,
+  }));
+
+  // Category browse pages (/categories/[slug] — Task 25).
+  const categoryUrls: MetadataRoute.Sitemap = categories.map((c) => ({
+    url: `${base}/categories/${encodeURIComponent(c.slug)}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
   }));
 
   // Journal articles live at their real /journal/[slug] routes — the
@@ -77,5 +88,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     forumUrls = [];
   }
 
-  return [...statics, ...toolUrls, ...postUrls, ...forumUrls];
+  return [...statics, ...toolUrls, ...categoryUrls, ...postUrls, ...forumUrls];
 }

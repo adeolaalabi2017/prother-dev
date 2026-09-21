@@ -228,9 +228,9 @@ function FeedRowItem({
           <h3 className="text-lg font-bold text-white">
             {/* Crawlable anchor with the tool name as anchor text. JS users
                 still get the overlay (preventDefault → openTool); crawlers
-                and middle-click get the deep-link URL. */}
+                and middle-click get the clean /tools/<slug> URL. */}
             <a
-              href={`/?tool=${encodeURIComponent(row.slug)}`}
+              href={`/tools/${encodeURIComponent(row.slug)}`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -324,9 +324,14 @@ function TeaserRow({
 }) {
   const openTool = useExplorer((s) => s.openTool);
   return (
-    <article
+    <a
       key={slug}
-      onClick={() => openTool(slug)}
+      href={`/tools/${encodeURIComponent(slug)}`}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        openTool(slug);
+      }}
       className="flex cursor-pointer items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-ember/40 hover:bg-white/5"
     >
       <Logo emoji={emoji} gradient={gradient} size="md" />
@@ -337,16 +342,20 @@ function TeaserRow({
       <span className="shrink-0 font-mono text-xs whitespace-nowrap text-ember">
         GOES LIVE IN {goesLiveInH}H
       </span>
-    </article>
+    </a>
   );
 }
 
 function TopWeekItem({ row, rank }: { row: TopWeekRow; rank: number }) {
   const openTool = useExplorer((s) => s.openTool);
   return (
-    <button
-      type="button"
-      onClick={() => openTool(row.slug)}
+    <a
+      href={`/tools/${encodeURIComponent(row.slug)}`}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        openTool(row.slug);
+      }}
       className="flex w-full items-center gap-3 py-2.5 text-left transition-colors first:pt-0 last:pb-0 hover:[&_span[data-name]]:text-ember"
     >
       <span className="w-5 font-mono text-sm text-white/40" aria-hidden>
@@ -357,7 +366,7 @@ function TopWeekItem({ row, rank }: { row: TopWeekRow; rank: number }) {
         {row.name}
       </span>
       <span className="font-mono text-sm text-ember">▲{row.votes}</span>
-    </button>
+    </a>
   );
 }
 
@@ -789,9 +798,13 @@ export function LaunchFeed() {
             {feed?.editorsPick && (
               <div className="rounded-2xl border border-ember/30 bg-ember/[0.06] p-5">
                 <h3 className="font-mono text-xs tracking-widest text-ember">EDITOR&apos;S PICK</h3>
-                <button
-                  type="button"
-                  onClick={() => openTool(feed.editorsPick!.slug)}
+                <a
+                  href={`/tools/${encodeURIComponent(feed.editorsPick!.slug)}`}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    e.preventDefault();
+                    openTool(feed.editorsPick!.slug);
+                  }}
                   className="mt-3 flex w-full items-center gap-3 text-left"
                 >
                   <Logo
@@ -803,7 +816,7 @@ export function LaunchFeed() {
                     <p className="font-bold text-white">{feed.editorsPick.name}</p>
                     <p className="truncate text-sm text-white/60">{feed.editorsPick.tagline}</p>
                   </div>
-                </button>
+                </a>
                 <a
                   href="/about#standards"
                   className="mt-3 inline-block font-mono text-xs text-ember hover:underline"

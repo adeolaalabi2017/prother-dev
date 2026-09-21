@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 import { JournalIndex } from "@/components/prother/journal-index";
 import { db } from "@/lib/prother";
+import { Breadcrumbs } from "@/lib/breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  alternates: { canonical: "/journal" },
+  // One merged `alternates` — a second literal key would silently drop the
+  // first (and the canonical with it).
+  alternates: {
+    canonical: "/journal",
+    // Journal RSS autodiscovery — /api/rss supports ?kind=journal (see
+    // src/app/api/rss/route.ts). The main launches feed is advertised in
+    // layout.tsx metadata.
+    types: { "application/rss+xml": "/api/rss?kind=journal" },
+  },
   title: "The Journal — Prother",
   description:
     "Launch playbooks, ranking explainers, and weekly ecosystem data from Prother — written by the people who watch every AI launch cross the feed.",
@@ -30,9 +39,6 @@ export const metadata: Metadata = {
     description:
       "Launch playbooks, ranking explainers, and weekly ecosystem data from Prother.",
     images: ["/api/og"],
-  },
-  alternates: {
-    types: { "application/rss+xml": "/api/rss?kind=journal" },
   },
 };
 
@@ -85,7 +91,10 @@ export default async function JournalPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }}
       />
-      <JournalIndex initialPosts={cards} />
+      <JournalIndex
+        initialPosts={cards}
+        breadcrumbs={<Breadcrumbs trail={[{ name: "Home", href: "/" }, { name: "Journal" }]} />}
+      />
     </div>
   );
 }

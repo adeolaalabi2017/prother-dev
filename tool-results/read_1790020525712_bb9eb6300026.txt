@@ -1,0 +1,2002 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+     4→import { useSession } from "next-auth/react";
+     5→import { motion } from "framer-motion";
+     6→import {
+     7→  ArrowUpRight,
+     8→  Bookmark,
+     9→  BookmarkCheck,
+    10→  Check,
+    11→  ChevronDown,
+    12→  CircleDashed,
+    13→  Clock,
+    14→  Copy,
+    15→  Flag,
+    16→  Heart,
+    17→  Link2,
+    18→  Loader2,
+    19→  MessageSquare,
+    20→  Plus,
+    21→  Scale,
+    22→  Send,
+    23→  ShieldCheck,
+    24→  Star,
+    25→  Triangle,
+    26→} from "lucide-react";
+    27→import { Button } from "@/components/ui/button";
+    28→import { Input } from "@/components/ui/input";
+    29→import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+    30→import { Skeleton } from "@/components/ui/skeleton";
+    31→import { Textarea } from "@/components/ui/textarea";
+    32→import {
+    33→  Collapsible,
+    34→  CollapsibleContent,
+    35→  CollapsibleTrigger,
+    36→} from "@/components/ui/collapsible";
+    37→import { useToast } from "@/hooks/use-toast";
+    38→import { cn } from "@/lib/utils";
+    39→import type { ToolDetailResponse } from "@/lib/prother";
+    40→import type { CommentRow } from "@/lib/discussion";
+    41→import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
+    42→import { useExplorer } from "./explorer-store";
+    43→import { getVoterKey } from "./voter";
+    44→import { useBookmark } from "./use-bookmarks";
+    45→import { ReportDialog } from "./report-dialog";
+    46→
+    47→// ── Types (additive fields per the tool-detail API contract) ─────────────
+    48→
+    49→type ReviewsAggregate = {
+    50→  count: number;
+    51→  ease: number;
+    52→  power: number;
+    53→  value: number;
+    54→  overall: number;
+    55→};
+    56→
+    57→type RelaunchEvent = {
+    58→  version: string;
+    59→  note: string | null;
+    60→  launchedAt: string;
+    61→  totalVotes: number;
+    62→};
+    63→
+    64→type ToolViewer = {
+    65→  isMaker: boolean;
+    66→  following: boolean;
+    67→  canRelaunch: boolean;
+    68→  nextEligibleAt: string | null;
+    69→  claim: null | {
+    70→    id: string;
+    71→    status: string;
+    72→    method: string;
+    73→    token: string;
+    74→    note: string | null;
+    75→    createdAt: string;
+    76→    verifiedAt: string | null;
+    77→  };
+    78→  myReview: null | { id: string; ease: number; power: number; value: number; body: string; status: string };
+    79→  savedIn: { slug: string; name: string }[];
+    80→};
+    81→
+    82→type ToolFullDetail = ToolDetailResponse & {
+    83→  reviews?: { count: number; aggregate: ReviewsAggregate | null };
+    84→  launchHistory?: RelaunchEvent[];
+    85→  relaunchCount?: number;
+    86→  relaunchNote?: string | null;
+    87→  originalLaunchDate?: string | null;
+    88→  viewer?: ToolViewer | null;
+    89→};
+    90→
+    91→type ReviewRow = {
+    92→  id: string;
+    93→  author: string;
+    94→  ease: number;
+    95→  power: number;
+    96→  value: number;
+    97→  body: string;
+    98→  status: string;
+    99→  createdAt: string;
+   100→  mine: boolean;
+   101→};
+   102→
+   103→type ReviewsResponse = {
+   104→  count: number;
+   105→  aggregate: ReviewsAggregate | null;
+   106→  reviews: ReviewRow[];
+   107→  /** My review (object) or null — defensively guarded below. */
+   108→  mine?: unknown;
+   109→  canReview: boolean;
+   110→  reason: null | "auth" | "maker" | "scheduled";
+   111→};
+   112→
+   113→type CollectionRow = {
+   114→  id: string;
+   115→  slug: string;
+   116→  name: string;
+   117→  description: string | null;
+   118→  isPublic: boolean;
+   119→  itemCount: number;
+   120→  covers: string[];
+   121→};
+   122→
+   123→// ── Shared bits ───────────────────────────────────────────────────────────
+   124→
+   125→const MONO = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+   126→const PANEL = "rounded-xl border border-white/10 bg-white/[0.02]";
+   127→
+   128→const PRICING_LABEL: Record<string, string> = {
+   129→  free: "Free",
+   130→  freemium: "Freemium",
+   131→  paid: "Paid",
+   132→  open_source: "Open Source",
+   133→};
+   134→
+   135→function fmtDate(iso: string | null): string {
+   136→  if (!iso) return "—";
+   137→  return new Date(iso).toLocaleDateString("en-US", {
+   138→    month: "short",
+   139→    day: "numeric",
+   140→    year: "numeric",
+   141→    timeZone: "UTC",
+   142→  });
+   143→}
+   144→
+   145→function fmtDay(iso: string | null): string {
+   146→  if (!iso) return "—";
+   147→  return new Date(iso).toLocaleDateString("en-US", {
+   148→    month: "short",
+   149→    day: "numeric",
+   150→    timeZone: "UTC",
+   151→  });
+   152→}
+   153→
+   154→function relTime(iso: string): string {
+   155→  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+   156→  if (s < 60) return "just now";
+   157→  const m = Math.floor(s / 60);
+   158→  if (m < 60) return `${m}m ago`;
+   159→  const h = Math.floor(m / 60);
+   160→  if (h < 24) return `${h}h ago`;
+   161→  return `${Math.floor(h / 24)}d ago`;
+   162→}
+   163→
+   164→/** Re-open the auth modal from anywhere (wired by the site header). */
+   165→function openAuth(): void {
+   166→  window.dispatchEvent(new CustomEvent("prother:auth-open"));
+   167→}
+   168→
+   169→function Stars({ value, size = 3.5 }: { value: number; size?: number }) {
+   170→  return (
+   171→    <span
+   172→      className="inline-flex items-center gap-0.5"
+   173→      role="img"
+   174→      aria-label={`${value.toFixed(1)} out of 5 stars`}
+   175→    >
+   176→      {[1, 2, 3, 4, 5].map((i) => (
+   177→        <Star
+   178→          key={i}
+   179→          aria-hidden
+   180→          style={{ width: size * 4, height: size * 4 }}
+   181→          className={cn(
+   182→            i <= Math.round(value) ? "fill-ember text-ember" : "text-white/25"
+   183→          )}
+   184→        />
+   185→      ))}
+   186→    </span>
+   187→  );
+   188→}
+   189→
+   190→function SectionHead({
+   191→  children,
+   192→  right,
+   193→}: {
+   194→  children: React.ReactNode;
+   195→  right?: React.ReactNode;
+   196→}) {
+   197→  return (
+   198→    <div className="flex flex-wrap items-center justify-between gap-2">
+   199→      <h2 className={MONO}>{children}</h2>
+   200→      {right}
+   201→    </div>
+   202→  );
+   203→}
+   204→
+   205→// ── Facts rail ────────────────────────────────────────────────────────────
+   206→
+   207→function Fact({
+   208→  label,
+   209→  children,
+   210→}: {
+   211→  label: string;
+   212→  children: React.ReactNode;
+   213→}) {
+   214→  return (
+   215→    <div className="min-w-0 lg:border-b lg:border-white/10 lg:py-3 lg:first:pt-0 lg:last:border-0">
+   216→      <dt className={MONO}>{label}</dt>
+   217→      <dd className="mt-1 text-sm leading-snug text-white/85">{children}</dd>
+   218→    </div>
+   219→  );
+   220→}
+   221→
+   222→function FactsRail({ detail }: { detail: ToolFullDetail }) {
+   223→  const openCategory = useExplorer((s) => s.openCategory);
+   224→  const claimVerifiedAt = detail.viewer?.claim?.verifiedAt ?? null;
+   225→  const verifiedDays =
+   226→    claimVerifiedAt !== null
+   227→      ? Math.max(
+   228→          1,
+   229→          Math.floor((Date.now() - new Date(claimVerifiedAt).getTime()) / 86_400_000)
+   230→        )
+   231→      : null;
+   232→  const verified =
+   233→    claimVerifiedAt !== null && verifiedDays !== null
+   234→      ? { label: `VERIFIED ${verifiedDays}D AGO ✓`, ok: true }
+   235→      : detail.verified
+   236→        ? { label: "VERIFIED ✓", ok: true }
+   237→        : { label: "UNVERIFIED", ok: false };
+   238→  const relaunches = detail.relaunchCount ?? detail.launchHistory?.length ?? 0;
+   239→
+   240→  return (
+   241→    <aside aria-label="Key facts" className="lg:sticky lg:top-20 lg:self-start">
+   242→      <dl className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-1 lg:gap-y-0">
+   243→        <Fact label="Launched">
+   244→          {detail.scheduled ? (
+   245→            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-ember">
+   246→              <Clock className="size-3.5" aria-hidden />
+   247→              TOMORROW — TEASER
+   248→            </span>
+   249→          ) : (
+   250→            fmtDay(detail.launchDate)
+   251→          )}
+   252→        </Fact>
+   253→        <Fact label="Pricing">
+   254→          <span className="font-semibold text-white">
+   255→            {PRICING_LABEL[detail.pricing.model] ?? "Free"}
+   256→          </span>
+   257→          {detail.pricing.price && (
+   258→            <span className="ml-1.5 font-mono text-xs text-ember">
+   259→              {detail.pricing.price}
+   260→            </span>
+   261→          )}
+   262→          {detail.pricing.note && (
+   263→            <span className="mt-0.5 block text-xs text-white/45">
+   264→              {detail.pricing.note}
+   265→            </span>
+   266→          )}
+   267→        </Fact>
+   268→        <Fact label="API">
+   269→          {detail.badges.hasApi ? (
+   270→            <span className="text-mint">✓ AVAILABLE</span>
+   271→          ) : (
+   272→            <span className="text-white/35">✗ NONE</span>
+   273→          )}
+   274→        </Fact>
+   275→        <Fact label="Verified">
+   276→          <span className={verified.ok ? "text-mint" : "text-white/35"}>
+   277→            {verified.label}
+   278→          </span>
+   279→        </Fact>
+   280→        <Fact label="Category">
+   281→          <button
+   282→            type="button"
+   283→            onClick={() => openCategory(detail.category.slug)}
+   284→            aria-label={`Browse the ${detail.category.name} category`}
+   285→            className="text-left transition-colors hover:text-ember"
+   286→          >
+   287→            {detail.category.emoji} {detail.category.name}
+   288→          </button>
+   289→        </Fact>
+   290→        <Fact label="Maker">
+   291→          <span className="text-ember">{detail.maker}</span>
+   292→        </Fact>
+   293→        <Fact label="Relaunches">
+   294→          {relaunches}
+   295→          {detail.relaunchNote && (
+   296→            <span className="mt-0.5 block text-xs text-white/45">
+   297→              {detail.relaunchNote}
+   298→            </span>
+   299→          )}
+   300→        </Fact>
+   301→      </dl>
+   302→    </aside>
+   303→  );
+   304→}
+   305→
+   306→// ── Claim panel (PRD F-30) ────────────────────────────────────────────────
+   307→
+   308→type StartedClaim = {
+   309→  id: string;
+   310→  status: string;
+   311→  token: string;
+   312→  note: string | null;
+   313→  verifiedAt?: string | null;
+   314→};
+   315→
+   316→const DEFAULT_CLAIM_STEPS = [
+   317→  "Add the meta tag below to your site's <head> section.",
+   318→  "Deploy or save the change so the tag is live on your homepage.",
+   319→  "Hit VERIFY NOW — we fetch your page and look for the tag.",
+   320→];
+   321→
+   322→function ClaimPanel({
+   323→  slug,
+   324→  maker,
+   325→  claim,
+   326→  sessionStatus,
+   327→  onRefresh,
+   328→}: {
+   329→  slug: string;
+   330→  maker: string;
+   331→  claim: StartedClaim | null;
+   332→  sessionStatus: "loading" | "authenticated" | "unauthenticated";
+   333→  onRefresh: () => void;
+   334→}) {
+   335→  const { toast } = useToast();
+   336→  const [starting, setStarting] = useState(false);
+   337→  const [verifying, setVerifying] = useState(false);
+   338→  const [copied, setCopied] = useState(false);
+   339→  const [failReason, setFailReason] = useState<string | null>(null);
+   340→  const claimRef = useRef(claim);
+   341→  claimRef.current = claim;
+   342→
+   343→  const metaTag = claim
+   344→    ? `<meta name="prother-verify" content="${claim.token}" />`
+   345→    : "";
+   346→
+   347→  const startClaim = useCallback(async () => {
+   348→    setStarting(true);
+   349→    setFailReason(null);
+   350→    try {
+   351→      const res = await fetch("/api/claims", {
+   352→        method: "POST",
+   353→        headers: { "Content-Type": "application/json" },
+   354→        body: JSON.stringify({ toolSlug: slug }),
+   355→      });
+   356→      const data = (await res.json().catch(() => ({}))) as {
+   357→        claim?: StartedClaim;
+   358→        verified?: boolean;
+   359→        error?: string;
+   360→      };
+   361→      if (res.status === 409) {
+   362→        toast({ title: "This listing is already claimed." });
+   363→        onRefresh();
+   364→        return;
+   365→      }
+   366→      if (!res.ok || !data.claim) {
+   367→        toast({
+   368→          title: "Could not start the claim",
+   369→          description: data.error ?? "Please try again.",
+   370→          variant: "destructive",
+   371→        });
+   372→        return;
+   373→      }
+   374→      toast({ title: "Claim started — add the meta tag to your site." });
+   375→      onRefresh();
+   376→    } catch {
+   377→      toast({
+   378→        title: "Could not start the claim",
+   379→        description: "Please try again.",
+   380→        variant: "destructive",
+   381→      });
+   382→    } finally {
+   383→      setStarting(false);
+   384→    }
+   385→  }, [slug, toast, onRefresh]);
+   386→
+   387→  const onVerify = useCallback(async () => {
+   388→    const c = claimRef.current;
+   389→    if (!c) return;
+   390→    setVerifying(true);
+   391→    setFailReason(null);
+   392→    try {
+   393→      const res = await fetch(`/api/claims/${encodeURIComponent(c.id)}/verify`, {
+   394→        method: "POST",
+   395→      });
+   396→      const data = (await res.json().catch(() => ({}))) as {
+   397→        verified?: boolean;
+   398→        reason?: string;
+   399→        claim?: StartedClaim;
+   400→      };
+   401→      if (data.verified) {
+   402→        toast({
+   403→          title: "Ownership verified ✓",
+   404→          description: "This listing is yours.",
+   405→        });
+   406→        onRefresh();
+   407→      } else {
+   408→        setFailReason(data.reason ?? "We couldn't find the meta tag on your site yet.");
+   409→      }
+   410→    } catch {
+   411→      setFailReason("Verification request failed — please try again.");
+   412→    } finally {
+   413→      setVerifying(false);
+   414→    }
+   415→  }, [toast, onRefresh]);
+   416→
+   417→  const onCopyTag = useCallback(async () => {
+   418→    try {
+   419→      await navigator.clipboard.writeText(metaTag);
+   420→      setCopied(true);
+   421→      window.setTimeout(() => setCopied(false), 1600);
+   422→    } catch {
+   423→      toast({ title: "Could not copy — select the tag manually.", variant: "destructive" });
+   424→    }
+   425→  }, [metaTag, toast]);
+   426→
+   427→  // Anonymous: sign-in gate.
+   428→  if (sessionStatus === "unauthenticated") {
+   429→    return (
+   430→      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ember/30 bg-ember/[0.05] p-4">
+   431→        <p className="text-sm font-semibold text-white/85">
+   432→          Sign in to prove ownership of this listing.
+   433→        </p>
+   434→        <Button
+   435→          type="button"
+   436→          onClick={openAuth}
+   437→          className="h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+   438→        >
+   439→          SIGN IN TO CLAIM →
+   440→        </Button>
+   441→      </div>
+   442→    );
+   443→  }
+   444→
+   445→  // No claim yet (authenticated): start one.
+   446→  if (!claim) {
+   447→    return (
+   448→      <div className="rounded-xl border border-ember/30 bg-ember/[0.05] p-4">
+   449→        <p className="text-sm text-white/70">
+   450→          Start a claim — we&apos;ll generate a verification meta tag for{" "}
+   451→          <span className="text-white">{maker}</span> to place on the product
+   452→          site.
+   453→        </p>
+   454→        <Button
+   455→          type="button"
+   456→          onClick={() => void startClaim()}
+   457→          disabled={starting}
+   458→          className="mt-3 h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+   459→        >
+   460→          {starting ? (
+   461→            <>
+   462→              <Loader2 className="size-3.5 animate-spin" aria-hidden /> STARTING…
+   463→            </>
+   464→          ) : (
+   465→            "START CLAIM →"
+   466→          )}
+   467→        </Button>
+   468→      </div>
+   469→    );
+   470→  }
+   471→
+   472→  // Claim in progress / verified / failed.
+   473→  const verified = claim.status === "verified" || !!claim.verifiedAt;
+   474→  return (
+   475→    <div
+   476→      className={cn(
+   477→        "rounded-xl border p-4",
+   478→        verified ? "border-mint/40 bg-mint/[0.05]" : "border-ember/30 bg-ember/[0.05]"
+   479→      )}
+   480→      aria-live="polite"
+   481→    >
+   482→      <div className="flex flex-wrap items-center gap-2">
+   483→        <p className={MONO}>OWNERSHIP CLAIM</p>
+   484→        <span
+   485→          className={cn(
+   486→            "rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wider",
+   487→            verified
+   488→              ? "border-mint/40 bg-mint/10 text-mint"
+   489→              : claim.status === "failed"
+   490→                ? "border-red-500/40 bg-red-500/10 text-red-400"
+   491→                : "border-white/20 bg-white/5 text-white/70"
+   492→          )}
+   493→        >
+   494→          {verified ? "VERIFIED" : claim.status.toUpperCase()}
+   495→        </span>
+   496→      </div>
+   497→
+   498→      {verified ? (
+   499→        <p className="mt-2 text-sm text-mint">
+   500→          ✓ Verified — this listing is yours.
+   501→        </p>
+   502→      ) : (
+   503→        <>
+   504→          <ol className="mt-3 space-y-1.5">
+   505→            {DEFAULT_CLAIM_STEPS.map((step, i) => (
+   506→              <li key={i} className="flex gap-2 text-xs leading-relaxed text-white/65">
+   507→                <span className="font-mono text-ember">{i + 1}.</span>
+   508→                {step}
+   509→              </li>
+   510→            ))}
+   511→          </ol>
+   512→
+   513→          <div className="mt-3 flex items-start gap-2">
+   514→            <code className="min-w-0 flex-1 break-all rounded-lg border border-white/10 bg-black/40 p-2.5 font-mono text-[11px] text-white/80">
+   515→              {metaTag}
+   516→            </code>
+   517→            <Button
+   518→              type="button"
+   519→              variant="outline"
+   520→              size="icon"
+   521→              aria-label="Copy the verification meta tag"
+   522→              onClick={() => void onCopyTag()}
+   523→              className={cn(
+   524→                "bg-white/[0.03] hover:bg-white/[0.08] size-9 shrink-0 border-white/10",
+   525→                copied ? "text-mint" : "text-white/70 hover:border-ember/40 hover:text-ember"
+   526→              )}
+   527→            >
+   528→              {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+   529→            </Button>
+   530→          </div>
+   531→
+   532→          {failReason && (
+   533→            <p className="mt-3 rounded-lg border border-red-500/25 bg-red-500/[0.06] p-2.5 text-xs text-red-300">
+   534→              {failReason}
+   535→            </p>
+   536→          )}
+   537→
+   538→          <div className="mt-3 flex flex-wrap items-center gap-3">
+   539→            <Button
+   540→              type="button"
+   541→              onClick={() => void onVerify()}
+   542→              disabled={verifying}
+   543→              className="h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+   544→            >
+   545→              {verifying ? (
+   546→                <>
+   547→                  <Loader2 className="size-3.5 animate-spin" aria-hidden /> VERIFYING…
+   548→                </>
+   549→              ) : (
+   550→                "VERIFY NOW"
+   551→              )}
+   552→            </Button>
+   553→            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
+   554→              False claims fail by design · disputes → editor arbitration
+   555→            </p>
+   556→          </div>
+   557→        </>
+   558→      )}
+   559→    </div>
+   560→  );
+   561→}
+   562→
+   563→// ── Reviews (PRD F-16) ────────────────────────────────────────────────────
+   564→
+   565→function StarPicker({
+   566→  label,
+   567→  value,
+   568→  onChange,
+   569→}: {
+   570→  label: string;
+   571→  value: number;
+   572→  onChange: (n: number) => void;
+   573→}) {
+   574→  return (
+   575→    <div className="flex items-center justify-between gap-3">
+   576→      <span className={MONO}>{label}</span>
+   577→      <div className="flex items-center gap-0.5" role="radiogroup" aria-label={`${label} rating`}>
+   578→        {[1, 2, 3, 4, 5].map((n) => (
+   579→          <button
+   580→            key={n}
+   581→            type="button"
+   582→            role="radio"
+   583→            aria-checked={value === n}
+   584→            aria-label={`${label}: ${n} of 5`}
+   585→            onClick={() => onChange(n)}
+   586→            className="grid size-10 place-items-center rounded-lg transition-colors hover:bg-white/5"
+   587→          >
+   588→            <Star
+   589→              aria-hidden
+   590→              className={cn(
+   591→                "size-5",
+   592→                n <= value ? "fill-ember text-ember" : "text-white/30"
+   593→              )}
+   594→            />
+   595→          </button>
+   596→        ))}
+   597→      </div>
+   598→    </div>
+   599→  );
+   600→}
+   601→
+   602→function DimBar({ label, value }: { label: string; value: number }) {
+   603→  return (
+   604→    <div className="flex items-center gap-3">
+   605→      <span className="w-12 shrink-0 font-mono text-[10px] tracking-[0.2em] text-white/40">
+   606→        {label}
+   607→      </span>
+   608→      <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+   609→        <div
+   610→          className="h-full rounded-full bg-ember"
+   611→          style={{ width: `${Math.max(4, Math.min(100, (value / 5) * 100))}%` }}
+   612→        />
+   613→      </div>
+   614→      <span className="w-7 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/70">
+   615→        {value.toFixed(1)}
+   616→      </span>
+   617→    </div>
+   618→  );
+   619→}
+   620→
+   621→const REVIEW_BODY_MIN = 20;
+   622→const REVIEW_BODY_MAX = 2000;
+   623→
+   624→function ReviewsSection({
+   625→  slug,
+   626→  isMaker,
+   627→  sessionStatus,
+   628→  viewerMyReview,
+   629→  onRefreshTool,
+   630→}: {
+   631→  slug: string;
+   632→  isMaker: boolean;
+   633→  sessionStatus: "loading" | "authenticated" | "unauthenticated";
+   634→  viewerMyReview: ToolViewer["myReview"];
+   635→  onRefreshTool: () => void;
+   636→}) {
+   637→  const { toast } = useToast();
+   638→  const [data, setData] = useState<ReviewsResponse | null>(null);
+   639→  const [loading, setLoading] = useState(true);
+   640→  const [loadErr, setLoadErr] = useState(false);
+   641→  const [ease, setEase] = useState(0);
+   642→  const [power, setPower] = useState(0);
+   643→  const [value, setValue] = useState(0);
+   644→  const [body, setBody] = useState("");
+   645→  const [submitting, setSubmitting] = useState(false);
+   646→  const [errors, setErrors] = useState<string[]>([]);
+   647→  const prefilled = useRef(false);
+   648→
+   649→  const load = useCallback(async () => {
+   650→    setLoading(true);
+   651→    setLoadErr(false);
+   652→    try {
+   653→      const res = await fetch(`/api/reviews?tool=${encodeURIComponent(slug)}`);
+   654→      if (!res.ok) throw new Error("failed");
+   655→      const json = (await res.json()) as ReviewsResponse;
+   656→      setData(json);
+   657→      if (!prefilled.current) {
+   658→        prefilled.current = true;
+   659→        const mine = json.mine;
+   660→        const mineObj =
+   661→          mine && typeof mine === "object" && "ease" in (mine as object)
+   662→            ? (mine as { ease: number; power: number; value: number; body: string })
+   663→            : viewerMyReview;
+   664→        if (mineObj) {
+   665→          setEase(mineObj.ease);
+   666→          setPower(mineObj.power);
+   667→          setValue(mineObj.value);
+   668→          setBody(mineObj.body);
+   669→        }
+   670→      }
+   671→    } catch {
+   672→      setLoadErr(true);
+   673→    } finally {
+   674→      setLoading(false);
+   675→    }
+   676→  }, [slug, viewerMyReview]);
+   677→
+   678→  useEffect(() => {
+   679→    prefilled.current = false;
+   680→    void load();
+   681→  }, [load]);
+   682→
+   683→  const count = data?.count ?? 0;
+   684→  const aggregate = data?.aggregate ?? null;
+   685→  const isUpdate = !!viewerMyReview || !!(data?.mine && typeof data.mine === "object");
+   686→
+   687→  const submit = useCallback(async () => {
+   688→    const localErrors: string[] = [];
+   689→    if (ease < 1 || power < 1 || value < 1)
+   690→      localErrors.push("Rate all three dimensions (1–5 stars).");
+   691→    if (body.trim().length < REVIEW_BODY_MIN)
+   692→      localErrors.push(`Review needs ${REVIEW_BODY_MIN}+ characters.`);
+   693→    if (body.trim().length > REVIEW_BODY_MAX)
+   694→      localErrors.push(`Review is capped at ${REVIEW_BODY_MAX} characters.`);
+   695→    setErrors(localErrors);
+   696→    if (localErrors.length > 0) return;
+   697→
+   698→    setSubmitting(true);
+   699→    try {
+   700→      const res = await fetch("/api/reviews", {
+   701→        method: "POST",
+   702→        headers: { "Content-Type": "application/json" },
+   703→        body: JSON.stringify({
+   704→          toolSlug: slug,
+   705→          ease,
+   706→          power,
+   707→          value,
+   708→          body: body.trim(),
+   709→        }),
+   710→      });
+   711→      const json = (await res.json().catch(() => ({}))) as
+   712→        | (ReviewsResponse & { review?: ReviewRow })
+   713→        | { error?: string };
+   714→      if (res.status === 201) {
+   715→        const ok = json as ReviewsResponse & { review?: ReviewRow };
+   716→        setData((prev) =>
+   717→          prev
+   718→            ? {
+   719→                ...prev,
+   720→                count: ok.count ?? prev.count,
+   721→                aggregate: ok.aggregate ?? prev.aggregate,
+   722→                reviews: ok.review
+   723→                  ? [ok.review, ...prev.reviews.filter((r) => !r.mine)]
+   724→                  : prev.reviews,
+   725→              }
+   726→            : prev
+   727→        );
+   728→        toast({ title: isUpdate ? "Review updated" : "Review posted — thanks!" });
+   729→        onRefreshTool();
+   730→      } else if (res.status === 401) {
+   731→        openAuth();
+   732→      } else if (res.status === 403) {
+   733→        toast({
+   734→          title: "Makers can't review their own product",
+   735→          variant: "destructive",
+   736→        });
+   737→      } else {
+   738→        const msg =
+   739→          (json as { error?: string }).error ?? "Fix the highlighted fields and try again.";
+   740→        setErrors([msg]);
+   741→      }
+   742→    } catch {
+   743→      setErrors(["Could not submit the review — please try again."]);
+   744→    } finally {
+   745→      setSubmitting(false);
+   746→    }
+   747→  }, [body, ease, power, value, slug, toast, isUpdate, onRefreshTool]);
+   748→
+   749→  const counterTone =
+   750→    body.length >= REVIEW_BODY_MAX
+   751→      ? "text-red-400"
+   752→      : body.length >= REVIEW_BODY_MAX * 0.8
+   753→        ? "text-ember"
+   754→        : "text-white/35";
+   755→
+   756→  return (
+   757→    <section aria-label="Reviews" className="space-y-4">
+   758→      <SectionHead right={<span className="font-mono text-[10px] text-white/30">MODERATED · HONEST ONLY</span>}>
+   759→        Reviews ({count})
+   760→      </SectionHead>
+   761→
+   762→      {/* Aggregate */}
+   763→      {loading && <Skeleton className="h-24 w-full rounded-xl bg-white/5" />}
+   764→      {!loading && !loadErr && aggregate && (
+   765→        <div className={cn(PANEL, "flex flex-col gap-5 p-5 sm:flex-row sm:items-center")}>
+   766→          <div className="text-center sm:w-32">
+   767→            <p className="text-4xl font-black tabular-nums text-white">
+   768→              {aggregate.overall.toFixed(1)}
+   769→            </p>
+   770→            <div className="mt-1 flex justify-center">
+   771→              <Stars value={aggregate.overall} />
+   772→            </div>
+   773→            <p className="mt-1 font-mono text-[10px] text-white/40">
+   774→              {aggregate.count} REVIEWS
+   775→            </p>
+   776→          </div>
+   777→          <div className="min-w-0 flex-1 space-y-2.5">
+   778→            <DimBar label="EASE" value={aggregate.ease} />
+   779→            <DimBar label="POWER" value={aggregate.power} />
+   780→            <DimBar label="VALUE" value={aggregate.value} />
+   781→          </div>
+   782→        </div>
+   783→      )}
+   784→      {!loading && !loadErr && !aggregate && (
+   785→        <p className={cn(PANEL, "p-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/45")}>
+   786→          Ratings unlock at 3 reviews · {count} so far
+   787→        </p>
+   788→      )}
+   789→      {!loading && loadErr && (
+   790→        <p className="rounded-lg border border-red-500/25 bg-red-500/[0.04] p-3 text-xs text-red-300">
+   791→          Couldn&apos;t load reviews right now.
+   792→        </p>
+   793→      )}
+   794→
+   795→      {/* Review list */}
+   796→      {(data?.reviews.length ?? 0) > 0 && (
+   797→        <ul
+   798→          className={cn(
+   799→            "space-y-2",
+   800→            (data?.reviews.length ?? 0) > 4 && "max-h-96 overflow-y-auto pr-1"
+   801→          )}
+   802→          aria-label="Review list"
+   803→        >
+   804→          {data!.reviews.map((r) => (
+   805→            <li key={r.id} className={cn(PANEL, "p-3.5")}>
+   806→              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+   807→                <span className="font-mono text-xs font-semibold text-white/90">
+   808→                  {r.author}
+   809→                </span>
+   810→                {r.status === "filtered" && r.mine && (
+   811→                  <span className="rounded-full border border-white/20 bg-white/5 px-1.5 py-px font-mono text-[9px] tracking-wider text-white/50">
+   812→                    IN MODERATION
+   813→                  </span>
+   814→                )}
+   815→                <span className="ml-auto font-mono text-[10px] text-white/35">
+   816→                  {fmtDay(r.createdAt)}
+   817→                </span>
+   818→              </div>
+   819→              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+   820→                <span className="inline-flex items-center gap-1.5">
+   821→                  <span className="font-mono text-[9px] tracking-widest text-white/35">EASE</span>
+   822→                  <Stars value={r.ease} size={2.5} />
+   823→                </span>
+   824→                <span className="inline-flex items-center gap-1.5">
+   825→                  <span className="font-mono text-[9px] tracking-widest text-white/35">POWER</span>
+   826→                  <Stars value={r.power} size={2.5} />
+   827→                </span>
+   828→                <span className="inline-flex items-center gap-1.5">
+   829→                  <span className="font-mono text-[9px] tracking-widest text-white/35">VALUE</span>
+   830→                  <Stars value={r.value} size={2.5} />
+   831→                </span>
+   832→              </div>
+   833→              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/75">
+   834→                {r.body}
+   835→              </p>
+   836→            </li>
+   837→          ))}
+   838→        </ul>
+   839→      )}
+   840→
+   841→      {/* Write / update a review */}
+   842→      {data?.reason === "auth" || (sessionStatus === "unauthenticated" && !data?.reason) ? (
+   843→        <div className={cn(PANEL, "flex flex-wrap items-center justify-between gap-3 p-4")}>
+   844→          <p className="text-sm text-white/70">Been using {slugToName(slug)}? Rate it honestly.</p>
+   845→          <Button
+   846→            type="button"
+   847→            onClick={openAuth}
+   848→            className="h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+   849→          >
+   850→            SIGN IN TO REVIEW →
+   851→          </Button>
+   852→        </div>
+   853→      ) : data?.reason === "maker" || isMaker ? (
+   854→        <p className={cn(PANEL, "p-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/40")}>
+   855→          Makers can&apos;t review their own product
+   856→        </p>
+   857→      ) : data?.reason === "scheduled" ? (
+   858→        <p className={cn(PANEL, "p-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/40")}>
+   859→          Reviews open on launch day
+   860→        </p>
+   861→      ) : data?.canReview ? (
+   862→        <div className={cn(PANEL, "space-y-4 p-4")}>
+   863→          <StarPicker label="EASE" value={ease} onChange={setEase} />
+   864→          <StarPicker label="POWER" value={power} onChange={setPower} />
+   865→          <StarPicker label="VALUE" value={value} onChange={setValue} />
+   866→          <div>
+   867→            <label htmlFor="review-body" className="sr-only">
+   868→              Your review
+   869→            </label>
+   870→            <Textarea
+   871→              id="review-body"
+   872→              value={body}
+   873→              onChange={(e) => setBody(e.target.value.slice(0, REVIEW_BODY_MAX))}
+   874→              rows={4}
+   875→              placeholder="Honest, specific, useful — what does this tool actually do well or badly?"
+   876→              className="resize-none border-white/10 bg-transparent text-sm text-white placeholder:text-white/30 focus-visible:border-ember/50"
+   877→            />
+   878→            <div className="mt-1 flex items-center justify-between">
+   879→              <span className="font-mono text-[10px] text-white/30">
+   880→                {REVIEW_BODY_MIN}–{REVIEW_BODY_MAX} CHARS
+   881→              </span>
+   882→              <span className={cn("font-mono text-[10px] tabular-nums", counterTone)} aria-live="polite">
+   883→                {body.length}/{REVIEW_BODY_MAX}
+   884→              </span>
+   885→            </div>
+   886→          </div>
+   887→          {errors.length > 0 && (
+   888→            <ul className="space-y-1 rounded-lg border border-red-500/25 bg-red-500/[0.06] p-3" aria-live="polite">
+   889→              {errors.map((e, i) => (
+   890→                <li key={i} className="text-xs text-red-300">
+   891→                  {e}
+   892→                </li>
+   893→              ))}
+   894→            </ul>
+   895→          )}
+   896→          <Button
+   897→            type="button"
+   898→            onClick={() => void submit()}
+   899→            disabled={submitting}
+   900→            className="h-11 w-full bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot sm:w-auto"
+   901→          >
+   902→            {submitting ? (
+   903→              <>
+   904→                <Loader2 className="size-3.5 animate-spin" aria-hidden /> SENDING…
+   905→              </>
+   906→            ) : isUpdate ? (
+   907→              "UPDATE REVIEW"
+   908→            ) : (
+   909→              "POST REVIEW"
+   910→            )}
+   911→          </Button>
+   912→        </div>
+   913→      ) : null}
+   914→    </section>
+   915→  );
+   916→}
+   917→
+   918→function slugToName(slug: string): string {
+   919→  return slug
+   920→    .split("-")
+   921→    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+   922→    .join(" ");
+   923→}
+   924→
+   925→// ── Re-launch (PRD F-35) ──────────────────────────────────────────────────
+   926→
+   927→function RelaunchSection({
+   928→  slug,
+   929→  viewer,
+   930→  history,
+   931→  originalLaunchDate,
+   932→  launchDate,
+   933→  currentVotes,
+   934→  onRefresh,
+   935→}: {
+   936→  slug: string;
+   937→  viewer: ToolViewer | null;
+   938→  history: RelaunchEvent[];
+   939→  originalLaunchDate: string | null;
+   940→  launchDate: string | null;
+   941→  currentVotes: number;
+   942→  onRefresh: () => void;
+   943→}) {
+   944→  const { toast } = useToast();
+   945→  const [confirming, setConfirming] = useState(false);
+   946→  const [busy, setBusy] = useState(false);
+   947→  const [cooldown, setCooldown] = useState<string | null>(viewer?.nextEligibleAt ?? null);
+   948→
+   949→  const relaunch = useCallback(async () => {
+   950→    setBusy(true);
+   951→    try {
+   952→      const res = await fetch(`/api/tools/${encodeURIComponent(slug)}/relaunch`, {
+   953→        method: "POST",
+   954→      });
+   955→      const data = (await res.json().catch(() => ({}))) as {
+   956→        relaunched?: boolean;
+   957→        version?: string;
+   958→        date?: string;
+   959→        error?: string;
+   960→        nextEligibleAt?: string;
+   961→      };
+   962→      if (res.ok && data.relaunched) {
+   963→        toast({
+   964→          title: `Re-launched as ${data.version ?? "a new version"}`,
+   965→          description: "Fresh vote pool — the feed resets for today.",
+   966→        });
+   967→        setConfirming(false);
+   968→        onRefresh();
+   969→      } else if (res.status === 403 && data.error === "cooldown") {
+   970→        setCooldown(data.nextEligibleAt ?? null);
+   971→        toast({
+   972→          title: "Cooldown active",
+   973→          description: "One re-launch per tool per period.",
+   974→          variant: "destructive",
+   975→        });
+   976→      } else if (res.status === 409) {
+   977→        toast({ title: "Launch is scheduled — re-launch after it goes live.", variant: "destructive" });
+   978→      } else {
+   979→        toast({ title: "Could not re-launch", variant: "destructive" });
+   980→      }
+   981→    } catch {
+   982→      toast({ title: "Could not re-launch", description: "Please try again.", variant: "destructive" });
+   983→    } finally {
+   984→      setBusy(false);
+   985→    }
+   986→  }, [slug, toast, onRefresh]);
+   987→
+   988→  const canRelaunch = viewer?.canRelaunch && !cooldown;
+   989→
+   990→  return (
+   991→    <section aria-label="Re-launch history" className="space-y-4">
+   992→      <SectionHead>Re-launch</SectionHead>
+   993→
+   994→      {viewer?.isMaker && (
+   995→        <div className="rounded-xl border border-ember/30 bg-ember/[0.05] p-4">
+   996→          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/60">
+   997→            Launch a new version
+   998→          </p>
+   999→          <p className="mt-1.5 text-sm text-white/65">
+  1000→            Shipping a major update? Re-launch resets the vote pool and puts you
+  1001→            back on today&apos;s feed.
+  1002→          </p>
+  1003→          {canRelaunch ? (
+  1004→            confirming ? (
+  1005→              <div className="mt-3 flex flex-wrap items-center gap-2">
+  1006→                <Button
+  1007→                  type="button"
+  1008→                  onClick={() => void relaunch()}
+  1009→                  disabled={busy}
+  1010→                  className="h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+  1011→                >
+  1012→                  {busy ? (
+  1013→                    <>
+  1014→                      <Loader2 className="size-3.5 animate-spin" aria-hidden /> RE-LAUNCHING…
+  1015→                    </>
+  1016→                  ) : (
+  1017→                    "CONFIRM — RE-LAUNCH NOW"
+  1018→                  )}
+  1019→                </Button>
+  1020→                <Button
+  1021→                  type="button"
+  1022→                  variant="ghost"
+  1023→                  onClick={() => setConfirming(false)}
+  1024→                  className="h-10 font-mono text-xs text-white/60 hover:text-white"
+  1025→                >
+  1026→                  CANCEL
+  1027→                </Button>
+  1028→              </div>
+  1029→            ) : (
+  1030→              <Button
+  1031→                type="button"
+  1032→                onClick={() => setConfirming(true)}
+  1033→                className="mt-3 h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+  1034→              >
+  1035→                RE-LAUNCH — FRESH VOTE POOL
+  1036→              </Button>
+  1037→            )
+  1038→          ) : (
+  1039→            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.2em] text-white/45">
+  1040→              Next eligible {cooldown ? fmtDate(cooldown) : "— later"}
+  1041→            </p>
+  1042→          )}
+  1043→        </div>
+  1044→      )}
+  1045→
+  1046→      <ul className={cn(PANEL, "divide-y divide-white/[0.06]")}>
+  1047→        {(history ?? []).map((h) => (
+  1048→          <li key={`${h.version}-${h.launchedAt}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3.5">
+  1049→            <span className="font-mono text-xs font-bold text-ember">{h.version}</span>
+  1050→            {h.note && <span className="min-w-0 flex-1 truncate text-xs text-white/55">{h.note}</span>}
+  1051→            <span className="ml-auto font-mono text-[10px] text-white/40">{fmtDay(h.launchedAt)}</span>
+  1052→            <span className="font-mono text-xs tabular-nums text-white/70">▲ {h.totalVotes}</span>
+  1053→          </li>
+  1054→        ))}
+  1055→        <li className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3.5">
+  1056→          <span className="font-mono text-xs font-bold text-white/60">V1 · ORIGINAL</span>
+  1057→          <span className="ml-auto font-mono text-[10px] text-white/40">
+  1058→            {fmtDay(originalLaunchDate ?? launchDate)}
+  1059→          </span>
+  1060→          <span className="font-mono text-xs tabular-nums text-white/70">▲ {currentVotes}</span>
+  1061→        </li>
+  1062→      </ul>
+  1063→    </section>
+  1064→  );
+  1065→}
+  1066→
+  1067→// ── Discussion (ported from the legacy modal — same API shapes) ──────────
+  1068→
+  1069→const COMMENT_BODY_MAX = 280;
+  1070→const COMMENT_BODY_WARN = 224;
+  1071→const COMMENT_NAME_MAX = 24;
+  1072→const COMMENT_NAME_STORAGE = "prother_comment_name";
+  1073→
+  1074→const AVATAR_GRADIENTS = [
+  1075→  "from-orange-400 to-rose-600",
+  1076→  "from-amber-400 to-orange-600",
+  1077→  "from-emerald-400 to-teal-600",
+  1078→  "from-rose-400 to-red-600",
+  1079→  "from-yellow-400 to-amber-600",
+  1080→  "from-lime-400 to-green-600",
+  1081→  "from-fuchsia-400 to-purple-600",
+  1082→  "from-red-400 to-orange-600",
+  1083→] as const;
+  1084→
+  1085→function avatarGradient(author: string): string {
+  1086→  let h = 0;
+  1087→  for (let i = 0; i < author.length; i++) h = (h * 31 + author.charCodeAt(i)) >>> 0;
+  1088→  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]!;
+  1089→}
+  1090→
+  1091→function Discussion({
+  1092→  slug,
+  1093→  makerHandle,
+  1094→}: {
+  1095→  slug: string;
+  1096→  makerHandle: string;
+  1097→}) {
+  1098→  const { toast } = useToast();
+  1099→  const [items, setItems] = useState<CommentRow[] | null>(null);
+  1100→  const [loading, setLoading] = useState(true);
+  1101→  const [loadError, setLoadError] = useState(false);
+  1102→  const [name, setName] = useState("");
+  1103→  const [body, setBody] = useState("");
+  1104→  const [posting, setPosting] = useState(false);
+  1105→
+  1106→  useEffect(() => {
+  1107→    let alive = true;
+  1108→    setLoading(true);
+  1109→    setLoadError(false);
+  1110→    setItems(null);
+  1111→    fetch(`/api/tools/${encodeURIComponent(slug)}/comments`)
+  1112→      .then(async (res) => {
+  1113→        if (!res.ok) throw new Error("Failed to load discussion");
+  1114→        return (await res.json()) as { items: CommentRow[] };
+  1115→      })
+  1116→      .then((data) => {
+  1117→        if (alive) setItems(data.items);
+  1118→      })
+  1119→      .catch(() => {
+  1120→        if (alive) setLoadError(true);
+  1121→      })
+  1122→      .finally(() => {
+  1123→        if (alive) setLoading(false);
+  1124→      });
+  1125→    return () => {
+  1126→      alive = false;
+  1127→    };
+  1128→  }, [slug]);
+  1129→
+  1130→  useEffect(() => {
+  1131→    setName(window.localStorage.getItem(COMMENT_NAME_STORAGE) ?? "");
+  1132→  }, []);
+  1133→
+  1134→  const canPost = name.trim().length >= 2 && body.trim().length >= 4 && !posting;
+  1135→
+  1136→  const onPost = useCallback(async () => {
+  1137→    if (!canPost) return;
+  1138→    setPosting(true);
+  1139→    try {
+  1140→      const res = await fetch(`/api/tools/${encodeURIComponent(slug)}/comments`, {
+  1141→        method: "POST",
+  1142→        headers: { "Content-Type": "application/json" },
+  1143→        body: JSON.stringify({ author: name.trim(), body: body.trim() }),
+  1144→      });
+  1145→      const data = (await res.json()) as CommentRow & { error?: string };
+  1146→      if (!res.ok) throw new Error(data.error ?? "Could not post — please try again.");
+  1147→      setItems((prev) => [...(prev ?? []), data]);
+  1148→      setBody("");
+  1149→      window.localStorage.setItem(COMMENT_NAME_STORAGE, name.trim());
+  1150→      toast({ title: "Comment posted" });
+  1151→    } catch (err) {
+  1152→      toast({
+  1153→        title: "Could not post comment",
+  1154→        description: err instanceof Error ? err.message : "Please try again.",
+  1155→        variant: "destructive",
+  1156→      });
+  1157→    } finally {
+  1158→      setPosting(false);
+  1159→    }
+  1160→  }, [canPost, slug, name, body, toast]);
+  1161→
+  1162→  const count = items?.length ?? 0;
+  1163→  const counterTone =
+  1164→    body.length >= COMMENT_BODY_MAX
+  1165→      ? "text-red-400"
+  1166→      : body.length >= COMMENT_BODY_WARN
+  1167→        ? "text-ember"
+  1168→        : "text-white/35";
+  1169→
+  1170→  return (
+  1171→    <section aria-label="Discussion" className="space-y-3">
+  1172→      <SectionHead
+  1173→        right={
+  1174→          <span className="font-mono text-[10px] tracking-wider text-white/25">
+  1175→            MODERATED PER S6
+  1176→          </span>
+  1177→        }
+  1178→      >
+  1179→        Discussion ({count})
+  1180→      </SectionHead>
+  1181→
+  1182→      <div
+  1183→        className="max-h-96 space-y-2 overflow-y-auto pr-1"
+  1184→        aria-live="polite"
+  1185→        aria-label={`Discussion for this tool, ${count} comments`}
+  1186→      >
+  1187→        {loading && (
+  1188→          <>
+  1189→            <Skeleton className="h-16 w-full rounded-xl bg-white/5" />
+  1190→            <Skeleton className="h-16 w-5/6 rounded-xl bg-white/5" />
+  1191→          </>
+  1192→        )}
+  1193→
+  1194→        {!loading && loadError && (
+  1195→          <p className="rounded-lg border border-red-500/25 bg-red-500/[0.04] p-3 text-xs text-red-300">
+  1196→            Couldn&apos;t load the discussion — it will appear next time you open
+  1197→            this listing.
+  1198→          </p>
+  1199→        )}
+  1200→
+  1201→        {!loading && !loadError && count === 0 && (
+  1202→          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-white/15 p-6 text-center">
+  1203→            <MessageSquare className="size-4 text-white/30" aria-hidden />
+  1204→            <p className="text-sm text-white/70">No comments yet.</p>
+  1205→            <p className="text-xs text-white/40">
+  1206→              Start the discussion — ask {makerHandle} anything.
+  1207→            </p>
+  1208→          </div>
+  1209→        )}
+  1210→
+  1211→        {items?.map((c) => (
+  1212→          <motion.div
+  1213→            key={c.id}
+  1214→            initial={{ opacity: 0, y: 8 }}
+  1215→            animate={{ opacity: 1, y: 0 }}
+  1216→            transition={{ duration: 0.25, ease: "easeOut" }}
+  1217→            className={cn(PANEL, "p-3.5 transition-colors hover:border-ember/25")}
+  1218→          >
+  1219→            <div className="flex gap-3">
+  1220→              <span
+  1221→                aria-hidden
+  1222→                className={cn(
+  1223→                  "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-black",
+  1224→                  avatarGradient(c.author)
+  1225→                )}
+  1226→              >
+  1227→                {c.author.replace(/^@/, "").charAt(0).toUpperCase()}
+  1228→              </span>
+  1229→              <div className="min-w-0 flex-1">
+  1230→                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+  1231→                  <span className="text-sm font-semibold text-white/90">{c.author}</span>
+  1232→                  {c.isMaker && (
+  1233→                    <span className="rounded-full border border-ember/40 bg-ember/15 px-1.5 py-px font-mono text-[9px] tracking-wider text-ember">
+  1234→                      MAKER
+  1235→                    </span>
+  1236→                  )}
+  1237→                  <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] text-white/35">
+  1238→                    {relTime(c.createdAt)}
+  1239→                  </span>
+  1240→                </div>
+  1241→                <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-white/75">
+  1242→                  {c.body}
+  1243→                </p>
+  1244→              </div>
+  1245→            </div>
+  1246→          </motion.div>
+  1247→        ))}
+  1248→      </div>
+  1249→
+  1250→      {/* Composer */}
+  1251→      <div className={cn(PANEL, "p-3 transition-colors focus-within:border-ember/40")}>
+  1252→        <label htmlFor={`fp-c-name-${slug}`} className="sr-only">
+  1253→          Your display name
+  1254→        </label>
+  1255→        <Input
+  1256→          id={`fp-c-name-${slug}`}
+  1257→          value={name}
+  1258→          onChange={(e) => setName(e.target.value.slice(0, COMMENT_NAME_MAX))}
+  1259→          placeholder="Your name"
+  1260→          maxLength={COMMENT_NAME_MAX}
+  1261→          autoComplete="name"
+  1262→          className="border-0 border-b border-white/10 bg-transparent px-0 font-mono text-sm focus-visible:border-ember/60 focus-visible:ring-0"
+  1263→        />
+  1264→        <label htmlFor={`fp-c-body-${slug}`} className="sr-only">
+  1265→          Write a comment
+  1266→        </label>
+  1267→        <textarea
+  1268→          id={`fp-c-body-${slug}`}
+  1269→          value={body}
+  1270→          onChange={(e) => setBody(e.target.value.slice(0, COMMENT_BODY_MAX))}
+  1271→          onKeyDown={(e) => {
+  1272→            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+  1273→              e.preventDefault();
+  1274→              void onPost();
+  1275→            }
+  1276→          }}
+  1277→          placeholder="Add to the discussion…"
+  1278→          rows={3}
+  1279→          maxLength={COMMENT_BODY_MAX}
+  1280→          aria-label="Write a comment"
+  1281→          className={cn(
+  1282→            "mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-white placeholder:text-white/30 focus:outline-none",
+  1283→            body.length >= COMMENT_BODY_MAX && "text-red-300"
+  1284→          )}
+  1285→        />
+  1286→        <div className="mt-2 flex items-center justify-between gap-3">
+  1287→          <p className="font-mono text-[10px] text-white/30">⌘↵ TO POST · BE CONSTRUCTIVE (S6)</p>
+  1288→          <div className="flex items-center gap-3">
+  1289→            <span className={cn("font-mono text-[10px] tabular-nums", counterTone)} aria-live="polite">
+  1290→              {body.length}/{COMMENT_BODY_MAX}
+  1291→            </span>
+  1292→            <Button
+  1293→              type="button"
+  1294→              onClick={() => void onPost()}
+  1295→              disabled={!canPost}
+  1296→              aria-label="Post comment"
+  1297→              className="h-9 rounded-lg bg-ember px-3 text-xs font-semibold text-[#0A0A0A] hover:bg-ember-hot disabled:opacity-40"
+  1298→            >
+  1299→              {posting ? (
+  1300→                <>
+  1301→                  <Loader2 className="size-3.5 animate-spin" aria-hidden /> Posting…
+  1302→                </>
+  1303→              ) : (
+  1304→                <>
+  1305→                  <Send className="size-3.5" aria-hidden /> Post
+  1306→                </>
+  1307→              )}
+  1308→            </Button>
+  1309→          </div>
+  1310→        </div>
+  1311→      </div>
+  1312→    </section>
+  1313→  );
+  1314→}
+  1315→
+  1316→// ── Save popover (collections) ────────────────────────────────────────────
+  1317→
+  1318→function SavePopover({
+  1319→  slug,
+  1320→  toolName,
+  1321→  savedIn,
+  1322→  onSavedChange,
+  1323→  children,
+  1324→}: {
+  1325→  slug: string;
+  1326→  toolName: string;
+  1327→  savedIn: { slug: string; name: string }[];
+  1328→  onSavedChange: (saved: { slug: string; name: string }[]) => void;
+  1329→  children: React.ReactNode;
+  1330→}) {
+  1331→  const { toast } = useToast();
+  1332→  const { status } = useSession();
+  1333→  const [open, setOpen] = useState(false);
+  1334→  const [colls, setColls] = useState<CollectionRow[] | null>(null);
+  1335→  const [newName, setNewName] = useState("");
+  1336→  const [busySlug, setBusySlug] = useState<string | null>(null);
+  1337→  const [creating, setCreating] = useState(false);
+  1338→
+  1339→  const savedSet = useMemo(() => new Set(savedIn.map((s) => s.slug)), [savedIn]);
+  1340→
+  1341→  const onOpenChange = useCallback(
+  1342→    (next: boolean) => {
+  1343→      if (next && status === "unauthenticated") {
+  1344→        openAuth();
+  1345→        toast({ title: "Sign in to save tools to collections." });
+  1346→        return;
+  1347→      }
+  1348→      setOpen(next);
+  1349→      if (next) {
+  1350→        setColls(null);
+  1351→        fetch("/api/collections")
+  1352→          .then(async (res) => {
+  1353→            if (!res.ok) throw new Error("failed");
+  1354→            return (await res.json()) as { mine: CollectionRow[] };
+  1355→          })
+  1356→          .then((data) => setColls(data.mine ?? []))
+  1357→          .catch(() => setColls([]));
+  1358→      }
+  1359→    },
+  1360→    [status, toast]
+  1361→  );
+  1362→
+  1363→  const toggle = useCallback(
+  1364→    async (c: CollectionRow) => {
+  1365→      setBusySlug(c.slug);
+  1366→      try {
+  1367→        const res = await fetch(`/api/collections/${encodeURIComponent(c.slug)}/items`, {
+  1368→          method: "POST",
+  1369→          headers: { "Content-Type": "application/json" },
+  1370→          body: JSON.stringify({ toolSlug: slug }),
+  1371→        });
+  1372→        if (res.status === 401) {
+  1373→          openAuth();
+  1374→          return;
+  1375→        }
+  1376→        const data = (await res.json().catch(() => ({}))) as { inCollection?: boolean };
+  1377→        const nowIn = !!data.inCollection;
+  1378→        const next = nowIn
+  1379→          ? [...savedIn, { slug: c.slug, name: c.name }]
+  1380→          : savedIn.filter((s) => s.slug !== c.slug);
+  1381→        onSavedChange(next);
+  1382→        toast({
+  1383→          title: nowIn ? `Saved to ${c.name}` : `Removed from ${c.name}`,
+  1384→        });
+  1385→      } catch {
+  1386→        toast({ title: "Could not update the collection", variant: "destructive" });
+  1387→      } finally {
+  1388→        setBusySlug(null);
+  1389→      }
+  1390→    },
+  1391→    [slug, savedIn, onSavedChange, toast]
+  1392→  );
+  1393→
+  1394→  const create = useCallback(async () => {
+  1395→    const nameTrimmed = newName.trim();
+  1396→    if (nameTrimmed.length < 2 || creating) return;
+  1397→    setCreating(true);
+  1398→    try {
+  1399→      const res = await fetch("/api/collections", {
+  1400→        method: "POST",
+  1401→        headers: { "Content-Type": "application/json" },
+  1402→        body: JSON.stringify({ name: nameTrimmed }),
+  1403→      });
+  1404→      if (res.status === 401) {
+  1405→        openAuth();
+  1406→        return;
+  1407→      }
+  1408→      const data = (await res.json().catch(() => ({}))) as { collection?: CollectionRow };
+  1409→      if (!res.ok || !data.collection) {
+  1410→        toast({ title: "Could not create the collection", variant: "destructive" });
+  1411→        return;
+  1412→      }
+  1413→      setColls((prev) => [data.collection!, ...(prev ?? [])]);
+  1414→      setNewName("");
+  1415→      // Auto-save the tool into the fresh collection.
+  1416→      const c = data.collection;
+  1417→      try {
+  1418→        const itemRes = await fetch(`/api/collections/${encodeURIComponent(c.slug)}/items`, {
+  1419→          method: "POST",
+  1420→          headers: { "Content-Type": "application/json" },
+  1421→          body: JSON.stringify({ toolSlug: slug }),
+  1422→        });
+  1423→        if (itemRes.ok) {
+  1424→          onSavedChange([...savedIn, { slug: c.slug, name: c.name }]);
+  1425→        }
+  1426→      } catch {
+  1427→        /* collection exists; saving is best-effort */
+  1428→      }
+  1429→      toast({ title: `Collection "${c.name}" created` });
+  1430→    } catch {
+  1431→      toast({ title: "Could not create the collection", variant: "destructive" });
+  1432→    } finally {
+  1433→      setCreating(false);
+  1434→    }
+  1435→  }, [newName, creating, slug, savedIn, onSavedChange, toast]);
+  1436→
+  1437→  return (
+  1438→    <Popover open={open} onOpenChange={onOpenChange}>
+  1439→      <PopoverTrigger asChild>{children}</PopoverTrigger>
+  1440→      <PopoverContent
+  1441→        align="end"
+  1442→        sideOffset={8}
+  1443→        className="w-72 border-white/10 bg-coal p-3 text-white"
+  1444→        aria-label={`Save ${toolName} to a collection`}
+  1445→      >
+  1446→        <p className={MONO}>Save to collection</p>
+  1447→        <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+  1448→          {colls === null && (
+  1449→            <>
+  1450→              <Skeleton className="h-10 w-full rounded-lg bg-white/5" />
+  1451→              <Skeleton className="h-10 w-5/6 rounded-lg bg-white/5" />
+  1452→            </>
+  1453→          )}
+  1454→          {colls !== null && colls.length === 0 && (
+  1455→            <p className="px-1 py-2 text-xs text-white/45">
+  1456→              No collections yet — create your first one below.
+  1457→            </p>
+  1458→          )}
+  1459→          {colls?.map((c) => {
+  1460→            const saved = savedSet.has(c.slug);
+  1461→            return (
+  1462→              <button
+  1463→                key={c.id}
+  1464→                type="button"
+  1465→                onClick={() => void toggle(c)}
+  1466→                disabled={busySlug === c.slug}
+  1467→                aria-pressed={saved}
+  1468→                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/5"
+  1469→              >
+  1470→                <span className="min-w-0 flex-1 truncate text-sm text-white/85">{c.name}</span>
+  1471→                <span className="font-mono text-[10px] text-white/35">{c.itemCount}</span>
+  1472→                <span
+  1473→                  aria-hidden
+  1474→                  className={cn(
+  1475→                    "flex size-5 items-center justify-center rounded border",
+  1476→                    saved ? "border-ember bg-ember/15 text-ember" : "border-white/20 text-transparent"
+  1477→                  )}
+  1478→                >
+  1479→                  <Check className="size-3" />
+  1480→                </span>
+  1481→              </button>
+  1482→            );
+  1483→          })}
+  1484→        </div>
+  1485→        <div className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2.5">
+  1486→          <label htmlFor="new-collection-name" className="sr-only">
+  1487→            New collection name
+  1488→          </label>
+  1489→          <Input
+  1490→            id="new-collection-name"
+  1491→            value={newName}
+  1492→            onChange={(e) => setNewName(e.target.value.slice(0, 40))}
+  1493→            onKeyDown={(e) => {
+  1494→              if (e.key === "Enter") {
+  1495→                e.preventDefault();
+  1496→                void create();
+  1497→              }
+  1498→            }}
+  1499→            placeholder="+ New collection"
+  1500→            className="h-9 border-white/10 bg-transparent text-sm focus-visible:border-ember/50 focus-visible:ring-0"
+  1501→          />
+  1502→          <Button
+  1503→            type="button"
+  1504→            size="icon"
+  1505→            variant="outline"
+  1506→            aria-label="Create collection"
+  1507→            onClick={() => void create()}
+  1508→            disabled={newName.trim().length < 2 || creating}
+  1509→            className="bg-white/[0.03] hover:bg-white/[0.08] size-9 shrink-0 border-white/10 text-ember hover:border-ember/40 hover:bg-ember/10"
+  1510→          >
+  1511→            {creating ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />}
+  1512→          </Button>
+  1513→        </div>
+  1514→      </PopoverContent>
+  1515→    </Popover>
+  1516→  );
+  1517→}
+  1518→
+  1519→// ── Main page ─────────────────────────────────────────────────────────────
+  1520→
+  1521→export function ToolFullPage() {
+  1522→  const { toast } = useToast();
+  1523→  const { status: sessionStatus } = useSession();
+  1524→  const slug = useExplorer((s) => s.slug);
+  1525→  const closeTool = useExplorer((s) => s.closeTool);
+  1526→  const openTool = useExplorer((s) => s.openTool);
+  1527→  const addCompare = useExplorer((s) => s.addCompare);
+  1528→  const removeCompare = useExplorer((s) => s.removeCompare);
+  1529→  const compareSlugs = useExplorer((s) => s.compare);
+  1530→
+  1531→  const [detail, setDetail] = useState<ToolFullDetail | null>(null);
+  1532→  const [loading, setLoading] = useState(true);
+  1533→  const [notFound, setNotFound] = useState(false);
+  1534→  const [loadErr, setLoadErr] = useState(false);
+  1535→  const [vote, setVote] = useState<{ votes: number; voted: boolean } | null>(null);
+  1536→  const [following, setFollowing] = useState(false);
+  1537→  const [savedLocal, setSavedLocal] = useState<{ slug: string; name: string }[] | null>(null);
+  1538→  const [copied, setCopied] = useState(false);
+  1539→  const [reportOpen, setReportOpen] = useState(false);
+  1540→
+  1541→  // Bookmark (Task 23) — personal saved list, anon visitorKey or session scope.
+  1542→  const {
+  1543→    bookmarked: toolBookmarked,
+  1544→    pending: bookmarkPending,
+  1545→    toggle: toggleToolBookmark,
+  1546→  } = useBookmark("tool", slug);
+  1547→
+  1548→  const load = useCallback(async () => {
+  1549→    if (!slug) return;
+  1550→    setLoading(true);
+  1551→    setNotFound(false);
+  1552→    setLoadErr(false);
+  1553→    setSavedLocal(null);
+  1554→    try {
+  1555→      const res = await fetch(
+  1556→        `/api/tools/${encodeURIComponent(slug)}?vk=${encodeURIComponent(getVoterKey())}`
+  1557→      );
+  1558→      if (res.status === 404) {
+  1559→        setNotFound(true);
+  1560→        return;
+  1561→      }
+  1562→      if (!res.ok) throw new Error("failed");
+  1563→      const data = (await res.json()) as ToolFullDetail;
+  1564→      setDetail(data);
+  1565→      setVote({ votes: data.votes, voted: data.voted });
+  1566→      setFollowing(data.viewer?.following ?? false);
+  1567→    } catch {
+  1568→      setLoadErr(true);
+  1569→    } finally {
+  1570→      setLoading(false);
+  1571→    }
+  1572→  }, [slug]);
+  1573→
+  1574→  useEffect(() => {
+  1575→    setDetail(null);
+  1576→    void load();
+  1577→  }, [load]);
+  1578→
+  1579→  const onVote = useCallback(async () => {
+  1580→    if (!detail?.launchId || !vote) return;
+  1581→    const nextVoted = !vote.voted;
+  1582→    setVote({ votes: vote.votes + (nextVoted ? 1 : -1), voted: nextVoted });
+  1583→    try {
+  1584→      const res = await fetch("/api/vote", {
+  1585→        method: "POST",
+  1586→        headers: { "Content-Type": "application/json" },
+  1587→        body: JSON.stringify({ launchId: detail.launchId, voterKey: getVoterKey() }),
+  1588→      });
+  1589→      const data = (await res.json()) as { voted: boolean; votes: number };
+  1590→      setVote({ votes: data.votes, voted: data.voted });
+  1591→      window.dispatchEvent(
+  1592→        new CustomEvent("prother:vote", {
+  1593→          detail: { launchId: detail.launchId, votes: data.votes, voted: data.voted },
+  1594→        })
+  1595→      );
+  1596→    } catch {
+  1597→      setVote(vote);
+  1598→      toast({ title: "Vote failed", description: "Please try again.", variant: "destructive" });
+  1599→    }
+  1600→  }, [detail, vote, toast]);
+  1601→
+  1602→  const onFollow = useCallback(async () => {
+  1603→    if (!detail) return;
+  1604→    const next = !following;
+  1605→    setFollowing(next);
+  1606→    try {
+  1607→      const res = await fetch("/api/follows", {
+  1608→        method: "POST",
+  1609→        headers: { "Content-Type": "application/json" },
+  1610→        body: JSON.stringify({
+  1611→          targetType: "tool",
+  1612→          targetId: slug,
+  1613→          targetLabel: detail.name,
+  1614→        }),
+  1615→      });
+  1616→      if (res.status === 401) {
+  1617→        setFollowing(!next);
+  1618→        openAuth();
+  1619→        toast({ title: "Sign in to follow tools." });
+  1620→        return;
+  1621→      }
+  1622→      const data = (await res.json()) as { following?: boolean };
+  1623→      setFollowing(!!data.following);
+  1624→      toast({ title: data.following ? "Following — you'll see updates" : "Unfollowed" });
+  1625→    } catch {
+  1626→      setFollowing(!next);
+  1627→      toast({ title: "Could not update follow", variant: "destructive" });
+  1628→    }
+  1629→  }, [detail, following, slug, toast]);
+  1630→
+  1631→  const shareUrl =
+  1632→    typeof window !== "undefined"
+  1633→      ? `${window.location.origin}/?tool=${encodeURIComponent(slug ?? "")}`
+  1634→      : `/?tool=${encodeURIComponent(slug ?? "")}`;
+  1635→
+  1636→  const onCopyLink = useCallback(async () => {
+  1637→    try {
+  1638→      await navigator.clipboard.writeText(shareUrl);
+  1639→      setCopied(true);
+  1640→      window.setTimeout(() => setCopied(false), 1600);
+  1641→      toast({ title: "Link copied" });
+  1642→    } catch {
+  1643→      toast({ title: "Could not copy the link", description: shareUrl, variant: "destructive" });
+  1644→    }
+  1645→  }, [shareUrl, toast]);
+  1646→
+  1647→  const savedIn = savedLocal ?? detail?.viewer?.savedIn ?? [];
+  1648→  const savedSet = useMemo(() => new Set(savedIn.map((s) => s.slug)), [savedIn]);
+  1649→
+  1650→  const inCompare = slug ? compareSlugs.includes(slug) : false;
+  1651→  const compareFull = compareSlugs.length >= 2 && !inCompare;
+  1652→
+  1653→  const onCompare = useCallback(() => {
+  1654→    if (!slug) return;
+  1655→    if (inCompare) removeCompare(slug);
+  1656→    else if (!compareFull) addCompare(slug);
+  1657→  }, [slug, inCompare, compareFull, addCompare, removeCompare]);
+  1658→
+  1659→  const claim: StartedClaim | null = detail?.viewer?.claim
+  1660→    ? {
+  1661→        id: detail.viewer.claim.id,
+  1662→        status: detail.viewer.claim.status,
+  1663→        token: detail.viewer.claim.token,
+  1664→        note: detail.viewer.claim.note,
+  1665→        verifiedAt: detail.viewer.claim.verifiedAt,
+  1666→      }
+  1667→    : null;
+  1668→  const claimed = detail ? !detail.badges.unclaimed : false;
+  1669→  const passedCount = detail?.standards.filter((s) => s.passed).length ?? 0;
+  1670→
+  1671→  // ── States ──
+  1672→  if (!slug) return null;
+  1673→
+  1674→  if (loading) {
+  1675→    return (
+  1676→      <FullPageShell
+  1677→        kicker="Tool"
+  1678→        breadcrumb={[{ label: "Home" }]}
+  1679→        onClose={closeTool}
+  1680→        wide
+  1681→        ariaLabel={detail?.name ? `${detail.name} details` : "Tool details"}
+  1682→      >
+  1683→        <PageSkeleton />
+  1684→      </FullPageShell>
+  1685→    );
+  1686→  }
+  1687→
+  1688→  if (notFound) {
+  1689→    return (
+  1690→      <PageError
+  1691→        title="TOOL NOT FOUND"
+  1692→        message="This listing doesn't exist (or was removed)."
+  1693→        action={
+  1694→          <Button
+  1695→            type="button"
+  1696→            variant="outline"
+  1697→            onClick={() => closeTool()}
+  1698→            className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+  1699→          >
+  1700→            ← CLOSE
+  1701→          </Button>
+  1702→        }
+  1703→      />
+  1704→    );
+  1705→  }
+  1706→
+  1707→  if (loadErr || !detail || !vote) {
+  1708→    return (
+  1709→      <PageError
+  1710→        title="COULDN'T LOAD THIS TOOL"
+  1711→        message="The listing service didn't respond — try again in a moment."
+  1712→        action={
+  1713→          <div className="flex items-center gap-2">
+  1714→            <Button
+  1715→              type="button"
+  1716→              variant="outline"
+  1717→              onClick={() => void load()}
+  1718→              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+  1719→            >
+  1720→              RETRY
+  1721→            </Button>
+  1722→            <Button
+  1723→              type="button"
+  1724→              variant="outline"
+  1725→              onClick={() => closeTool()}
+  1726→              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+  1727→            >
+  1728→              ← CLOSE
+  1729→            </Button>
+  1730→          </div>
+  1731→        }
+  1732→      />
+  1733→    );
+  1734→  }
+  1735→
+  1736→  const name = detail.name;
+  1737→
+  1738→  return (
+  1739→    <FullPageShell
+  1740→      kicker="Tool"
+  1741→      breadcrumb={[{ label: "Home", onClick: closeTool }]}
+  1742→      onClose={closeTool}
+  1743→      shareUrl={shareUrl}
+  1744→      wide
+  1745→      ariaLabel={`${name} — full listing`}
+  1746→    >
+  1747→      <div className="space-y-10">
+  1748→        {/* a. Header */}
+  1749→        <header className="space-y-5">
+  1750→          <div className="flex items-start gap-4 sm:gap-5">
+  1751→            <span
+  1752→              aria-hidden
+  1753→              className={cn(
+  1754→                "grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
+  1755→                detail.gradient
+  1756→              )}
+  1757→            >
+  1758→              {detail.emoji}
+  1759→            </span>
+  1760→            <div className="min-w-0 flex-1">
+  1761→              <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+  1762→                {name}
+  1763→              </h1>
+  1764→              <p className="mt-1 text-base text-white/65 sm:text-lg">{detail.tagline}</p>
+  1765→            </div>
+  1766→          </div>
+  1767→
+  1768→          {/* Badge chips */}
+  1769→          <ul className="flex flex-wrap items-center gap-1.5" aria-label="Badges">
+  1770→            {detail.badges.editorsPick && (
+  1771→              <li className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember">
+  1772→                <Star className="size-3" aria-hidden /> EDITORS PICK
+  1773→              </li>
+  1774→            )}
+  1775→            {detail.badges.curated && (
+  1776→              <li className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-yellow-500">
+  1777→                CURATED
+  1778→              </li>
+  1779→            )}
+  1780→            {detail.badges.relaunch && (
+  1781→              <li
+  1782→                title={detail.relaunchNote ?? undefined}
+  1783→                className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-mint"
+  1784→              >
+  1785→                RE-LAUNCH
+  1786→              </li>
+  1787→            )}
+  1788→            {detail.badges.unclaimed && (
+  1789→              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/40">
+  1790→                UNCLAIMED
+  1791→              </li>
+  1792→            )}
+  1793→            {detail.badges.hasApi && (
+  1794→              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60">
+  1795→                API ✓
+  1796→              </li>
+  1797→            )}
+  1798→            {detail.badges.openSource && (
+  1799→              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60">
+  1800→                OPEN SOURCE
+  1801→              </li>
+  1802→            )}
+  1803→            <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60">
+  1804→              {detail.track === "editor_seed" ? "SEED" : "SUBMITTED"}
+  1805→            </li>
+  1806→          </ul>
+  1807→
+  1808→          {/* Actions row: vote + secondary icon buttons */}
+  1809→          <div className="flex flex-wrap items-center gap-2">
+  1810→            <button
+  1811→              type="button"
+  1812→              onClick={() => void onVote()}
+  1813→              disabled={!detail.launchId}
+  1814→              aria-label={vote.voted ? "Remove upvote" : "Upvote this tool"}
+  1815→              aria-pressed={vote.voted}
+  1816→              className={cn(
+  1817→                "inline-flex h-11 items-center gap-2 rounded-full px-5 text-base font-black tabular-nums transition active:scale-95",
+  1818→                vote.voted
+  1819→                  ? "border border-ember bg-ember/10 text-ember"
+  1820→                  : "bg-ember text-[#0A0A0A] hover:bg-ember-hot",
+  1821→                !detail.launchId && "cursor-not-allowed opacity-40"
+  1822→              )}
+  1823→            >
+  1824→              <Triangle
+  1825→                className="size-4"
+  1826→                fill={vote.voted ? "currentColor" : "none"}
+  1827→                aria-hidden
+  1828→              />
+  1829→              {vote.votes}
+  1830→            </button>
+  1831→
+  1832→            <Button
+  1833→              asChild
+  1834→              variant="outline"
+  1835→              size="icon"
+  1836→              className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember"
+  1837→            >
+  1838→              <a
+  1839→                href={detail.websiteUrl}
+  1840→                target="_blank"
+  1841→                rel="noopener noreferrer"
+  1842→                aria-label={`Visit ${name} website`}
+  1843→              >
+  1844→                <ArrowUpRight className="size-4" aria-hidden />
+  1845→              </a>
+  1846→            </Button>
+  1847→
+  1848→            <Button
+  1849→              type="button"
+  1850→              variant="outline"
+  1851→              size="icon"
+  1852→              aria-label="Copy link to this tool"
+  1853→              onClick={() => void onCopyLink()}
+  1854→              className={cn(
+  1855→                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1856→                copied ? "text-mint" : "text-white/70 hover:text-ember"
+  1857→              )}
+  1858→            >
+  1859→              {copied ? <Check className="size-4" aria-hidden /> : <Link2 className="size-4" aria-hidden />}
+  1860→            </Button>
+  1861→
+  1862→            <Button
+  1863→              type="button"
+  1864→              variant="outline"
+  1865→              size="icon"
+  1866→              aria-label={following ? `Unfollow ${name}` : `Follow ${name}`}
+  1867→              aria-pressed={following}
+  1868→              onClick={() => void onFollow()}
+  1869→              className={cn(
+  1870→                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1871→                following ? "text-ember" : "text-white/70 hover:text-ember"
+  1872→              )}
+  1873→            >
+  1874→              <Heart className={cn("size-4", following && "fill-ember")} aria-hidden />
+  1875→            </Button>
+  1876→
+  1877→            <SavePopover
+  1878→              slug={slug}
+  1879→              toolName={name}
+  1880→              savedIn={savedIn}
+  1881→              onSavedChange={(next) => setSavedLocal(next)}
+  1882→            >
+  1883→              <Button
+  1884→                type="button"
+  1885→                variant="outline"
+  1886→                size="icon"
+  1887→                aria-label={
+  1888→                  savedSet.size > 0
+  1889→                    ? `Saved in ${savedSet.size} collection${savedSet.size === 1 ? "" : "s"} — manage`
+  1890→                    : `Save ${name} to a collection`
+  1891→                }
+  1892→                aria-pressed={savedSet.size > 0}
+  1893→                className={cn(
+  1894→                  "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1895→                  savedSet.size > 0 ? "text-ember" : "text-white/70 hover:text-ember"
+  1896→                )}
+  1897→              >
+  1898→                <Bookmark
+  1899→                  className={cn("size-4", savedSet.size > 0 && "fill-ember")}
+  1900→                  aria-hidden
+  1901→                />
+  1902→              </Button>
+  1903→            </SavePopover>
+  1904→
+  1905→            {/* Bookmark for later (Task 23) — the Saved overlay lists these */}
+  1906→            <Button
+  1907→              type="button"
+  1908→              variant="outline"
+  1909→              size="icon"
+  1910→              aria-label={
+  1911→                toolBookmarked ? `Remove ${name} from saved` : `Save ${name} for later`
+  1912→              }
+  1913→              aria-pressed={toolBookmarked}
+  1914→              disabled={bookmarkPending}
+  1915→              onClick={() =>
+  1916→                void toggleToolBookmark({ label: name, href: `/?tool=${slug}` })
+  1917→              }
+  1918→              className={cn(
+  1919→                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1920→                toolBookmarked ? "text-ember" : "text-white/70 hover:text-ember"
+  1921→              )}
+  1922→            >
+  1923→              {toolBookmarked ? (
+  1924→                <BookmarkCheck className="size-4 fill-ember" aria-hidden />
+  1925→              ) : (
+  1926→                <Bookmark className="size-4" aria-hidden />
+  1927→              )}
+  1928→            </Button>
+  1929→
+  1930→            <Button
+  1931→              type="button"
+  1932→              variant="outline"
+  1933→              size="icon"
+  1934→              aria-label={
+  1935→                inCompare
+  1936→                  ? `Remove ${name} from comparison`
+  1937→                  : compareFull
+  1938→                    ? "Comparison is full — remove a tool first"
+  1939→                    : `Add ${name} to comparison`
+  1940→              }
+  1941→              aria-pressed={inCompare}
+  1942→              disabled={compareFull}
+  1943→              onClick={onCompare}
+  1944→              className={cn(
+  1945→                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1946→                inCompare ? "text-ember" : "text-white/70 hover:text-ember",
+  1947→                compareFull && "opacity-40"
+  1948→              )}
+  1949→            >
+  1950→              <Scale className="size-4" aria-hidden />
+  1951→            </Button>
+  1952→
+  1953→            {detail.links.github && (
+  1954→              <Button
+  1955→                asChild
+  1956→                variant="outline"
+  1957→                size="icon"
+  1958→                className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember"
+  1959→              >
+  1960→                <a
+  1961→                  href={detail.links.github}
+  1962→                  target="_blank"
+  1963→                  rel="noopener noreferrer"
+  1964→                  aria-label={`${name} on GitHub`}
+  1965→                >
+  1966→                  <svg viewBox="0 0 24 24" className="size-4 fill-current" aria-hidden>
+  1967→                    <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.15c-3.2.69-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.26.72-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.04.77 2.1v3.11c0 .3.21.67.8.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+  1968→                  </svg>
+  1969→                </a>
+  1970→              </Button>
+  1971→            )}
+  1972→
+  1973→            {/* Report listing (Task 23) — moderators review every report */}
+  1974→            <Button
+  1975→              type="button"
+  1976→              variant="outline"
+  1977→              size="icon"
+  1978→              aria-label={`Report ${name}`}
+  1979→              onClick={() => setReportOpen(true)}
+  1980→              className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/40 hover:border-ember/40 hover:text-ember"
+  1981→            >
+  1982→              <Flag className="size-4" aria-hidden />
+  1983→            </Button>
+  1984→          </div>
+  1985→        </header>
+  1986→
+  1987→        <ReportDialog
+  1988→          open={reportOpen}
+  1989→          onOpenChange={setReportOpen}
+  1990→          targetType="tool"
+  1991→          targetId={slug}
+  1992→          targetLabel={name}
+  1993→        />
+  1994→
+  1995→        {/* b–i: main column + facts rail */}
+  1996→        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-10">
+  1997→          <div className="min-w-0 space-y-10">
+  1998→            {/* c. About */}
+  1999→            {detail.description && (
+  2000→              <section aria-label="About" className="space-y-3">
+
+[showing lines 1-2000 of 2150; use offset=2001 with limit to continue reading]

@@ -21,6 +21,7 @@ import { CompareFullPage } from "@/components/prother/compare-full-page";
 import { PostFullPage } from "@/components/prother/post-full-page";
 import { ToolFullPage } from "@/components/prother/tool-full-page";
 import { BackToTop } from "@/components/prother/back-to-top";
+import { siteUrl } from "@/lib/site-url";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     // Same fallback as robots.ts/sitemap.ts — a mismatched default would put
     // localhost into every og:image/canonical URL in production.
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev"
+    siteUrl()
   ),
   title: "Prother — Where AI products get discovered",
   description:

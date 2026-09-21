@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
-import { useExplorer } from "./explorer-store";
 import type { SearchResponse } from "@/app/api/search/route";
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -72,8 +71,6 @@ export function HeroSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
-  const openTool = useExplorer((s) => s.openTool);
-  const openCategory = useExplorer((s) => s.openCategory);
 
   // Recents load lazily each time the dropdown opens — fresher than an
   // effect-on-mount and avoids setState-during-effect cascades.
@@ -274,16 +271,19 @@ export function HeroSearch() {
         pushRecent({ slug: item.slug, name: item.name, emoji: item.emoji, gradient: item.gradient });
         setOpen(false);
         inputRef.current?.blur();
-        openTool(item.slug);
+        // Tools are real routes now — navigate like journal posts (the
+        // overlay stays for legacy ?tool= deep links on the homepage feed).
+        router.push(`/tools/${item.slug}`);
       } else if (item.kind === "recent") {
         pushRecent(item);
         setOpen(false);
         inputRef.current?.blur();
-        openTool(item.slug);
+        router.push(`/tools/${item.slug}`);
       } else if (item.kind === "category") {
         setOpen(false);
         inputRef.current?.blur();
-        openCategory(item.slug);
+        // Categories live at their real /categories/[slug] routes.
+        router.push(`/categories/${item.slug}`);
       } else {
         // Journal posts are real routes now — navigate instead of opening
         // the overlay (PostFullPage stays for legacy ?post= deep links).
@@ -292,7 +292,7 @@ export function HeroSearch() {
         router.push(`/journal/${item.slug}`);
       }
     },
-    [pushRecent, openTool, openCategory, router]
+    [pushRecent, router]
   );
 
   const onKeyDown = useCallback(
@@ -410,7 +410,7 @@ export function HeroSearch() {
                         type="button"
                         onClick={() => {
                           setOpen(false);
-                          openCategory(c.slug);
+                          router.push(`/categories/${c.slug}`);
                         }}
                         className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] text-white/55 transition hover:border-ember/50 hover:text-ember"
                       >
