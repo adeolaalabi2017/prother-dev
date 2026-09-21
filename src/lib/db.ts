@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client'
  * models/fields. Editing this file also triggers a Turbopack module reload,
  * which re-evaluates the check and swaps in a fresh client.
  */
-const SCHEMA_VERSION = 3 // v3: NextAuth models (User/Account/Session/VerificationToken)
+const SCHEMA_VERSION = 4 // v4: Forums models (ForumThread/ForumReply/ForumThreadVote)
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -17,7 +17,8 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma &&
   globalForPrisma.prismaSchemaVersion === SCHEMA_VERSION &&
-  'submission' in globalForPrisma.prisma
+  'submission' in globalForPrisma.prisma &&
+  'forumThread' in globalForPrisma.prisma
     ? globalForPrisma.prisma
     : (globalForPrisma.prismaSchemaVersion = SCHEMA_VERSION,
        (globalForPrisma.prisma = new PrismaClient({ log: ['query'] })))

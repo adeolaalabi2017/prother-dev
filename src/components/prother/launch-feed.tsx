@@ -137,6 +137,42 @@ function FinalScore({ votes, rank }: { votes: number; rank: number }) {
   );
 }
 
+/** Compact comment counter, PH-style — stacked under the upvote button. */
+function CommentsButton({
+  count,
+  slug,
+  name,
+}: {
+  count: number;
+  slug: string;
+  name: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        // Same destination as the row itself — the tool page's discussion.
+        useExplorer.getState().openTool(slug);
+      }}
+      aria-label={`View ${count} ${count === 1 ? "comment" : "comments"} on ${name}`}
+      className="flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border border-white/10 px-3 py-2 text-white/50 transition hover:border-ember/50 hover:text-ember"
+    >
+      <MessageSquare className="size-4" aria-hidden />
+      <span className="font-mono text-sm font-semibold tabular-nums">{count}</span>
+    </button>
+  );
+}
+
+/** Mono topic chip under the tagline — mirrors the tag row on directory cards. */
+function TagChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] text-white/50 transition-colors group-hover:border-ember/25 group-hover:text-white/70">
+      {children}
+    </span>
+  );
+}
+
 function FeedRowItem({
   row,
   rank,
@@ -164,7 +200,7 @@ function FeedRowItem({
       role="button"
       aria-label={`View ${row.name} details`}
       className={cn(
-        "group relative flex cursor-pointer gap-4 overflow-hidden rounded-xl border p-4 transition-all hover:translate-x-0.5 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60",
+        "group relative flex cursor-pointer gap-3 overflow-hidden rounded-xl border p-4 transition-all hover:translate-x-0.5 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60 sm:gap-4",
         // Archive day winner gets a gold-tinted frame on top of the hover ring.
         rank === 1 && !votingOpen
           ? "border-amber-400/30 bg-amber-400/[0.04] hover:border-amber-400/60"
@@ -176,30 +212,19 @@ function FeedRowItem({
         aria-hidden
         className="absolute inset-y-0 left-0 w-[3px] origin-top scale-y-0 bg-ember transition-transform duration-200 group-hover:scale-y-100"
       />
-      <span
-        className={cn(
-          "w-6 pt-1 font-mono text-lg tabular-nums",
-          rank === 1 ? "font-bold text-ember" : rank <= 3 ? "text-white/60" : "text-white/30"
-        )}
-        aria-hidden
-      >
-        {rank}
-      </span>
-      {votingOpen ? (
-        <UpvoteButton
-          votes={vote?.votes ?? row.votes}
-          voted={vote?.voted ?? row.voted}
-          onVote={(e) => {
-            e.stopPropagation();
-            onVote(row);
-          }}
-        />
-      ) : (
-        <FinalScore votes={row.votes} rank={rank} />
-      )}
       <Logo emoji={row.emoji} gradient={row.gradient} size="md" />
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {/* PH-style rank, inline with the name */}
+          <span
+            className={cn(
+              "font-mono text-base tabular-nums",
+              rank === 1 ? "font-bold text-ember" : rank <= 3 ? "text-white/50" : "text-white/30"
+            )}
+            aria-hidden
+          >
+            {rank}.
+          </span>
           <h3 className="text-lg font-bold text-white">{row.name}</h3>
           {rank === 1 && !votingOpen && (
             <BadgeChip className="border-amber-400/40 bg-amber-400/10 text-amber-300">
@@ -217,7 +242,7 @@ function FeedRowItem({
             </BadgeChip>
           )}
           {row.badges.relaunch && (
-            <BadgeChip className="border-white/15 bg-white/5 text-white/60">🔁 Re-launch</BadgeChip>
+            <BadgeChip className="border-white/15 bg-white/5 text-white/60">Re-launch</BadgeChip>
           )}
           {row.badges.unclaimed && (
             <a
@@ -230,27 +255,38 @@ function FeedRowItem({
           )}
         </div>
         <p className="mt-0.5 truncate text-sm text-white/70">{row.tagline}</p>
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 font-mono text-[11px] text-white/40">
-          <span>
-            {row.category.emoji} {row.category.name} · {pricingLabel(row)} · {row.maker}
-            {row.badges.openSource && " · OSS"}
-            {row.badges.hasApi && " · API"}
+        {/* Tag-chip row (PH topic tags) + maker handle */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <TagChip>
+            {row.category.emoji} {row.category.name}
+          </TagChip>
+          <TagChip>{pricingLabel(row)}</TagChip>
+          {row.badges.openSource && <TagChip>OSS</TagChip>}
+          {row.badges.hasApi && <TagChip>API</TagChip>}
+          <span className="ml-1 hidden font-mono text-[11px] text-white/35 sm:inline">
+            @{row.maker.replace(/^@/, "")}
           </span>
-          {(row.comments ?? 0) > 0 && (
-            <span
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-white/55 transition-colors group-hover:border-ember/30 group-hover:text-ember"
-              title={`${row.comments} comments on this launch`}
-            >
-              <MessageSquare className="size-2.5" aria-hidden />
-              {row.comments}
-            </span>
-          )}
-        </p>
+        </div>
       </div>
-      <div className="hidden items-center md:flex">
-        <span className="inline-flex items-center gap-1 text-sm text-white/50 transition-colors group-hover:text-ember">
-          Details <ArrowUpRight className="size-3.5" aria-hidden />
-        </span>
+      {/* Right-stacked action pair — the PH signature (comments over votes) */}
+      <div className="flex shrink-0 flex-col justify-center gap-1.5">
+        {(row.comments ?? 0) > 0 ? (
+          <CommentsButton count={row.comments ?? 0} slug={row.slug} name={row.name} />
+        ) : (
+          <span aria-hidden className="h-[52px]" />
+        )}
+        {votingOpen ? (
+          <UpvoteButton
+            votes={vote?.votes ?? row.votes}
+            voted={vote?.voted ?? row.voted}
+            onVote={(e) => {
+              e.stopPropagation();
+              onVote(row);
+            }}
+          />
+        ) : (
+          <FinalScore votes={row.votes} rank={rank} />
+        )}
       </div>
     </article>
   );
@@ -792,6 +828,17 @@ export function LaunchFeed() {
                         />
                       ))}
                 </div>
+
+                {/* PH pattern — wide "see all" affordance under the ranked list */}
+                {!isTomorrow && rows.length > 0 && (
+                  <Link
+                    href="/tools"
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm font-semibold text-white/80 transition-colors hover:border-ember/40 hover:text-ember"
+                  >
+                    See all products in the directory
+                    <ArrowUpRight className="size-4" aria-hidden />
+                  </Link>
+                )}
 
                 {!isTomorrow && !dayLoading && rows.length === 0 && (
                   <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">

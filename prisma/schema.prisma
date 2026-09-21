@@ -357,3 +357,48 @@ model Comparison {
   @@unique([aSlug, bSlug])
   @@index([views])
 }
+
+// ── Forums (Task 22-b) — community threads across 4 topics ───────────────
+// topic: "general" | "vibecoding" | "show" | "introduce"
+// Votes reuse the anonymous voterKey scheme from the launch Vote model
+// (1 per visitor per thread, unique on threadId+voterKey). Threads created
+// signed-in carry the NextAuth user id; anon seeds only carry the handle.
+// NOTE: installed Prisma rejects `@createdAt` — use `@default(now())`.
+model ForumThread {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  body        String
+  topic       String // "general" | "vibecoding" | "show" | "introduce"
+  author      String // display handle
+  authorId    String? // NextAuth user id when posted signed-in
+  pinned      Boolean  @default(false)
+  baseUpvotes Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  replies     ForumReply[]
+  votes       ForumThreadVote[]
+
+  @@index([topic, createdAt])
+}
+
+model ForumReply {
+  id        String      @id @default(cuid())
+  thread    ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId  String
+  author    String
+  authorId  String?
+  body      String
+  createdAt DateTime    @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+model ForumThreadVote {
+  id       String      @id @default(cuid())
+  thread   ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId String
+  voterKey String
+
+  @@unique([threadId, voterKey])
+}

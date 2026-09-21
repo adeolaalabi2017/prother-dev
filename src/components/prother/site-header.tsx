@@ -8,7 +8,9 @@ import {
   Feather,
   Hexagon,
   Info,
+  Megaphone,
   Menu,
+  MessagesSquare,
   Rss,
   Search,
   Settings2,
@@ -26,8 +28,10 @@ import { AuthMenu } from "./auth-menu";
 const NAV_LINKS = [
   { label: "Feed", href: "/#feed", id: "feed", icon: Rss },
   { label: "Tools", href: "/tools", id: "tools", icon: Compass },
+  { label: "Forums", href: "/forums", id: "forums", icon: MessagesSquare },
   { label: "Journal", href: "/journal", id: "journal", icon: Feather },
   { label: "About", href: "/about", id: "about", icon: Info },
+  { label: "Advertise", href: "/advertise", id: "advertise", icon: Megaphone },
 ];
 
 export function SiteHeader() {
@@ -58,7 +62,11 @@ export function SiteHeader() {
   const isActive = (id: string) => {
     if (id === "feed") return isHome && feedInView;
     const link = NAV_LINKS.find((l) => l.id === id);
-    return link ? pathname === link.href : false;
+    // Route links stay active on their sub-routes too (/journal/<slug>,
+    // /forums/<slug>) — exact match OR a nested path under the link.
+    return link
+      ? pathname === link.href || pathname.startsWith(`${link.href}/`)
+      : false;
   };
 
   return (

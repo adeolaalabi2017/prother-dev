@@ -2,6 +2,7 @@
  * Prother shared domain logic + types (PRD §9 Feed Mechanics, §16 schema decisions).
  */
 import { db } from "@/lib/db";
+import type { ForumTopic } from "@/lib/forum-topics";
 
 // ── Types ────────────────────────────────────────────────────────────────
 export type Badge = {
@@ -579,5 +580,57 @@ export function toFeedRow(
     },
   };
 }
+
+// ── Forums (Task 22-b) — shared types ────────────────────────────────────
+// Constants (FORUM_TOPICS / labels) live in lib/forum-topics.ts — client-safe
+// (no Prisma imports). The query implementation lives in lib/forum.ts using
+// $queryRaw (stale-PrismaClient note there — a long-running `next dev` cannot
+// see the newly generated Forum* models, raw SQL is model-independent).
+
+export type { ForumTopic, ForumSort } from "@/lib/forum-topics";
+
+export type ForumThreadRow = {
+  id: string;
+  slug: string;
+  title: string;
+  body: string;
+  topic: ForumTopic;
+  author: string;
+  pinned: boolean;
+  /** baseUpvotes + anon ForumThreadVote count. */
+  votes: number;
+  /** True when the requesting voterKey has voted (anon voter-key scheme). */
+  voted: boolean;
+  replyCount: number;
+  /** ISO string — JSON-safe for client components. */
+  createdAt: string;
+};
+
+export type ForumReplyRow = {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+};
+
+export type ForumTopicCounts = {
+  all: number;
+  general: number;
+  vibecoding: number;
+  show: number;
+  introduce: number;
+};
+
+export type ForumListResponse = {
+  threads: ForumThreadRow[];
+  counts: ForumTopicCounts;
+};
+
+/** GET /api/forum/[slug] payload (also passed server→client on the thread page). */
+export type ForumThreadDetailResponse = {
+  thread: ForumThreadRow & { updatedAt: string };
+  replies: ForumReplyRow[];
+  voted: boolean;
+};
 
 export { db };

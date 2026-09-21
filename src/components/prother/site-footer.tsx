@@ -20,6 +20,7 @@ const COLS: { title: string; links: FooterLink[] }[] = [
       { label: "The feed", href: "/#feed" },
       { label: "Browse tools", href: "/tools" },
       { label: "Categories", href: "/tools" },
+      { label: "Forums", href: "/forums" },
       { label: "Submit your tool", href: "/submit" },
       { label: "Check submission status", href: "#", tracker: true },
     ],
@@ -41,6 +42,7 @@ const COLS: { title: string; links: FooterLink[] }[] = [
     links: [
       { label: "About", href: "/about" },
       { label: "Contact", href: "mailto:makers@prother.dev", external: true },
+      { label: "Advertise", href: "/advertise" },
       { label: "Press", href: "/about" },
       { label: "Trademark", href: "/about" },
     ],

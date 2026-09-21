@@ -3,11 +3,11 @@ import { db } from "@/lib/prother";
 
 /**
  * Auto sitemap (PRD NFR: SEO — auto sitemaps). Metadata route, not a page.
- * Indexes: homepage, the dedicated routes (/tools, /journal, /about,
- * /submit), live tool deep-links (?tool=slug), published journal posts
- * (real /journal/[slug] routes + legacy ?post=slug), and category anchors.
- * Daily tools get honest lastmod dates from their launch day; posts from
- * publishedAt/updatedAt.
+ * Indexes: homepage, the dedicated routes (/tools, /forums, /journal, /about,
+ * /submit, /advertise), live tool deep-links (?tool=slug), published journal
+ * posts (real /journal/[slug] routes + legacy ?post=slug), forum threads,
+ * and category anchors. Daily tools get honest lastmod dates from their
+ * launch day; posts from publishedAt/updatedAt.
  */
 export const dynamic = "force-dynamic";
 
@@ -30,9 +30,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const statics: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
     { url: `${base}/tools`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/forums`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 },
     { url: `${base}/journal`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/about`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/submit`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/advertise`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/about#standards`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/about#faq`, changeFrequency: "monthly", priority: 0.4 },
   ];
@@ -60,5 +62,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]);
 
-  return [...statics, ...toolUrls, ...postUrls];
+  // Forum threads are read through the raw-SQL access layer (src/lib/forum.ts)
+  // because the long-running dev server caches the pre-forums Prisma client.
+  // Wrapped in try/catch — the sitemap must survive an empty/missing table.
+  let forumUrls: MetadataRoute.Sitemap = [];
+  try {
+    const threads = await db.$queryRaw<
+      { slug: string; createdAt: Date; updatedAt: Date }[]
+    >`
+      SELECT slug, createdAt, updatedAt FROM ForumThread ORDER BY createdAt DESC LIMIT 500`;
+    forumUrls = threads.map((t) => ({
+      url: `${base}/forums/${encodeURIComponent(t.slug)}`,
+      lastModified: t.updatedAt ?? t.createdAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }));
+  } catch {
+    forumUrls = [];
+  }
+
+  return [...statics, ...toolUrls, ...postUrls, ...forumUrls];
 }
