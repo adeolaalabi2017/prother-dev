@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Pin } from "lucide-react";
-import { getForumThreadDetail } from "@/lib/forum";
+import { ArrowLeft, Pin, ShieldX } from "lucide-react";
+import { getForumThreadDetail, isForumThreadHidden } from "@/lib/forum";
 import { clamp } from "@/lib/og";
 import { FORUM_TOPIC_LABELS } from "@/lib/forum-topics";
 import {
@@ -17,7 +17,16 @@ type Params = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const detail = await getForumThreadDetail(slug);
-  if (!detail) return {};
+  if (!detail) {
+    // Hidden threads keep the URL alive (200 + noindex) with a generic title.
+    if (await isForumThreadHidden(slug)) {
+      return {
+        title: "Thread removed | Prother Forums",
+        robots: { index: false, follow: false },
+      };
+    }
+    return {};
+  }
 
   const title = `${detail.thread.title} | Prother Forums`;
   const description = clamp(detail.thread.body, 200);
@@ -46,7 +55,40 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function ForumThreadPage({ params }: Params) {
   const { slug } = await params;
   const detail = await getForumThreadDetail(slug);
-  if (!detail) notFound();
+  if (!detail) {
+    // Moderated thread: stay 200 + noindex (metadata above), show a notice
+    // instead of the body/replies. Never leak the removed content.
+    if (await isForumThreadHidden(slug)) {
+      return (
+        <div className="bg-ink pb-16 md:pb-0">
+          <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
+            <Link
+              href="/forums"
+              className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.2em] text-white/45 transition-colors hover:text-ember"
+            >
+              <ArrowLeft className="size-3.5" aria-hidden />
+              Back to Forums
+            </Link>
+            <div className="mt-8 flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-10 text-center">
+              <span
+                aria-hidden
+                className="grid size-12 place-items-center rounded-2xl border border-white/15 bg-white/[0.03]"
+              >
+                <ShieldX className="size-5 text-white/45" />
+              </span>
+              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">
+                Moderation
+              </p>
+              <p className="text-sm text-white/70">
+                This thread was removed by moderators.
+              </p>
+            </div>
+          </article>
+        </div>
+      );
+    }
+    notFound();
+  }
 
   const { thread, replies } = detail;
   const topicLabel = FORUM_TOPIC_LABELS[thread.topic];
@@ -127,6 +169,8 @@ export default async function ForumThreadPage({ params }: Params) {
         {/* votes + replies + composer (client) */}
         <ForumThreadActions
           slug={thread.slug}
+          threadId={thread.id}
+          threadTitle={thread.title}
           initialVotes={thread.votes}
           replies={replies}
         />

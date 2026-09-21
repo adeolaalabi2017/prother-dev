@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, Clock, Crown, MessageSquare, Star, Triangle, X } from "lucide-react";
@@ -368,6 +368,74 @@ function FeedSkeleton() {
   );
 }
 
+// ── Promoted feed row (Task 23) ────────────────────────────────────────
+
+/** Fields of /api/ads/serve the row actually renders. */
+type PromoAd = {
+  id: string;
+  headline: string;
+  body: string;
+  emoji: string;
+  gradient: string;
+  advertiser: string;
+};
+
+type ServedPromo = { ad: PromoAd; clickHref: string };
+
+/**
+ * Sponsored row in the TODAY list — visually a sibling of FeedRowItem but
+ * unmistakably an ad: mono PROMOTED chip (ember outline), "by {advertiser} ·
+ * Sponsored" byline, and the whole card is ONE link through /api/ads/click
+ * (target=_blank, nofollow) so CTR is real. min-h matches the reserved slot
+ * rendered while the serve request is in flight → no layout shift.
+ */
+function PromotedFeedRow({ promo }: { promo: ServedPromo | null | undefined }) {
+  if (promo === undefined) {
+    // Serve request in flight — reserve the row's space (render-when-loaded,
+    // reserved space) so the card taking its place never jumps the list.
+    return (
+      <div
+        aria-hidden
+        className="min-h-[120px] rounded-xl border border-white/[0.05] bg-white/[0.01]"
+      />
+    );
+  }
+  if (promo === null) return null; // nothing eligible — render nothing
+
+  const { ad, clickHref } = promo;
+  return (
+    <a
+      href={clickHref}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
+      aria-label={`Sponsored: ${ad.headline} — opens the advertiser's page in a new tab`}
+      className="group relative flex min-h-[120px] items-center gap-3 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60 sm:gap-4"
+    >
+      <Logo emoji={ad.emoji} gradient={ad.gradient} size="md" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="inline-flex shrink-0 items-center rounded-full border border-ember/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-ember">
+            Promoted
+          </span>
+          <h3 className="text-lg leading-snug font-bold text-white">{ad.headline}</h3>
+        </div>
+        {ad.body && (
+          <p className="mt-0.5 line-clamp-2 text-sm text-white/70">{ad.body}</p>
+        )}
+        <p className="mt-2 flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-white/35">
+          <span>by {ad.advertiser}</span>
+          <span aria-hidden>·</span>
+          <span>Sponsored</span>
+          <ArrowUpRight
+            className="size-3.5 transition-colors group-hover:text-ember"
+            aria-hidden
+          />
+        </p>
+      </div>
+    </a>
+  );
+}
+
 export function LaunchFeed() {
   const { toast } = useToast();
   const { feed, loading, error, refresh } = useFeed();
@@ -384,6 +452,38 @@ export function LaunchFeed() {
     const t = new URLSearchParams(window.location.search).get("tab");
     if (t === "top" || t === "tomorrow" || t === "yesterday") setTab(t);
   }, []);
+
+  // ── Promoted row (Task 23) ──────────────────────────────────────────
+  // ONE impression-counting serve per visit, lazily fired the first time a
+  // TODAY list (new/top) is shown — never for Tomorrow/Archive viewers.
+  // undefined = request in flight · null = nothing eligible.
+  const [promo, setPromo] = useState<ServedPromo | null | undefined>(undefined);
+  const promoRequestedRef = useRef(false);
+  useEffect(() => {
+    if (promoRequestedRef.current) return;
+    // The URL is the authority on mount — a deep link straight to
+    // ?tab=yesterday must not spend an impression on an archive view.
+    const urlTab = new URLSearchParams(window.location.search).get("tab");
+    const effective =
+      urlTab === "top" || urlTab === "tomorrow" || urlTab === "yesterday"
+        ? urlTab
+        : tab;
+    if (effective !== "new" && effective !== "top") return;
+    promoRequestedRef.current = true;
+    let alive = true;
+    fetch("/api/ads/serve?placement=feed_row", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.resolve({ ad: null })))
+      .then((j: { ad: PromoAd | null; clickHref?: string }) => {
+        if (!alive) return;
+        setPromo(j.ad && j.clickHref ? { ad: j.ad, clickHref: j.clickHref } : null);
+      })
+      .catch(() => {
+        if (alive) setPromo(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [tab]);
 
   // Archive day browser: null = yesterday (served from the main feed payload),
   // otherwise an ISO day from the strip — fetched once, then cached.
@@ -540,6 +640,11 @@ export function LaunchFeed() {
   const todayCount = feed?.todayCount ?? 0;
   const isTomorrow = tab === "tomorrow";
   const isYesterday = tab === "yesterday";
+
+  // Sponsored slot — TODAY lists (new/top) only, after the 3rd ranked row
+  // (falls back to the last row when fewer than three launches are listed).
+  const showPromotedRow = !isTomorrow && !isYesterday && rows.length > 0;
+  const promoInsertAfter = Math.min(2, rows.length - 1);
   const weekDays = feed?.weekDays ?? [];
   const archiveLabel = archiveDate
     ? dayCache[archiveDate]?.label ?? feed?.yesterdayLabel ?? "Archive"
@@ -818,14 +923,20 @@ export function LaunchFeed() {
                         />
                       ))
                     : rows.map((row, i) => (
-                        <FeedRowItem
-                          key={row.launchId}
-                          row={row}
-                          rank={i + 1}
-                          vote={voteState[row.launchId]}
-                          onVote={onVote}
-                          votingOpen={!isYesterday}
-                        />
+                        <Fragment key={row.launchId}>
+                          <FeedRowItem
+                            row={row}
+                            rank={i + 1}
+                            vote={voteState[row.launchId]}
+                            onVote={onVote}
+                            votingOpen={!isYesterday}
+                          />
+                          {/* Sponsored slot — after the 3rd ranked row
+                              (TODAY lists only, one serve per visit) */}
+                          {showPromotedRow && i === promoInsertAfter && (
+                            <PromotedFeedRow promo={promo} />
+                          )}
+                        </Fragment>
                       ))}
                 </div>
 

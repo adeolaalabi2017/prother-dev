@@ -199,6 +199,10 @@ model User {
   /** Public handle, e.g. "@dana" — derived from the email prefix at creation. */
   handle        String?   @unique
   bio           String?
+  /** Forum/community role: member | moderator | admin (Admin Console managed). */
+  role          String    @default("member")
+  /** Moderation status: active | banned (banned users cannot post/reply/review). */
+  status        String    @default("active")
   createdAt     DateTime  @default(now())
   accounts      Account[]
   sessions      Session[]
@@ -370,10 +374,12 @@ model ForumThread {
   title       String
   body        String
   topic       String // "general" | "vibecoding" | "show" | "introduce"
-  author      String // display handle
-  authorId    String? // NextAuth user id when posted signed-in
-  pinned      Boolean  @default(false)
-  baseUpvotes Int      @default(0)
+  author    String // display handle
+  authorId  String? // NextAuth user id when posted signed-in
+  pinned    Boolean  @default(false)
+  /** Moderation flag — hides the thread from lists; thread page shows notice. */
+  hidden    Boolean  @default(false)
+  baseUpvotes Int    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   replies     ForumReply[]
@@ -389,6 +395,8 @@ model ForumReply {
   author    String
   authorId  String?
   body      String
+  /** Moderation flag — hides the reply from the thread page. */
+  hidden    Boolean     @default(false)
   createdAt DateTime    @default(now())
 
   @@index([threadId, createdAt])
@@ -401,4 +409,87 @@ model ForumThreadVote {
   voterKey String
 
   @@unique([threadId, voterKey])
+}
+
+// ── Moderation flags (Task 23) — soft-hide, resolves Reports ─────────────
+// ForumThread.hidden / ForumReply.hidden below: hidden rows stay in the DB
+// for the audit trail but drop out of lists and render a "removed by
+// moderators" notice on their thread page.
+
+// ── Reports (Task 23) — community flagging of threads/replies/tools/posts ─
+// Reporter may be signed-in (reporterEmail) or anonymous (reporterKey,
+// same localStorage scheme as votes). One OPEN report per owner per target.
+model Report {
+  id           String    @id @default(cuid())
+  reporterEmail String?
+  reporterKey  String?
+  /** thread | reply | tool | post | review */
+  targetType   String
+  targetId     String
+  /** Snapshot label shown in the Admin queue (thread title / tool name…). */
+  targetLabel  String    @default("")
+  /** spam | harassment | inappropriate | misleading | broken | other */
+  reason       String
+  details      String? // free text, ≤ 500 chars
+  /** open | resolved | dismissed */
+  status       String    @default("open")
+  resolutionNote String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+}
+
+// ── Bookmarks (Task 23) — personal saved items across the site ───────────
+// ownerKey: "user:{email}" when signed-in, "anon:{visitorKey}" otherwise,
+// so anonymous visitors keep their saved list in one namespace.
+model Bookmark {
+  id         String   @id @default(cuid())
+  ownerKey   String
+  /** tool | thread | post */
+  targetType String
+  /** tool/post slug, or ForumThread id. */
+  targetId   String
+  targetLabel String  @default("")
+  targetHref String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@unique([ownerKey, targetType, targetId])
+  @@index([ownerKey, createdAt])
+}
+
+// ── Ad campaigns (Task 23) — Advertising module in the Admin Console ─────
+// Placements mirror the fixed slots sold on /advertise: feed_row (sponsored
+// row in the launch feed), journal_bar, category_spotlight. Serving picks a
+// weighted-random ACTIVE campaign inside its flight window; impressions and
+// clicks are counters on the row (CTR computed on read).
+model AdCampaign {
+  id             String    @id @default(cuid())
+  name           String
+  advertiser     String
+  /** feed_row | journal_bar | category_spotlight */
+  placement      String    @default("feed_row")
+  /** draft | active | paused | ended */
+  status         String    @default("draft")
+  headline       String
+  body           String    @default("")
+  clickUrl       String
+  emoji          String    @default("📣")
+  gradient       String    @default("from-orange-500 to-amber-700")
+  /** category_spotlight only: the category slug being spotlighted. */
+  targetCategory String?
+  /** Rotation weight 1–10 — higher serves more often. */
+  weight         Int       @default(1)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  /** Budgets in cents, 0 = uncapped. */
+  totalBudgetCents Int     @default(0)
+  dailyBudgetCents  Int     @default(0)
+  impressions    Int       @default(0)
+  clicks         Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@index([placement, status])
 }

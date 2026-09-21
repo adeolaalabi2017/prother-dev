@@ -1,0 +1,2002 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useState } from "react";
+     4→import {
+     5→  BadgeCheck,
+     6→  BarChart3,
+     7→  CalendarClock,
+     8→  CalendarDays,
+     9→  CheckCircle2,
+    10→  ChevronDown,
+    11→  Database,
+    12→  ExternalLink,
+    13→  FileText,
+    14→  Hexagon,
+    15→  KeyRound,
+    16→  LayoutDashboard,
+    17→  ListChecks,
+    18→  Loader2,
+    19→  Mail,
+    20→  Menu,
+    21→  Pencil,
+    22→  Pin,
+    23→  Plus,
+    24→  RotateCcw,
+    25→  Save,
+    26→  Search,
+    27→  Settings as SettingsIcon,
+    28→  ShieldCheck,
+    29→  Star,
+    30→  Tags,
+    31→  Trash2,
+    32→  X,
+    33→  type LucideIcon,
+    34→} from "lucide-react";
+    35→import { Button } from "@/components/ui/button";
+    36→import { Checkbox } from "@/components/ui/checkbox";
+    37→import { Input } from "@/components/ui/input";
+    38→import { Label } from "@/components/ui/label";
+    39→import { Progress } from "@/components/ui/progress";
+    40→import {
+    41→  Select,
+    42→  SelectContent,
+    43→  SelectItem,
+    44→  SelectTrigger,
+    45→  SelectValue,
+    46→} from "@/components/ui/select";
+    47→import {
+    48→  Sheet,
+    49→  SheetContent,
+    50→  SheetDescription,
+    51→  SheetHeader,
+    52→  SheetTitle,
+    53→} from "@/components/ui/sheet";
+    54→import { Skeleton } from "@/components/ui/skeleton";
+    55→import { Switch } from "@/components/ui/switch";
+    56→import {
+    57→  Table,
+    58→  TableBody,
+    59→  TableCell,
+    60→  TableHead,
+    61→  TableHeader,
+    62→  TableRow,
+    63→} from "@/components/ui/table";
+    64→import { Textarea } from "@/components/ui/textarea";
+    65→import { useToast } from "@/hooks/use-toast";
+    66→import { cn } from "@/lib/utils";
+    67→import { STANDARD_DEFS } from "@/lib/standards";
+    68→
+    69→/**
+    70→ * Admin Console — /admin route (Task 20-c redesign).
+    71→ * Sidebar dashboard shell per the admin design reference: logo + jump-to
+    72→ * search + grouped nav + promo card on the left; big section title, key
+    73→ * status chip and lock action up top; overview mirrors the reference's
+    74→ * KPI-stat row → charts row → data-table row layout.
+    75→ *
+    76→ * Everything is painted with Prother tokens ONLY (ink/coal panels,
+    77→ * white/10 borders, rounded-2xl, ember #FF6A00 as the single accent,
+    78→ * cream text moments, mono micro-labels) — semantic green/red appear
+    79→ * only in positive/negative delta pills, as elsewhere on the site.
+    80→ * Demo key auth (`x-editor-key`) shared with the editor desk; NextAuth P2.
+    81→ */
+    82→
+    83→// ── shared helpers ───────────────────────────────────────────────────────
+    84→
+    85→const KEY_STORAGE = "prother_editor_key";
+    86→const DEMO_HINT = "ember-dev";
+    87→
+    88→function useAdminKey() {
+    89→  // Start locked on BOTH server and client first paint — reading
+    90→  // sessionStorage during the hydration render would mismatch the SSR'd
+    91→  // locked chip/gate (React 19 hydration error). The stored key is
+    92→  // restored in a microtask right after mount (async, so the
+    93→  // react-hooks/set-state-in-effect rule stays satisfied).
+    94→  const [key, setKey] = useState<string | null>(null);
+    95→  useEffect(() => {
+    96→    Promise.resolve().then(() => {
+    97→      const stored = sessionStorage.getItem(KEY_STORAGE);
+    98→      if (stored) setKey(stored);
+    99→    });
+   100→  }, []);
+   101→  const unlock = useCallback((k: string) => {
+   102→    sessionStorage.setItem(KEY_STORAGE, k);
+   103→    setKey(k);
+   104→  }, []);
+   105→  const lock = useCallback(() => {
+   106→    sessionStorage.removeItem(KEY_STORAGE);
+   107→    setKey(null);
+   108→  }, []);
+   109→  return { key, unlock, lock };
+   110→}
+   111→
+   112→function adminFetch(key: string, url: string, init?: RequestInit) {
+   113→  return fetch(url, {
+   114→    ...init,
+   115→    headers: {
+   116→      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+   117→      "x-editor-key": key,
+   118→      ...init?.headers,
+   119→    },
+   120→  }).then(async (r) => {
+   121→    if (r.status === 401) throw new Error("401");
+   122→    return r;
+   123→  });
+   124→}
+   125→
+   126→const inputCx =
+   127→  "border-white/10 bg-white/5 text-white placeholder:text-white/25 text-sm";
+   128→const labelCx =
+   129→  "font-mono text-[10px] tracking-[0.2em] text-white/40 uppercase";
+   130→
+   131→function Field({
+   132→  label,
+   133→  children,
+   134→  hint,
+   135→}: {
+   136→  label: string;
+   137→  children: React.ReactNode;
+   138→  hint?: string;
+   139→}) {
+   140→  return (
+   141→    <div className="space-y-1.5">
+   142→      <Label className={labelCx}>{label}</Label>
+   143→      {children}
+   144→      {hint && <p className="text-[11px] text-white/30">{hint}</p>}
+   145→    </div>
+   146→  );
+   147→}
+   148→
+   149→function Spinner() {
+   150→  return (
+   151→    <div className="flex items-center justify-center py-14 text-white/30">
+   152→      <Loader2 className="size-5 animate-spin" aria-hidden />
+   153→    </div>
+   154→  );
+   155→}
+   156→
+   157→/** Card shell shared by dashboard panels (reference density, Prother skin). */
+   158→function Panel({
+   159→  className,
+   160→  children,
+   161→}: {
+   162→  className?: string;
+   163→  children: React.ReactNode;
+   164→}) {
+   165→  return (
+   166→    <div
+   167→      className={cn(
+   168→        "rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5",
+   169→        className
+   170→      )}
+   171→    >
+   172→      {children}
+   173→    </div>
+   174→  );
+   175→}
+   176→
+   177→// ── Gate (locked state) ──────────────────────────────────────────────────
+   178→
+   179→function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
+   180→  const [value, setValue] = useState("");
+   181→  return (
+   182→    <div className="flex min-h-[68vh] items-center justify-center px-1 py-10">
+   183→      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-coal p-6 text-center shadow-2xl shadow-black/50 sm:p-8">
+   184→        <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-ember/30 bg-ember/10">
+   185→          <KeyRound className="size-5 text-ember" aria-hidden />
+   186→        </div>
+   187→        <p className="mt-4 font-mono text-[10px] tracking-[0.3em] text-ember uppercase">
+   188→          Restricted
+   189→        </p>
+   190→        <h2 className="mt-1 text-xl font-black tracking-tight text-white">
+   191→          Enter the backstage
+   192→        </h2>
+   193→        <p className="mt-2 text-sm leading-relaxed text-white/50">
+   194→          Listings, launch calendar, journal, taxonomy and site copy — one key,
+   195→          no deploys. Demo key:{" "}
+   196→          <button
+   197→            type="button"
+   198→            onClick={() => setValue(DEMO_HINT)}
+   199→            className="font-mono text-ember underline-offset-2 hover:underline"
+   200→          >
+   201→            {DEMO_HINT}
+   202→          </button>
+   203→        </p>
+   204→        <form
+   205→          className="mt-6 space-y-2.5"
+   206→          onSubmit={(e) => {
+   207→            e.preventDefault();
+   208→            if (value.trim()) onUnlock(value.trim());
+   209→          }}
+   210→        >
+   211→          <Input
+   212→            value={value}
+   213→            onChange={(e) => setValue(e.target.value)}
+   214→            placeholder="Admin key"
+   215→            type="password"
+   216→            aria-label="Admin key"
+   217→            className={inputCx}
+   218→          />
+   219→          <Button
+   220→            type="submit"
+   221→            className="w-full rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   222→          >
+   223→            Unlock console
+   224→          </Button>
+   225→        </form>
+   226→        <p className="mt-5 font-mono text-[9px] leading-relaxed tracking-wider text-white/25 uppercase">
+   227→          Key lives in this tab&apos;s session only · sent as x-editor-key
+   228→        </p>
+   229→      </div>
+   230→    </div>
+   231→  );
+   232→}
+   233→
+   234→// ── Types ────────────────────────────────────────────────────────────────
+   235→
+   236→type Overview = {
+   237→  kpis: {
+   238→    toolsLive: number;
+   239→    toolsDraft: number;
+   240→    toolsRemoved: number;
+   241→    launchesToday: number;
+   242→    launchesTomorrow: number;
+   243→    pendingSubs: number;
+   244→    votes: number;
+   245→    votesToday: number;
+   246→    votesYesterday: number;
+   247→    comments: number;
+   248→    postsPublished: number;
+   249→    postsDrafts: number;
+   250→    postViews: number;
+   251→    categories: number;
+   252→  };
+   253→  launchesByDay: number[];
+   254→  votesByDay: number[];
+   255→  categoryMix: { name: string; count: number }[];
+   256→  pricingMix: { model: string; count: number }[];
+   257→  queueAgeH: number;
+   258→  oldestPending: string | null;
+   259→  audit: {
+   260→    id: string;
+   261→    action: string;
+   262→    entity: string;
+   263→    entityId: string;
+   264→    meta: string;
+   265→    at: string;
+   266→  }[];
+   267→};
+   268→
+   269→type AdminTool = {
+   270→  id: string;
+   271→  slug: string;
+   272→  name: string;
+   273→  tagline: string;
+   274→  description: string | null;
+   275→  websiteUrl: string;
+   276→  logoEmoji: string;
+   277→  logoGradient: string;
+   278→  pricingModel: string;
+   279→  startingPrice: string | null;
+   280→  pricingNote: string | null;
+   281→  hasApi: boolean;
+   282→  githubUrl: string | null;
+   283→  docsUrl: string | null;
+   284→  twitterUrl: string | null;
+   285→  tags: string;
+   286→  track: string;
+   287→  status: string;
+   288→  pinned: number;
+   289→  editorsPick: boolean;
+   290→  curated: boolean;
+   291→  claimed: boolean;
+   292→  makerHandle: string;
+   293→  verifiedAt: string | null;
+   294→  category: { id: string; name: string; emoji: string; slug: string };
+   295→  votes: number;
+   296→  launchDate: string | null;
+   297→  scheduled: boolean;
+   298→  createdAt: string;
+   299→};
+   300→
+   301→type AdminPost = {
+   302→  id: string;
+   303→  slug: string;
+   304→  title: string;
+   305→  excerpt: string;
+   306→  category: string;
+   307→  tags: string;
+   308→  coverEmoji: string;
+   309→  coverGradient: string;
+   310→  status: string;
+   311→  author: string;
+   312→  readingMinutes: number;
+   313→  views: number;
+   314→  seoTitle: string | null;
+   315→  seoDescription: string | null;
+   316→  keywords: string | null;
+   317→  publishedAt: string | null;
+   318→  updatedAt: string;
+   319→};
+   320→
+   321→type DaySlot = {
+   322→  date: string;
+   323→  weekday: string;
+   324→  locked: boolean;
+   325→  count: number;
+   326→  teaserCount: number;
+   327→  tools: {
+   328→    launchId: string;
+   329→    id: string;
+   330→    slug: string;
+   331→    name: string;
+   332→    logoEmoji: string;
+   333→    logoGradient: string;
+   334→    track: string;
+   335→    status: string;
+   336→    editorsPick: boolean;
+   337→    pinned: number;
+   338→    category: string;
+   339→    votes: number;
+   340→    scheduled: boolean;
+   341→  }[];
+   342→};
+   343→
+   344→type ScheduleData = {
+   345→  floor: number;
+   346→  cap: number;
+   347→  days: DaySlot[];
+   348→  pool: {
+   349→    id: string;
+   350→    slug: string;
+   351→    name: string;
+   352→    logoEmoji: string;
+   353→    logoGradient: string;
+   354→    track: string;
+   355→    status: string;
+   356→    waitingDays: number;
+   357→    category: { name: string; emoji: string };
+   358→  }[];
+   359→};
+   360→
+   361→// ── Section: Submissions (moderation queue) ──────────────────────────────
+   362→
+   363→type PendingSub = {
+   364→  id: string;
+   365→  name: string;
+   366→  tagline: string;
+   367→  domain: string;
+   368→  email: string;
+   369→  ageH: number;
+   370→  logoEmoji: string;
+   371→  logoGradient: string;
+   372→};
+   373→
+   374→function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+   375→  const { toast } = useToast();
+   376→  const [subs, setSubs] = useState<PendingSub[] | null>(null);
+   377→  const [rejecting, setRejecting] = useState<string | null>(null);
+   378→  const [failed, setFailed] = useState<string[]>([]);
+   379→  const [busy, setBusy] = useState<string | null>(null);
+   380→
+   381→  const load = useCallback(() => {
+   382→    adminFetch(apiKey, "/api/editor/queue")
+   383→      .then((r) => r.json())
+   384→      .then((d: { pending?: PendingSub[] }) => setSubs(d.pending ?? []))
+   385→      .catch(() => setSubs([]));
+   386→  }, [apiKey]);
+   387→
+   388→  useEffect(load, [load]);
+   389→
+   390→  const decide = useCallback(
+   391→    async (id: string, decision: "approve" | "reject") => {
+   392→      setBusy(id);
+   393→      try {
+   394→        const res = await adminFetch(apiKey, "/api/editor/decision", {
+   395→          method: "POST",
+   396→          body: JSON.stringify(
+   397→            decision === "approve"
+   398→              ? { decision, id }
+   399→              : { decision, id, failedStandards: failed, note: "" }
+   400→          ),
+   401→        });
+   402→        const d = (await res.json()) as { ok?: boolean; error?: string };
+   403→        if (!res.ok || !d.ok) {
+   404→          toast({ title: d.error ?? "Decision failed", variant: "destructive" });
+   405→          return;
+   406→        }
+   407→        toast({
+   408→          title: decision === "approve" ? "Approved & scheduled" : "Rejected",
+   409→          description:
+   410→            decision === "approve"
+   411→              ? "Launches tomorrow at 00:00 UTC."
+   412→              : "Maker email names the failed standards.",
+   413→        });
+   414→        setRejecting(null);
+   415→        setFailed([]);
+   416→        load();
+   417→        onChanged();
+   418→      } catch {
+   419→        toast({ title: "Network error", variant: "destructive" });
+   420→      } finally {
+   421→        setBusy(null);
+   422→      }
+   423→    },
+   424→    [apiKey, failed, load, onChanged, toast]
+   425→  );
+   426→
+   427→  if (subs === null) return <Spinner />;
+   428→
+   429→  return (
+   430→    <div className="space-y-3">
+   431→      {subs.length === 0 && (
+   432→        <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
+   433→          <CheckCircle2 className="mx-auto size-8 text-emerald-400" aria-hidden />
+   434→          <p className="mt-3 font-mono text-sm text-white/60">
+   435→            Queue clear — nothing waiting.
+   436→          </p>
+   437→        </div>
+   438→      )}
+   439→      {subs.map((s) => (
+   440→        <div key={s.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+   441→          <div className="flex items-center gap-3">
+   442→            <div
+   443→              aria-hidden
+   444→              className={cn(
+   445→                "flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg",
+   446→                s.logoGradient
+   447→              )}
+   448→            >
+   449→              {s.logoEmoji}
+   450→            </div>
+   451→            <div className="min-w-0 flex-1">
+   452→              <p className="truncate text-sm font-bold text-white">{s.name}</p>
+   453→              <p className="truncate text-xs text-white/50">{s.tagline}</p>
+   454→            </div>
+   455→            <span className="hidden shrink-0 font-mono text-[10px] text-white/40 sm:block">
+   456→              {s.domain} · {s.ageH}h
+   457→            </span>
+   458→          </div>
+   459→
+   460→          {rejecting === s.id ? (
+   461→            <div className="mt-3 space-y-2.5 rounded-lg border border-red-400/25 bg-red-400/[0.05] p-3">
+   462→              <p className="font-mono text-[10px] tracking-widest text-red-300">
+   463→                REJECTIONS MUST CITE FAILED STANDARD(S)
+   464→              </p>
+   465→              <div className="flex flex-wrap gap-1.5">
+   466→                {STANDARD_DEFS.map((sd) => {
+   467→                  const on = failed.includes(sd.id);
+   468→                  return (
+   469→                    <label
+   470→                      key={sd.id}
+   471→                      className={cn(
+   472→                        "flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px]",
+   473→                        on ? "border-red-400 bg-red-400/15 text-red-200" : "border-white/15 text-white/60"
+   474→                      )}
+   475→                    >
+   476→                      <Checkbox
+   477→                        checked={on}
+   478→                        onCheckedChange={(v) =>
+   479→                          setFailed((p) => (v ? [...p, sd.id] : p.filter((x) => x !== sd.id)))
+   480→                        }
+   481→                        className="size-3 border-white/30 data-[state=checked]:border-red-400 data-[state=checked]:bg-red-400"
+   482→                      />
+   483→                      {sd.id}
+   484→                    </label>
+   485→                  );
+   486→                })}
+   487→              </div>
+   488→              <div className="flex gap-2">
+   489→                <Button
+   490→                  size="sm"
+   491→                  disabled={failed.length === 0 || busy === s.id}
+   492→                  onClick={() => void decide(s.id, "reject")}
+   493→                  className="rounded-lg bg-red-500 text-white shadow-none hover:bg-red-400 disabled:opacity-40"
+   494→                >
+   495→                  Reject ({failed.length})
+   496→                </Button>
+   497→                <Button
+   498→                  size="sm"
+   499→                  variant="ghost"
+   500→                  onClick={() => setRejecting(null)}
+   501→                  className="rounded-lg text-white/60 hover:text-white"
+   502→                >
+   503→                  Back
+   504→                </Button>
+   505→              </div>
+   506→            </div>
+   507→          ) : (
+   508→            <div className="mt-3 flex gap-2">
+   509→              <Button
+   510→                size="sm"
+   511→                disabled={busy === s.id}
+   512→                onClick={() => void decide(s.id, "approve")}
+   513→                className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   514→              >
+   515→                {busy === s.id ? (
+   516→                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+   517→                ) : (
+   518→                  <CalendarClock className="size-3.5" aria-hidden />
+   519→                )}
+   520→                Approve → tomorrow
+   521→              </Button>
+   522→              <Button
+   523→                size="sm"
+   524→                variant="outline"
+   525→                onClick={() => setRejecting(s.id)}
+   526→                className="rounded-lg border-red-400/30 text-red-400 hover:bg-red-400/10 hover:text-red-300"
+   527→              >
+   528→                Reject…
+   529→              </Button>
+   530→              <a
+   531→                href={s.email ? `mailto:${s.email}` : "#"}
+   532→                className="ml-auto hidden items-center gap-1 font-mono text-[10px] text-white/40 hover:text-white/70 sm:flex"
+   533→              >
+   534→                <Mail className="size-3" aria-hidden /> maker
+   535→              </a>
+   536→            </div>
+   537→          )}
+   538→        </div>
+   539→      ))}
+   540→    </div>
+   541→  );
+   542→}
+   543→
+   544→// ── Section: Schedule (launch calendar) ──────────────────────────────────
+   545→
+   546→function CalendarTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+   547→  const { toast } = useToast();
+   548→  const [data, setData] = useState<ScheduleData | null>(null);
+   549→  const [dates, setDates] = useState<Record<string, string>>({});
+   550→  const [busy, setBusy] = useState<string | null>(null);
+   551→
+   552→  const load = useCallback(() => {
+   553→    adminFetch(apiKey, "/api/admin/schedule")
+   554→      .then((r) => r.json())
+   555→      .then((d: ScheduleData) => setData(d))
+   556→      .catch(() => toast({ title: "Calendar unavailable", variant: "destructive" }));
+   557→  }, [apiKey, toast]);
+   558→
+   559→  useEffect(load, [load]);
+   560→
+   561→  const schedule = useCallback(
+   562→    async (toolId: string, date: string | null, name: string) => {
+   563→      setBusy(toolId);
+   564→      try {
+   565→        const res = await adminFetch(apiKey, "/api/admin/schedule", {
+   566→          method: "POST",
+   567→          body: JSON.stringify({ toolId, date }),
+   568→        });
+   569→        const d = (await res.json()) as { ok?: boolean; error?: string };
+   570→        if (!res.ok || !d.ok) {
+   571→          toast({ title: d.error ?? "Scheduling failed", variant: "destructive" });
+   572→          return;
+   573→        }
+   574→        toast({ title: date ? `${name} → ${date}` : `${name} unscheduled` });
+   575→        load();
+   576→        onChanged();
+   577→      } catch {
+   578→        toast({ title: "Network error", variant: "destructive" });
+   579→      } finally {
+   580→        setBusy(null);
+   581→      }
+   582→    },
+   583→    [apiKey, load, onChanged, toast]
+   584→  );
+   585→
+   586→  if (!data) return <Spinner />;
+   587→
+   588→  const chip = (n: number) => {
+   589→    if (n < data.floor) return { emoji: "🔴", label: "below floor" };
+   590→    if (n >= 11) return { emoji: "🟡", label: "11–15" };
+   591→    return { emoji: "🟢", label: `${data.floor}–10` };
+   592→  };
+   593→
+   594→  return (
+   595→    <div className="space-y-5">
+   596→      <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+   597→        Floor ≥{data.floor} · Cap ≤{data.cap} · today locked (live ranking)
+   598→      </p>
+   599→
+   600→      {/* 14-day grid */}
+   601→      <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
+   602→        {data.days.map((d) => {
+   603→          const c = chip(d.count);
+   604→          return (
+   605→            <div
+   606→              key={d.date}
+   607→              className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5"
+   608→            >
+   609→              <div className="flex items-center gap-2.5">
+   610→                <span className="w-20 shrink-0 font-mono text-[11px] text-white/70">
+   611→                  {d.weekday} {d.date.slice(5)}
+   612→                </span>
+   613→                <span
+   614→                  title={c.label}
+   615→                  className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60"
+   616→                >
+   617→                  {d.locked ? "🔒" : c.emoji} {d.count}
+   618→                </span>
+   619→                <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+   620→                  {d.tools.map((t) => (
+   621→                    <span
+   622→                      key={t.id}
+   623→                      className={cn(
+   624→                        "group inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]",
+   625→                        t.scheduled
+   626→                          ? "border-ember/40 bg-ember/10 text-ember"
+   627→                          : "border-white/15 bg-white/5 text-white/70"
+   628→                      )}
+   629→                    >
+   630→                      <span aria-hidden>{t.logoEmoji}</span>
+   631→                      {t.name}
+   632→                      {t.editorsPick && <Star className="size-3 text-ember" aria-label="Editor's Pick" />}
+   633→                      {!d.locked && (
+   634→                        <button
+   635→                          type="button"
+   636→                          onClick={() => void schedule(t.id, null, t.name)}
+   637→                          aria-label={`Unschedule ${t.name}`}
+   638→                          className="ml-0.5 text-white/30 transition-colors hover:text-red-400"
+   639→                        >
+   640→                          <X className="size-3" aria-hidden />
+   641→                        </button>
+   642→                      )}
+   643→                    </span>
+   644→                  ))}
+   645→                  {d.tools.length === 0 && (
+   646→                    <span className="font-mono text-[10px] text-white/25">empty</span>
+   647→                  )}
+   648→                </div>
+   649→              </div>
+   650→            </div>
+   651→          );
+   652→        })}
+   653→      </div>
+   654→
+   655→      {/* unscheduled pool */}
+   656→      <div>
+   657→        <p className={labelCx}>Unscheduled pool ({data.pool.length})</p>
+   658→        <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto pr-1">
+   659→          {data.pool.length === 0 && (
+   660→            <p className="py-6 text-center text-sm text-white/30">
+   661→              Pool empty — every listing is on the calendar.
+   662→            </p>
+   663→          )}
+   664→          {data.pool.map((t) => (
+   665→            <div
+   666→              key={t.id}
+   667→              className="flex flex-wrap items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
+   668→            >
+   669→              <span aria-hidden className="text-base">{t.logoEmoji}</span>
+   670→              <div className="min-w-0 flex-1">
+   671→                <p className="truncate text-sm font-semibold text-white">{t.name}</p>
+   672→                <p className="truncate font-mono text-[10px] text-white/40">
+   673→                  {t.category.emoji} {t.category.name} · {t.track === "editor_seed" ? "seed" : "sub"} · waiting {t.waitingDays}d
+   674→                </p>
+   675→              </div>
+   676→              <Input
+   677→                type="date"
+   678→                value={dates[t.id] ?? ""}
+   679→                onChange={(e) => setDates((p) => ({ ...p, [t.id]: e.target.value }))}
+   680→                aria-label={`Launch date for ${t.name}`}
+   681→                className="h-8 w-36 border-white/10 bg-white/5 px-2 font-mono text-[11px] text-white"
+   682→              />
+   683→              <Button
+   684→                size="sm"
+   685→                disabled={!dates[t.id] || busy === t.id}
+   686→                onClick={() => void schedule(t.id, dates[t.id], t.name)}
+   687→                className="h-8 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-30 dark:text-black"
+   688→              >
+   689→                <CalendarClock className="size-3.5" aria-hidden />
+   690→                Schedule
+   691→              </Button>
+   692→            </div>
+   693→          ))}
+   694→        </div>
+   695→      </div>
+   696→    </div>
+   697→  );
+   698→}
+   699→
+   700→// ── Section: Tools (listings CRUD) ───────────────────────────────────────
+   701→
+   702→const GRADIENTS = [
+   703→  "from-orange-500 to-amber-700",
+   704→  "from-amber-500 to-orange-700",
+   705→  "from-rose-600 to-orange-700",
+   706→  "from-lime-600 to-emerald-700",
+   707→  "from-yellow-500 to-orange-600",
+   708→  "from-orange-600 to-red-700",
+   709→];
+   710→
+   711→function ListingEditor({
+   712→  apiKey,
+   713→  tool,
+   714→  categories,
+   715→  onSaved,
+   716→}: {
+   717→  apiKey: string;
+   718→  tool: AdminTool;
+   719→  categories: { id: string; name: string; emoji: string }[];
+   720→  onSaved: () => void;
+   721→}) {
+   722→  const { toast } = useToast();
+   723→  const [busy, setBusy] = useState(false);
+   724→  const [f, setF] = useState({
+   725→    tagline: tool.tagline,
+   726→    description: tool.description ?? "",
+   727→    pricingModel: tool.pricingModel,
+   728→    startingPrice: tool.startingPrice ?? "",
+   729→    pricingNote: tool.pricingNote ?? "",
+   730→    websiteUrl: tool.websiteUrl,
+   731→    githubUrl: tool.githubUrl ?? "",
+   732→    docsUrl: tool.docsUrl ?? "",
+   733→    twitterUrl: tool.twitterUrl ?? "",
+   734→    tags: tool.tags,
+   735→    status: tool.status,
+   736→    pinned: tool.pinned,
+   737→    editorsPick: tool.editorsPick,
+   738→    curated: tool.curated,
+   739→    claimed: tool.claimed,
+   740→    makerHandle: tool.makerHandle,
+   741→    categoryId: tool.category.id,
+   742→  });
+   743→
+   744→  const save = async () => {
+   745→    setBusy(true);
+   746→    try {
+   747→      const res = await adminFetch(apiKey, "/api/admin/tools", {
+   748→        method: "PATCH",
+   749→        body: JSON.stringify({
+   750→          id: tool.id,
+   751→          tagline: f.tagline,
+   752→          description: f.description || null,
+   753→          pricingModel: f.pricingModel,
+   754→          startingPrice: f.startingPrice || null,
+   755→          pricingNote: f.pricingNote || null,
+   756→          websiteUrl: f.websiteUrl,
+   757→          githubUrl: f.githubUrl || null,
+   758→          docsUrl: f.docsUrl || null,
+   759→          twitterUrl: f.twitterUrl || null,
+   760→          tags: f.tags,
+   761→          status: f.status,
+   762→          pinned: f.pinned,
+   763→          editorsPick: f.editorsPick,
+   764→          curated: f.curated,
+   765→          claimed: f.claimed,
+   766→          makerHandle: f.makerHandle,
+   767→          categoryId: f.categoryId,
+   768→        }),
+   769→      });
+   770→      const d = (await res.json()) as { ok?: boolean; error?: string };
+   771→      if (!res.ok || !d.ok) {
+   772→        toast({ title: d.error ?? "Save failed", variant: "destructive" });
+   773→        return;
+   774→      }
+   775→      toast({ title: `${tool.name} saved` });
+   776→      onSaved();
+   777→    } catch {
+   778→      toast({ title: "Network error", variant: "destructive" });
+   779→    } finally {
+   780→      setBusy(false);
+   781→    }
+   782→  };
+   783→
+   784→  const remove = async () => {
+   785→    setBusy(true);
+   786→    try {
+   787→      const res = await adminFetch(apiKey, `/api/admin/tools?id=${tool.id}`, {
+   788→        method: "DELETE",
+   789→      });
+   790→      const d = (await res.json()) as { ok?: boolean };
+   791→      if (res.ok && d.ok) {
+   792→        toast({ title: `${tool.name} removed (soft — history kept)` });
+   793→        onSaved();
+   794→      }
+   795→    } catch {
+   796→      toast({ title: "Network error", variant: "destructive" });
+   797→    } finally {
+   798→      setBusy(false);
+   799→    }
+   800→  };
+   801→
+   802→  const verify = async () => {
+   803→    setBusy(true);
+   804→    try {
+   805→      const res = await adminFetch(apiKey, "/api/admin/tools", {
+   806→        method: "PATCH",
+   807→        body: JSON.stringify({ id: tool.id, verify: true }),
+   808→      });
+   809→      const d = (await res.json()) as { ok?: boolean };
+   810→      if (res.ok && d.ok) {
+   811→        toast({ title: `${tool.name} marked verified`, description: "Verified-at stamped — staleness clock reset." });
+   812→        onSaved();
+   813→      }
+   814→    } catch {
+   815→      toast({ title: "Network error", variant: "destructive" });
+   816→    } finally {
+   817→      setBusy(false);
+   818→    }
+   819→  };
+   820→
+   821→  return (
+   822→    <div className="space-y-4 border-t border-white/10 p-4">
+   823→      <div className="grid gap-3 sm:grid-cols-2">
+   824→        <Field label="Tagline (5–60)">
+   825→          <Input
+   826→            value={f.tagline}
+   827→            maxLength={60}
+   828→            onChange={(e) => setF({ ...f, tagline: e.target.value })}
+   829→            className={inputCx}
+   830→          />
+   831→          <p className="text-[10px] text-white/30">{f.tagline.length}/60</p>
+   832→        </Field>
+   833→        <Field label="Website URL">
+   834→          <Input
+   835→            value={f.websiteUrl}
+   836→            onChange={(e) => setF({ ...f, websiteUrl: e.target.value })}
+   837→            className={inputCx}
+   838→          />
+   839→        </Field>
+   840→        <Field label="Description">
+   841→          <Textarea
+   842→            value={f.description}
+   843→            onChange={(e) => setF({ ...f, description: e.target.value })}
+   844→            rows={3}
+   845→            className={inputCx}
+   846→          />
+   847→        </Field>
+   848→        <Field label="Tags (pipe-separated, ≤5)">
+   849→          <Input
+   850→            value={f.tags}
+   851→            onChange={(e) => setF({ ...f, tags: e.target.value })}
+   852→            className={inputCx}
+   853→            placeholder="open-source|api-available"
+   854→          />
+   855→        </Field>
+   856→        <Field label="Pricing model">
+   857→          <Select value={f.pricingModel} onValueChange={(v) => setF({ ...f, pricingModel: v })}>
+   858→            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   859→            <SelectContent className="border-white/10 bg-coal text-white">
+   860→              {["free", "freemium", "paid", "open_source"].map((m) => (
+   861→                <SelectItem key={m} value={m}>{m}</SelectItem>
+   862→              ))}
+   863→            </SelectContent>
+   864→          </Select>
+   865→        </Field>
+   866→        <div className="grid grid-cols-2 gap-2">
+   867→          <Field label="Start price">
+   868→            <Input
+   869→              value={f.startingPrice}
+   870→              onChange={(e) => setF({ ...f, startingPrice: e.target.value })}
+   871→              className={inputCx}
+   872→              placeholder="$19/mo"
+   873→            />
+   874→          </Field>
+   875→          <Field label="Price note">
+   876→            <Input
+   877→              value={f.pricingNote}
+   878→              onChange={(e) => setF({ ...f, pricingNote: e.target.value })}
+   879→              className={inputCx}
+   880→            />
+   881→          </Field>
+   882→        </div>
+   883→        <Field label="Category">
+   884→          <Select value={f.categoryId} onValueChange={(v) => setF({ ...f, categoryId: v })}>
+   885→            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   886→            <SelectContent className="border-white/10 bg-coal text-white">
+   887→              {categories.map((c) => (
+   888→                <SelectItem key={c.id} value={c.id}>{c.emoji} {c.name}</SelectItem>
+   889→              ))}
+   890→            </SelectContent>
+   891→          </Select>
+   892→        </Field>
+   893→        <Field label="Maker handle">
+   894→          <Input
+   895→            value={f.makerHandle}
+   896→            onChange={(e) => setF({ ...f, makerHandle: e.target.value })}
+   897→            className={inputCx}
+   898→          />
+   899→        </Field>
+   900→        <Field label="GitHub URL">
+   901→          <Input value={f.githubUrl} onChange={(e) => setF({ ...f, githubUrl: e.target.value })} className={inputCx} />
+   902→        </Field>
+   903→        <Field label="Docs URL">
+   904→          <Input value={f.docsUrl} onChange={(e) => setF({ ...f, docsUrl: e.target.value })} className={inputCx} />
+   905→        </Field>
+   906→        <Field label="Status">
+   907→          <Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}>
+   908→            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   909→            <SelectContent className="border-white/10 bg-coal text-white">
+   910→              {["live", "draft", "pending_review", "approved", "removed"].map((s) => (
+   911→                <SelectItem key={s} value={s}>{s}</SelectItem>
+   912→              ))}
+   913→            </SelectContent>
+   914→          </Select>
+   915→        </Field>
+   916→        <Field label="Pin rank (0 = none, leads feed)">
+   917→          <Input
+   918→            type="number"
+   919→            min={0}
+   920→            max={3}
+   921→            value={f.pinned}
+   922→            onChange={(e) => setF({ ...f, pinned: Math.max(0, Math.min(3, Number(e.target.value) || 0)) })}
+   923→            className={inputCx}
+   924→          />
+   925→        </Field>
+   926→      </div>
+   927→
+   928→      <div className="flex flex-wrap gap-5">
+   929→        {(
+   930→          [
+   931→            ["editorsPick", "Editor's Pick", f.editorsPick],
+   932→            ["curated", "Curated badge", f.curated],
+   933→            ["claimed", "Claimed", f.claimed],
+   934→          ] as const
+   935→        ).map(([key, label, val]) => (
+   936→          <label key={key} className="flex items-center gap-2 text-xs text-white/70">
+   937→            <Switch checked={val} onCheckedChange={(v) => setF({ ...f, [key]: v })} />
+   938→            {label}
+   939→          </label>
+   940→        ))}
+   941→      </div>
+   942→
+   943→      <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3.5">
+   944→        <Button
+   945→          disabled={busy}
+   946→          onClick={() => void save()}
+   947→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   948→        >
+   949→          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+   950→          Save changes
+   951→        </Button>
+   952→        <Button
+   953→          variant="outline"
+   954→          disabled={busy}
+   955→          onClick={() => void verify()}
+   956→          className="rounded-lg border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300"
+   957→        >
+   958→          <ShieldCheck className="size-4" aria-hidden />
+   959→          Mark verified
+   960→        </Button>
+   961→        <Button
+   962→          variant="ghost"
+   963→          disabled={busy}
+   964→          onClick={() => void remove()}
+   965→          className="ml-auto rounded-lg text-red-400 hover:bg-red-400/10 hover:text-red-300"
+   966→        >
+   967→          <Trash2 className="size-4" aria-hidden />
+   968→          Remove listing
+   969→        </Button>
+   970→      </div>
+   971→    </div>
+   972→  );
+   973→}
+   974→
+   975→function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+   976→  const { toast } = useToast();
+   977→  const [tools, setTools] = useState<AdminTool[] | null>(null);
+   978→  const [cats, setCats] = useState<{ id: string; name: string; emoji: string }[]>([]);
+   979→  const [q, setQ] = useState("");
+   980→  const [status, setStatus] = useState("all");
+   981→  const [expanded, setExpanded] = useState<string | null>(null);
+   982→
+   983→  const load = useCallback(() => {
+   984→    adminFetch(apiKey, `/api/admin/tools?q=${encodeURIComponent(q)}&status=${status}`)
+   985→      .then((r) => r.json())
+   986→      .then((d: { tools: AdminTool[] }) => setTools(d.tools))
+   987→      .catch(() => toast({ title: "Listings unavailable", variant: "destructive" }));
+   988→  }, [apiKey, q, status, toast]);
+   989→
+   990→  useEffect(() => {
+   991→    const t = setTimeout(load, q ? 300 : 0);
+   992→    return () => clearTimeout(t);
+   993→  }, [load, q]);
+   994→
+   995→  useEffect(() => {
+   996→    adminFetch(apiKey, "/api/admin/categories")
+   997→      .then((r) => r.json())
+   998→      .then((d: { categories: { id: string; name: string; emoji: string }[] }) =>
+   999→        setCats(d.categories)
+  1000→      )
+  1001→      .catch(() => {});
+  1002→  }, [apiKey]);
+  1003→
+  1004→  return (
+  1005→    <div className="space-y-3">
+  1006→      <div className="flex flex-wrap gap-2">
+  1007→        <Input
+  1008→          value={q}
+  1009→          onChange={(e) => setQ(e.target.value)}
+  1010→          placeholder="Search name / tagline / slug…"
+  1011→          className={cn(inputCx, "max-w-xs flex-1")}
+  1012→        />
+  1013→        <Select value={status} onValueChange={setStatus}>
+  1014→          <SelectTrigger className={cn(inputCx, "w-36")}><SelectValue /></SelectTrigger>
+  1015→          <SelectContent className="border-white/10 bg-coal text-white">
+  1016→            {["all", "live", "draft", "pending_review", "approved", "removed"].map((s) => (
+  1017→              <SelectItem key={s} value={s}>{s}</SelectItem>
+  1018→            ))}
+  1019→          </SelectContent>
+  1020→        </Select>
+  1021→      </div>
+  1022→
+  1023→      {tools === null && <Spinner />}
+  1024→      {tools?.length === 0 && (
+  1025→        <p className="py-10 text-center text-sm text-white/30">No listings match.</p>
+  1026→      )}
+  1027→      <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+  1028→        {tools?.map((t) => (
+  1029→          <div key={t.id} className="rounded-xl border border-white/10 bg-white/[0.02]">
+  1030→            <button
+  1031→              type="button"
+  1032→              aria-expanded={expanded === t.id}
+  1033→              onClick={() => setExpanded(expanded === t.id ? null : t.id)}
+  1034→              className="flex w-full items-center gap-3 p-3.5 text-left transition-colors hover:bg-white/[0.03]"
+  1035→            >
+  1036→              <span aria-hidden className="text-lg">{t.logoEmoji}</span>
+  1037→              <div className="min-w-0 flex-1">
+  1038→                <p className="flex items-center gap-1.5 truncate text-sm font-bold text-white">
+  1039→                  {t.name}
+  1040→                  {t.pinned > 0 && <Pin className="size-3 text-ember" aria-hidden />}
+  1041→                  {t.editorsPick && <Star className="size-3 shrink-0 text-ember" aria-label="Editor's Pick" />}
+  1042→                  {t.status !== "live" && (
+  1043→                    <span className="rounded bg-white/10 px-1.5 py-px font-mono text-[9px] text-white/60">
+  1044→                      {t.status}
+  1045→                    </span>
+  1046→                  )}
+  1047→                </p>
+  1048→                <p className="truncate text-xs text-white/50">{t.tagline}</p>
+  1049→              </div>
+  1050→              <span className="hidden shrink-0 font-mono text-[10px] text-white/40 md:block">
+  1051→                {t.category.emoji} {t.category.name}
+  1052→              </span>
+  1053→              <span className="shrink-0 font-mono text-[11px] text-ember">▲{t.votes}</span>
+  1054→              <ChevronDown
+  1055→                className={cn("size-4 shrink-0 text-white/40 transition-transform", expanded === t.id && "rotate-180")}
+  1056→                aria-hidden
+  1057→              />
+  1058→            </button>
+  1059→            {expanded === t.id && (
+  1060→              <ListingEditor
+  1061→                apiKey={apiKey}
+  1062→                tool={t}
+  1063→                categories={cats}
+  1064→                onSaved={() => {
+  1065→                  load();
+  1066→                  onChanged();
+  1067→                }}
+  1068→              />
+  1069→            )}
+  1070→          </div>
+  1071→        ))}
+  1072→      </div>
+  1073→    </div>
+  1074→  );
+  1075→}
+  1076→
+  1077→// ── Section: Journal (blog CRUD) ─────────────────────────────────────────
+  1078→
+  1079→type PostDraft = {
+  1080→  id?: string;
+  1081→  title: string;
+  1082→  slug: string;
+  1083→  excerpt: string;
+  1084→  body: string;
+  1085→  category: string;
+  1086→  tags: string;
+  1087→  coverEmoji: string;
+  1088→  coverGradient: string;
+  1089→  author: string;
+  1090→  status: string;
+  1091→  seoTitle: string;
+  1092→  seoDescription: string;
+  1093→  keywords: string;
+  1094→};
+  1095→
+  1096→const EMPTY_POST: PostDraft = {
+  1097→  title: "",
+  1098→  slug: "",
+  1099→  excerpt: "",
+  1100→  body: "",
+  1101→  category: "Playbooks",
+  1102→  tags: "",
+  1103→  coverEmoji: "📝",
+  1104→  coverGradient: GRADIENTS[0],
+  1105→  author: "Prother Editorial",
+  1106→  status: "draft",
+  1107→  seoTitle: "",
+  1108→  seoDescription: "",
+  1109→  keywords: "",
+  1110→};
+  1111→
+  1112→function PostEditor({
+  1113→  apiKey,
+  1114→  draft,
+  1115→  onDone,
+  1116→}: {
+  1117→  apiKey: string;
+  1118→  draft: PostDraft;
+  1119→  onDone: (openSlug?: string) => void;
+  1120→}) {
+  1121→  const { toast } = useToast();
+  1122→  const [f, setF] = useState<PostDraft>(draft);
+  1123→  const [busy, setBusy] = useState(false);
+  1124→  const isNew = !f.id;
+  1125→
+  1126→  const save = async (publishOverride?: string) => {
+  1127→    setBusy(true);
+  1128→    try {
+  1129→      const payload = {
+  1130→        title: f.title,
+  1131→        slug: f.slug || undefined,
+  1132→        excerpt: f.excerpt,
+  1133→        // Only send the body when rewritten — a metadata-only edit of an
+  1134→        // existing post keeps the stored markdown server-side.
+  1135→        ...(f.body.trim().length >= 50 ? { body: f.body } : {}),
+  1136→        category: f.category,
+  1137→        tags: f.tags,
+  1138→        coverEmoji: f.coverEmoji,
+  1139→        coverGradient: f.coverGradient,
+  1140→        author: f.author,
+  1141→        status: publishOverride ?? f.status,
+  1142→        seoTitle: f.seoTitle || undefined,
+  1143→        seoDescription: f.seoDescription || undefined,
+  1144→        keywords: f.keywords || undefined,
+  1145→      };
+  1146→      const res = await adminFetch(
+  1147→        apiKey,
+  1148→        isNew ? "/api/admin/posts" : `/api/admin/posts/${f.id}`,
+  1149→        { method: isNew ? "POST" : "PATCH", body: JSON.stringify(payload) }
+  1150→      );
+  1151→      const d = (await res.json()) as { ok?: boolean; error?: string; slug?: string };
+  1152→      if (!res.ok || !d.ok) {
+  1153→        toast({ title: d.error ?? "Save failed", variant: "destructive" });
+  1154→        return;
+  1155→      }
+  1156→      toast({
+  1157→        title: publishOverride === "published" ? "Published" : "Saved",
+  1158→        description: d.slug ? `/journal/${d.slug}` : undefined,
+  1159→      });
+  1160→      onDone(publishOverride === "published" ? d.slug : undefined);
+  1161→    } catch {
+  1162→      toast({ title: "Network error", variant: "destructive" });
+  1163→    } finally {
+  1164→      setBusy(false);
+  1165→    }
+  1166→  };
+  1167→
+  1168→  const remove = async () => {
+  1169→    if (!f.id) return;
+  1170→    setBusy(true);
+  1171→    try {
+  1172→      const res = await adminFetch(apiKey, `/api/admin/posts/${f.id}`, { method: "DELETE" });
+  1173→      if (res.ok) {
+  1174→        toast({ title: "Post deleted" });
+  1175→        onDone();
+  1176→      }
+  1177→    } finally {
+  1178→      setBusy(false);
+  1179→    }
+  1180→  };
+  1181→
+  1182→  const seoTitle = f.seoTitle || f.title;
+  1183→  const seoDesc = f.seoDescription || f.excerpt;
+  1184→
+  1185→  return (
+  1186→    <div className="space-y-5">
+  1187→      <div className="grid gap-3 sm:grid-cols-2">
+  1188→        <Field label="Title (≤120)">
+  1189→          <Input value={f.title} maxLength={120} onChange={(e) => setF({ ...f, title: e.target.value })} className={inputCx} placeholder="How to launch an AI tool…" />
+  1190→        </Field>
+  1191→        <Field label="Slug (auto from title if blank)">
+  1192→          <Input value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value })} className={cn(inputCx, "font-mono")} placeholder="how-to-launch-an-ai-tool" />
+  1193→        </Field>
+  1194→      </div>
+  1195→
+  1196→      <Field label="Excerpt (20–200 · cards + meta description)">
+  1197→        <Textarea value={f.excerpt} rows={2} maxLength={200} onChange={(e) => setF({ ...f, excerpt: e.target.value })} className={inputCx} />
+  1198→        <p className="text-[10px] text-white/30">{f.excerpt.length}/200</p>
+  1199→      </Field>
+  1200→
+  1201→      <Field label="Body (markdown: ##, lists, **bold**, `code`, ``` blocks)">
+  1202→        <Textarea
+  1203→          value={f.body}
+  1204→          rows={10}
+  1205→          onChange={(e) => setF({ ...f, body: e.target.value })}
+  1206→          className={cn(inputCx, "font-mono text-xs leading-relaxed")}
+  1207→        />
+  1208→        <p className="text-[10px] text-white/30">
+  1209→          {f.body.split(/\s+/).filter(Boolean).length} words · ~
+  1210→          {Math.max(1, Math.round(f.body.split(/\s+/).filter(Boolean).length / 220))} min read
+  1211→        </p>
+  1212→      </Field>
+  1213→
+  1214→      <div className="grid gap-3 sm:grid-cols-3">
+  1215→        <Field label="Category">
+  1216→          <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
+  1217→            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+  1218→            <SelectContent className="border-white/10 bg-coal text-white">
+  1219→              {["Playbooks", "Engineering", "Growth", "Makers", "Ecosystem"].map((c) => (
+  1220→                <SelectItem key={c} value={c}>{c}</SelectItem>
+  1221→              ))}
+  1222→            </SelectContent>
+  1223→          </Select>
+  1224→        </Field>
+  1225→        <Field label="Cover emoji">
+  1226→          <Input value={f.coverEmoji} maxLength={4} onChange={(e) => setF({ ...f, coverEmoji: e.target.value })} className={inputCx} />
+  1227→        </Field>
+  1228→        <Field label="Tags (pipe-separated)">
+  1229→          <Input value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} className={inputCx} placeholder="seo|growth" />
+  1230→        </Field>
+  1231→      </div>
+  1232→
+  1233→      <div>
+  1234→        <p className={labelCx}>Cover gradient</p>
+  1235→        <div className="mt-2 flex flex-wrap gap-2">
+  1236→          {GRADIENTS.map((g) => (
+  1237→            <button
+  1238→              key={g}
+  1239→              type="button"
+  1240→              aria-label={`Gradient ${g}`}
+  1241→              onClick={() => setF({ ...f, coverGradient: g })}
+  1242→              className={cn(
+  1243→                "size-8 rounded-lg bg-gradient-to-br transition-transform active:scale-90",
+  1244→                g,
+  1245→                f.coverGradient === g ? "ring-2 ring-ember ring-offset-2 ring-offset-coal" : "opacity-60 hover:opacity-100"
+  1246→              )}
+  1247→            />
+  1248→          ))}
+  1249→        </div>
+  1250→      </div>
+  1251→
+  1252→      {/* SEO panel */}
+  1253→      <div className="rounded-xl border border-ember/25 bg-ember/[0.04] p-4">
+  1254→        <p className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.2em] text-ember uppercase">
+  1255→          <BarChart3 className="size-3.5" aria-hidden /> SEO panel
+  1256→        </p>
+  1257→        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+  1258→          <Field label="SEO title (≤60 — falls back to title)">
+  1259→            <Input value={f.seoTitle} maxLength={70} onChange={(e) => setF({ ...f, seoTitle: e.target.value })} className={inputCx} />
+  1260→            <p className={cn("text-[10px]", seoTitle.length > 60 ? "text-red-400" : "text-white/30")}>
+  1261→              {seoTitle.length}/60 {seoTitle.length > 60 && "— will truncate in SERP"}
+  1262→            </p>
+  1263→          </Field>
+  1264→          <Field label="Keywords (comma-separated)">
+  1265→            <Input value={f.keywords} onChange={(e) => setF({ ...f, keywords: e.target.value })} className={inputCx} placeholder="launch an ai tool, ai launch checklist" />
+  1266→          </Field>
+  1267→          <div className="sm:col-span-2">
+  1268→            <Field label="SEO description (≤160 — falls back to excerpt)">
+  1269→              <Textarea value={f.seoDescription} rows={2} maxLength={170} onChange={(e) => setF({ ...f, seoDescription: e.target.value })} className={inputCx} />
+  1270→              <p className={cn("text-[10px]", seoDesc.length > 160 ? "text-red-400" : "text-white/30")}>
+  1271→                {seoDesc.length}/160
+  1272→              </p>
+  1273→            </Field>
+  1274→          </div>
+  1275→        </div>
+  1276→
+  1277→        {/* SERP preview */}
+  1278→        <div className="mt-3 rounded-lg border border-white/10 bg-coal p-3.5">
+  1279→          <p className="font-mono text-[10px] tracking-widest text-white/30 uppercase">
+  1280→            SERP preview
+  1281→          </p>
+  1282→          <p className="mt-1.5 truncate text-[11px] text-emerald-400/90">
+  1283→            prother.dev › journal › {f.slug || "your-post-slug"}
+  1284→          </p>
+  1285→          <p className="mt-0.5 truncate text-base font-semibold text-white/90">
+  1286→            {seoTitle || "Untitled post"}
+  1287→          </p>
+  1288→          <p className="mt-0.5 line-clamp-2 text-xs text-white/50">
+  1289→            {seoDesc || "Write an excerpt that earns the click — it doubles as the meta description."}
+  1290→          </p>
+  1291→        </div>
+  1292→      </div>
+  1293→
+  1294→      <div className="flex flex-wrap items-center gap-2">
+  1295→        <Button
+  1296→          disabled={busy || !f.title || (isNew && f.body.trim().length < 50)}
+  1297→          onClick={() => void save()}
+  1298→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+  1299→        >
+  1300→          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+  1301→          Save {f.status === "published" && !isNew ? "(published)" : "draft"}
+  1302→        </Button>
+  1303→        {f.status !== "published" && (
+  1304→          <Button
+  1305→            disabled={busy || !f.title || (isNew && f.body.trim().length < 50)}
+  1306→            onClick={() => void save("published")}
+  1307→            variant="outline"
+  1308→            className="rounded-lg border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300"
+  1309→          >
+  1310→            <BadgeCheck className="size-4" aria-hidden />
+  1311→            Publish now
+  1312→          </Button>
+  1313→        )}
+  1314→        {f.status === "published" && !isNew && (
+  1315→          <Button
+  1316→            disabled={busy}
+  1317→            onClick={() => void save("draft")}
+  1318→            variant="outline"
+  1319→            className="rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+  1320→          >
+  1321→            <RotateCcw className="size-4" aria-hidden />
+  1322→            Unpublish
+  1323→          </Button>
+  1324→        )}
+  1325→        {!isNew && (
+  1326→          <Button
+  1327→            variant="ghost"
+  1328→            disabled={busy}
+  1329→            onClick={() => void remove()}
+  1330→            className="ml-auto rounded-lg text-red-400 hover:bg-red-400/10 hover:text-red-300"
+  1331→          >
+  1332→            <Trash2 className="size-4" aria-hidden />
+  1333→            Delete
+  1334→          </Button>
+  1335→        )}
+  1336→        <Button variant="ghost" onClick={() => onDone()} className="rounded-lg text-white/60 hover:text-white">
+  1337→          Cancel
+  1338→        </Button>
+  1339→      </div>
+  1340→    </div>
+  1341→  );
+  1342→}
+  1343→
+  1344→function BlogTab({
+  1345→  apiKey,
+  1346→  onChanged,
+  1347→  onPreview,
+  1348→}: {
+  1349→  apiKey: string;
+  1350→  onChanged: () => void;
+  1351→  onPreview: (slug: string) => void;
+  1352→}) {
+  1353→  const { toast } = useToast();
+  1354→  const [posts, setPosts] = useState<AdminPost[] | null>(null);
+  1355→  const [editing, setEditing] = useState<PostDraft | null>(null);
+  1356→
+  1357→  const load = useCallback(() => {
+  1358→    adminFetch(apiKey, "/api/admin/posts")
+  1359→      .then((r) => r.json())
+  1360→      .then((d: { posts: AdminPost[] }) => setPosts(d.posts))
+  1361→      .catch(() => toast({ title: "Posts unavailable", variant: "destructive" }));
+  1362→  }, [apiKey, toast]);
+  1363→
+  1364→  useEffect(load, [load]);
+  1365→
+  1366→  if (editing) {
+  1367→    return (
+  1368→      <div className="max-h-[60vh] overflow-y-auto pr-1">
+  1369→        <PostEditor
+  1370→          apiKey={apiKey}
+  1371→          draft={editing}
+  1372→          onDone={(openSlug) => {
+  1373→            setEditing(null);
+  1374→            load();
+  1375→            if (openSlug) onPreview(openSlug);
+  1376→          }}
+  1377→        />
+  1378→      </div>
+  1379→    );
+  1380→  }
+  1381→
+  1382→  return (
+  1383→    <div className="space-y-3">
+  1384→      <div className="flex items-center justify-between">
+  1385→        <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+  1386→          {posts?.length ?? "…"} posts · drafts never render publicly
+  1387→        </p>
+  1388→        <Button
+  1389→          size="sm"
+  1390→          onClick={() => setEditing({ ...EMPTY_POST })}
+  1391→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+  1392→        >
+  1393→          <Plus className="size-4" aria-hidden />
+  1394→          New post
+  1395→        </Button>
+  1396→      </div>
+  1397→
+  1398→      {posts === null && <Spinner />}
+  1399→      <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+  1400→        {posts?.map((p) => (
+  1401→          <div
+  1402→            key={p.id}
+  1403→            className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
+  1404→          >
+  1405→            <span aria-hidden className="text-lg">{p.coverEmoji}</span>
+  1406→            <div className="min-w-0 flex-1">
+  1407→              <p className="truncate text-sm font-bold text-white">{p.title}</p>
+  1408→              <p className="truncate font-mono text-[10px] text-white/40">
+  1409→                /journal/{p.slug} · {p.category} · {p.readingMinutes} min · {p.views} views
+  1410→                {p.seoTitle || p.seoDescription || p.keywords ? " · SEO ✓" : " · SEO —"}
+  1411→              </p>
+  1412→            </div>
+  1413→            <span
+  1414→              className={cn(
+  1415→                "rounded-full px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase",
+  1416→                p.status === "published"
+  1417→                  ? "border border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
+  1418→                  : "border border-white/15 bg-white/5 text-white/50"
+  1419→              )}
+  1420→            >
+  1421→              {p.status}
+  1422→            </span>
+  1423→            {p.status === "published" && (
+  1424→              <button
+  1425→                type="button"
+  1426→                onClick={() => onPreview(p.slug)}
+  1427→                className="rounded-lg p-2 text-white/40 transition-colors hover:text-ember"
+  1428→                aria-label={`Preview ${p.title}`}
+  1429→              >
+  1430→                <ExternalLink className="size-4" aria-hidden />
+  1431→              </button>
+  1432→            )}
+  1433→            <button
+  1434→              type="button"
+  1435→              onClick={() =>
+  1436→                setEditing({
+  1437→                  id: p.id,
+  1438→                  title: p.title,
+  1439→                  slug: p.slug,
+  1440→                  excerpt: p.excerpt,
+  1441→                  body: "",
+  1442→                  category: p.category,
+  1443→                  tags: p.tags,
+  1444→                  coverEmoji: p.coverEmoji,
+  1445→                  coverGradient: p.coverGradient,
+  1446→                  author: p.author,
+  1447→                  status: p.status,
+  1448→                  seoTitle: p.seoTitle ?? "",
+  1449→                  seoDescription: p.seoDescription ?? "",
+  1450→                  keywords: p.keywords ?? "",
+  1451→                })
+  1452→              }
+  1453→              className="rounded-lg p-2 text-white/40 transition-colors hover:text-ember"
+  1454→              aria-label={`Edit ${p.title}`}
+  1455→            >
+  1456→              <Pencil className="size-4" aria-hidden />
+  1457→            </button>
+  1458→          </div>
+  1459→        ))}
+  1460→      </div>
+  1461→      <p className="font-mono text-[10px] leading-relaxed text-white/25">
+  1462→        METADATA-ONLY EDITS KEEP THE STORED MARKDOWN — REWRITE THE BODY FIELD TO
+  1463→        REPLACE IT. READING TIME RECOMPUTES ON BODY SAVE.
+  1464→      </p>
+  1465→    </div>
+  1466→  );
+  1467→}
+  1468→
+  1469→// ── Section: Categories (taxonomy CRUD) ──────────────────────────────────
+  1470→
+  1471→function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+  1472→  const { toast } = useToast();
+  1473→  const [cats, setCats] = useState<
+  1474→    { id: string; slug: string; name: string; emoji: string; sortOrder: number; toolCount: number }[]
+  1475→  >([]);
+  1476→  const [draft, setDraft] = useState({ slug: "", name: "", emoji: "🧪" });
+  1477→
+  1478→  const load = useCallback(() => {
+  1479→    adminFetch(apiKey, "/api/admin/categories")
+  1480→      .then((r) => r.json())
+  1481→      .then((d: { categories: typeof cats }) => setCats(d.categories))
+  1482→      .catch(() => {});
+  1483→  }, [apiKey]);
+  1484→  useEffect(load, [load]);
+  1485→
+  1486→  const save = useCallback(
+  1487→    async (payload: { id?: string; slug: string; name: string; emoji: string }) => {
+  1488→      try {
+  1489→        const res = await adminFetch(apiKey, "/api/admin/categories", {
+  1490→          method: "POST",
+  1491→          body: JSON.stringify(payload),
+  1492→        });
+  1493→        const d = (await res.json()) as { ok?: boolean; error?: string };
+  1494→        if (!res.ok || !d.ok) {
+  1495→          toast({ title: d.error ?? "Save failed", variant: "destructive" });
+  1496→          return false;
+  1497→        }
+  1498→        toast({ title: "Taxonomy updated" });
+  1499→        load();
+  1500→        onChanged();
+  1501→        return true;
+  1502→      } catch {
+  1503→        toast({ title: "Network error", variant: "destructive" });
+  1504→        return false;
+  1505→      }
+  1506→    },
+  1507→    [apiKey, load, onChanged, toast]
+  1508→  );
+  1509→
+  1510→  const remove = useCallback(
+  1511→    async (id: string, name: string, toolCount: number) => {
+  1512→      if (toolCount > 0) {
+  1513→        toast({
+  1514→          title: "Can't delete",
+  1515→          description: `${toolCount} tool${toolCount === 1 ? "" : "s"} still use ${name}.`,
+  1516→          variant: "destructive",
+  1517→        });
+  1518→        return;
+  1519→      }
+  1520→      await adminFetch(apiKey, `/api/admin/categories?id=${id}`, { method: "DELETE" }).catch(
+  1521→        () => {}
+  1522→      );
+  1523→      toast({ title: `${name} deleted` });
+  1524→      load();
+  1525→      onChanged();
+  1526→    },
+  1527→    [apiKey, load, onChanged, toast]
+  1528→  );
+  1529→
+  1530→  return (
+  1531→    <div className="space-y-4">
+  1532→      <div className="max-h-[44vh] space-y-2 overflow-y-auto pr-1">
+  1533→        {cats.map((c) => (
+  1534→          <div
+  1535→            key={c.id}
+  1536→            className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3"
+  1537→          >
+  1538→            <Input
+  1539→              value={c.emoji}
+  1540→              maxLength={4}
+  1541→              aria-label="Emoji"
+  1542→              onChange={(e) =>
+  1543→                setCats((p) =>
+  1544→                  p.map((x) => (x.id === c.id ? { ...x, emoji: e.target.value } : x))
+  1545→                )
+  1546→              }
+  1547→              className="h-9 w-14 border border-white/10 bg-white/10 text-center text-base text-white"
+  1548→            />
+  1549→            <Input
+  1550→              value={c.name}
+  1551→              aria-label="Name"
+  1552→              onChange={(e) =>
+  1553→                setCats((p) =>
+  1554→                  p.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x))
+  1555→                )
+  1556→              }
+  1557→              className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white"
+  1558→            />
+  1559→            <span className="font-mono text-[10px] text-white/35">{c.slug}</span>
+  1560→            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+  1561→              {c.toolCount} tools
+  1562→            </span>
+  1563→            <Button
+  1564→              size="sm"
+  1565→              variant="outline"
+  1566→              onClick={() => void save({ id: c.id, slug: c.slug, name: c.name, emoji: c.emoji })}
+  1567→              className="h-8 rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+  1568→            >
+  1569→              <Save className="size-3.5" aria-hidden />
+  1570→            </Button>
+  1571→            <Button
+  1572→              size="sm"
+  1573→              variant="ghost"
+  1574→              onClick={() => void remove(c.id, c.name, c.toolCount)}
+  1575→              className="h-8 rounded-lg text-red-400 hover:bg-red-400/10"
+  1576→              aria-label={`Delete ${c.name}`}
+  1577→            >
+  1578→              <Trash2 className="size-3.5" aria-hidden />
+  1579→            </Button>
+  1580→          </div>
+  1581→        ))}
+  1582→      </div>
+  1583→
+  1584→      <div className="rounded-xl border border-dashed border-white/15 p-4">
+  1585→        <p className={labelCx}>New category</p>
+  1586→        <div className="mt-2 flex flex-wrap gap-2">
+  1587→          <Input
+  1588→            value={draft.emoji}
+  1589→            maxLength={4}
+  1590→            onChange={(e) => setDraft({ ...draft, emoji: e.target.value })}
+  1591→            aria-label="New category emoji"
+  1592→            className="h-9 w-14 border border-white/10 bg-white/10 text-center text-base text-white"
+  1593→          />
+  1594→          <Input
+  1595→            value={draft.name}
+  1596→            onChange={(e) =>
+  1597→              setDraft({
+  1598→                ...draft,
+  1599→                name: e.target.value,
+  1600→                slug: e.target.value
+  1601→                  .toLowerCase()
+  1602→                  .replace(/[^a-z0-9]+/g, "-")
+  1603→                  .replace(/^-+|-+$/g, ""),
+  1604→              })
+  1605→            }
+  1606→            placeholder="Name"
+  1607→            className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+  1608→          />
+  1609→          <Input
+  1610→            value={draft.slug}
+  1611→            onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
+  1612→            placeholder="slug"
+  1613→            className="w-40 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/25"
+  1614→          />
+  1615→          <Button
+  1616→            disabled={!draft.name || draft.name.length < 2}
+  1617→            onClick={() => {
+  1618→              void save(draft).then((ok) => {
+  1619→                if (ok) setDraft({ slug: "", name: "", emoji: "🧪" });
+  1620→              });
+  1621→            }}
+  1622→            className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+  1623→          >
+  1624→            <Plus className="size-4" aria-hidden />
+  1625→            Add
+  1626→          </Button>
+  1627→        </div>
+  1628→      </div>
+  1629→    </div>
+  1630→  );
+  1631→}
+  1632→
+  1633→// ── Section: Settings (site copy KV) ─────────────────────────────────────
+  1634→
+  1635→const SETTING_FIELDS: { key: string; label: string; multiline?: boolean; hint?: string }[] = [
+  1636→  { key: "hero.headline", label: "Hero headline", hint: "Last word renders in ember." },
+  1637→  { key: "hero.subline", label: "Hero subline", multiline: true },
+  1638→  { key: "hero.announcement", label: "Announcement pill" },
+  1639→  { key: "footer.note", label: "Footer note" },
+  1640→  { key: "seo.defaultTitle", label: "Default SEO title (≤60)" },
+  1641→  { key: "seo.defaultDescription", label: "Default SEO description (≤160)", multiline: true },
+  1642→];
+  1643→
+  1644→function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+  1645→  const { toast } = useToast();
+  1646→  const [values, setValues] = useState<Record<string, string>>({});
+  1647→  const [extra, setExtra] = useState({ key: "", value: "" });
+  1648→  const [busy, setBusy] = useState(false);
+  1649→
+  1650→  const load = useCallback(() => {
+  1651→    adminFetch(apiKey, "/api/admin/settings")
+  1652→      .then((r) => r.json())
+  1653→      .then((d: { settings: Record<string, string> }) => setValues(d.settings))
+  1654→      .catch(() => toast({ title: "Settings unavailable", variant: "destructive" }));
+  1655→  }, [apiKey, toast]);
+  1656→  useEffect(load, [load]);
+  1657→
+  1658→  const save = async () => {
+  1659→    setBusy(true);
+  1660→    try {
+  1661→      const payload: Record<string, string> = { ...values };
+  1662→      if (extra.key && extra.value) payload[extra.key] = extra.value;
+  1663→      const res = await adminFetch(apiKey, "/api/admin/settings", {
+  1664→        method: "PUT",
+  1665→        body: JSON.stringify({ settings: payload }),
+  1666→      });
+  1667→      const d = (await res.json()) as { ok?: boolean; updated?: number };
+  1668→      if (res.ok && d.ok) {
+  1669→        toast({ title: "Site copy saved", description: `${d.updated} keys written — refresh to see it live.` });
+  1670→        setExtra({ key: "", value: "" });
+  1671→        load();
+  1672→        onChanged();
+  1673→      }
+  1674→    } catch {
+  1675→      toast({ title: "Network error", variant: "destructive" });
+  1676→    } finally {
+  1677→      setBusy(false);
+  1678→    }
+  1679→  };
+  1680→
+  1681→  return (
+  1682→    <div className="space-y-4">
+  1683→      <div className="grid gap-3 sm:grid-cols-2">
+  1684→        {SETTING_FIELDS.map((sf) => (
+  1685→          <div key={sf.key} className={sf.multiline ? "sm:col-span-2" : ""}>
+  1686→            <Field label={sf.label} hint={`${sf.key}${sf.hint ? ` · ${sf.hint}` : ""}`}>
+  1687→              {sf.multiline ? (
+  1688→                <Textarea
+  1689→                  value={values[sf.key] ?? ""}
+  1690→                  rows={2}
+  1691→                  onChange={(e) => setValues({ ...values, [sf.key]: e.target.value })}
+  1692→                  className={inputCx}
+  1693→                />
+  1694→              ) : (
+  1695→                <Input
+  1696→                  value={values[sf.key] ?? ""}
+  1697→                  onChange={(e) => setValues({ ...values, [sf.key]: e.target.value })}
+  1698→                  className={inputCx}
+  1699→                />
+  1700→              )}
+  1701→            </Field>
+  1702→          </div>
+  1703→        ))}
+  1704→      </div>
+  1705→
+  1706→      <div className="rounded-xl border border-dashed border-white/15 p-4">
+  1707→        <p className={labelCx}>Custom key / value</p>
+  1708→        <div className="mt-2 flex flex-wrap gap-2">
+  1709→          <Input
+  1710→            value={extra.key}
+  1711→            onChange={(e) => setExtra({ ...extra, key: e.target.value })}
+  1712→            placeholder="e.g. og.imageNote"
+  1713→            className="w-48 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/25"
+  1714→          />
+  1715→          <Input
+  1716→            value={extra.value}
+  1717→            onChange={(e) => setExtra({ ...extra, value: e.target.value })}
+  1718→            placeholder="value"
+  1719→            className="flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+  1720→          />
+  1721→        </div>
+  1722→      </div>
+  1723→
+  1724→      <Button
+  1725→        disabled={busy}
+  1726→        onClick={() => void save()}
+  1727→        className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+  1728→      >
+  1729→        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+  1730→        Save site copy
+  1731→      </Button>
+  1732→    </div>
+  1733→  );
+  1734→}
+  1735→
+  1736→// ── Overview: stat cards (delta pills + mini sparkline) ──────────────────
+  1737→
+  1738→type Delta = { text: string; dir: "up" | "down" | "flat"; title: string };
+  1739→
+  1740→/** Honest delta vs yesterday — no fabrication when the base is zero. */
+  1741→function computeDelta(cur: number, prev: number): Delta {
+  1742→  if (prev === 0 && cur === 0)
+  1743→    return { text: "±0", dir: "flat", title: "No change vs yesterday" };
+  1744→  if (prev === 0)
+  1745→    return { text: "▲ new", dir: "up", title: `${cur} today · none yesterday` };
+  1746→  const pct = Math.round(((cur - prev) / prev) * 100);
+  1747→  if (pct === 0)
+  1748→    return { text: "±0%", dir: "flat", title: `${cur} today vs ${prev} yesterday` };
+  1749→  return pct > 0
+  1750→    ? { text: `▲ ${pct}%`, dir: "up", title: `${cur} today vs ${prev} yesterday` }
+  1751→    : { text: `▼ ${Math.abs(pct)}%`, dir: "down", title: `${cur} today vs ${prev} yesterday` };
+  1752→}
+  1753→
+  1754→const DELTA_CX: Record<Delta["dir"], string> = {
+  1755→  up: "bg-emerald-400/10 text-emerald-400/80",
+  1756→  down: "bg-red-400/10 text-red-400/80",
+  1757→  flat: "bg-white/5 text-white/40",
+  1758→};
+  1759→
+  1760→function DeltaPill({ delta }: { delta: Delta }) {
+  1761→  return (
+  1762→    <span
+  1763→      title={delta.title}
+  1764→      className={cn(
+  1765→        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px]",
+  1766→        DELTA_CX[delta.dir]
+  1767→      )}
+  1768→    >
+  1769→      {delta.text}
+  1770→    </span>
+  1771→  );
+  1772→}
+  1773→
+  1774→function MiniSpark({ data, className }: { data: number[]; className?: string }) {
+  1775→  const max = Math.max(...data, 1);
+  1776→  return (
+  1777→    <div className={cn("flex h-8 items-end gap-[3px]", className)} aria-hidden>
+  1778→      {data.map((v, i) => (
+  1779→        <span
+  1780→          key={i}
+  1781→          className={cn(
+  1782→            "min-w-[3px] flex-1 rounded-sm",
+  1783→            i === data.length - 1 ? "bg-ember" : "bg-white/15"
+  1784→          )}
+  1785→          style={{ height: `${Math.max(8, Math.round((v / max) * 100))}%` }}
+  1786→        />
+  1787→      ))}
+  1788→    </div>
+  1789→  );
+  1790→}
+  1791→
+  1792→function StatCard({
+  1793→  label,
+  1794→  value,
+  1795→  delta,
+  1796→  caption,
+  1797→  spark,
+  1798→  accent,
+  1799→}: {
+  1800→  label: string;
+  1801→  value: string | number;
+  1802→  delta?: Delta;
+  1803→  caption?: string;
+  1804→  spark?: number[];
+  1805→  accent?: boolean;
+  1806→}) {
+  1807→  return (
+  1808→    <div
+  1809→      className={cn(
+  1810→        "rounded-2xl border p-4 sm:p-5",
+  1811→        accent ? "border-ember/40 bg-ember/[0.06]" : "border-white/10 bg-white/[0.02]"
+  1812→      )}
+  1813→    >
+  1814→      <p className="font-mono text-[10px] tracking-[0.2em] text-white/45 uppercase">
+  1815→        {label}
+  1816→      </p>
+  1817→      <p className="mt-1.5 text-3xl font-black tracking-tight text-white">
+  1818→        {typeof value === "number" ? value.toLocaleString() : value}
+  1819→      </p>
+  1820→      {spark && <MiniSpark data={spark} className="mt-3" />}
+  1821→      {(delta || caption) && (
+  1822→        <div className="mt-2.5 flex min-h-5 flex-wrap items-center gap-2">
+  1823→          {delta && <DeltaPill delta={delta} />}
+  1824→          {caption && (
+  1825→            <span className="min-w-0 truncate font-mono text-[10px] text-white/30">
+  1826→              {caption}
+  1827→            </span>
+  1828→          )}
+  1829→        </div>
+  1830→      )}
+  1831→    </div>
+  1832→  );
+  1833→}
+  1834→
+  1835→// ── Overview: charts row ─────────────────────────────────────────────────
+  1836→
+  1837→function dayLabel(utcDayIndex: number): string {
+  1838→  // Index 13 = today (UTC). Labels are display-only.
+  1839→  const d = new Date(Date.now() - (13 - utcDayIndex) * 86_400_000);
+  1840→  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  1841→}
+  1842→
+  1843→function LaunchesChartCard({ byDay }: { byDay: number[] }) {
+  1844→  const max = Math.max(...byDay, 1);
+  1845→  const total = byDay.reduce((a, b) => a + b, 0);
+  1846→  return (
+  1847→    <Panel>
+  1848→      <div className="flex items-center justify-between gap-2">
+  1849→        <p className={labelCx}>Launches — last 14 days</p>
+  1850→        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+  1851→          {total} total
+  1852→        </span>
+  1853→      </div>
+  1854→      <div
+  1855→        role="img"
+  1856→        aria-label={`Launches per day over the last 14 days, ${total} total`}
+  1857→        className="mt-5 flex h-40 items-end gap-1.5 border-b border-white/10 pb-px"
+  1858→      >
+  1859→        {byDay.map((v, i) => (
+  1860→          <div
+  1861→            key={i}
+  1862→            title={`${dayLabel(i)} · ${v} launch${v === 1 ? "" : "es"}`}
+  1863→            className="group flex h-full flex-1 items-end"
+  1864→          >
+  1865→            <span
+  1866→              className={cn(
+  1867→                "w-full rounded-t-[3px] transition-colors",
+  1868→                i === 13 ? "bg-ember" : "bg-white/15 group-hover:bg-white/30"
+  1869→              )}
+  1870→              style={{ height: `${Math.max(3, Math.round((v / max) * 100))}%` }}
+  1871→            />
+  1872→          </div>
+  1873→        ))}
+  1874→      </div>
+  1875→      <div className="mt-1.5 flex gap-1.5" aria-hidden>
+  1876→        {byDay.map((_, i) =>
+  1877→          i % 3 === 0 || i === 13 ? (
+  1878→            <span
+  1879→              key={i}
+  1880→              className={cn(
+  1881→                "flex-1 text-center font-mono text-[8px]",
+  1882→                i === 13 ? "text-ember" : "text-white/30"
+  1883→              )}
+  1884→            >
+  1885→              {dayLabel(i)}
+  1886→            </span>
+  1887→          ) : (
+  1888→            <span key={i} className="flex-1" />
+  1889→          )
+  1890→        )}
+  1891→      </div>
+  1892→    </Panel>
+  1893→  );
+  1894→}
+  1895→
+  1896→/* Monochrome-plus-ember dot palette (brand tones only — no rainbow). */
+  1897→const MIX_COLORS = [
+  1898→  "#FF6A00",
+  1899→  "#FFB877",
+  1900→  "#F1EDE4",
+  1901→  "rgba(255,255,255,0.55)",
+  1902→  "rgba(255,255,255,0.32)",
+  1903→  "rgba(255,255,255,0.16)",
+  1904→];
+  1905→
+  1906→function CategoryMixCard({ mix }: { mix: { name: string; count: number }[] }) {
+  1907→  const top = mix.slice(0, 6);
+  1908→  const rest = mix.slice(6).reduce((a, b) => a + b.count, 0);
+  1909→  const rows = rest > 0 ? [...top, { name: "Other", count: rest }] : top;
+  1910→  const total = mix.reduce((a, b) => a + b.count, 0);
+  1911→  return (
+  1912→    <Panel>
+  1913→      <div className="flex items-center justify-between gap-2">
+  1914→        <p className={labelCx}>Category mix</p>
+  1915→        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+  1916→          {total} live
+  1917→        </span>
+  1918→      </div>
+  1919→      <div className="mt-4 space-y-3.5">
+  1920→        {rows.map((r, i) => (
+  1921→          <div key={r.name}>
+  1922→            <div className="flex items-center gap-2">
+  1923→              <span
+  1924→                aria-hidden
+  1925→                className="size-2 shrink-0 rounded-full"
+  1926→                style={{ backgroundColor: MIX_COLORS[i % MIX_COLORS.length] }}
+  1927→              />
+  1928→              <span className="min-w-0 flex-1 truncate text-sm text-white/70">{r.name}</span>
+  1929→              <span className="font-mono text-xs text-white/45">{r.count}</span>
+  1930→            </div>
+  1931→            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+  1932→              <div
+  1933→                className="h-full rounded-full"
+  1934→                style={{
+  1935→                  width: `${total ? Math.max(2, Math.round((r.count / total) * 100)) : 0}%`,
+  1936→                  backgroundColor: MIX_COLORS[i % MIX_COLORS.length],
+  1937→                }}
+  1938→              />
+  1939→            </div>
+  1940→          </div>
+  1941→        ))}
+  1942→        {rows.length === 0 && (
+  1943→          <p className="py-10 text-center text-sm text-white/30">No live listings yet.</p>
+  1944→        )}
+  1945→      </div>
+  1946→    </Panel>
+  1947→  );
+  1948→}
+  1949→
+  1950→const PRICING_ORDER = ["free", "freemium", "paid", "open_source"] as const;
+  1951→const PRICING_COLORS: Record<string, string> = {
+  1952→  free: "#FF6A00",
+  1953→  freemium: "#FFB877",
+  1954→  paid: "#F1EDE4",
+  1955→  open_source: "rgba(255,255,255,0.45)",
+  1956→};
+  1957→
+  1958→function PricingDonutCard({ mix }: { mix: { model: string; count: number }[] }) {
+  1959→  const rows = PRICING_ORDER.map((m) => ({
+  1960→    model: m,
+  1961→    count: mix.find((x) => x.model === m)?.count ?? 0,
+  1962→  })).filter((r) => r.count > 0);
+  1963→  const total = rows.reduce((a, b) => a + b.count, 0);
+  1964→  let acc = 0;
+  1965→  const stops = rows.map((r) => {
+  1966→    const start = (acc / total) * 100;
+  1967→    acc += r.count;
+  1968→    const end = (acc / total) * 100;
+  1969→    return `${PRICING_COLORS[r.model] ?? "rgba(255,255,255,0.4)"} ${start}% ${end}%`;
+  1970→  });
+  1971→  return (
+  1972→    <Panel>
+  1973→      <p className={labelCx}>Pricing mix</p>
+  1974→      <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row">
+  1975→        <div
+  1976→          role="img"
+  1977→          aria-label={`Pricing mix across ${total} live tools`}
+  1978→          className="relative size-36 shrink-0 rounded-full ring-1 ring-white/10"
+  1979→          style={{ background: total > 0 ? `conic-gradient(${stops.join(",")})` : "rgba(255,255,255,0.05)" }}
+  1980→        >
+  1981→          <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-ink">
+  1982→            <span className="text-2xl font-black tracking-tight text-white">
+  1983→              {total.toLocaleString()}
+  1984→            </span>
+  1985→            <span className="font-mono text-[8px] tracking-[0.2em] text-white/40 uppercase">
+  1986→              tools
+  1987→            </span>
+  1988→          </div>
+  1989→        </div>
+  1990→        <div className="w-full space-y-2">
+  1991→          {rows.map((r) => (
+  1992→            <div key={r.model} className="flex items-center gap-2 font-mono text-[11px]">
+  1993→              <span
+  1994→                aria-hidden
+  1995→                className="size-2 shrink-0 rounded-full"
+  1996→                style={{ backgroundColor: PRICING_COLORS[r.model] }}
+  1997→              />
+  1998→              <span className="flex-1 text-white/60">{r.model.replace("_", " ")}</span>
+  1999→              <span className="text-white/40">{r.count}</span>
+  2000→            </div>
+
+[showing lines 1-2000 of 2613; use offset=2001 with limit to continue reading]

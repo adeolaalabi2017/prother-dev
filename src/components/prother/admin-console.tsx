@@ -11,12 +11,14 @@ import {
   Database,
   ExternalLink,
   FileText,
+  Flag,
   Hexagon,
   KeyRound,
   LayoutDashboard,
   ListChecks,
   Loader2,
   Mail,
+  Megaphone,
   Menu,
   Pencil,
   Pin,
@@ -29,6 +31,7 @@ import {
   Star,
   Tags,
   Trash2,
+  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -65,6 +68,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { STANDARD_DEFS } from "@/lib/standards";
+import {
+  DEMO_HINT,
+  adminFetch,
+  inputCx,
+  labelCx,
+  Field,
+  Panel,
+  Spinner,
+  useAdminKey,
+} from "./admin/admin-shared";
+import { UsersTab } from "./admin/admin-users";
+import { ReportsTab } from "./admin/admin-reports";
+import { AdsTab } from "./admin/admin-ads";
 
 /**
  * Admin Console — /admin route (Task 20-c redesign).
@@ -80,99 +96,7 @@ import { STANDARD_DEFS } from "@/lib/standards";
  * Demo key auth (`x-editor-key`) shared with the editor desk; NextAuth P2.
  */
 
-// ── shared helpers ───────────────────────────────────────────────────────
-
-const KEY_STORAGE = "prother_editor_key";
-const DEMO_HINT = "ember-dev";
-
-function useAdminKey() {
-  // Start locked on BOTH server and client first paint — reading
-  // sessionStorage during the hydration render would mismatch the SSR'd
-  // locked chip/gate (React 19 hydration error). The stored key is
-  // restored in a microtask right after mount (async, so the
-  // react-hooks/set-state-in-effect rule stays satisfied).
-  const [key, setKey] = useState<string | null>(null);
-  useEffect(() => {
-    Promise.resolve().then(() => {
-      const stored = sessionStorage.getItem(KEY_STORAGE);
-      if (stored) setKey(stored);
-    });
-  }, []);
-  const unlock = useCallback((k: string) => {
-    sessionStorage.setItem(KEY_STORAGE, k);
-    setKey(k);
-  }, []);
-  const lock = useCallback(() => {
-    sessionStorage.removeItem(KEY_STORAGE);
-    setKey(null);
-  }, []);
-  return { key, unlock, lock };
-}
-
-function adminFetch(key: string, url: string, init?: RequestInit) {
-  return fetch(url, {
-    ...init,
-    headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      "x-editor-key": key,
-      ...init?.headers,
-    },
-  }).then(async (r) => {
-    if (r.status === 401) throw new Error("401");
-    return r;
-  });
-}
-
-const inputCx =
-  "border-white/10 bg-white/5 text-white placeholder:text-white/25 text-sm";
-const labelCx =
-  "font-mono text-[10px] tracking-[0.2em] text-white/40 uppercase";
-
-function Field({
-  label,
-  children,
-  hint,
-}: {
-  label: string;
-  children: React.ReactNode;
-  hint?: string;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className={labelCx}>{label}</Label>
-      {children}
-      {hint && <p className="text-[11px] text-white/30">{hint}</p>}
-    </div>
-  );
-}
-
-function Spinner() {
-  return (
-    <div className="flex items-center justify-center py-14 text-white/30">
-      <Loader2 className="size-5 animate-spin" aria-hidden />
-    </div>
-  );
-}
-
-/** Card shell shared by dashboard panels (reference density, Prother skin). */
-function Panel({
-  className,
-  children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5",
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
-}
+// ── shared helpers live in ./admin/admin-shared.tsx (Task 23-b split) ─────
 
 // ── Gate (locked state) ──────────────────────────────────────────────────
 
@@ -2213,7 +2137,10 @@ type SectionId =
   | "tools"
   | "schedule"
   | "categories"
+  | "users"
+  | "reports"
   | "journal"
+  | "ads"
   | "settings";
 
 const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: LucideIcon }[] }[] = [
@@ -2228,11 +2155,17 @@ const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: 
       { id: "tools", label: "Tools", icon: Database },
       { id: "schedule", label: "Schedule", icon: CalendarDays },
       { id: "categories", label: "Categories", icon: Tags },
+      { id: "users", label: "Users", icon: Users },
+      { id: "reports", label: "Reports", icon: Flag },
     ],
   },
   {
     label: "Content",
     items: [{ id: "journal", label: "Journal", icon: FileText }],
+  },
+  {
+    label: "Growth",
+    items: [{ id: "ads", label: "Advertising", icon: Megaphone }],
   },
   {
     label: "Config",
@@ -2246,7 +2179,10 @@ const SECTION_TITLES: Record<SectionId, string> = {
   tools: "Tools",
   schedule: "Launch schedule",
   categories: "Categories",
+  users: "Users",
+  reports: "Reports",
   journal: "Journal",
+  ads: "Advertising",
   settings: "Site settings",
 };
 
@@ -2256,7 +2192,10 @@ const SECTION_NOTES: Record<SectionId, string> = {
   tools: "Every listing: edit copy, pricing, status, pins and verification.",
   schedule: "14-day launch calendar, floor/cap guardrails, unscheduled pool.",
   categories: "Primary taxonomy — names, emoji, slugs, tool counts.",
+  users: "Community roster — roles, bans and activity, sessions revoke on ban.",
+  reports: "Community moderation queue — hide content, resolve or dismiss with a note.",
   journal: "SEO workhorse: markdown posts with drafts, SERP preview and views.",
+  ads: "Sponsored campaigns — placements, flights, budgets and CTR.",
   settings: "KV site copy — hero, announcement, footer, SEO defaults. No deploys.",
 };
 
@@ -2582,12 +2521,21 @@ export function AdminDashboard() {
                   {section === "categories" && (
                     <TaxonomyTab apiKey={key} onChanged={bumpOverview} />
                   )}
+                  {section === "users" && (
+                    <UsersTab apiKey={key} onChanged={bumpOverview} />
+                  )}
+                  {section === "reports" && (
+                    <ReportsTab apiKey={key} onChanged={bumpOverview} />
+                  )}
                   {section === "journal" && (
                     <BlogTab
                       apiKey={key}
                       onChanged={bumpOverview}
                       onPreview={previewPost}
                     />
+                  )}
+                  {section === "ads" && (
+                    <AdsTab apiKey={key} onChanged={bumpOverview} />
                   )}
                   {section === "settings" && (
                     <SettingsTab apiKey={key} onChanged={bumpOverview} />

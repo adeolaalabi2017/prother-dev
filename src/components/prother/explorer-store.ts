@@ -18,6 +18,7 @@ import type { SubmitPrefill } from "@/lib/submit";
  *   ?compare=<a>,<b>      side-by-side comparison full page
  *   ?collection=<slug>    public collection full page
  *   ?mine=collections     my collections + follows full page
+ *   ?saved=mine           saved bookmarks full page (works signed-out)
  *   ?cat=<slug>           launch-feed category FILTER (not a page)
  *
  * Every open/close pushes a history entry, so the browser Back button
@@ -54,6 +55,8 @@ type ExplorerState = {
   collectionSlug: string | null;
   /** "collections" — my collections + follows page. */
   mineView: string | null;
+  /** "mine" — saved bookmarks page (anon bookmarks are valid). */
+  savedView: string | null;
 
   openTool: (slug: string, opts?: OpenOpts) => void;
   closeTool: (opts?: OpenOpts) => void;
@@ -76,6 +79,8 @@ type ExplorerState = {
   closeCollection: (opts?: OpenOpts) => void;
   openMine: (view?: string, opts?: OpenOpts) => void;
   closeMine: (opts?: OpenOpts) => void;
+  openSaved: (view?: string, opts?: OpenOpts) => void;
+  closeSaved: (opts?: OpenOpts) => void;
   /** Replay a URL's ?params into the store without touching history. */
   syncFromUrl: (search: string) => void;
 };
@@ -102,7 +107,7 @@ export function postHash(slug: string): string {
 }
 
 /** Query params owned by full-page views (in stack order). */
-const PAGE_PARAMS = ["mine", "collection", "category", "launches", "compare", "post", "tool"] as const;
+const PAGE_PARAMS = ["mine", "saved", "collection", "category", "launches", "compare", "post", "tool"] as const;
 
 function urlWith(mutate: (u: URL) => void): string {
   const url = new URL(window.location.href);
@@ -145,6 +150,7 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   compareOpen: false,
   collectionSlug: null,
   mineView: null,
+  savedView: null,
 
   openTool: (slug, opts) => {
     set({ slug });
@@ -266,6 +272,19 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
       withParam("mine", null, opts?.replace ?? false);
     }
   },
+  openSaved: (view = "mine", opts) => {
+    set({ savedView: view });
+    if (opts?.sync !== false && typeof window !== "undefined") {
+      withParam("saved", view, opts?.replace ?? false);
+    }
+  },
+  closeSaved: (opts) => {
+    if (get().savedView === null) return;
+    set({ savedView: null });
+    if (opts?.sync !== false && typeof window !== "undefined") {
+      withParam("saved", null, opts?.replace ?? false);
+    }
+  },
 
   syncFromUrl: (search) => {
     if (typeof window === "undefined") return;
@@ -287,6 +306,7 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
       launchesDate: sp.get("launches"),
       collectionSlug: sp.get("collection"),
       mineView: sp.get("mine"),
+      savedView: sp.get("saved"),
       compare,
       compareOpen: compare.length === 2,
     });

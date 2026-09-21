@@ -6,11 +6,13 @@ import { motion } from "framer-motion";
 import {
   ArrowUpRight,
   Bookmark,
+  BookmarkCheck,
   Check,
   ChevronDown,
   CircleDashed,
   Clock,
   Copy,
+  Flag,
   Heart,
   Link2,
   Loader2,
@@ -39,6 +41,8 @@ import type { CommentRow } from "@/lib/discussion";
 import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
 import { useExplorer } from "./explorer-store";
 import { getVoterKey } from "./voter";
+import { useBookmark } from "./use-bookmarks";
+import { ReportDialog } from "./report-dialog";
 
 // ── Types (additive fields per the tool-detail API contract) ─────────────
 
@@ -1532,6 +1536,14 @@ export function ToolFullPage() {
   const [following, setFollowing] = useState(false);
   const [savedLocal, setSavedLocal] = useState<{ slug: string; name: string }[] | null>(null);
   const [copied, setCopied] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+
+  // Bookmark (Task 23) — personal saved list, anon visitorKey or session scope.
+  const {
+    bookmarked: toolBookmarked,
+    pending: bookmarkPending,
+    toggle: toggleToolBookmark,
+  } = useBookmark("tool", slug);
 
   const load = useCallback(async () => {
     if (!slug) return;
@@ -1890,6 +1902,31 @@ export function ToolFullPage() {
               </Button>
             </SavePopover>
 
+            {/* Bookmark for later (Task 23) — the Saved overlay lists these */}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={
+                toolBookmarked ? `Remove ${name} from saved` : `Save ${name} for later`
+              }
+              aria-pressed={toolBookmarked}
+              disabled={bookmarkPending}
+              onClick={() =>
+                void toggleToolBookmark({ label: name, href: `/?tool=${slug}` })
+              }
+              className={cn(
+                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+                toolBookmarked ? "text-ember" : "text-white/70 hover:text-ember"
+              )}
+            >
+              {toolBookmarked ? (
+                <BookmarkCheck className="size-4 fill-ember" aria-hidden />
+              ) : (
+                <Bookmark className="size-4" aria-hidden />
+              )}
+            </Button>
+
             <Button
               type="button"
               variant="outline"
@@ -1932,8 +1969,28 @@ export function ToolFullPage() {
                 </a>
               </Button>
             )}
+
+            {/* Report listing (Task 23) — moderators review every report */}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={`Report ${name}`}
+              onClick={() => setReportOpen(true)}
+              className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/40 hover:border-ember/40 hover:text-ember"
+            >
+              <Flag className="size-4" aria-hidden />
+            </Button>
           </div>
         </header>
+
+        <ReportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          targetType="tool"
+          targetId={slug}
+          targetLabel={name}
+        />
 
         {/* b–i: main column + facts rail */}
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-10">

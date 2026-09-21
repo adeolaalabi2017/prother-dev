@@ -2,18 +2,28 @@
 
 import { useSyncExternalStore, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, MessageSquare, Triangle } from "lucide-react";
+import {
+  Bookmark,
+  BookmarkCheck,
+  Flag,
+  Loader2,
+  MessageSquare,
+  Triangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { getVoterKey } from "@/components/prother/voter";
 import { requestSignIn } from "@/components/prother/auth-menu";
+import { useBookmark } from "@/components/prother/use-bookmarks";
+import { ReportDialog } from "@/components/prother/report-dialog";
 import type { ForumReplyRow } from "@/lib/prother";
 
 /**
  * /forums/[slug] interactive layer: anon vote toggle (same voterKey scheme
- * as the launch feed), reply list with client-computed relative times, and
- * the signed-in reply composer. Thread header/body are server-rendered on
+ * as the launch feed), thread bookmark + report (Task 23), reply list with
+ * client-computed relative times and per-reply report flags, and the
+ * signed-in reply composer. Thread header/body are server-rendered on
  * the page; only these parts hydrate.
  */
 
@@ -118,12 +128,22 @@ function useAnonVote(slug: string, initialVotes: number) {
 
 type Props = {
   slug: string;
+  /** Thread id — the bookmark/report target (ids are stable; slugs are not). */
+  threadId: string;
+  /** Thread title — snapshot for the Saved overlay label. */
+  threadTitle: string;
   /** baseUpvotes + anon votes, computed server-side. */
   initialVotes: number;
   replies: ForumReplyRow[];
 };
 
-export function ForumThreadActions({ slug, initialVotes, replies: initialReplies }: Props) {
+export function ForumThreadActions({
+  slug,
+  threadId,
+  threadTitle,
+  initialVotes,
+  replies: initialReplies,
+}: Props) {
   const { votes, voted, pending, toggle } = useAnonVote(slug, initialVotes);
   const { status } = useSession();
   const [replies, setReplies] = useState(initialReplies);
@@ -131,6 +151,17 @@ export function ForumThreadActions({ slug, initialVotes, replies: initialReplies
   const [sending, setSending] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Bookmark + report (Task 23). Bookmark target = thread ID, not slug.
+  const {
+    bookmarked: threadBookmarked,
+    pending: bookmarkPending,
+    toggle: toggleThreadBookmark,
+  } = useBookmark("thread", threadId);
+  const [reportTarget, setReportTarget] = useState<
+    | { targetType: "thread" | "reply"; targetId: string; targetLabel: string }
+    | null
+  >(null);
 
   const signedIn = status === "authenticated";
   const canPost = body.trim().length >= 1 && body.trim().length <= 3000 && !sending;
@@ -167,7 +198,7 @@ export function ForumThreadActions({ slug, initialVotes, replies: initialReplies
   return (
     <div>
       {/* vote toggle — anon voterKey scheme, ember when voted */}
-      <div className="mt-6 flex items-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => void toggle()}
@@ -185,6 +216,52 @@ export function ForumThreadActions({ slug, initialVotes, replies: initialReplies
           {votes}
           <span className="sr-only">upvotes</span>
         </button>
+
+        {/* Save thread (Task 23) — target is the thread ID */}
+        <button
+          type="button"
+          onClick={() =>
+            void toggleThreadBookmark({ label: threadTitle, href: `/forums/${slug}` })
+          }
+          disabled={bookmarkPending}
+          aria-pressed={threadBookmarked}
+          aria-label={
+            threadBookmarked ? "Remove thread from saved" : "Save this thread"
+          }
+          className={cn(
+            "inline-flex h-10 items-center gap-2 rounded-lg border px-3.5 transition-colors disabled:opacity-60",
+            threadBookmarked
+              ? "border-ember/60 bg-ember/15 text-ember"
+              : "border-white/10 bg-white/[0.03] text-white/60 hover:border-ember/40 hover:text-ember"
+          )}
+        >
+          {threadBookmarked ? (
+            <BookmarkCheck className="size-4 fill-ember" aria-hidden />
+          ) : (
+            <Bookmark className="size-4" aria-hidden />
+          )}
+          <span className="font-mono text-[11px] uppercase tracking-wider">
+            {threadBookmarked ? "Saved" : "Save"}
+          </span>
+        </button>
+
+        {/* Report thread (Task 23) */}
+        <button
+          type="button"
+          onClick={() =>
+            setReportTarget({
+              targetType: "thread",
+              targetId: threadId,
+              targetLabel: threadTitle,
+            })
+          }
+          aria-label="Report this thread"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-transparent px-3 font-mono text-[11px] uppercase tracking-wider text-white/40 transition-colors hover:border-red-500/30 hover:text-red-400"
+        >
+          <Flag className="size-3.5" aria-hidden />
+          Report
+        </button>
+
         <span className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider text-white/40 uppercase">
           <MessageSquare className="size-3.5" aria-hidden />
           {replies.length} {replies.length === 1 ? "reply" : "replies"}
@@ -204,12 +281,32 @@ export function ForumThreadActions({ slug, initialVotes, replies: initialReplies
           {replies.map((r) => (
             <li
               key={r.id}
-              className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
+              className="group/reply relative rounded-xl border border-white/10 bg-white/[0.02] p-4"
             >
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tracking-wider text-white/45">
                 <span className="text-ember">{r.author}</span>
                 <span aria-hidden>·</span>
                 <ForumTime iso={r.createdAt} />
+
+                {/* Report reply (Task 23) — hover/focus reveal on desktop,
+                    dimmed but reachable on touch screens */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setReportTarget({
+                      targetType: "reply",
+                      targetId: r.id,
+                      targetLabel: `Reply by ${r.author}`,
+                    })
+                  }
+                  aria-label={`Report reply by ${r.author}`}
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-white/30 transition-all hover:text-red-400 focus-visible:opacity-100 focus-visible:text-red-400 focus-visible:outline-none sm:opacity-0 sm:group-hover/reply:opacity-100 sm:focus-visible:opacity-100"
+                >
+                  <Flag className="size-3" aria-hidden />
+                  <span className="sr-only sm:not-sr-only sm:text-[10px] uppercase tracking-wider">
+                    Report
+                  </span>
+                </button>
               </div>
               <p className="mt-2.5 text-sm leading-relaxed whitespace-pre-line text-white/80">
                 {r.body}
@@ -299,6 +396,17 @@ export function ForumThreadActions({ slug, initialVotes, replies: initialReplies
           )}
         </div>
       </section>
+
+      {/* One report dialog serves the thread AND every reply */}
+      <ReportDialog
+        open={reportTarget !== null}
+        onOpenChange={(next) => {
+          if (!next) setReportTarget(null);
+        }}
+        targetType={reportTarget?.targetType ?? "thread"}
+        targetId={reportTarget?.targetId ?? ""}
+        targetLabel={reportTarget?.targetLabel}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { FolderHeart, Loader2, LogOut } from "lucide-react";
+import { Bookmark, FolderHeart, Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -218,6 +218,14 @@ export function AuthMenu() {
           </DropdownMenuItem>
 
           <DropdownMenuItem
+            onSelect={() => useExplorer.getState().openSaved("mine")}
+            className="gap-2 rounded-lg px-2 py-2 text-sm text-white/80 focus:bg-white/10 focus:text-white"
+          >
+            <Bookmark className="size-4 text-ember" aria-hidden />
+            Saved
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
             onSelect={() => void signOut({ callbackUrl: "/" })}
             className="gap-2 rounded-lg px-2 py-2 text-sm text-red-400 focus:bg-red-500/10 focus:text-red-300"
           >
@@ -363,6 +371,26 @@ export function AuthMenu() {
             </button>
           </div>
         )}
+
+        {/* Saved works without an account — bookmarks ride the anon visitor key */}
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              useExplorer.getState().openSaved("mine");
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left transition-colors hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+          >
+            <Bookmark className="size-3.5 shrink-0 text-ember" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold text-white/80">Saved items</span>
+              <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-white/35">
+                Works without an account →
+              </span>
+            </span>
+          </button>
+        </div>
       </PopoverContent>
     </Popover>
   );

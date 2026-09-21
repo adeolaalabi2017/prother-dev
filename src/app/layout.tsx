@@ -13,6 +13,7 @@ import { EditorConsole } from "@/components/prother/editor-console";
 import { CompareTray } from "@/components/prother/compare-tray";
 import { DeepLinkHost } from "@/components/prother/deep-link-host";
 import { CollectionsMineFullPage } from "@/components/prother/collections-mine-full-page";
+import { SavedFullPage } from "@/components/prother/saved-full-page";
 import { CollectionFullPage } from "@/components/prother/collection-full-page";
 import { CategoryFullPage } from "@/components/prother/category-full-page";
 import { LaunchesFullPage } from "@/components/prother/launches-full-page";
@@ -94,8 +95,9 @@ export default function RootLayout({
             <EditorConsole />
             <CompareTray />
             <DeepLinkHost />
-            {/* ── Full-page deep-link stack (each renders null when closed) ── */}
+            {/* Full-page deep-link stack — each renders null when closed */}
             <CollectionsMineFullPage />
+            <SavedFullPage />
             <CollectionFullPage />
             <CategoryFullPage />
             <LaunchesFullPage />

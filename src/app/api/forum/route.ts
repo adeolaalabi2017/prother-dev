@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
+import { isUserBanned } from "@/lib/users";
 import { FORUM_TOPICS } from "@/lib/forum-topics";
 import { createForumThread, forumListPayload, uniqueForumSlug } from "@/lib/forum";
 
@@ -65,6 +66,12 @@ export async function POST(req: Request) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: "auth_required" }, { status: 401 });
+  }
+  if (await isUserBanned(user.id)) {
+    return NextResponse.json(
+      { error: "account_banned", message: "This account can no longer post." },
+      { status: 403 }
+    );
   }
 
   const { title, body, topic } = parsed.data;

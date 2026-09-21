@@ -72,14 +72,14 @@ export async function forumListPayload(
     db.$queryRaw<(RawThread & { replyCount: number; voteCount: number })[]>`
       SELECT t.id, t.slug, t.title, t.body, t.topic, t.author, t.pinned,
              t.baseUpvotes, t.createdAt,
-             (SELECT COUNT(*) FROM ForumReply fr WHERE fr.threadId = t.id) AS replyCount,
+             (SELECT COUNT(*) FROM ForumReply fr WHERE fr.threadId = t.id AND fr.hidden = 0) AS replyCount,
              (SELECT COUNT(*) FROM ForumThreadVote fv WHERE fv.threadId = t.id) AS voteCount
       FROM ForumThread t
-      WHERE ${topic} = 'all' OR t.topic = ${topic}
+      WHERE (${topic} = 'all' OR t.topic = ${topic}) AND t.hidden = 0
       ORDER BY t.createdAt DESC
       LIMIT 200`,
     db.$queryRaw<{ topic: string; n: number }[]>`
-      SELECT topic, COUNT(*) AS n FROM ForumThread GROUP BY topic`,
+      SELECT topic, COUNT(*) AS n FROM ForumThread WHERE hidden = 0 GROUP BY topic`,
     voterKey
       ? db.$queryRaw<{ threadId: string }[]>`
           SELECT threadId FROM ForumThreadVote WHERE voterKey = ${voterKey}`
@@ -136,7 +136,7 @@ export async function getForumThreadDetail(
     SELECT id, slug, title, body, topic, author, pinned, baseUpvotes,
            createdAt, updatedAt
     FROM ForumThread
-    WHERE slug = ${slug}
+    WHERE slug = ${slug} AND hidden = 0
     LIMIT 1`;
   const raw = threadRows[0];
   if (!raw) return null;
@@ -145,7 +145,7 @@ export async function getForumThreadDetail(
     db.$queryRaw<{ id: string; author: string; body: string; createdAt: number | string }[]>`
       SELECT id, author, body, createdAt
       FROM ForumReply
-      WHERE threadId = ${raw.id}
+      WHERE threadId = ${raw.id} AND hidden = 0
       ORDER BY createdAt ASC
       LIMIT 500`,
     db.$queryRaw<{ n: number }[]>`
@@ -174,6 +174,20 @@ export async function getForumThreadDetail(
     replies,
     voted,
   };
+}
+
+// ── Moderation ──────────────────────────────────────────────────────────
+
+/**
+ * True when the slug exists but is hidden by moderators. The detail/list
+ * queries filter hidden rows, so /forums/[slug] uses this to keep the page
+ * 200 + noindex and render a "removed by moderators" notice instead of the
+ * content (hidden rows stay in the DB for the audit trail).
+ */
+export async function isForumThreadHidden(slug: string): Promise<boolean> {
+  const rows = await db.$queryRaw<{ hidden: number | boolean }[]>`
+    SELECT hidden FROM ForumThread WHERE slug = ${slug} LIMIT 1`;
+  return Boolean(rows[0]?.hidden);
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────
