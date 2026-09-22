@@ -22,7 +22,9 @@ import { AuthMenu } from "./auth-menu";
 
 /**
  * Nav points at dedicated routes; "Categories" is the one homepage anchor
- * (scrolls to the CategoryGrid section on /).
+ * (scrolls to the CategoryGrid section on /). Anchor shortcuts never render
+ * an active state — only real route matches light up, so the default state
+ * on the homepage is neutral.
  */
 const NAV_LINKS = [
   { label: "Tools", href: "/tools", id: "tools", icon: Compass },
@@ -40,8 +42,9 @@ export function SiteHeader() {
   const isActive = (id: string) => {
     const link = NAV_LINKS.find((l) => l.id === id);
     if (!link) return false;
-    // The Categories anchor only lights up on the homepage itself.
-    if (link.href.startsWith("/#")) return pathname === "/";
+    // Anchor shortcuts (Categories → /#categories) are scroll helpers, not
+    // routes — they never light up, keeping the homepage default neutral.
+    if (link.href.startsWith("/#")) return false;
     // Route links stay active on their sub-routes too (/journal/<slug>,
     // /forums/<slug>) — exact match OR a nested path under the link.
     return pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -49,7 +52,10 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-ink/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+      {/* Full-bleed header row: the border above/below span the viewport, so the
+          content cap is set wider than the page column (max-w-7xl vs max-w-6xl)
+          to keep side margins tight and give the nav room to breathe. */}
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
           className="flex items-center gap-2"
@@ -84,18 +90,8 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSearch(true)}
-            aria-label="Search tools (Command K)"
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white/60 transition-colors hover:border-ember/40 hover:text-white"
-          >
-            <Search className="size-4" aria-hidden />
-            <span className="hidden lg:inline">Search tools</span>
-            <kbd className="hidden rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/50 lg:inline">
-              ⌘K
-            </kbd>
-          </button>
+          {/* No search box in the bar — the hero search, /tools directory and
+              the global ⌘K palette (mounted in layout.tsx) already cover it. */}
           <AuthMenu />
           <Link
             href="/admin"

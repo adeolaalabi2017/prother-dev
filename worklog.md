@@ -1000,3 +1000,18 @@ Stage Summary:
 - Data signals now: editorsPick/curated/pinned (editorial), reviews ★ (ease/power/value, aggregate ≥3), comments, collection saves, trending score = comments*3 + reviews*5 + saves*4 + editorial bonus.
 - KNOWN NON-ISSUES: tsc errors in examples/ + skills/ are pre-existing sandbox artifacts (not app code). /api/claims expects ?tool= not ?slug=.
 - NEXT CANDIDATES (priority order): 1) real tool screenshots/media (listings currently emoji-only — biggest visual upgrade available); 2) compare-tray QA after refactor + "add to compare" from directory cards; 3) reviews seeding for more tools (only perplexity aggregate-unlocked); 4) Plausible/Umami analytics for traffic proof; 5) sitemap lastmod sanity + Search Console resubmit; 6) EthicalAds account (user-side) → wire network JS into ad-slot waterfall when approved.
+
+---
+Task ID: 28
+Agent: main orchestrator (Z.ai Code)
+Task: Header UX fixes from user screenshot review — (1) neutral default nav state, (2) remove redundant header search box, (3) wider header container for nav breathing room.
+
+Work Log:
+- site-header.tsx isActive(): anchor links (Categories → /#categories) now return false unconditionally — they are scroll helpers, not routes. Homepage default state is fully neutral; only real route matches light up (verified /tools → Tools lit, /journal → Journal lit, / → nothing lit).
+- Removed the "Search tools ⌘K" pill button from the header bar. Search access preserved everywhere: global ⌘K palette (ToolExplorer mounted in layout.tsx, window keydown — verified Meta+k opens palette with Trending Now + Categories), hero search on /, directory search on /tools, and the mobile dropdown "Search tools" entry (mobile has no keyboard shortcut) kept intact.
+- Header inner container widened: max-w-6xl → max-w-7xl with px-4 sm:px-6 lg:px-8 — side margins decreased (~30-32px insets at 1280px vs previous 64px+), nav row breathes. Page content columns stay max-w-6xl (standard full-bleed-header pattern; header border already spanned the viewport).
+- QA via agent-browser: homepage header (neutral nav, no search box, wide container), /tools + /journal active states, mobile 390px menu open (all 5 links + Search tools entry + Submit CTA), Categories anchor click scrolls to CategoryGrid while nav stays unlit, Meta+k opens palette. bun run lint clean; dev.log + browser console zero errors.
+
+Stage Summary:
+- All three screenshot complaints fixed with zero regressions: default nav state neutral on /, header search box gone (no redundancy), nav has breathing space. Search remains reachable on every surface via ⌘K / hero / directory / mobile menu.
+- NEXT: carry on with Task 27's priority list (tool screenshots/media, compare-tray QA, review seeding, analytics).
