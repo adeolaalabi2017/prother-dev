@@ -47,7 +47,11 @@ export type AdCampaignRow = {
   dailyBudgetCents: number;
   impressions: number;
   clicks: number;
+  /** MRC viewable impressions (≥50% on screen ≥1s) — see lib/ad-measure.ts. */
+  viewableImpressions: number;
   ctr: number; // percent, 1 decimal
+  /** Viewable rate: viewableImpressions / impressions, percent, 1 decimal. */
+  vRate: number;
   windowState: "scheduled" | "running" | "finished" | "none";
 };
 
@@ -97,6 +101,7 @@ function mapCampaign(r: {
   dailyBudgetCents: number | bigint;
   impressions: number | bigint;
   clicks: number | bigint;
+  viewableImpressions: number | bigint;
 }): AdCampaignRow {
   const impressions = Number(r.impressions);
   const clicks = Number(r.clicks);
@@ -125,7 +130,12 @@ function mapCampaign(r: {
     dailyBudgetCents: Number(r.dailyBudgetCents),
     impressions,
     clicks,
+    viewableImpressions: Number(r.viewableImpressions ?? 0),
     ctr: impressions > 0 ? Math.round((clicks / impressions) * 1000) / 10 : 0,
+    vRate:
+      impressions > 0
+        ? Math.round((Number(r.viewableImpressions ?? 0) / impressions) * 1000) / 10
+        : 0,
     windowState: windowState(startsAt, endsAt),
   };
 }
@@ -136,7 +146,8 @@ export async function listCampaigns(): Promise<AdListResponse> {
   >`
     SELECT id, name, advertiser, placement, status, headline, body, clickUrl,
            emoji, gradient, targetCategory, weight, startsAt, endsAt,
-           totalBudgetCents, dailyBudgetCents, impressions, clicks
+           totalBudgetCents, dailyBudgetCents, impressions, clicks,
+           "viewableImpressions"
     FROM AdCampaign
     ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 WHEN 'draft' THEN 2 ELSE 3 END,
              createdAt DESC
@@ -261,6 +272,7 @@ type ServeRow = {
   advertiser: string;
   targetCategory: string | null;
   weight: number | bigint;
+  viewableImpressions: number | bigint;
 };
 
 /**
@@ -276,7 +288,7 @@ export async function serveAd(
   try {
     const rows = await db.$queryRaw<ServeRow[]>`
       SELECT id, name, headline, body, clickUrl, emoji, gradient, advertiser,
-             targetCategory, weight
+             targetCategory, weight, "viewableImpressions"
       FROM AdCampaign
       WHERE status = 'active'
         AND placement = ${placement}
@@ -302,7 +314,7 @@ export async function serveAd(
     db.$executeRaw`UPDATE AdCampaign SET impressions = impressions + 1 WHERE id = ${picked.id}`
       .catch(() => {});
 
-    const mapped = mapCampaign({ ...picked, status: "active", placement, startsAt: null, endsAt: null, totalBudgetCents: 0, dailyBudgetCents: 0, impressions: 0, clicks: 0 });
+    const mapped = mapCampaign({ ...picked, status: "active", placement, startsAt: null, endsAt: null, totalBudgetCents: 0, dailyBudgetCents: 0, impressions: 0, clicks: 0, viewableImpressions: picked.viewableImpressions ?? 0 });
     return { ad: mapped };
   } catch {
     return null;

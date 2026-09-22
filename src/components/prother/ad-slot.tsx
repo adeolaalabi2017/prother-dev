@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useViewable } from "@/hooks/use-viewable";
 
 /**
  * AdSlot (Task 27) — the single rendering surface for every Prother placement
@@ -124,6 +125,17 @@ export function AdSlot({
   // doesn't count two impressions (same pattern as launch-feed's promo row).
   const requestedRef = useRef(false);
   const [phase, setPhase] = useState<Phase>({ k: "loading" });
+  // MRC viewability (Task 28): one ping per served creative, ≥50% on screen ≥1s.
+  const boxRef = useRef<HTMLElement | null>(null);
+  useViewable(boxRef, phase.k === "ad", () => {
+    if (phase.k !== "ad") return;
+    fetch("/api/ads/viewable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: phase.ad.id }),
+      keepalive: true,
+    }).catch(() => {});
+  });
 
   useEffect(() => {
     if (requestedRef.current) return;
@@ -152,6 +164,7 @@ export function AdSlot({
 
   return (
     <aside
+      ref={boxRef}
       aria-label="Sponsored placement"
       data-placement={placement}
       className={cn("w-full", MIN_H[variant], className)}

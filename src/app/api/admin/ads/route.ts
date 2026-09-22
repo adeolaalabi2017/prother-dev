@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guard, logAudit } from "@/lib/admin";
 import { AD_PLACEMENTS, AD_STATUSES, createCampaign, listCampaigns } from "@/lib/ads";
+import { getPlacementMeasurement } from "@/lib/ad-measure";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const payload = await listCampaigns();
-    return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
+    // Task 28: 7-day fill/viewability accounting for the Measurement card.
+    const measurement = await getPlacementMeasurement();
+    return NextResponse.json(
+      { ...payload, measurement },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     console.error("[api:admin/ads] GET failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });

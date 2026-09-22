@@ -21,6 +21,7 @@ import { CompareFullPage } from "@/components/prother/compare-full-page";
 import { PostFullPage } from "@/components/prother/post-full-page";
 import { ToolFullPage } from "@/components/prother/tool-full-page";
 import { BackToTop } from "@/components/prother/back-to-top";
+import { AnalyticsPing } from "@/components/prother/analytics-ping";
 import { siteUrl } from "@/lib/site-url";
 
 const geistSans = Geist({
@@ -108,6 +109,8 @@ export default function RootLayout({
             <PostFullPage />
             <ToolFullPage />
             <BackToTop />
+            {/* First-party, cookieless pageview ping (Task 28) — renders null */}
+            <AnalyticsPing />
           </div>
         </AuthProvider>
         <Toaster />

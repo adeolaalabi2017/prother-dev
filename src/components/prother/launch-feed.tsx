@@ -7,6 +7,7 @@ import { ArrowUpRight, Clock, Crown, MessageSquare, Star, Triangle, X } from "lu
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useViewable } from "@/hooks/use-viewable";
 import { cn } from "@/lib/utils";
 import type { DayArchiveResponse, FeedRow, TopWeekRow } from "@/lib/prother";
 import { useFeed } from "./use-feed";
@@ -414,6 +415,21 @@ type ServedPromo = { ad: PromoAd; clickHref: string };
  * rendered while the serve request is in flight → no layout shift.
  */
 function PromotedFeedRow({ promo }: { promo: ServedPromo | null | undefined }) {
+  // MRC viewability (Task 28) — one ping per served creative, ≥50% on screen
+  // ≥1s. Hooks before the early returns so the order is stable across the
+  // loading/loaded/empty phases; the skeleton never counts (active=false).
+  const boxRef = useRef<HTMLAnchorElement | null>(null);
+  const adId = promo?.ad.id ?? null;
+  useViewable(boxRef, adId !== null, () => {
+    if (!adId) return;
+    fetch("/api/ads/viewable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: adId }),
+      keepalive: true,
+    }).catch(() => {});
+  });
+
   if (promo === undefined) {
     // Serve request in flight — reserve the row's space (render-when-loaded,
     // reserved space) so the card taking its place never jumps the list.
@@ -429,6 +445,7 @@ function PromotedFeedRow({ promo }: { promo: ServedPromo | null | undefined }) {
   const { ad, clickHref } = promo;
   return (
     <a
+      ref={boxRef}
       href={clickHref}
       target="_blank"
       rel="noopener noreferrer nofollow"

@@ -488,8 +488,47 @@ model AdCampaign {
   dailyBudgetCents  Int     @default(0)
   impressions    Int       @default(0)
   clicks         Int       @default(0)
+  /** Impressions counted viewable: ≥50% of the creative on screen ≥1s (MRC). */
+  viewableImpressions Int   @default(0)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @default(now()) @updatedAt
 
   @@index([placement, status])
+}
+
+/**
+ * Daily fill accounting per placement (Task 28 measurement). One row per
+ * placement per UTC day; upserted by /api/ads/serve. `served` = direct-sold
+ * campaign served, `house` = house creative filled the slot, `unfilled` =
+ * slot collapsed (disabled collapses do NOT count — nothing requested).
+ * Raw-SQL only (stale-PrismaClient rule — see lib/forum.ts).
+ */
+model AdServeStat {
+  id        String   @id @default(cuid())
+  placement String
+  day       String // YYYY-MM-DD (UTC)
+  served    Int      @default(0)
+  house     Int      @default(0)
+  unfilled  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([placement, day])
+}
+
+/**
+ * First-party, cookieless pageview counters (Task 28 analytics) —
+ * pre-aggregated one row per path per UTC day. No IPs, no user ids, no
+ * cookies: enough to prove traffic to networks and direct advertisers.
+ * Raw-SQL only (stale-PrismaClient rule — see lib/forum.ts).
+ */
+model PageViewDaily {
+  id        String   @id @default(cuid())
+  path      String
+  day       String // YYYY-MM-DD (UTC)
+  views     Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([path, day])
+  @@index([day])
 }

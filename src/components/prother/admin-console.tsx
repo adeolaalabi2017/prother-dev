@@ -2078,7 +2078,7 @@ function OverviewSkeleton() {
   );
 }
 
-function OverviewView({ data }: { data: Overview }) {
+function OverviewView({ data, apiKey }: { data: Overview; apiKey: string }) {
   const k = data.kpis;
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -2125,7 +2125,160 @@ function OverviewView({ data }: { data: Overview }) {
         <ActivityCard audit={data.audit} className="lg:col-span-2" />
         <QueueAgingCard oldest={data.oldestPending} ageH={data.queueAgeH} />
       </div>
+
+      {/* First-party traffic readout (Task 28) — the numbers that back the
+          ad-network application and the direct-sales pitch */}
+      <TrafficCard apiKey={apiKey} />
     </div>
+  );
+}
+
+// ── Overview: first-party traffic (Task 28) ───────────────────────────
+
+type Traffic = {
+  days: { day: string; views: number }[];
+  total: number;
+  top: { path: string; views: number }[];
+};
+
+/**
+ * Traffic — 14-day cookieless pageview trend + top paths, straight from
+ * PageViewDaily (path × UTC day counters; no cookies/IPs/UA stored, which
+ * is the privacy stance we sell to networks and advertisers). Self-fetching
+ * so the overview payload stays untouched.
+ */
+function TrafficCard({ apiKey }: { apiKey: string }) {
+  const [traffic, setTraffic] = useState<Traffic | null>(null);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(() => {
+    adminFetch(apiKey, "/api/admin/analytics")
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<Traffic>;
+      })
+      .then((d) => {
+        setTraffic(d);
+        setError(false);
+      })
+      .catch(() => setError(true));
+  }, [apiKey]);
+
+  useEffect(load, [load]);
+
+  const max = traffic ? Math.max(1, ...traffic.days.map((d) => d.views)) : 1;
+  const today = traffic?.days[traffic.days.length - 1]?.views ?? 0;
+  const yesterday = traffic?.days[traffic.days.length - 2]?.views ?? 0;
+
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className={labelCx}>Traffic — last 14 days</p>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+            {traffic ? `${traffic.total.toLocaleString("en-US")} views` : "…"}
+          </span>
+          <span
+            className={cn(
+              "rounded-full border px-2 py-0.5 font-mono text-[10px]",
+              today >= yesterday
+                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
+                : "border-white/10 bg-white/5 text-white/50"
+            )}
+            title="Today vs yesterday (UTC)"
+          >
+            {today >= yesterday ? "▲" : "▼"} {today} today
+          </span>
+        </div>
+      </div>
+
+      {error ? (
+        <div className="mt-4 rounded-xl border border-red-400/25 bg-red-400/[0.04] p-5 text-center">
+          <p className="font-mono text-[10px] tracking-wider text-red-300 uppercase">
+            Traffic readout unavailable
+          </p>
+          <Button
+            size="sm"
+            onClick={load}
+            className="mt-3 rounded-lg border border-white/15 bg-transparent font-mono text-[10px] tracking-wider text-white/70 uppercase hover:bg-white/5"
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+            Retry
+          </Button>
+        </div>
+      ) : !traffic ? (
+        <div className="mt-5 space-y-2">
+          <Skeleton className="h-24 rounded-xl bg-white/[0.04]" />
+          <Skeleton className="h-16 rounded-xl bg-white/[0.04]" />
+        </div>
+      ) : (
+        <>
+          <div
+            role="img"
+            aria-label={`Pageviews per day over the last 14 days, ${traffic.total} total`}
+            className="mt-5 flex h-24 items-end gap-1.5 border-b border-white/10 pb-px"
+          >
+            {traffic.days.map((d, i) => (
+              <div
+                key={d.day}
+                title={`${d.day} · ${d.views} view${d.views === 1 ? "" : "s"}`}
+                className="group flex h-full flex-1 items-end"
+              >
+                <span
+                  className={cn(
+                    "w-full rounded-t-[3px] transition-colors",
+                    i === traffic.days.length - 1
+                      ? "bg-ember"
+                      : "bg-white/15 group-hover:bg-white/30"
+                  )}
+                  style={{ height: `${Math.max(3, Math.round((d.views / max) * 100))}%` }}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4">
+            <p className="font-mono text-[10px] tracking-[0.2em] text-white/40 uppercase">
+              Top paths
+            </p>
+            <ul className="mt-2 space-y-1">
+              {traffic.top.map((t) => (
+                <li
+                  key={t.path}
+                  className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5"
+                >
+                  <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-white/70">
+                    {t.path}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="h-1 w-24 shrink-0 overflow-hidden rounded-full bg-white/10"
+                  >
+                    <span
+                      className="block h-full rounded-full bg-ember/70"
+                      style={{
+                        width: `${Math.max(
+                          4,
+                          Math.round((t.views / Math.max(1, traffic.top[0].views)) * 100)
+                        )}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="w-14 shrink-0 text-right font-mono text-[10px] tabular-nums text-white/50">
+                    {t.views.toLocaleString("en-US")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="mt-3 font-mono text-[10px] leading-relaxed text-white/25">
+            COOKIELESS FIRST-PARTY COUNTING (PATH × DAY — NO COOKIES, IPS OR
+            FINGERPRINTS) · ADMIN/API/EDITOR SURFACES EXCLUDED
+          </p>
+        </>
+      )}
+    </Panel>
   );
 }
 
@@ -2187,7 +2340,7 @@ const SECTION_TITLES: Record<SectionId, string> = {
 };
 
 const SECTION_NOTES: Record<SectionId, string> = {
-  overview: "Launch velocity, moderation load and the live audit trail.",
+  overview: "Launch velocity, moderation load, first-party traffic and the live audit trail.",
   submissions: "Community queue — approve schedules tomorrow, rejections cite standards.",
   tools: "Every listing: edit copy, pricing, status, pins and verification.",
   schedule: "14-day launch calendar, floor/cap guardrails, unscheduled pool.",
@@ -2498,7 +2651,7 @@ export function AdminDashboard() {
                     </Button>
                   </div>
                 ) : overview ? (
-                  <OverviewView data={overview} />
+                  <OverviewView data={overview} apiKey={key} />
                 ) : (
                   <OverviewSkeleton />
                 )}

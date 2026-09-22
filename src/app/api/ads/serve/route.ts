@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AD_PLACEMENTS, serveAd, type AdPlacement } from "@/lib/ads";
 import { placementEnabled } from "@/lib/ad-config";
+import { recordServeOutcome } from "@/lib/ad-measure";
 
 export const dynamic = "force-dynamic";
 
@@ -26,15 +27,18 @@ export async function GET(req: NextRequest) {
 
   const noStore = { headers: { "Cache-Control": "no-store" } };
 
-  // Kill switch first — a disabled slot must not spend impressions.
+  // Kill switch first — a disabled slot must not spend impressions (and is
+  // NOT an unfilled slot — nothing was requested).
   if (!(await placementEnabled(placement))) {
     return NextResponse.json({ ad: null, fallback: "none" }, noStore);
   }
 
   const res = await serveAd(placement, category);
   if (!res) {
+    recordServeOutcome(placement, "house");
     return NextResponse.json({ ad: null, fallback: "house" }, noStore);
   }
+  recordServeOutcome(placement, "served");
   return NextResponse.json(
     { ad: res.ad, clickHref: `/api/ads/click?id=${res.ad.id}` },
     noStore

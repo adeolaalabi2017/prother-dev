@@ -67,11 +67,26 @@ type AdCampaign = {
   dailyBudgetCents: number | null;
   impressions: number;
   clicks: number;
+  viewableImpressions: number;
   ctr: number;
+  vRate: number;
   windowState: WindowState;
 };
 
 type AdsStats = { total: number; active: number; impressions: number; clicks: number; ctr: number };
+
+type PlacementMeasurement = {
+  placement: Placement;
+  served: number;
+  house: number;
+  unfilled: number;
+  unfillRate: number;
+};
+
+type Measurement = {
+  days: { day: string; date: string }[];
+  perPlacement: PlacementMeasurement[];
+};
 
 const PLACEMENTS: { value: Placement; label: string }[] = [
   { value: "feed_row", label: "Feed row" },
@@ -568,12 +583,108 @@ function ServingControls({ apiKey }: { apiKey: string }) {
   );
 }
 
+// ── Measurement (Task 28, P4) ──────────────────────────────────────────
+
+/**
+ * 7-day fill accounting per placement, read from the same GET as the
+ * campaign list (measurement field). "Unfill" = requested slots that did
+ * NOT yield a direct-sold campaign — house fills included, since the slot
+ * was requested and no advertiser paid for it. That number is the sales
+ * pitch: it is the inventory currently going out at $0.
+ */
+function MeasurementCard({ m }: { m: Measurement | null }) {
+  const maxServed = m
+    ? Math.max(1, ...m.perPlacement.map((p) => p.served))
+    : 1;
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-white">Measurement — 7-day fill</p>
+          <p className="text-xs text-white/45">
+            Served vs. unsold demand per placement. Unfill = no campaign (house fills
+            included) — that gap is open selling inventory.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-white/40 uppercase">
+          {m ? `${m.days[0]?.day} → ${m.days[m.days.length - 1]?.day}` : "…"}
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+        {(m?.perPlacement ?? PLACEMENTS.map((p) => ({
+          placement: p.value,
+          served: 0,
+          house: 0,
+          unfilled: 0,
+          unfillRate: 0,
+        }))).map((row) => {
+          const label =
+            PLACEMENTS.find((p) => p.value === row.placement)?.label ?? row.placement;
+          const requested = row.served + row.house + row.unfilled;
+          return (
+            <div
+              key={row.placement}
+              className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
+            >
+              <span className="w-28 shrink-0 truncate font-mono text-[11px] tracking-wider text-white/70 uppercase">
+                {label}
+              </span>
+              <span className="w-16 shrink-0 text-right font-mono text-[11px] tabular-nums text-white">
+                {row.served.toLocaleString("en-US")}
+                <span className="ml-1 text-white/35">imp</span>
+              </span>
+              <span className="hidden w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/45 sm:block">
+                {row.house} hs
+              </span>
+              <span className="hidden w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/45 sm:block">
+                {row.unfilled} un
+              </span>
+              {/* served share bar + unfill rate readout */}
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                <span
+                  aria-hidden
+                  className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10"
+                >
+                  <span
+                    className="block h-full rounded-full bg-ember transition-all"
+                    style={{ width: `${Math.round((row.served / maxServed) * 100)}%` }}
+                  />
+                </span>
+                <span
+                  className={cn(
+                    "w-16 shrink-0 text-right font-mono text-[10px] tabular-nums",
+                    requested === 0
+                      ? "text-white/30"
+                      : row.unfillRate >= 50
+                        ? "text-amber-400"
+                        : "text-emerald-400"
+                  )}
+                  title="Unfill rate — (house + unfilled) / requested"
+                >
+                  {requested === 0 ? "—" : `${row.unfillRate}% unfill`}
+                </span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-3 font-mono text-[10px] leading-relaxed text-white/25">
+        VIEWABILITY (VW) IS COUNTED MRC-STYLE — ≥50% OF THE CREATIVE ON SCREEN FOR ≥1S —
+        PER CAMPAIGN BELOW · DISABLED SLOTS COUNT NOTHING (AN OFF SWITCH IS NOT A FILL)
+      </p>
+    </div>
+  );
+}
+
 // ── Ads tab ──────────────────────────────────────────────────────────────
 
 export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
   const { toast } = useToast();
   const [campaigns, setCampaigns] = useState<AdCampaign[] | null>(null);
   const [stats, setStats] = useState<AdsStats | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement | null>(null);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{ open: boolean; campaign: AdCampaign | null }>({
@@ -587,11 +698,16 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
     adminFetch(apiKey, "/api/admin/ads")
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));
-        return r.json() as Promise<{ campaigns: AdCampaign[]; stats: AdsStats }>;
+        return r.json() as Promise<{
+          campaigns: AdCampaign[];
+          stats: AdsStats;
+          measurement?: Measurement;
+        }>;
       })
       .then((d) => {
         setCampaigns(d.campaigns);
         setStats(d.stats);
+        setMeasurement(d.measurement ?? null);
         setError(false);
       })
       .catch(() => setError(true));
@@ -684,6 +800,9 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
       {/* serving controls — master + per-placement kill switches (Task 27) */}
       <ServingControls apiKey={apiKey} />
 
+      {/* 7-day fill/unfill accounting per placement (Task 28) */}
+      <MeasurementCard m={measurement} />
+
       <div className="flex items-center justify-between">
         <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
           {campaigns ? `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"}` : "…"} ·
@@ -768,7 +887,14 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
                 </div>
 
                 <div className="hidden shrink-0 text-right font-mono text-[10px] leading-relaxed text-white/50 sm:block">
-                  <p>{c.impressions.toLocaleString("en-US")} imp</p>
+                  <p>
+                    {c.impressions.toLocaleString("en-US")} imp
+                    {c.impressions > 0 && (
+                      <span className="text-white/30">
+                        {" "}· {Math.round(c.vRate)}% vw
+                      </span>
+                    )}
+                  </p>
                   <p>
                     {c.clicks.toLocaleString("en-US")} clk ·{" "}
                     <span className="text-ember">{fmtCtr(c.ctr)}</span>
