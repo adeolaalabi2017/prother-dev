@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   History,
   Loader2,
@@ -79,6 +79,7 @@ export function HeroSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
 
   // Recents load lazily each time the dropdown opens — fresher than an
   // effect-on-mount and avoids setState-during-effect cascades.
@@ -154,6 +155,22 @@ export function HeroSearch() {
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  // ── Focus mode: lock page scroll while the dropdown is open ──────────
+  // The blurred backdrop only makes sense if the page can't drift away
+  // underneath the floating widget. Lock <html> (the real scrolling element
+  // here — body-only locking proved unreliable) AND <body> (older Safari).
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const prev = { root: root.style.overflow, body: document.body.style.overflow };
+    root.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = prev.root;
+      document.body.style.overflow = prev.body;
+    };
   }, [open]);
 
   // ── "/" focuses the hero search from anywhere on the page ─────────────
@@ -336,13 +353,28 @@ export function HeroSearch() {
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="w-full">
-      <div ref={rootRef} className="relative w-full">
+      {/* Spotlight backdrop — dims + blurs the whole page behind the floating
+          search widget so the results own the user's attention. Layering:
+          header (z-50) stays crisp above it as a navigation escape hatch,
+          the widget sits at z-40, everything else sinks under z-30. */}
+      {open && (
+        <motion.div
+          aria-hidden
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-30 bg-ink/55 backdrop-blur-md"
+        />
+      )}
+
+      <div ref={rootRef} className="relative z-40 w-full">
         {/* Input shell */}
         <div
           className={cn(
             "relative flex h-14 items-center rounded-2xl border bg-white/[0.04] pl-12 pr-14 transition-all duration-200",
             open
-              ? "border-ember/60 shadow-[0_0_0_1px_rgba(255,106,0,0.25),0_12px_48px_-12px_rgba(255,106,0,0.35)] ring-2 ring-ember/25"
+              ? "border-ember/60 shadow-[0_0_0_1px_rgba(255,106,0,0.25),0_12px_48px_-12px_rgba(255,106,0,0.35),0_28px_80px_-12px_rgba(0,0,0,0.85)] ring-2 ring-ember/25"
               : "border-white/15 hover:border-white/30"
           )}
         >

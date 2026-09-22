@@ -1,15 +1,14 @@
 /**
  * Server-side tool search for the /tools?q= SERP.
  *
- * The scoring mirrors GET /api/search (name.startsWith > name.includes >
- * tagline > tags > description; tiebreak by editorial signals) so the
- * server-rendered results page and the hero dropdown agree on relevance.
- * Duplicating the small relevance function is deliberate — refactoring the
- * route would risk the live dropdown payload.
+ * Matching + scoring live in the shared token matcher (lib/match) — the
+ * exact same semantics as GET /api/search, so the server-rendered results
+ * page and the hero dropdown always agree on relevance.
  *
  * Live tools only (status="live") — same visibility rule as the directory.
  */
 import { db } from "@/lib/db";
+import { matchTokens, relevanceScore, tokenize } from "@/lib/match";
 
 /** One scored result row on the /tools?q= SERP. */
 export type SerpToolRow = {
@@ -26,6 +25,10 @@ export type SerpToolRow = {
   listedAt: string;
 };
 
+/**
+ * The SERP mirrors GET /api/search — per-token relevance lives in the shared
+ * matcher (lib/match relevanceScore); ranking = token score → editorial → page slice.
+ */
 export type SerpResult = {
   rows: SerpToolRow[];
   /** Total matching tools across all pages. */
@@ -35,39 +38,23 @@ export type SerpResult = {
   pages: number;
 };
 
-/** Relevance score — name hits outrank tagline hits outrank tags/description. */
-function relevance(ql: string, name: string, tagline: string, tags: string, description: string | null): number {
-  const n = name.toLowerCase();
-  if (n.startsWith(ql)) return 100;
-  if (n.includes(ql)) return 80;
-  if (tagline.toLowerCase().includes(ql)) return 55;
-  if (tags.toLowerCase().includes(ql)) return 40;
-  if ((description ?? "").toLowerCase().includes(ql)) return 25;
-  return 10;
-}
-
 /**
  * Scored, paginated tool search for the /tools?q= server-rendered results.
- * `q` is matched (case-sensitively, like the API on SQLite) across name,
- * tagline, tags and description; ordering is relevance-then-editorial.
+ * `q` is TOKEN-matched (shared matcher in lib/match, same semantics as
+ * GET /api/search: every token must hit name/tagline/tags/description,
+ * case-insensitive, light stemming) and candidates are ranked by summed
+ * token score, then editorial signals. The candidate set is small, so
+ * filtering happens in JS after a single live-tools fetch.
  */
 export async function searchToolsForSerp(
   q: string,
   page: number,
   pageSize: number,
 ): Promise<SerpResult> {
-  const ql = q.toLowerCase();
+  const tokens = tokenize(q);
 
   const candidates = await db.tool.findMany({
-    where: {
-      status: "live",
-      OR: [
-        { name: { contains: q } },
-        { tagline: { contains: q } },
-        { tags: { contains: q } },
-        { description: { contains: q } },
-      ],
-    },
+    where: { status: "live" },
     // Explicit select — full-row Tool reads break on a stale pre-v6 cached
     // PrismaClient (it still SELECTs the dropped relaunch columns).
     select: {
@@ -90,9 +77,15 @@ export async function searchToolsForSerp(
   });
 
   const scored = candidates
+    .filter((t) => matchTokens([t.name, t.tagline, t.tags, t.description], tokens))
     .map((t) => ({
       t,
-      score: relevance(ql, t.name, t.tagline, t.tags, t.description),
+      score: relevanceScore(tokens, {
+        name: t.name,
+        tagline: t.tagline,
+        tags: t.tags,
+        description: t.description,
+      }),
       editorial: (t.editorsPick ? 3 : 0) + (t.curated ? 2 : 0) + (t.pinned ?? 0),
     }))
     .sort((a, b) => b.score * 1000 + b.editorial - (a.score * 1000 + a.editorial));

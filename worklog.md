@@ -1015,3 +1015,22 @@ Work Log:
 Stage Summary:
 - All three screenshot complaints fixed with zero regressions: default nav state neutral on /, header search box gone (no redundancy), nav has breathing space. Search remains reachable on every surface via ⌘K / hero / directory / mobile menu.
 - NEXT: carry on with Task 27's priority list (tool screenshots/media, compare-tray QA, review seeding, analytics).
+
+---
+Task ID: 29
+Agent: main orchestrator (Z.ai Code)
+Task: Test the main search bar; make it float with a blurred background to focus on results. (Found + fixed a real search bug while testing.)
+
+Work Log:
+- TESTED hero search end-to-end first: placeholder's own suggested example "translate video" returned NO MATCHES. Root cause: /api/search + lib/search (SERP) matched the whole phrase as one substring (SQLite contains) — no tool contains "translate video" verbatim, though HeyGen's tagline contains both words.
+- NEW src/lib/match.ts — shared token matcher for BOTH surfaces: tokenize (lowercase, alphanumeric + #+. kept, deduped), light stem (s/es/ed/ing, len>=5), matchTokens (AND semantics — every token must hit name/tagline/tags/description), relevanceScore (summed per-token field score: name.startsWith 100 > name.includes 80 > tagline 55 > tags 40 > description 25, floor 10).
+- /api/search rewritten: fetch live tools (take 500) + all categories + published posts (take 100), filter via matchTokens in JS → deterministic case-insensitivity on SQLite, ranking via relevanceScore → editorsPick → recency. Response shape unchanged (⌘K palette benefits automatically).
+- lib/search.ts SERP mirrored: same matcher, same ranking, pagination now over the JS-filtered candidate array (total/pages/rows contract unchanged). Verified "translate video" → HeyGen on BOTH dropdown and /tools?q=translate%20video (server-rendered, 1 RESULT).
+- FLOAT + BLUR focus mode in hero-search.tsx: when the dropdown is open a fixed inset-0 z-30 backdrop (bg-ink/55 + backdrop-blur-md, framer fade-in, reduced-motion aware) dims+blurs the whole page; the widget (rootRef) elevated to relative z-40 so input + results stay crisp; open-state input shell gains a deeper float shadow; sticky header (z-50) intentionally stays crisp as a nav escape hatch. Backdrop click closes (plus existing click-outside); Escape closes; verified hero motion.div creates NO stacking context at rest (transform:none/opacity:1) so the z layering resolves at root level.
+- SCROLL LOCK while open — html + body overflow hidden (body-only lock proved unreliable on this page; programmatic scrollTo bypasses overflow:hidden by spec, but USER wheel/touch is blocked — same mechanism as Radix dialog locks; agent-browser's JS scroll made early tests look broken, ground-truthed via computed styles).
+- QA passed: "translate video" → HeyGen; "ai video" → 9 tools; "the" → 10 tools floating over blurred ticker; Escape/backdrop-click close + scroll restore; pick → /tools/heygen; "/" focuses+opens on homepage; mobile 390px focus mode renders crisp widget over blurred page; lint clean; dev.log zero errors; tsc clean in src/.
+
+Stage Summary:
+- Main search bar is now a spotlight: open it and the page recedes into blur while bar + results float. Suggested example queries actually work (multi-word AND matching, case-insensitive, light stemming) across hero dropdown, ⌘K palette, and SERP.
+- NOTE for future agents: FullPageShell still locks only body overflow (fine for its fixed-overlay use, but if you ever need a hard lock, lock documentElement too). agent-browser `scroll` is JS-based and bypasses CSS locks — don't use it to verify scroll locks; assert computed styles + spec behavior instead.
+- NEXT: carry Task 27 list (tool screenshots/media, compare-tray QA, review seeding, analytics, EthicalAds wiring).
