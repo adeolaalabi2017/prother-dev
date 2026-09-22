@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Compass,
   Feather,
+  Grid2x2,
   Hexagon,
   Info,
-  Megaphone,
   Menu,
   MessagesSquare,
-  Rss,
   Search,
   Settings2,
   X,
@@ -22,51 +21,30 @@ import { useExplorer } from "./explorer-store";
 import { AuthMenu } from "./auth-menu";
 
 /**
- * Nav points at dedicated routes; the Feed link is the one anchor that
- * scroll-spies — and only while the user is on the homepage.
+ * Nav points at dedicated routes; "Categories" is the one homepage anchor
+ * (scrolls to the CategoryGrid section on /).
  */
 const NAV_LINKS = [
-  { label: "Feed", href: "/#feed", id: "feed", icon: Rss },
   { label: "Tools", href: "/tools", id: "tools", icon: Compass },
-  { label: "Forums", href: "/forums", id: "forums", icon: MessagesSquare },
+  { label: "Categories", href: "/#categories", id: "categories", icon: Grid2x2 },
   { label: "Journal", href: "/journal", id: "journal", icon: Feather },
+  { label: "Forums", href: "/forums", id: "forums", icon: MessagesSquare },
   { label: "About", href: "/about", id: "about", icon: Info },
-  { label: "Advertise", href: "/advertise", id: "advertise", icon: Megaphone },
 ];
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const [feedInView, setFeedInView] = useState(false);
   const pathname = usePathname();
   const setSearch = useExplorer((s) => s.setSearch);
 
-  const isHome = pathname === "/";
-
-  // Scroll-spy: on the homepage only, highlight the Feed link while the
-  // #feed section is in view. Route links use exact pathname matching.
-  // (feedInView may go stale off-home — the isHome guard at the usage site
-  // keeps it from ever rendering as active.)
-  useEffect(() => {
-    if (!isHome) return;
-    const section = document.getElementById("feed");
-    if (!section) return;
-    const onScroll = () => {
-      const top = section.getBoundingClientRect().top;
-      setFeedInView(top <= 96 && top > -section.clientHeight + 96);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [isHome]);
-
   const isActive = (id: string) => {
-    if (id === "feed") return isHome && feedInView;
     const link = NAV_LINKS.find((l) => l.id === id);
+    if (!link) return false;
+    // The Categories anchor only lights up on the homepage itself.
+    if (link.href.startsWith("/#")) return pathname === "/";
     // Route links stay active on their sub-routes too (/journal/<slug>,
     // /forums/<slug>) — exact match OR a nested path under the link.
-    return link
-      ? pathname === link.href || pathname.startsWith(`${link.href}/`)
-      : false;
+    return pathname === link.href || pathname.startsWith(`${link.href}/`);
   };
 
   return (

@@ -4,22 +4,20 @@ import { create } from "zustand";
 import type { SubmitPrefill } from "@/lib/submit";
 
 /**
- * Module-level UI store shared by the header, feed rows, sidebar chips,
+ * Module-level UI store shared by the header, directory rows, sidebar chips,
  * and the full-page deep-link views (tool page, journal reader, category,
- * launch archive, compare, collections).
+ * compare, collections).
  *
  * URL model (single-route sandbox — the post-sandbox real routes are
- * /tool/{slug}, /journal/{slug}, /category/{slug}, /launches/{date},
- * /compare/{a}/{b}, /collections/{slug}):
+ * /tools/{slug}, /journal/{slug}, /categories/{slug}, /compare/{a}/{b},
+ * /collections/{slug}):
  *   ?tool=<slug>          tool full page
  *   ?post=<slug>          journal article full page
  *   ?category=<slug>      category browse full page
- *   ?launches=<date>      launch archive full page (YYYY-MM-DD)
  *   ?compare=<a>,<b>      side-by-side comparison full page
  *   ?collection=<slug>    public collection full page
  *   ?mine=collections     my collections + follows full page
  *   ?saved=mine           saved bookmarks full page (works signed-out)
- *   ?cat=<slug>           launch-feed category FILTER (not a page)
  *
  * Every open/close pushes a history entry, so the browser Back button
  * closes pages naturally. DeepLinkHost (page.tsx tree) replays
@@ -40,14 +38,10 @@ type ExplorerState = {
   trackOpen: boolean;
   /** Email pre-filled into the tracker lookup. */
   trackEmail: string;
-  /** Category slug currently filtering the launch feed (not a page). */
-  categoryFilter: string | null;
   /** Slug of the journal article full page, if any. */
   postSlug: string | null;
   /** Category browse full page slug. */
   categoryView: string | null;
-  /** Launch archive full page date (YYYY-MM-DD). */
-  launchesDate: string | null;
   /** Compare tray selection (max 2) + whether the compare page is open. */
   compare: string[];
   compareOpen: boolean;
@@ -64,13 +58,10 @@ type ExplorerState = {
   setSubmitOpen: (open: boolean, prefill?: SubmitPrefill) => void;
   setEditorOpen: (open: boolean) => void;
   setTrackOpen: (open: boolean, email?: string) => void;
-  setCategoryFilter: (slug: string | null) => void;
   openPost: (slug: string, opts?: OpenOpts) => void;
   closePost: (opts?: OpenOpts) => void;
   openCategory: (slug: string, opts?: OpenOpts) => void;
   closeCategory: (opts?: OpenOpts) => void;
-  openLaunches: (date: string, opts?: OpenOpts) => void;
-  closeLaunches: (opts?: OpenOpts) => void;
   addCompare: (slug: string) => void;
   removeCompare: (slug: string) => void;
   openCompare: (a: string, b: string, opts?: OpenOpts) => void;
@@ -107,7 +98,7 @@ export function postHash(slug: string): string {
 }
 
 /** Query params owned by full-page views (in stack order). */
-const PAGE_PARAMS = ["mine", "saved", "collection", "category", "launches", "compare", "post", "tool"] as const;
+const PAGE_PARAMS = ["mine", "saved", "collection", "category", "compare", "post", "tool"] as const;
 
 function urlWith(mutate: (u: URL) => void): string {
   const url = new URL(window.location.href);
@@ -142,10 +133,8 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   editorOpen: false,
   trackOpen: false,
   trackEmail: "",
-  categoryFilter: null,
   postSlug: null,
   categoryView: null,
-  launchesDate: null,
   compare: [],
   compareOpen: false,
   collectionSlug: null,
@@ -174,16 +163,6 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
       trackOpen,
       trackEmail: email !== undefined ? email : s.trackEmail,
     })),
-  setCategoryFilter: (categoryFilter) => {
-    set({ categoryFilter });
-    // Feed filter stays replaceState — it's a view state, not a page.
-    if (typeof window === "undefined") return;
-    const href = urlWith((u) => {
-      if (categoryFilter) u.searchParams.set("cat", categoryFilter);
-      else u.searchParams.delete("cat");
-    });
-    window.history.replaceState(null, "", href);
-  },
   openPost: (slug, opts) => {
     set({ postSlug: slug });
     if (opts?.sync !== false && typeof window !== "undefined") {
@@ -208,19 +187,6 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
     set({ categoryView: null });
     if (opts?.sync !== false && typeof window !== "undefined") {
       withParam("category", null, opts?.replace ?? false);
-    }
-  },
-  openLaunches: (date, opts) => {
-    set({ launchesDate: date });
-    if (opts?.sync !== false && typeof window !== "undefined") {
-      withParam("launches", date, opts?.replace ?? false);
-    }
-  },
-  closeLaunches: (opts) => {
-    if (get().launchesDate === null) return;
-    set({ launchesDate: null });
-    if (opts?.sync !== false && typeof window !== "undefined") {
-      withParam("launches", null, opts?.replace ?? false);
     }
   },
   addCompare: (slug) => {
@@ -303,7 +269,6 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
       slug: tool,
       postSlug: post,
       categoryView: sp.get("category"),
-      launchesDate: sp.get("launches"),
       collectionSlug: sp.get("collection"),
       mineView: sp.get("mine"),
       savedView: sp.get("saved"),

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BadgeCheck,
-  CalendarClock,
   CheckCircle2,
   ChevronDown,
   CircleDashed,
@@ -66,7 +65,6 @@ type QueueResponse = {
   error?: string;
   pending?: EditorSubmission[];
   counts?: { pending: number; approved: number; rejected: number };
-  capacity?: { today: number; tomorrow: number; floor: number; cap: number };
   claims?: EditorClaim[];
   filteredReviews?: EditorReview[];
 };
@@ -103,13 +101,6 @@ type EditorReview = {
 /** Demo passcode — real auth (NextAuth) ships in Phase 2. */
 const DEMO_HINT = "ember-dev";
 const KEY_STORAGE = "prother_editor_key";
-
-function capacityChip(n: number, floor: number, cap: number) {
-  if (n < floor) return { emoji: "🔴", label: "below floor" };
-  if (n > cap) return { emoji: "⛔", label: "over cap" };
-  if (n >= 11) return { emoji: "🟡", label: "11–15" };
-  return { emoji: "🟢", label: "5–10" };
-}
 
 // ── Gate screen ──────────────────────────────────────────────────────────
 
@@ -214,8 +205,8 @@ function PendingCard({
         }
         if (decision === "approve" && data.slug) {
           toast({
-            title: `${sub.name} scheduled`,
-            description: `Added to tomorrow's launch day as /tool/${data.slug}.`,
+            title: `${sub.name} approved`,
+            description: `Listing approved — now live in the directory at /tool/${data.slug}.`,
           });
           onApproved(data.slug);
         } else {
@@ -391,9 +382,9 @@ function PendingCard({
                     {busy === "approve" ? (
                       <Loader2 className="size-4 animate-spin" aria-hidden />
                     ) : (
-                      <CalendarClock className="size-4" aria-hidden />
+                      <CheckCircle2 className="size-4" aria-hidden />
                     )}
-                    Approve → schedule tomorrow
+                    Approve &amp; publish listing
                   </Button>
                   <Button
                     type="button"
@@ -878,8 +869,6 @@ export function EditorConsole() {
     if (open && authed) void load();
   }, [open, authed, load]);
 
-  const cap = queue?.capacity;
-  const chip = cap ? capacityChip(cap.today, cap.floor, cap.cap) : null;
   const claimCount = queue?.claims?.length ?? 0;
   const reviewCount = queue?.filteredReviews?.length ?? 0;
   const pendingCount = queue?.pending?.length ?? 0;
@@ -898,8 +887,8 @@ export function EditorConsole() {
       >
         <DialogTitle className="sr-only">Editor review queue</DialogTitle>
         <DialogDescription className="sr-only">
-          Moderate pending tool submissions: approve to schedule for tomorrow,
-          or reject citing failed listing standards.
+          Moderate pending tool submissions: approve to publish the listing
+          immediately, or reject citing failed listing standards.
         </DialogDescription>
 
         {!authed ? (
@@ -916,21 +905,10 @@ export function EditorConsole() {
                   Review queue
                 </h2>
               </div>
-              {cap && chip && (
-                <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
-                  <span
-                    title={`Today: ${chip.label}`}
-                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/70"
-                  >
-                    {chip.emoji} TODAY {cap.today}/{cap.cap}
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/70">
-                    TMRW {cap.tomorrow}/{cap.cap}
-                  </span>
-                  <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 text-ember">
-                    PENDING {queue?.counts?.pending ?? 0}
-                  </span>
-                </div>
+              {queue && (
+                <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] text-ember">
+                  PENDING {pendingCount}
+                </span>
               )}
             </div>
 
@@ -1064,7 +1042,7 @@ export function EditorConsole() {
             </div>
 
             <p className="mt-5 font-mono text-[10px] leading-relaxed text-white/30">
-              APPROVED LISTINGS GO LIVE AT 00:00 UTC · REJECTIONS EMAIL THE MAKER
+              APPROVED LISTINGS GO LIVE IMMEDIATELY · REJECTIONS EMAIL THE MAKER
               WITH CITED STANDARDS · CLAIM ARBITRATION TRANSFERS OWNERSHIP
               IMMEDIATELY · DEMO AUTH — PHASE 2 ADDS NEXTAUTH ROLES
             </p>

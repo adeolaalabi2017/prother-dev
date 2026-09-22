@@ -8,7 +8,7 @@ import { useViewable } from "@/hooks/use-viewable";
 
 /**
  * AdSlot (Task 27) — the single rendering surface for every Prother placement
- * except the homepage sponsored feed row (that one lives in launch-feed.tsx).
+ * across the directory, journal, categories, and SERP.
  *
  * Waterfall, UX-first per the Task 26 plan:
  *   1. direct-sold campaign  — /api/ads/serve picks a weighted ACTIVE campaign
@@ -122,7 +122,7 @@ export function AdSlot({
   className?: string;
 }) {
   // One serve per mount — ref-guard so React dev StrictMode's double effect
-  // doesn't count two impressions (same pattern as launch-feed's promo row).
+  // doesn't count two impressions.
   const requestedRef = useRef(false);
   const [phase, setPhase] = useState<Phase>({ k: "loading" });
   // MRC viewability (Task 28): one ping per served creative, ≥50% on screen ≥1s.
@@ -187,9 +187,9 @@ export function AdSlot({
       ) : phase.k === "house" ? (
         <HouseCard variant={variant} />
       ) : (
-        /* ── Direct-sold creative — visually a sibling of the promoted feed
-              row: mono SPONSORED chip (ember outline), byline, one link
-              through the click tracker. ── */
+        /* ── Direct-sold creative — visually a sibling of a directory
+              listing card: mono SPONSORED chip (ember outline), byline, one
+              link through the click tracker. ── */
         <a
           href={phase.clickHref}
           target="_blank"

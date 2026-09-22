@@ -20,8 +20,9 @@ import { ReportDialog } from "@/components/prother/report-dialog";
 import type { ForumReplyRow } from "@/lib/prother";
 
 /**
- * /forums/[slug] interactive layer: anon vote toggle (same voterKey scheme
- * as the launch feed), thread bookmark + report (Task 23), reply list with
+ * /forums/[slug] interactive layer: anon vote toggle (shared anon voter-key
+ * scheme with bookmarks/reports — forum voting is its own thing), thread
+ * bookmark + report (Task 23), reply list with
  * client-computed relative times and per-reply report flags, and the
  * signed-in reply composer. Thread header/body are server-rendered on
  * the page; only these parts hydrate.

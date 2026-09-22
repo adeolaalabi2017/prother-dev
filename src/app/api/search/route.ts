@@ -10,8 +10,8 @@ export type SearchToolHit = {
   tagline: string;
   emoji: string;
   gradient: string;
-  votes: number;
-  pricingModel: string;
+  editorsPick: boolean;
+  pricing: { model: string; price: string | null };
   category: { slug: string; name: string; emoji: string };
 };
 
@@ -55,16 +55,12 @@ function relevance(ql: string, name: string, tagline: string, tags: string, desc
  * GET /api/search?q=<query> — unified discovery search for the hero search
  * bar (discovery-first moat). Returns grouped hits across the three searchable
  * surfaces: live tools (directory), categories (taxonomy) and the journal.
- * Only status="live" tools with launch.scheduled=false are matched, same as
- * the public directory.
+ * Only status="live" tools are matched, same as the public directory.
  */
 export async function GET(req: Request) {
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim().slice(0, 64);
 
-  const liveToolWhere = {
-    status: "live" as const,
-    launch: { is: { scheduled: false } },
-  };
+  const liveToolWhere = { status: "live" as const };
 
   const [toolTotal, postTotal] = await Promise.all([
     db.tool.count({ where: liveToolWhere }),
@@ -95,8 +91,18 @@ export async function GET(req: Request) {
           { description: { contains: q } },
         ],
       },
-      include: {
-        launch: { include: { _count: { select: { votes: true } } } },
+      select: {
+        slug: true,
+        name: true,
+        tagline: true,
+        logoEmoji: true,
+        logoGradient: true,
+        editorsPick: true,
+        pricingModel: true,
+        startingPrice: true,
+        tags: true,
+        description: true,
+        createdAt: true,
         category: { select: { slug: true, name: true, emoji: true } },
       },
       take: 40,
@@ -122,18 +128,22 @@ export async function GET(req: Request) {
     .map((t) => ({
       t,
       score: relevance(ql, t.name, t.tagline, t.tags, t.description),
-      votes: (t.launch?.baseUpvotes ?? 0) + (t.launch?._count.votes ?? 0),
     }))
-    .sort((a, b) => b.score * 1000 + b.votes - (a.score * 1000 + a.votes))
-    .slice(0, 6)
-    .map(({ t, votes }) => ({
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        Number(b.t.editorsPick) - Number(a.t.editorsPick) ||
+        b.t.createdAt.getTime() - a.t.createdAt.getTime()
+    )
+    .slice(0, 10)
+    .map(({ t }) => ({
       slug: t.slug,
       name: t.name,
       tagline: t.tagline,
       emoji: t.logoEmoji,
       gradient: t.logoGradient,
-      votes,
-      pricingModel: t.pricingModel,
+      editorsPick: t.editorsPick,
+      pricing: { model: t.pricingModel, price: t.startingPrice },
       category: t.category,
     }));
 

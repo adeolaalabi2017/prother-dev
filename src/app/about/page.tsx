@@ -6,29 +6,29 @@ import { Faq } from "@/components/prother/faq";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/about" },
-  title: "About Prother — where AI products get discovered",
+  title: "About Prother — the AI tools directory",
   description:
-    "How Prother works: one curated launch batch per day, ranked live by the community, reviewed against six published standards. No link dumps, no pay-to-win.",
+    "How Prother works: a curated search & discovery platform for AI tools — 7 categories, six published listing standards, and honest reviews. No link dumps, no pay-to-win.",
   keywords: [
     "About Prother",
-    "AI launch platform",
-    "AI product discovery",
+    "AI tools directory",
+    "AI tool discovery",
+    "search AI tools",
     "listing standards",
-    "how Prother works",
   ],
   openGraph: {
-    title: "About Prother — where AI products get discovered",
+    title: "About Prother — the AI tools directory",
     description:
-      "One curated launch batch per day, ranked live by the community, reviewed against six published standards.",
+      "A curated search & discovery platform for AI tools — 7 categories, six published listing standards, and honest reviews.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "About Prother — where AI products get discovered",
+    title: "About Prother — the AI tools directory",
     description:
-      "One curated launch batch per day, ranked live by the community, reviewed against six published standards.",
+      "A curated search & discovery platform for AI tools — 7 categories, six published listing standards, and honest reviews.",
     images: ["/api/og"],
   },
 };
@@ -44,13 +44,14 @@ export default function AboutPage() {
             About Prother
           </p>
           <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
-            A launch is a real event.
+            Find the right AI tool.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-white/60">
-            Prother is where AI products get discovered — one curated batch per
-            day, ranked by the people who show up for AI. This page is the
-            whole story: how the feed works, what we build for, and the bar
-            every listing clears.
+            Prother is a curated search &amp; discovery platform for AI products
+            and tools — every listing reviewed against published standards,
+            organized into 7 categories, and rated by honest reviews. This page
+            is the whole story: how the directory works, what we build for, and
+            the bar every listing clears.
           </p>
         </div>
       </section>

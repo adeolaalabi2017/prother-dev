@@ -6,8 +6,8 @@ import { motion } from "framer-motion";
 const POINTS = [
   {
     n: "01",
-    title: "Community-ranked",
-    body: "Upvotes from people who show up specifically for AI. Fresh vote pool on every launch.",
+    title: "Rated by real reviews",
+    body: "Ratings from published reviews — ease, power, value — not popularity contests.",
   },
   {
     n: "02",
@@ -17,21 +17,20 @@ const POINTS = [
   {
     n: "03",
     title: "Free forever",
-    body: "Submitting is free. Launching is free. The digest is free. Trust is the product.",
+    body: "Searching is free. Saving is free. Listings are free. Trust is the product.",
   },
 ];
 
-const COMMAND = "prother launch --day 2026-09-19";
-// Indices 0–3 are the ✓ output lines; index 4 is the idle prompt + cursor.
-const OUTPUT_COUNT = 4;
+const COMMAND = 'prother search "translate video into 12 languages"';
+// Indices 0–2 are the revealed output lines; index 3 is the idle prompt + cursor.
+const OUTPUT_COUNT = 3;
 
 // Complete final transcript for assistive tech (announced once, never per-char).
 const TRANSCRIPT = [
-  "$ prother launch --day 2026-09-19",
-  "✓ Standards S1–S6 — 6/6 passed",
-  "✓ Slot reserved — 09:00 UTC",
-  "✓ Launch kit sent — makers@prother.dev",
-  "✓ Live on the feed — rank #2 · ▲31",
+  '$ prother search "translate video into 12 languages"',
+  "→ 3 tools · 2 open source · from $0",
+  "$ prother compare runway heygen",
+  '✓ saved to collection "localization stack"',
   "$ ▊",
 ].join("\n");
 
@@ -148,14 +147,15 @@ export function AgentEra() {
           transition={{ duration: 0.55, ease: "easeOut" }}
         >
           <p className="font-mono text-xs tracking-[0.3em] text-ember/80">
-            BUILT FOR THE LAUNCH ERA
+            BUILT FOR THE DISCOVERY ERA
           </p>
           <h2 className="mt-4 text-5xl leading-[0.95] font-black tracking-tighter text-white md:text-6xl">
-            Your tool needs a launch day, not a link drop.
+            Your tool deserves to be found, not just linked.
           </h2>
           <p className="mt-6 text-lg text-white/70">
-            Coding agents build, test, and review in loops. A launch on Prother gives every loop a
-            real audience — for screenshots, webhooks, evals, or a human who wants to click around.
+            Coding agents build, test, and review in loops. A listing on Prother puts every
+            loop&apos;s output in front of people actively searching for it — with honest
+            pricing and real reviews attached.
           </p>
 
           <ul className="mt-8 divide-y divide-white/10 border-y border-white/10">
@@ -187,7 +187,7 @@ export function AgentEra() {
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
-            <span className="ml-2 font-mono text-xs text-white/50">launch-day — zsh</span>
+            <span className="ml-2 font-mono text-xs text-white/50">discovery — zsh</span>
           </div>
           <div
             className="space-y-1.5 p-5 font-mono text-[13px] text-white/90"
@@ -210,34 +210,24 @@ export function AgentEra() {
               ref={setRevealRef(0)}
               className="invisible translate-y-1 opacity-0 transition-[opacity,transform] duration-150 ease-out"
             >
-              <span className="text-emerald-400">✓</span> Standards S1–S6
-              <span className="float-right text-white/60">6/6 passed</span>
+              <span className="text-ember">→</span> 3 tools · 2 open source ·
+              <span className="float-right">from $0</span>
             </p>
             <p
               ref={setRevealRef(1)}
               className="invisible translate-y-1 opacity-0 transition-[opacity,transform] duration-150 ease-out"
             >
-              <span className="text-emerald-400">✓</span> Slot reserved
-              <span className="float-right text-white/60">09:00 UTC</span>
+              <span className="text-ember">$</span> prother compare runway heygen
             </p>
             <p
               ref={setRevealRef(2)}
               className="invisible translate-y-1 opacity-0 transition-[opacity,transform] duration-150 ease-out"
             >
-              <span className="text-emerald-400">✓</span> Launch kit sent
-              <span className="float-right text-white/60">makers@prother.dev</span>
+              <span className="text-emerald-400">✓</span> saved to collection
+              <span className="float-right text-white/60">&quot;localization stack&quot;</span>
             </p>
             <p
               ref={setRevealRef(3)}
-              className="invisible translate-y-1 opacity-0 transition-[opacity,transform] duration-150 ease-out"
-            >
-              <span className="text-emerald-400">✓</span> Live on the feed
-              <span className="float-right">
-                rank #2 · <span className="text-ember-hot">▲31</span>
-              </span>
-            </p>
-            <p
-              ref={setRevealRef(4)}
               className="invisible translate-y-1 flex items-center pt-2 opacity-0 transition-[opacity,transform] duration-150 ease-out"
             >
               <span className="text-ember">$</span>

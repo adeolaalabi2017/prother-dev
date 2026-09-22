@@ -39,7 +39,6 @@ export async function GET(req: Request) {
       id: true,
       claimed: true,
       websiteUrl: true,
-      launch: { select: { scheduled: true } },
     },
   });
   if (!tool) {
@@ -62,16 +61,14 @@ export async function GET(req: Request) {
   }
   const reviews = rows.map((r) => serializeReview(r, r.userId === user?.id));
 
-  // Eligibility: anon → auth; scheduled launch → scheduled; maker → maker.
+  // Eligibility: anon → auth; maker → maker. Reviews are open immediately
+  // for any live listing — no launch-day gating.
   // (makerEmail is a post-boot column — compare the raw-fetched value.)
   let canReview = true;
-  let reason: null | "auth" | "maker" | "scheduled" = null;
+  let reason: null | "auth" | "maker" = null;
   if (!user) {
     canReview = false;
     reason = "auth";
-  } else if (tool.launch?.scheduled) {
-    canReview = false;
-    reason = "scheduled";
   } else if (
     isReviewMaker(
       { claimed: tool.claimed, makerEmail: fields.makerEmail, websiteUrl: tool.websiteUrl },
@@ -97,8 +94,9 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/reviews — upsert the signed-in user's review (unique per
- * tool+user). Accounts younger than 48h land in the "filtered" soft-
- * moderation queue; everyone else publishes immediately (F-16).
+ * tool+user). Reviews are open immediately for any live listing. Accounts
+ * younger than 48h land in the "filtered" soft-moderation queue; everyone
+ * else publishes immediately (F-16).
  */
 export async function POST(req: Request) {
   let raw: unknown;
@@ -130,14 +128,10 @@ export async function POST(req: Request) {
       id: true,
       claimed: true,
       websiteUrl: true,
-      launch: { select: { scheduled: true } },
     },
   });
   if (!tool) {
     return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
-  }
-  if (tool.launch?.scheduled) {
-    return NextResponse.json({ error: "scheduled" }, { status: 403 });
   }
   const fields = await toolCommunityFields(tool.id);
   if (

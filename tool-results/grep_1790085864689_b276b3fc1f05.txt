@@ -1,0 +1,180 @@
+/home/z/my-project/prisma/seed-cms.ts:29:    slug: "how-to-launch-an-ai-tool-in-2026",
+/home/z/my-project/prisma/seed-cms.ts:30:    title: "How to Launch an AI Tool in 2026: The Prother Playbook",
+/home/z/my-project/prisma/seed-cms.ts:32:      "A step-by-step launch playbook for AI founders — from S1–S6 listing standards to launch-day mechanics, vote velocity, and the 72-hour follow-through that separates hits from noise.",
+/home/z/my-project/prisma/seed-cms.ts:34:    tags: "launch|makers|guide",
+/home/z/my-project/prisma/seed-cms.ts:38:    seoTitle: "How to Launch an AI Tool in 2026 — The Prother Playbook",
+/home/z/my-project/prisma/seed-cms.ts:40:      "The complete AI product launch playbook: listing standards, launch-day ranking mechanics, vote velocity, and the 72-hour follow-through. Built from Prother feed data.",
+/home/z/my-project/prisma/seed-cms.ts:41:    keywords: "launch an ai tool, ai product launch, ai launch checklist, product launch playbook",
+/home/z/my-project/prisma/seed-cms.ts:43:    body: `Every week, hundreds of AI tools ship. Most launches flare for an afternoon and die in a Discord channel. The ones that compound share a pattern — and after watching thousands of launches move through the Prother feed, the pattern is legible enough to write down.
+/home/z/my-project/prisma/seed-cms.ts:47:Every listing on Prother clears the same six standards (S1–S6). They sound bureaucratic until you read them as a **launch checklist**:
+/home/z/my-project/prisma/seed-cms.ts:49:- **S1 — Live & accessible.** If a reviewer can't use it *right now*, it's not a launch, it's a promise. Pre-launch pages convert worse than delayed launches with working demos.
+/home/z/my-project/prisma/seed-cms.ts:65:## Launch day mechanics
+/home/z/my-project/prisma/seed-cms.ts:67:Prother's ranking is **score = weighted_upvotes / hours^1.2** — recency-weighted, so early velocity matters but a slow burn can still win the day. Practical consequences:
+/home/z/my-project/prisma/seed-cms.ts:69:1. **Line up your first 20 upvotes before 00:00 UTC.** Your community, your list, your co-founders' groups. Accounts younger than 24h carry half weight — real fans, not fresh signups, are the asset.
+/home/z/my-project/prisma/seed-cms.ts:70:2. **Be present in the comments.** Maker replies are the highest-signal trust marker on a launch row.
+/home/z/my-project/prisma/seed-cms.ts:75:The vote window closes at UTC midnight, but the listing lives forever. The moves that compound:
+/home/z/my-project/prisma/seed-cms.ts:77:- Publish a "what we learned launching" post (the Journal is open to makers).
+/home/z/my-project/prisma/seed-cms.ts:81:Cold-start is a solved problem if you treat the launch as a *campaign with a deadline*, not a listing. The feed rewards teams that show up like it's game day — because it is.`,
+/home/z/my-project/prisma/seed-cms.ts:87:      "How the daily feed actually ranks launches: the weighted vote formula, the hours^1.2 decay curve, age-weighted voting, and the anti-manipulation signals we run before anything hits the homepage.",
+/home/z/my-project/prisma/seed-cms.ts:95:      "The exact math behind Prother's daily launch feed: weighted upvotes, the hours^1.2 decay curve, new-account vote damping, and anomaly flags that keep the homepage honest.",
+/home/z/my-project/prisma/seed-cms.ts:96:    keywords: "launch ranking algorithm, hacker news ranking, vote decay curve, feed algorithm",
+/home/z/my-project/prisma/seed-cms.ts:98:    body: `Ranking a daily launch feed is a trust problem disguised as a math problem. This post documents exactly how Prother ranks launches — the same transparency we require of the tools we list.
+/home/z/my-project/prisma/seed-cms.ts:103:score = weighted_upvotes / hours^1.2
+/home/z/my-project/prisma/seed-cms.ts:106:\`hours\` is time since 00:00 UTC of the launch day. The exponent is the tuning knob:
+/home/z/my-project/prisma/seed-cms.ts:108:- \`1.0\` would be pure division — early votes dominate forever, late comebacks never happen.
+/home/z/my-project/prisma/seed-cms.ts:109:- \`1.2\` is the sweet spot we landed on: **early velocity matters, but a tool with 90 votes at hour 20 can still overtake 40 votes at hour 2.**
+/home/z/my-project/prisma/seed-cms.ts:112:## Vote weighting
+/home/z/my-project/prisma/seed-cms.ts:114:Not all upvotes are equal. Accounts younger than 24 hours cast votes worth **0.5**. This single rule killed most of the "create 50 accounts and upvote yourself" experiments in testing — fresh cohorts simply don't have the account age to move the needle, and they cost real effort to mature.
+/home/z/my-project/prisma/seed-cms.ts:116:One vote per account per launch is enforced at the database level, and re-launches get a **fresh vote pool** by design: votes reference the launch, not the tool.
+/home/z/my-project/prisma/seed-cms.ts:123:- Vote velocity far outside the launch's category baseline
+/home/z/my-project/prisma/seed-cms.ts:126:Flags don't auto-punish; they queue for a human. False positives happen, and a silent algorithm should never be the judge of a launch day someone spent months preparing.
+/home/z/my-project/prisma/seed-cms.ts:130:Clicks, dwell time, and outbound CTR are tempting signals, but they advantage flashy listings over useful ones. Votes from people who *tried the tool* remain the least gameable quality proxy we have. We do use velocity + CTR for the weekly "trending" windows — different question, different math.
+/home/z/my-project/prisma/seed-cms.ts:132:The algorithm is short enough to fit in a tweet. That's the point: makers should be able to reason about their own launch without reverse-engineering a black box.`,
+/home/z/my-project/prisma/seed-cms.ts:138:      "Programmatic SEO for launch platforms: how daily archive pages, category landing pages, and structured data turn a launch feed into an organic acquisition machine — without doorway-page penalties.",
+/home/z/my-project/prisma/seed-cms.ts:149:    body: `Static AI directories won SEO in 2024 with stale listicles. The next wave wins it with **living pages** — and a launch feed is accidentally the best SEO machine in the category.
+/home/z/my-project/prisma/seed-cms.ts:154:2. **Daily long-tail** ("new AI tools today", "AI launches September 18") — a launch feed answers this *by existing*. The homepage and daily archive pages are the only pages on the internet that are born fresh every morning.
+/home/z/my-project/prisma/seed-cms.ts:172:Daily archive pages (\`/launches/{date}\`) are indexable and *differentiated by nature* — each contains that day's actual launches, vote counts, and editorial notes. Sitemap discipline does the rest: new URLs in the sitemap within an hour of rollover, \`lastmod\` honest, no URL churn.
+/home/z/my-project/prisma/seed-cms.ts:176:The blog is layer four: **proving expertise about the ecosystem itself.** Ranking explainers, launch playbooks, category deep-dives — these earn links to the pages that list the tools. A directory with a brain outranks a directory with a database, every algorithm update.`,
+/home/z/my-project/prisma/seed-cms.ts:179:    slug: "what-makers-ask-before-launching",
+/home/z/my-project/prisma/seed-cms.ts:180:    title: "What Makers Ask Before Launching — Answered From 1,000+ Launches",
+/home/z/my-project/prisma/seed-cms.ts:182:      "The twelve questions every AI founder asks before launch day — timing, pricing pages, screenshots, vote mechanics, claims, and re-launches — answered with what the feed data actually shows.",
+/home/z/my-project/prisma/seed-cms.ts:184:    tags: "makers|faq|launch",
+/home/z/my-project/prisma/seed-cms.ts:188:    seoTitle: "Maker FAQ: Launching an AI Tool, Answered From Real Feed Data",
+/home/z/my-project/prisma/seed-cms.ts:190:      "When to launch, how many screenshots, do badges matter, what happens after rejection — the 12 questions AI founders ask most, answered with Prother feed data.",
+/home/z/my-project/prisma/seed-cms.ts:191:    keywords: "ai founder questions, when to launch ai product, launch day faq",
+/home/z/my-project/prisma/seed-cms.ts:195:**1. What day should I launch?**
+/home/z/my-project/prisma/seed-cms.ts:196:Weekdays outperform weekends for B2B-leaning tools; the gap narrows for consumer. The feed floors at 5 launches/day, so you're never alone on the homepage.
+/home/z/my-project/prisma/seed-cms.ts:199:Launches go live at 00:00 UTC regardless. What matters is *your* first-hour velocity — coordinate your announcement to when your audience is awake.
+/home/z/my-project/prisma/seed-cms.ts:213:**7. How do votes work?**
+/home/z/my-project/prisma/seed-cms.ts:214:One per account per launch. Accounts under 24h count half. Anomalous bursts get frozen for review, not silently deleted.
+/home/z/my-project/prisma/seed-cms.ts:222:**10. When can I re-launch?**
+/home/z/my-project/prisma/seed-cms.ts:223:Once per 6 months for a major release, editor-approved, badged, with a fresh vote pool.
+/home/z/my-project/prisma/seed-cms.ts:229:Reply to every comment and review, thank your top supporters publicly, and ship the thing they asked for. Launches are a beginning, not a verdict.`,
+/home/z/my-project/prisma/seed-cms.ts:269:    slug: "launch-week-recap-september-2026",
+/home/z/my-project/prisma/seed-cms.ts:270:    title: "Launch Week Recap: What 100+ AI Launches Tell Us About Right Now",
+/home/z/my-project/prisma/seed-cms.ts:272:      "Agents took the top slot, coding tools consolidated, vertical AI quietly doubled — a data-backed recap of this launch week on Prother, with the vote patterns and category signals that mattered.",
+/home/z/my-project/prisma/seed-cms.ts:278:    seoTitle: "AI Launch Week Recap — Category & Vote Trends From Prother",
+/home/z/my-project/prisma/seed-cms.ts:280:      "This week on Prother: 100+ AI launches ranked by community votes. Agents lead, coding tools consolidate, vertical AI doubles — the trends with the numbers behind them.",
+/home/z/my-project/prisma/seed-cms.ts:281:    keywords: "ai launches this week, ai tool trends, new ai tools september 2026",
+/home/z/my-project/prisma/seed-cms.ts:287:🕹️ AI Agents & Automation took the largest share of top-ten slots for the first time — not because more agent tools launched, but because agent tools **kept their votes past hour six**. Persistence beats splash.
+/home/z/my-project/prisma/seed-cms.ts:291:The 👨‍💻 Coding category didn't grow; it *concentrated*. The top three coding launches out-voted the remaining seven combined. Interpretation: the eval-driven buyer has consolidated around fewer, deeper tools, and the "GPT wrapper with a CLI" tier is being priced out of attention.
+/home/z/my-project/prisma/seed-cms.ts:299:- 🎨 Image & Video: steady volume, votes spread thin — the category is a market, not a moment.
+/home/z/my-project/prisma/seed-cms.ts:300:- 🛡️ Safety & Governance: two launches, both solid, neither viral. The category grows on procurement cycles, not launch days.
+/home/z/my-project/prisma/seed-cms.ts:304:**Median upvotes per launch this week: 22.** The floor for a top-five slot was 58. If your launch plan doesn't know how it gets 58 real votes, the plan is the thing to fix — not the ranking.`,
+/home/z/my-project/prisma/seed-cms.ts:310:  "hero.headline": "Where AI products launch.",
+/home/z/my-project/prisma/seed-cms.ts:312:    "A fresh batch of AI tools every day. Discover, upvote, and compare — before the rest of the internet catches on.",
+/home/z/my-project/prisma/seed-cms.ts:315:  "seo.defaultTitle": "Prother — Where AI products launch",
+/home/z/my-project/prisma/seed-cms.ts:317:    "A curated, community-driven launchpad for AI products. A fresh batch of AI tools launches every day at 00:00 UTC — discover, upvote, review, and compare.",
+/home/z/my-project/prisma/schema.prisma:45:  relaunch      Boolean   @default(false)
+/home/z/my-project/prisma/schema.prisma:46:  /** F-35: number of successful re-launches + latest version label. */
+/home/z/my-project/prisma/schema.prisma:47:  relaunchCount Int       @default(0)
+/home/z/my-project/prisma/schema.prisma:48:  relaunchNote  String?
+/home/z/my-project/prisma/schema.prisma:49:  /** UTC date of the ORIGINAL launch window (survives re-launches). */
+/home/z/my-project/prisma/schema.prisma:50:  originalLaunchDate DateTime?
+/home/z/my-project/prisma/schema.prisma:52:   *  (soft delete — history and votes survive). Admin-managed. */
+/home/z/my-project/prisma/schema.prisma:59:  launch        Launch?
+/home/z/my-project/prisma/schema.prisma:68:  relaunchEvents  RelaunchEvent[]
+/home/z/my-project/prisma/schema.prisma:72:// ── Launches (votes reference launch_id → fresh vote pools on re-launch) ─
+/home/z/my-project/prisma/schema.prisma:73:model Launch {
+/home/z/my-project/prisma/schema.prisma:77:  launchDate  DateTime // UTC midnight of launch day
+/home/z/my-project/prisma/schema.prisma:79:  baseUpvotes Int      @default(0) // seeded community votes
+/home/z/my-project/prisma/schema.prisma:80:  votes       Vote[]
+/home/z/my-project/prisma/schema.prisma:84:// ── Votes (1 per anonymous visitor per launch, F-14) ────────────────────
+/home/z/my-project/prisma/schema.prisma:85:model Vote {
+/home/z/my-project/prisma/schema.prisma:87:  launch    Launch   @relation(fields: [launchId], references: [id])
+/home/z/my-project/prisma/schema.prisma:88:  launchId  String
+/home/z/my-project/prisma/schema.prisma:89:  voterKey  String // anon localStorage key
+/home/z/my-project/prisma/schema.prisma:91:  @@unique([launchId, voterKey])
+/home/z/my-project/prisma/schema.prisma:126:// ── Launch discussion (comments on tool listings) ────────────────────────
+/home/z/my-project/prisma/schema.prisma:143:// Long-form articles: launch playbooks, ranking explainers, ecosystem notes.
+/home/z/my-project/prisma/schema.prisma:336:// ── Re-launch history (F-35) — archived launch windows + fresh vote pool ─
+/home/z/my-project/prisma/schema.prisma:337:// On re-launch the current Launch row is reset (new date, votes cleared) and
+/home/z/my-project/prisma/schema.prisma:338:// the previous window is archived here so launch history survives.
+/home/z/my-project/prisma/schema.prisma:339:model RelaunchEvent {
+/home/z/my-project/prisma/schema.prisma:345:  /** UTC date of the archived (previous) launch window. */
+/home/z/my-project/prisma/schema.prisma:346:  launchedAt DateTime
+/home/z/my-project/prisma/schema.prisma:347:  totalVotes Int      @default(0)
+/home/z/my-project/prisma/schema.prisma:367:// Votes reuse the anonymous voterKey scheme from the launch Vote model
+/home/z/my-project/prisma/schema.prisma:368:// (1 per visitor per thread, unique on threadId+voterKey). Threads created
+/home/z/my-project/prisma/schema.prisma:382:  baseUpvotes Int    @default(0)
+/home/z/my-project/prisma/schema.prisma:386:  votes       ForumThreadVote[]
+/home/z/my-project/prisma/schema.prisma:405:model ForumThreadVote {
+/home/z/my-project/prisma/schema.prisma:409:  voterKey String
+/home/z/my-project/prisma/schema.prisma:411:  @@unique([threadId, voterKey])
+/home/z/my-project/prisma/schema.prisma:421:// same localStorage scheme as votes). One OPEN report per owner per target.
+/home/z/my-project/prisma/schema.prisma:464:// row in the launch feed), journal_bar, category_spotlight. Serving picks a
+/home/z/my-project/prisma/community-seed.ts:77:      name: "Vectorize Q3 launch",
+/home/z/my-project/prisma/community-seed.ts:96:      name: "Launch Week Playbook sponsorship",
+/home/z/my-project/prisma/community-seed.ts:100:      headline: "The launch-week checklist 400 makers swear by",
+/home/z/my-project/prisma/community-seed.ts:229:      tool[0].name.slice(0, 120), "misleading", "The landing page promises an API, but there is none — gated waitlist instead.",
+/home/z/my-project/prisma/seed.ts:2: * Prother seed — 10 categories (PRD §13), today's launch batch (§9),
+/home/z/my-project/prisma/seed.ts:3: * tomorrow teasers, and past-week launches for Top Week / archive.
+/home/z/my-project/prisma/seed.ts:36:  votes: number; pick?: boolean; curated?: boolean; relaunch?: boolean;
+/home/z/my-project/prisma/seed.ts:42:  // ── TODAY (12 launches) ──────────────────────────────────────────────
+/home/z/my-project/prisma/seed.ts:43:  { slug: "promptly", name: "Promptly", tagline: "AI chatbots that never hallucinate citations", cat: "generative-ai-chatbots", pricing: "freemium", price: "$19", note: "Pro / 20 free queries per month", emoji: "💬", gradient: "from-orange-400 to-rose-600", votes: 47, pick: true, maker: "@dana", claimed: true, api: true, tags: "api-available|enterprise", hourOffset: 14 },
+/home/z/my-project/prisma/seed.ts:44:  { slug: "codepilotx", name: "CodePilotX", tagline: "Review AI code diffs before your team ships", cat: "coding-tools", pricing: "paid", price: "$29", note: "per seat / month", emoji: "🧑‍🔧", gradient: "from-amber-400 to-orange-700", votes: 31, relaunch: true, maker: "@leo", claimed: true, api: true, tags: "api-available|enterprise", hourOffset: 13 },
+/home/z/my-project/prisma/seed.ts:45:  { slug: "pixelforge", name: "PixelForge", tagline: "Turn sketches into production design systems", cat: "art-image-video", pricing: "free", emoji: "🎨", gradient: "from-orange-300 to-red-500", votes: 22, curated: true, maker: "@prother", tags: "no-code", hourOffset: 12 },
+/home/z/my-project/prisma/seed.ts:46:  { slug: "voiceloom", name: "VoiceLoom", tagline: "Clone your voice, dub 40 languages in minutes", cat: "audio-voice-music", pricing: "freemium", price: "$12", note: "Starter / 30 min per month", emoji: "🎙️", gradient: "from-orange-500 to-purple-700", votes: 18, maker: "@amara", claimed: true, api: true, tags: "api-available|mobile", hourOffset: 11 },
+/home/z/my-project/prisma/seed.ts:47:  { slug: "agentrun", name: "AgentRun", tagline: "Self-healing agents that retry their own failures", cat: "agents-automation", pricing: "open_source", emoji: "🧠", gradient: "from-amber-500 to-stone-700", votes: 15, maker: "@sol", claimed: true, oss: "https://github.com/agentrun/agentrun", tags: "open-source|self-hosted|api-available", hourOffset: 10 },
+/home/z/my-project/prisma/seed.ts:48:  { slug: "sheetsense", name: "SheetSense", tagline: "Ask your spreadsheets anything, in plain English", cat: "data-analysis", pricing: "freemium", price: "$9", note: "Plus / unlimited workbooks", emoji: "📊", gradient: "from-lime-400 to-emerald-700", votes: 12, maker: "@ivy", tags: "no-code", hourOffset: 9 },
+/home/z/my-project/prisma/seed.ts:49:  { slug: "guardrail", name: "Guardrail", tagline: "Policy checks for LLM outputs before they ship", cat: "safety-governance", pricing: "paid", price: "$49", note: "Team / month, 100k checks", emoji: "🛡️", gradient: "from-stone-400 to-orange-800", votes: 9, maker: "@mira", claimed: true, api: true, tags: "api-available|enterprise", hourOffset: 8 },
+/home/z/my-project/prisma/seed.ts:50:  { slug: "edgeembed", name: "EdgeEmbed", tagline: "Embedding inference at the edge, 40ms p99", cat: "infra-devtools", pricing: "open_source", emoji: "⚙️", gradient: "from-zinc-400 to-slate-700", votes: 8, maker: "@prother", oss: "https://github.com/prother-dev/edgeembed", api: true, tags: "open-source|self-hosted", hourOffset: 7 },
+/home/z/my-project/prisma/seed.ts:51:  { slug: "briefcase-ai", name: "Briefcase AI", tagline: "The legal copilot for contract review at scale", cat: "vertical-ai", pricing: "paid", price: "$99", note: "Firm / month", emoji: "⚖️", gradient: "from-amber-600 to-stone-800", votes: 7, maker: "@harvey", tags: "enterprise", hourOffset: 6 },
+/home/z/my-project/prisma/seed.ts:52:  { slug: "draftpunk", name: "DraftPunk", tagline: "From bullet points to publishable blog post", cat: "writing-productivity", pricing: "free", emoji: "✍️", gradient: "from-orange-300 to-amber-600", votes: 6, maker: "@nina", hourOffset: 5, tags: "free-tier" },
+/home/z/my-project/prisma/seed.ts:53:  { slug: "clipwhisper", name: "ClipWhisper", tagline: "Turn 3-hour podcasts into 10 viral clips", cat: "art-image-video", pricing: "freemium", price: "$15", note: "Creator / 20 uploads", emoji: "🎬", gradient: "from-rose-400 to-orange-600", votes: 5, maker: "@kai", hourOffset: 4, tags: "mobile" },
+/home/z/my-project/prisma/seed.ts:54:  { slug: "querymuse", name: "QueryMuse", tagline: "Semantic search across your whole Notion workspace", cat: "infra-devtools", pricing: "freemium", price: "$8", note: "Pro / month", emoji: "🔎", gradient: "from-orange-400 to-yellow-600", votes: 4, maker: "@reid", api: true, hourOffset: 3, tags: "api-available" },
+/home/z/my-project/prisma/seed.ts:57:  { slug: "turbine", name: "Turbine", tagline: "GPU cost optimizer for inference fleets", cat: "infra-devtools", pricing: "paid", price: "$199", emoji: "🌀", gradient: "from-cyan-500 to-slate-800", votes: 0, maker: "@prother", scheduled: true },
+/home/z/my-project/prisma/seed.ts:58:  { slug: "lingoloop", name: "LingoLoop", tagline: "Real-time meeting interpreter for global teams", cat: "audio-voice-music", pricing: "freemium", price: "$20", emoji: "🌐", gradient: "from-teal-400 to-emerald-800", votes: 0, maker: "@sofia", scheduled: true },
+/home/z/my-project/prisma/seed.ts:59:  { slug: "verity", name: "Verity", tagline: "Fact-check pipelines built for newsrooms", cat: "safety-governance", pricing: "paid", price: "$79", emoji: "✅", gradient: "from-emerald-500 to-slate-800", votes: 0, maker: "@prother", scheduled: true },
+/home/z/my-project/prisma/seed.ts:60:  { slug: "canvasops", name: "CanvasOps", tagline: "A/B test your prompt pipelines like landing pages", cat: "generative-ai-chatbots", pricing: "freemium", price: "$29", emoji: "🧪", gradient: "from-orange-500 to-rose-700", votes: 0, maker: "@tara", scheduled: true },
+/home/z/my-project/prisma/seed.ts:63:  { slug: "nectarsearch", name: "NectarSearch", tagline: "Answer engine that cites every single source", cat: "generative-ai-chatbots", pricing: "freemium", price: "$16", emoji: "🍯", gradient: "from-amber-300 to-orange-700", votes: 312, maker: "@petal", claimed: true, day: 5, tags: "api-available" },
+/home/z/my-project/prisma/seed.ts:64:  { slug: "flowstein", name: "FlowStein", tagline: "Predict churn before your dashboard does", cat: "data-analysis", pricing: "paid", price: "$59", emoji: "📉", gradient: "from-emerald-400 to-teal-800", votes: 288, maker: "@prother", day: 4, tags: "enterprise" },
+/home/z/my-project/prisma/seed.ts:65:  { slug: "rendermind", name: "RenderMind", tagline: "Photoreal product shots from a phone photo", cat: "art-image-video", pricing: "freemium", price: "$24", emoji: "🖼️", gradient: "from-orange-400 to-rose-700", votes: 241, maker: "@stella", day: 3, tags: "no-code" },
+/home/z/my-project/prisma/seed.ts:66:  { slug: "stacksherpa", name: "StackSherpa", tagline: "An on-call engineer that never sleeps", cat: "coding-tools", pricing: "paid", price: "$39", emoji: "🏔️", gradient: "from-slate-400 to-orange-900", votes: 197, maker: "@greg", day: 2, api: true, tags: "api-available|self-hosted" },
+/home/z/my-project/prisma/seed.ts:67:  { slug: "echograin", name: "EchoGrain", tagline: "Master your tracks like a platinum studio", cat: "audio-voice-music", pricing: "freemium", price: "$11", emoji: "🎹", gradient: "from-purple-400 to-orange-700", votes: 156, maker: "@nova", day: 2, tags: "mobile" },
+/home/z/my-project/prisma/seed.ts:68:  { slug: "ledgerllm", name: "LedgerLLM", tagline: "Audit-ready finance ops, run by agents", cat: "vertical-ai", pricing: "paid", price: "$149", emoji: "💼", gradient: "from-amber-500 to-zinc-800", votes: 121, maker: "@quan", day: 1, tags: "enterprise" },
+/home/z/my-project/prisma/seed.ts:69:  { slug: "popupclinic", name: "PopupClinic", tagline: "Triage intake forms with clinical-grade AI", cat: "vertical-ai", pricing: "paid", price: "$89", emoji: "🩺", gradient: "from-rose-400 to-emerald-800", votes: 98, maker: "@prother", day: 1 },
+/home/z/my-project/prisma/seed.ts:70:  { slug: "mailmuse", name: "MailMuse", tagline: "Inbox zero, written in your voice", cat: "writing-productivity", pricing: "freemium", price: "$7", emoji: "📧", gradient: "from-orange-300 to-red-600", votes: 87, maker: "@chris", day: 1 },
+/home/z/my-project/prisma/seed.ts:75:  await db.vote.deleteMany();
+/home/z/my-project/prisma/seed.ts:76:  await db.launch.deleteMany();
+/home/z/my-project/prisma/seed.ts:90:    const launchDate = t.scheduled ? tomorrow : daysAgo(t.day ?? 0);
+/home/z/my-project/prisma/seed.ts:113:        relaunch: t.relaunch ?? false,
+/home/z/my-project/prisma/seed.ts:116:        launch: {
+/home/z/my-project/prisma/seed.ts:118:            launchDate,
+/home/z/my-project/prisma/seed.ts:120:            baseUpvotes: t.votes,
+/home/z/my-project/prisma/forum-seed.ts:9: * like the same community that launches on the feed.
+/home/z/my-project/prisma/forum-seed.ts:28:  baseUpvotes: number;
+/home/z/my-project/prisma/forum-seed.ts:40:    baseUpvotes: 18,
+/home/z/my-project/prisma/forum-seed.ts:44:p/general — launching, timing, pricing, validation, distribution. If it is about running the business of a product, it goes here.
+/home/z/my-project/prisma/forum-seed.ts:48:p/show — you shipped something. Demo it, share real numbers, answer stack questions. One thread per launch, link your tool page.
+/home/z/my-project/prisma/forum-seed.ts:56:        body: "Follow-up for the mods: if I hit a gnarly prompt-architecture problem while building my launch page, that is vibecoding, but if I want feedback on the page itself, that is show? Want to keep my threads out of the merge pile.",
+/home/z/my-project/prisma/forum-seed.ts:62:    slug: "launch-timing-0001-utc-vs-afternoon-8jk1",
+/home/z/my-project/prisma/forum-seed.ts:64:    title: "Launch timing: does the 00:01 UTC slot actually beat an afternoon slot?",
+/home/z/my-project/prisma/forum-seed.ts:66:    baseUpvotes: 34,
+/home/z/my-project/prisma/forum-seed.ts:70:Comparing our curve to NectarSearch (which opened right at 00:01 UTC): they cleared 300 votes in five days, we are at 47 after half a day. Not comparable products, but the shape differs. Their votes came in two bursts — right at open and around 14:00 UTC when the US logged on. Ours ramped slowly all afternoon and held overnight.
+/home/z/my-project/prisma/forum-seed.ts:72:My working theory: the 00:01 slot buys you 14 extra hours of exposure to the early crowd, but the ranking decay means those early votes weigh less by the time most people see the feed. An afternoon slot front-loads your freshest hours into peak traffic.
+/home/z/my-project/prisma/forum-seed.ts:74:Anyone launched the same product twice at different times? I would take one real data point over my spreadsheet of guesses.`,
+/home/z/my-project/prisma/forum-seed.ts:78:        body: "CodePilotX went live 13:00 UTC. What I can confirm from the feed: vote velocity in the first six hours decides whether you hold the top row when the EU evening crowd arrives. After hour six the decay is brutal — our score halved while votes still trickled in. I would pick the slot where YOUR audience is awake over any universal rule.",
+/home/z/my-project/prisma/forum-seed.ts:83:        body: "QueryMuse launched 15:30 UTC and I spent the whole morning refreshing with nothing to show for it. Afternoon worked for us because both EU and US were online and the feed had stopped churning — less competition per hour. Also: a Tuesday beats a Friday by a lot, weekends are a ghost town here.",
+/home/z/my-project/prisma/forum-seed.ts:88:        body: "Counterpoint from the Guardrail launch: we got the editor pick badge a few hours in and the badge moved more votes than the slot ever could. Timing is a rounding error next to a strong first screenshot.",
+/home/z/my-project/prisma/forum-seed.ts:98:    baseUpvotes: 21,
+/home/z/my-project/prisma/forum-seed.ts:102:Reality: after launch, barely a third of those people ever pasted a single bullet list. The waitlist measured curiosity, not intent. Free email is the cheapest currency on the internet and I had priced my validation at zero.
+/home/z/my-project/prisma/forum-seed.ts:115:        body: "We charged $20 for NectarSearch pre-orders while it was still a CLI with zero UI. 61 people paid. The conversion rate was tiny next to a waitlist, but every one of those people used the thing and complained loudly, which is what you actually need. A waitlist tells you what people wish they wanted. An invoice tells you what they want.",
+/home/z/my-project/prisma/forum-seed.ts:125:    baseUpvotes: 42,
+/home/z/my-project/prisma/forum-seed.ts:159:    baseUpvotes: 29,
+/home/z/my-project/prisma/forum-seed.ts:182:    slug: "launched-clipwhisper-today-stack-and-numbers-3hb8",
+/home/z/my-project/prisma/forum-seed.ts:184:    title: "Launched ClipWhisper today — 3-hour podcast to 10 clips. Stack and first-day numbers",
+/home/z/my-project/prisma/forum-seed.ts:186:    baseUpvotes: 26,
+/home/z/my-project/prisma/forum-seed.ts:190:Stack, for those who asked in the pre-launch thread: Whisper large-v3 running locally for the transcript, ffmpeg for the actual cutting, and a small fine-tuned model that scores segments on hook strength — the scoring model is the secret sauce and it took four retraining rounds to stop picking intro music.
+/home/z/my-project/prisma/forum-seed.ts:208:        body: "Congratulations on the launch — the 74-episode power user is the whole thread worth pulling on. One question from the Promptly side: do clips without captions retain worse? We see captions doubling watch time on our end and it might be a cheap win for you.",
+/home/z/my-project/prisma/forum-seed.ts:218:    baseUpvotes: 55,
+/home/z/my-project/prisma/forum-seed.ts:220:    body: `We ended the day at 312 votes, which is a number I am going to be insufferable about for at least a week.
+/home/z/my-project/prisma/forum-seed.ts:222:Since the launch thread filled up with the same three questions, here is the honest version of how the cite-everything engine works: retrieval pulls candidate sources, a claim-extraction pass turns each sentence of our draft answer into checkable statements, and a verification pass attaches or removes a citation per claim. Anything that fails verification gets rewritten, not footnoted.
+/home/z/my-project/prisma/forum-seed.ts:235:        body: "Late to the party — legal uses this pattern constantly and the verification-threshold question is exactly where enterprise buyers get nervous. What did the false-citation rate look like at launch versus now, and how do you measure it at all? We resorted to paying paralegals to spot-check and I still do not trust our numbers.",
+/home/z/my-project/prisma/forum-seed.ts:245:    baseUpvotes: 12,
+/home/z/my-project/prisma/forum-seed.ts:251:What drew me to this community is that everyone here argues about details like segment scoring and migration safety, which is exactly the level of conversation my old industry never had about voice tech. I launch soon and I am mostly here to learn how to not fumble the launch week.
+/home/z/my-project/prisma/forum-seed.ts:257:        body: "Welcome — EchoGrain is music-side but half our users push voice tracks through it. The beige audiobook read is real and I have never heard anyone name it before. When you launch I want to test the breath preservation specifically, that is the tell in every clone I have auditioned.",
+/home/z/my-project/prisma/forum-seed.ts:262:        body: "Welcome, Amara. When launch day comes, post the demo in p/show with one before/after clip — voice products convert on hearing, not reading. The timing thread in p/general is where the launch-week veterans live if you want the unfiltered version.",
+/home/z/my-project/prisma/forum-seed.ts:287:        baseUpvotes: t.baseUpvotes,
+/home/z/my-project/prisma/seed-comments.ts:2: * Prother seed — launch discussion starter comments.
+/home/z/my-project/prisma/seed-comments.ts:53:    body: "Found this through the community queue — the realtime board sync is genuinely instant. Nice launch!",

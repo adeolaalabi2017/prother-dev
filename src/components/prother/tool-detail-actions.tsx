@@ -1,30 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
+  ArrowUpRight,
   Bookmark,
   BookmarkCheck,
   Check,
   Flag,
+  Scale,
   Share2,
-  Triangle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { getVoterKey } from "./voter";
+import { useExplorer } from "./explorer-store";
 import { useBookmark } from "./use-bookmarks";
 import { ReportDialog } from "./report-dialog";
 
 /**
  * Client island for the SSR tool page (Task 25) — the interactive sliver of
- * /tools/[slug]. Mirrors the ToolFullPage overlay's action mechanics exactly:
- *  · UPVOTE  → POST /api/vote { launchId, voterKey }, optimistic toggle with
- *    revert + toast on failure, broadcasts the `prother:vote` event so the
- *    homepage feed (if ever sharing the page) stays in sync. The visitor's
- *    existing ballot is learned on mount via the ?vk detail fetch (same
- *    pattern as the forum vote pill) — setState only in fetch continuations.
+ * /tools/[slug]:
+ *  · VISIT   → the primary outbound link to the tool's website.
  *  · SAVE    → the shared useBookmark store ("tool", slug) so the Saved
  *    overlay (?saved=mine) and the overlay's save button stay in sync.
+ *  · COMPARE → the shared explorer-store compare tray (up to two tools).
  *  · SHARE   → navigator.share with clipboard fallback on the clean URL
  *    /tools/<slug>.
  *  · REPORT  → the shared ReportDialog with the overlay's exact props.
@@ -33,63 +31,28 @@ import { ReportDialog } from "./report-dialog";
 export function ToolDetailActions({
   slug,
   name,
-  launchId,
-  initialVotes,
+  websiteUrl,
 }: {
   slug: string;
   name: string;
-  launchId: string | null;
-  /** Server-rendered vote total (baseUpvotes + vote count). */
-  initialVotes: number;
+  /** Outbound link to the tool's site. */
+  websiteUrl: string;
 }) {
   const { toast } = useToast();
-  const [vote, setVote] = useState({ votes: initialVotes, voted: false });
   const [copied, setCopied] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
-  // Learn this visitor's existing ballot (1 vote per visitor per launch,
-  // F-14) — the SSR HTML can't know the localStorage voterKey.
-  useEffect(() => {
-    if (!launchId) return;
-    let alive = true;
-    fetch(`/api/tools/${encodeURIComponent(slug)}?vk=${encodeURIComponent(getVoterKey())}`, {
-      cache: "no-store",
-    })
-      .then((r) => (r.ok ? (r.json() as Promise<{ voted?: boolean; votes?: number }>) : null))
-      .then((j) => {
-        if (alive && j && typeof j.votes === "number") {
-          setVote({ votes: j.votes, voted: !!j.voted });
-        }
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [launchId, slug]);
+  const addCompare = useExplorer((s) => s.addCompare);
+  const removeCompare = useExplorer((s) => s.removeCompare);
+  const compareSlugs = useExplorer((s) => s.compare);
 
-  const onVote = useCallback(async () => {
-    if (!launchId) return;
-    const prev = vote;
-    const nextVoted = !prev.voted;
-    setVote({ votes: prev.votes + (nextVoted ? 1 : -1), voted: nextVoted });
-    try {
-      const res = await fetch("/api/vote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ launchId, voterKey: getVoterKey() }),
-      });
-      const data = (await res.json()) as { voted: boolean; votes: number };
-      setVote({ votes: data.votes, voted: data.voted });
-      window.dispatchEvent(
-        new CustomEvent("prother:vote", {
-          detail: { launchId, votes: data.votes, voted: data.voted },
-        })
-      );
-    } catch {
-      setVote(prev);
-      toast({ title: "Vote failed", description: "Please try again.", variant: "destructive" });
-    }
-  }, [launchId, vote, toast]);
+  const inCompare = compareSlugs.includes(slug);
+  const compareFull = compareSlugs.length >= 2 && !inCompare;
+
+  const onCompare = useCallback(() => {
+    if (inCompare) removeCompare(slug);
+    else if (!compareFull) addCompare(slug);
+  }, [slug, inCompare, compareFull, addCompare, removeCompare]);
 
   // Same store/wiring as the overlay (Task 23): targetType "tool",
   // targetId = slug, label + href exactly as tool-full-page passes them.
@@ -134,27 +97,16 @@ export function ToolDetailActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label={`${name} actions`}>
-      <button
-        type="button"
-        onClick={() => void onVote()}
-        disabled={!launchId}
-        aria-label={vote.voted ? "Remove upvote" : "Upvote this tool"}
-        aria-pressed={vote.voted}
-        className={cn(
-          "inline-flex h-11 items-center gap-2 rounded-full px-5 text-base font-black tabular-nums transition active:scale-95",
-          vote.voted
-            ? "border border-ember bg-ember/10 text-ember"
-            : "bg-ember text-[#0A0A0A] hover:bg-ember-hot",
-          !launchId && "cursor-not-allowed opacity-40"
-        )}
+      <a
+        href={websiteUrl}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        aria-label={`Visit ${name} website`}
+        className="inline-flex h-11 items-center gap-2 rounded-full bg-ember px-5 text-sm font-black tracking-wide text-[#0A0A0A] transition hover:bg-ember-hot"
       >
-        <Triangle
-          className="size-4"
-          fill={vote.voted ? "currentColor" : "none"}
-          aria-hidden
-        />
-        {vote.votes}
-      </button>
+        Visit website
+        <ArrowUpRight className="size-4" aria-hidden />
+      </a>
 
       <button
         type="button"
@@ -173,6 +125,28 @@ export function ToolDetailActions({
         ) : (
           <Bookmark className="size-4" aria-hidden />
         )}
+      </button>
+
+      <button
+        type="button"
+        aria-label={
+          inCompare
+            ? `Remove ${name} from comparison`
+            : compareFull
+              ? "Comparison is full — remove a tool first"
+              : `Add ${name} to comparison`
+        }
+        aria-pressed={inCompare}
+        disabled={compareFull}
+        onClick={onCompare}
+        className={cn(
+          iconBtn,
+          "border-white/10 hover:border-ember/40",
+          inCompare ? "text-ember" : "text-white/70 hover:text-ember",
+          compareFull && "opacity-40"
+        )}
+      >
+        <Scale className="size-4" aria-hidden />
       </button>
 
       <button

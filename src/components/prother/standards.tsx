@@ -49,7 +49,7 @@ export function Standards() {
             THE QUALITY BAR — PUBLIC AT /STANDARDS
           </p>
           <h2 className="mt-4 max-w-2xl text-5xl leading-[0.95] font-black tracking-tighter md:text-6xl">
-            Every tool passes all six. Before it can launch.
+            Every tool passes all six. Before it can be listed.
           </h2>
         </motion.div>
 

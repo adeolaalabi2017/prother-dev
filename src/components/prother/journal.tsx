@@ -72,7 +72,7 @@ export function Journal() {
       "@type": "Blog",
       name: "Prother Journal",
       description:
-        "Launch playbooks, ranking explainers, and ecosystem data from Prother — where AI products launch.",
+        "Guides, evaluation playbooks, and ecosystem trends from Prother — find the right AI tool.",
       blogPost: posts.slice(0, 10).map((p) => ({
         "@type": "BlogPosting",
         headline: p.title,
@@ -106,13 +106,13 @@ export function Journal() {
               The Prother Journal
             </p>
             <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
-              Notes from the
+              Notes from
               <br />
-              launch layer.
+              the directory.
             </h2>
             <p className="mt-4 max-w-xl text-lg text-white/60">
-              Playbooks, algorithm explainers, and weekly ecosystem data — written
-              by the people who watch every launch cross the feed.
+              Evaluation guides, taxonomy notes, and ecosystem trends — written
+              by the people who watch the AI tool ecosystem.
             </p>
           </motion.div>
           <a

@@ -1,0 +1,1022 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useMemo, useState } from "react";
+     4→import { useRouter } from "next/navigation";
+     5→import { AnimatePresence, motion } from "framer-motion";
+     6→import {
+     7→  ArrowLeft,
+     8→  ArrowRight,
+     9→  BadgeCheck,
+    10→  Check,
+    11→  CheckCircle2,
+    12→  ExternalLink,
+    13→  Eye,
+    14→  Loader2,
+    15→  TriangleAlert,
+    16→  X,
+    17→} from "lucide-react";
+    18→import { Button } from "@/components/ui/button";
+    19→import { Checkbox } from "@/components/ui/checkbox";
+    20→import {
+    21→  Dialog,
+    22→  DialogContent,
+    23→  DialogDescription,
+    24→  DialogTitle,
+    25→} from "@/components/ui/dialog";
+    26→import { Input } from "@/components/ui/input";
+    27→import { useToast } from "@/hooks/use-toast";
+    28→import { cn } from "@/lib/utils";
+    29→import {
+    30→  CATEGORIES,
+    31→} from "./categories";
+    32→import { toolHash, useExplorer } from "./explorer-store";
+    33→import {
+    34→  domainOf,
+    35→  GRADIENTS,
+    36→  INITIAL_SUBMIT_FORM,
+    37→  LOGO_EMOJIS,
+    38→  PRICING_MODELS,
+    39→  TAG_VOCAB,
+    40→  validateStep,
+    41→  type SubmitForm,
+    42→  type TagVocab,
+    43→} from "@/lib/submit";
+    44→
+    45→// ── Small building blocks ────────────────────────────────────────────────
+    46→
+    47→const STEP_TITLES = ["Product", "Describe", "Pricing & links", "Media", "Confirm"];
+    48→
+    49→function FieldLabel({
+    50→  htmlFor,
+    51→  children,
+    52→  hint,
+    53→}: {
+    54→  htmlFor?: string;
+    55→  children: React.ReactNode;
+    56→  hint?: string;
+    57→}) {
+    58→  return (
+    59→    <label
+    60→      htmlFor={htmlFor}
+    61→      className="flex items-baseline justify-between gap-2 font-mono text-[11px] tracking-widest text-white/60"
+    62→    >
+    63→      <span>{children}</span>
+    64→      {hint && <span className="text-[10px] normal-case tracking-normal text-white/35">{hint}</span>}
+    65→    </label>
+    66→  );
+    67→}
+    68→
+    69→function FieldError({ msg }: { msg?: string }) {
+    70→  if (!msg) return null;
+    71→  return (
+    72→    <p className="flex items-center gap-1.5 font-mono text-[11px] text-red-400">
+    73→      <TriangleAlert className="size-3" aria-hidden />
+    74→      {msg}
+    75→    </p>
+    76→  );
+    77→}
+    78→
+    79→const inputCls =
+    80→  "border-white/10 bg-white/5 text-white placeholder:text-white/25 focus-visible:border-ember/60 focus-visible:ring-ember/20";
+    81→
+    82→// ── Live preview (right rail — updates every keystroke, PRD §11) ─────────
+    83→
+    84→function LivePreview({ form }: { form: SubmitForm }) {
+    85→  const pricing =
+    86→    PRICING_MODELS.find((p) => p.value === form.pricingModel)?.label ?? "Freemium";
+    87→  const category = CATEGORIES.find((c) => c.slug === form.categorySlug);
+    88→  return (
+    89→    <div className="space-y-4">
+    90→      <p className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest text-white/40">
+    91→        <Eye className="size-3.5 text-ember" aria-hidden /> LIVE PREVIEW
+    92→      </p>
+    93→
+    94→      {/* Feed-row mock */}
+    95→      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+    96→        <div className="flex gap-3">
+    97→          <div
+    98→            aria-hidden
+    99→            className={cn(
+   100→              "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
+   101→              form.logoGradient
+   102→            )}
+   103→          >
+   104→            {form.logoEmoji}
+   105→          </div>
+   106→          <div className="min-w-0 flex-1">
+   107→            <div className="flex flex-wrap items-center gap-2">
+   108→              <p className="truncate text-base font-bold text-white">
+   109→                {form.name.trim() || "Your tool"}
+   110→              </p>
+   111→              {form.isOwner && form.name.trim() && (
+   112→                <span className="rounded-full border border-ember/30 bg-ember/15 px-2 py-0.5 font-mono text-[9px] text-ember">
+   113→                  SUBMITTED BY YOU
+   114→                </span>
+   115→              )}
+   116→            </div>
+   117→            <p className="mt-0.5 line-clamp-2 text-sm text-white/70">
+   118→              {form.tagline.trim() || (
+   119→                <span className="text-white/25">Say what it does in the first 5 words…</span>
+   120→              )}
+   121→            </p>
+   122→          </div>
+   123→        </div>
+   124→        <p className="mt-3 font-mono text-[11px] text-white/40">
+   125→          {category ? `${category.emoji} ${category.name}` : "Category"} · {pricing}
+   126→          {form.hasApi && " · API"}
+   127→          {form.tags.includes("open-source") && " · OSS"}
+   128→          {domainOf(form.websiteUrl) && ` · ${domainOf(form.websiteUrl)}`}
+   129→        </p>
+   130→      </div>
+   131→
+   132→      {/* Pricing mock */}
+   133→      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+   134→        <p className="font-mono text-[10px] tracking-widest text-white/40">PRICING</p>
+   135→        <p className="mt-1.5 text-sm text-white/80">
+   136→          {pricing}
+   137→          {form.startingPrice.trim() && (
+   138→            <span className="ml-1.5 font-mono text-ember">{form.startingPrice.trim()}</span>
+   139→          )}
+   140→        </p>
+   141→        {form.pricingNote.trim() && (
+   142→          <p className="mt-1 text-xs text-white/50">{form.pricingNote.trim()}</p>
+   143→        )}
+   144→      </div>
+   145→
+   146→      {/* Standards reminder */}
+   147→      <div className="rounded-xl border border-ember/20 bg-ember/[0.06] p-4">
+   148→        <p className="font-mono text-[10px] tracking-widest text-ember">QUALITY BAR</p>
+   149→        <p className="mt-1.5 text-xs leading-relaxed text-white/60">
+   150→          Every listing passes all six standards: live &amp; accessible, AI-native,
+   151→          complete, honest, safe, English. Rejections cite the failed standard.
+   152→        </p>
+   153→      </div>
+   154→    </div>
+   155→  );
+   156→}
+   157→
+   158→// ── Duplicate interstitial (PRD §11 — fires on Step-1 URL blur) ──────────
+   159→
+   160→type DuplicateInfo = {
+   161→  kind: string;
+   162→  name: string;
+   163→  slug?: string;
+   164→  votes?: number;
+   165→  maker?: string;
+   166→};
+   167→
+   168→function DuplicateBanner({
+   169→  dup,
+   170→  onViewTool,
+   171→  onContinue,
+   172→}: {
+   173→  dup: DuplicateInfo;
+   174→  onViewTool: (slug: string) => void;
+   175→  onContinue: () => void;
+   176→}) {
+   177→  return (
+   178→    <motion.div
+   179→      initial={{ opacity: 0, y: -6 }}
+   180→      animate={{ opacity: 1, y: 0 }}
+   181→      className="rounded-xl border border-amber-500/40 bg-amber-500/[0.07] p-3.5"
+   182→    >
+   183→      <p className="flex items-start gap-2 text-sm text-amber-200">
+   184→        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-400" aria-hidden />
+   185→        <span>
+   186→          This tool may already be on Prother —{" "}
+   187→          <span className="font-semibold">{dup.name}</span>
+   188→          {dup.kind === "tool" && (
+   189→            <span className="text-amber-200/70">
+   190→              {" "}· ▲{dup.votes} · Listed by {dup.maker}
+   191→            </span>
+   192→          )}
+   193→          {dup.kind === "submission" && (
+   194→            <span className="text-amber-200/70"> · already in the review queue</span>
+   195→          )}
+   196→        </span>
+   197→      </p>
+   198→      <div className="mt-2.5 flex flex-wrap gap-2 pl-6">
+   199→        {dup.kind === "tool" && dup.slug ? (
+   200→          <Button
+   201→            type="button"
+   202→            size="sm"
+   203→            variant="outline"
+   204→            onClick={() => onViewTool(dup.slug!)}
+   205→            className="h-8 rounded-lg border-amber-500/40 bg-transparent text-amber-200 hover:bg-amber-500/10 hover:text-amber-100"
+   206→          >
+   207→            This is my product → View it
+   208→          </Button>
+   209→        ) : (
+   210→          <span className="pl-0.5 font-mono text-[11px] text-amber-200/70">
+   211→            One submission per domain — pick another product or contact editors.
+   212→          </span>
+   213→        )}
+   214→        {dup.kind !== "submission" && (
+   215→          <button
+   216→            type="button"
+   217→            onClick={onContinue}
+   218→            className="rounded-lg px-2 py-1 font-mono text-[11px] text-white/50 underline-offset-2 transition-colors hover:text-white hover:underline"
+   219→          >
+   220→            It&apos;s a different tool → Continue
+   221→          </button>
+   222→        )}
+   223→      </div>
+   224→    </motion.div>
+   225→  );
+   226→}
+   227→
+   228→// ── The wizard ───────────────────────────────────────────────────────────
+   229→
+   230→export function SubmitWizard() {
+   231→  const { toast } = useToast();
+   232→  const router = useRouter();
+   233→  const open = useExplorer((s) => s.submitOpen);
+   234→  const setOpen = useExplorer((s) => s.setSubmitOpen);
+   235→  const submitPrefill = useExplorer((s) => s.submitPrefill);
+   236→  const openTool = useExplorer((s) => s.openTool);
+   237→  const setTrackOpen = useExplorer((s) => s.setTrackOpen);
+   238→
+   239→  const [step, setStep] = useState(0);
+   240→  const [form, setForm] = useState<SubmitForm>(INITIAL_SUBMIT_FORM);
+   241→  const [errors, setErrors] = useState<Record<string, string>>({});
+   242→  const [dup, setDup] = useState<DuplicateInfo | null>(null);
+   243→  const [checkingDup, setCheckingDup] = useState(false);
+   244→  const [submitting, setSubmitting] = useState(false);
+   245→  const [result, setResult] = useState<{ id: string; position: number } | null>(
+   246→    null
+   247→  );
+   248→
+   249→  const set = useCallback(
+   250→    <K extends keyof SubmitForm>(key: K, value: SubmitForm[K]) => {
+   251→      setForm((f) => ({ ...f, [key]: value }));
+   252→      setErrors((e) => {
+   253→        if (!e[key as string]) return e;
+   254→        const next = { ...e };
+   255→        delete next[key as string];
+   256→        return next;
+   257→      });
+   258→    },
+   259→    []
+   260→  );
+   261→
+   262→  const reset = useCallback(() => {
+   263→    setForm(INITIAL_SUBMIT_FORM);
+   264→    setStep(0);
+   265→    setErrors({});
+   266→    setDup(null);
+   267→    setResult(null);
+   268→  }, []);
+   269→
+   270→  const onOpenChange = useCallback(
+   271→    (next: boolean) => {
+   272→      setOpen(next);
+   273→      if (!next) window.setTimeout(reset, 250);
+   274→    },
+   275→    [setOpen, reset]
+   276→  );
+   277→
+   278→  // "Resubmit with fixes" (status tracker): a draft queued in the store is
+   279→  // applied once when the wizard opens with one — confirm checkboxes stay
+   280→  // unticked so the maker re-attests after addressing the cited standards.
+   281→  // `toast` is a module-level function (stable identity), so it's a safe dep.
+   282→  useEffect(() => {
+   283→    if (!open || !submitPrefill) return;
+   284→    setForm({ ...INITIAL_SUBMIT_FORM, ...submitPrefill });
+   285→    setStep(0);
+   286→    setErrors({});
+   287→    setDup(null);
+   288→    setResult(null);
+   289→    toast({
+   290→      title: "Draft loaded",
+   291→      description: `Pre-filled from your rejected ${submitPrefill.name} submission.`,
+   292→    });
+   293→  }, [open, submitPrefill, toast]);
+   294→
+   295→  // PRD §11: duplicate check on Step-1 URL blur.
+   296→  const checkDuplicate = useCallback(async () => {
+   297→    const domain = domainOf(form.websiteUrl);
+   298→    if (!domain || !domain.includes(".")) return;
+   299→    setCheckingDup(true);
+   300→    try {
+   301→      const res = await fetch(
+   302→        `/api/submit/check?url=${encodeURIComponent(form.websiteUrl.trim())}`
+   303→      );
+   304→      const data = (await res.json()) as { valid: boolean; duplicate: DuplicateInfo | null };
+   305→      setDup(data.duplicate);
+   306→    } catch {
+   307→      // Network hiccup — non-blocking; server re-checks on submit.
+   308→    } finally {
+   309→      setCheckingDup(false);
+   310→    }
+   311→  }, [form.websiteUrl]);
+   312→
+   313→  const goNext = useCallback(() => {
+   314→    const errs = validateStep(step, form);
+   315→    setErrors(errs);
+   316→    if (Object.keys(errs).length > 0) return;
+   317→    if (step === 0 && dup?.kind === "submission") return; // blocked by interstitial
+   318→    setStep((s) => Math.min(4, s + 1));
+   319→  }, [step, form, dup]);
+   320→
+   321→  const onSubmit = useCallback(async () => {
+   322→    const errs = validateStep(4, form);
+   323→    setErrors(errs);
+   324→    if (Object.keys(errs).length > 0) return;
+   325→    setSubmitting(true);
+   326→    try {
+   327→      const res = await fetch("/api/submit", {
+   328→        method: "POST",
+   329→        headers: { "Content-Type": "application/json" },
+   330→        body: JSON.stringify(form),
+   331→      });
+   332→      if (res.status === 201) {
+   333→        const data = (await res.json()) as { id: string; position: number };
+   334→        setResult({ id: data.id, position: data.position });
+   335→        return;
+   336→      }
+   337→      const data = (await res.json().catch(() => ({}))) as {
+   338→        error?: string;
+   339→        fields?: Record<string, string>;
+   340→        duplicate?: DuplicateInfo;
+   341→      };
+   342→      if (data.fields) setErrors(data.fields);
+   343→      if (data.duplicate) {
+   344→        setDup(data.duplicate);
+   345→        setStep(0);
+   346→      }
+   347→      toast({
+   348→        title: data.error ?? "Submission failed",
+   349→        description: "Fix the highlighted fields and try again.",
+   350→        variant: "destructive",
+   351→      });
+   352→    } catch {
+   353→      toast({
+   354→        title: "Submission failed",
+   355→        description: "Network error — please try again.",
+   356→        variant: "destructive",
+   357→      });
+   358→    } finally {
+   359→      setSubmitting(false);
+   360→    }
+   361→  }, [form, toast]);
+   362→
+   363→  const taglineLen = form.tagline.trim().length;
+   364→  const descLen = form.description.trim().length;
+   365→
+   366→  const toggleTag = useCallback(
+   367→    (tag: TagVocab) => {
+   368→      setForm((f) => {
+   369→        const has = f.tags.includes(tag);
+   370→        if (has) return { ...f, tags: f.tags.filter((t) => t !== tag) };
+   371→        if (f.tags.length >= 5) return f; // ≤5 controlled vocab (PRD §13)
+   372→        return { ...f, tags: [...f.tags, tag] };
+   373→      });
+   374→    },
+   375→    []
+   376→  );
+   377→
+   378→  const canProceed = useMemo(
+   379→    () => Object.keys(validateStep(step, form)).length === 0,
+   380→    [step, form]
+   381→  );
+   382→
+   383→  return (
+   384→    <Dialog open={open} onOpenChange={onOpenChange}>
+   385→      <DialogContent
+   386→        showCloseButton={!result}
+   387→        className="max-h-[92vh] gap-0 overflow-y-auto border-white/10 bg-coal p-0 text-white max-w-[calc(100vw-2rem)] sm:max-w-3xl"
+   388→      >
+   389→        <DialogTitle className="sr-only">Submit your tool</DialogTitle>
+   390→        <DialogDescription className="sr-only">
+   391→          Five-step submission wizard: product, description, pricing, media,
+   392→          confirmation. Editors review within 24 hours.
+   393→        </DialogDescription>
+   394→
+   395→        {result ? (
+   396→          // ── Post-submit state (PRD §11: "in review, typically 24h") ──
+   397→          <div className="flex flex-col items-center px-8 py-14 text-center">
+   398→            <motion.div
+   399→              initial={{ scale: 0.6, opacity: 0 }}
+   400→              animate={{ scale: 1, opacity: 1 }}
+   401→              transition={{ type: "spring", stiffness: 260, damping: 18 }}
+   402→            >
+   403→              <CheckCircle2 className="size-14 text-ember" aria-hidden />
+   404→            </motion.div>
+   405→            <h2 className="mt-5 text-2xl font-black tracking-tight">
+   406→              Queued for review
+   407→            </h2>
+   408→            <p className="mt-2 max-w-sm text-sm text-white/60">
+   409→              <span className="font-semibold text-white">{form.name.trim()}</span> is
+   410→              in the moderation queue. Editors check the six standards and reply
+   411→              to <span className="font-mono text-ember">{form.email.trim()}</span> —
+   412→              typically within 24h. Approved launches get 72h notice + a launch kit.
+   413→            </p>
+   414→            <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-3">
+   415→              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+   416→                <p className="font-mono text-[10px] tracking-widest text-white/40">QUEUE</p>
+   417→                <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-ember">
+   418→                  #{result.position}
+   419→                </p>
+   420→              </div>
+   421→              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+   422→                <p className="font-mono text-[10px] tracking-widest text-white/40">TICKET</p>
+   423→                <p className="mt-1.5 font-mono text-sm text-white/70">
+   424→                  {result.id.slice(0, 8).toUpperCase()}
+   425→                </p>
+   426→              </div>
+   427→            </div>
+   428→            <div className="mt-7 flex flex-wrap justify-center gap-3">
+   429→              <Button
+   430→                type="button"
+   431→                onClick={() => onOpenChange(false)}
+   432→                className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   433→              >
+   434→                Done — back to the feed
+   435→              </Button>
+   436→              <Button
+   437→                type="button"
+   438→                variant="outline"
+   439→                onClick={() => {
+   440→                  // Hand off to the maker status tracker with the email
+   441→                  // pre-filled (PRD §11 status tracking).
+   442→                  const email = form.email.trim();
+   443→                  onOpenChange(false);
+   444→                  window.setTimeout(() => setTrackOpen(true, email), 80);
+   445→                }}
+   446→                className="rounded-lg border-white/15 bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
+   447→              >
+   448→                Track this submission
+   449→              </Button>
+   450→              <Button
+   451→                type="button"
+   452→                variant="outline"
+   453→                onClick={reset}
+   454→                className="rounded-lg border-white/15 bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
+   455→              >
+   456→                Submit another tool
+   457→              </Button>
+   458→            </div>
+   459→          </div>
+   460→        ) : (
+   461→          <div className="grid lg:grid-cols-[1fr_270px]">
+   462→            {/* ── Left: steps ─────────────────────────────────────────── */}
+   463→            <div className="min-w-0">
+   464→              {/* Progress header */}
+   465→              <div className="border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
+   466→                <div className="flex items-center justify-between">
+   467→                  <p className="font-mono text-[11px] tracking-[0.25em] text-ember">
+   468→                    SUBMIT YOUR TOOL
+   469→                  </p>
+   470→                  <p className="font-mono text-[11px] text-white/40">
+   471→                    STEP {String(step + 1).padStart(2, "0")}/05
+   472→                  </p>
+   473→                </div>
+   474→                <div className="mt-3 flex gap-1.5" role="presentation">
+   475→                  {STEP_TITLES.map((t, i) => (
+   476→                    <div
+   477→                      key={t}
+   478→                      className={cn(
+   479→                        "h-1 flex-1 rounded-full transition-colors duration-300",
+   480→                        i < step ? "bg-ember/70" : i === step ? "bg-ember" : "bg-white/10"
+   481→                      )}
+   482→                    />
+   483→                  ))}
+   484→                </div>
+   485→                <p className="mt-2.5 text-sm font-semibold text-white">
+   486→                  {STEP_TITLES[step]}
+   487→                  <span className="ml-2 font-mono text-[10px] font-normal text-white/35">
+   488→                    {step === 0 && "Where does it live?"}
+   489→                    {step === 1 && "The 5-second scan"}
+   490→                    {step === 2 && "Honest pricing only (S4)"}
+   491→                    {step === 3 && "Make it recognizable"}
+   492→                    {step === 4 && "Two confirmations, then queue"}
+   493→                  </span>
+   494→                </p>
+   495→              </div>
+   496→
+   497→              <div className="space-y-5 px-5 py-5 sm:px-6">
+   498→                {/* STEP 1 — Product */}
+   499→                {step === 0 && (
+   500→                  <>
+   501→                    <div className="space-y-1.5">
+   502→                      <FieldLabel htmlFor="su-url" hint="we auto-check for duplicates">
+   503→                        WEBSITE URL *
+   504→                      </FieldLabel>
+   505→                      <div className="relative">
+   506→                        <Input
+   507→                          id="su-url"
+   508→                          value={form.websiteUrl}
+   509→                          onChange={(e) => set("websiteUrl", e.target.value)}
+   510→                          onBlur={checkDuplicate}
+   511→                          placeholder="yourtool.ai"
+   512→                          inputMode="url"
+   513→                          autoComplete="url"
+   514→                          className={cn(inputCls, "pr-9")}
+   515→                        />
+   516→                        {checkingDup && (
+   517→                          <Loader2
+   518→                            className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-white/30"
+   519→                            aria-hidden
+   520→                          />
+   521→                        )}
+   522→                      </div>
+   523→                      <FieldError msg={errors.websiteUrl} />
+   524→                    </div>
+   525→
+   526→                    <AnimatePresence>
+   527→                      {dup && (
+   528→                        <DuplicateBanner
+   529→                          dup={dup}
+   530→                          onViewTool={(slug) => {
+   531→                            onOpenChange(false);
+   532→                            window.setTimeout(() => openTool(slug), 120);
+   533→                          }}
+   534→                          onContinue={() => setDup(null)}
+   535→                        />
+   536→                      )}
+   537→                    </AnimatePresence>
+   538→
+   539→                    <div className="space-y-1.5">
+   540→                      <FieldLabel htmlFor="su-name">TOOL NAME *</FieldLabel>
+   541→                      <Input
+   542→                        id="su-name"
+   543→                        value={form.name}
+   544→                        onChange={(e) => set("name", e.target.value)}
+   545→                        placeholder="Promptly"
+   546→                        className={inputCls}
+   547→                        maxLength={40}
+   548→                      />
+   549→                      <FieldError msg={errors.name} />
+   550→                    </div>
+   551→
+   552→                    <div className="space-y-1.5">
+   553→                      <FieldLabel htmlFor="su-email" hint="review decision lands here">
+   554→                        CONTACT EMAIL *
+   555→                      </FieldLabel>
+   556→                      <Input
+   557→                        id="su-email"
+   558→                        type="email"
+   559→                        value={form.email}
+   560→                        onChange={(e) => set("email", e.target.value)}
+   561→                        placeholder="founder@yourtool.ai"
+   562→                        autoComplete="email"
+   563→                        className={inputCls}
+   564→                      />
+   565→                      <FieldError msg={errors.email} />
+   566→                    </div>
+   567→
+   568→                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/30">
+   569→                      <Checkbox
+   570→                        checked={form.isOwner}
+   571→                        onCheckedChange={(v) => set("isOwner", v === true)}
+   572→                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-black"
+   573→                      />
+   574→                      <span className="text-sm text-white/75">
+   575→                        This is my product
+   576→                        <span className="block text-xs text-white/40">
+   577→                          Uncheck to submit on behalf of someone else (listing starts unclaimed).
+   578→                        </span>
+   579→                      </span>
+   580→                    </label>
+   581→                  </>
+   582→                )}
+   583→
+   584→                {/* STEP 2 — Describe */}
+   585→                {step === 1 && (
+   586→                  <>
+   587→                    <div className="space-y-1.5">
+   588→                      <FieldLabel
+   589→                        htmlFor="su-tagline"
+   590→                        hint={`${taglineLen}/60 — say what it does in the first 5 words`}
+   591→                      >
+   592→                        TAGLINE *
+   593→                      </FieldLabel>
+   594→                      <Input
+   595→                        id="su-tagline"
+   596→                        value={form.tagline}
+   597→                        onChange={(e) => set("tagline", e.target.value)}
+   598→                        placeholder="AI chatbots that never hallucinate citations"
+   599→                        className={cn(
+   600→                          inputCls,
+   601→                          taglineLen > 60 && "border-red-400/60"
+   602→                        )}
+   603→                        maxLength={80}
+   604→                      />
+   605→                      <div className="h-0.5 w-full overflow-hidden rounded-full bg-white/10">
+   606→                        <div
+   607→                          className={cn(
+   608→                            "h-full transition-all duration-200",
+   609→                            taglineLen > 60 ? "bg-red-400" : taglineLen >= 5 ? "bg-ember" : "bg-white/20"
+   610→                          )}
+   611→                          style={{ width: `${Math.min(100, (taglineLen / 60) * 100)}%` }}
+   612→                        />
+   613→                      </div>
+   614→                      <FieldError msg={errors.tagline} />
+   615→                    </div>
+   616→
+   617→                    <div className="space-y-1.5">
+   618→                      <FieldLabel
+   619→                        htmlFor="su-desc"
+   620→                        hint={`${descLen}/500 — what it does, for whom, how it's AI-native`}
+   621→                      >
+   622→                        DESCRIPTION *
+   623→                      </FieldLabel>
+   624→                      <textarea
+   625→                        id="su-desc"
+   626→                        value={form.description}
+   627→                        onChange={(e) => set("description", e.target.value)}
+   628→                        rows={4}
+   629→                        maxLength={600}
+   630→                        placeholder="What does it do, who is it for, and what makes the AI core to the value — not a bolt-on?"
+   631→                        className={cn(
+   632→                          inputCls,
+   633→                          "w-full rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-2",
+   634→                          descLen > 500 && "border-red-400/60"
+   635→                        )}
+   636→                      />
+   637→                      <FieldError msg={errors.description} />
+   638→                    </div>
+   639→
+   640→                    <fieldset className="space-y-1.5">
+   641→                      <legend className="font-mono text-[11px] tracking-widest text-white/60">
+   642→                        CATEGORY *
+   643→                      </legend>
+   644→                      <div className="grid gap-1.5 sm:grid-cols-2">
+   645→                        {CATEGORIES.map((c) => (
+   646→                          <label
+   647→                            key={c.slug}
+   648→                            className={cn(
+   649→                              "flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-all",
+   650→                              form.categorySlug === c.slug
+   651→                                ? "border-ember bg-ember/[0.08]"
+   652→                                : "border-white/10 bg-white/[0.02] hover:border-white/25"
+   653→                            )}
+   654→                          >
+   655→                            <input
+   656→                              type="radio"
+   657→                              name="su-category"
+   658→                              value={c.slug}
+   659→                              checked={form.categorySlug === c.slug}
+   660→                              onChange={() => set("categorySlug", c.slug)}
+   661→                              className="mt-1 accent-[#FF6A00]"
+   662→                            />
+   663→                            <span className="min-w-0">
+   664→                              <span className="block text-xs font-semibold text-white">
+   665→                                {c.emoji} {c.name}
+   666→                              </span>
+   667→                              <span className="block text-[11px] leading-snug text-white/40">
+   668→                                {c.helper}
+   669→                              </span>
+   670→                            </span>
+   671→                          </label>
+   672→                        ))}
+   673→                      </div>
+   674→                      <FieldError msg={errors.categorySlug} />
+   675→                    </fieldset>
+   676→
+   677→                    <div className="space-y-1.5">
+   678→                      <FieldLabel hint={`${form.tags.length}/5 — controlled vocabulary`}>
+   679→                        TAGS
+   680→                      </FieldLabel>
+   681→                      <div className="flex flex-wrap gap-1.5">
+   682→                        {TAG_VOCAB.map((tag) => {
+   683→                          const active = form.tags.includes(tag);
+   684→                          return (
+   685→                            <button
+   686→                              key={tag}
+   687→                              type="button"
+   688→                              aria-pressed={active}
+   689→                              onClick={() => toggleTag(tag)}
+   690→                              className={cn(
+   691→                                "rounded-full border px-2.5 py-1 font-mono text-[11px] transition-all active:scale-95",
+   692→                                active
+   693→                                  ? "border-ember bg-ember font-semibold text-black"
+   694→                                  : "border-white/15 text-white/60 hover:border-ember/40 hover:text-white",
+   695→                                !active && form.tags.length >= 5 && "opacity-40"
+   696→                              )}
+   697→                            >
+   698→                              {tag}
+   699→                            </button>
+   700→                          );
+   701→                        })}
+   702→                      </div>
+   703→                    </div>
+   704→                  </>
+   705→                )}
+   706→
+   707→                {/* STEP 3 — Pricing & links */}
+   708→                {step === 2 && (
+   709→                  <>
+   710→                    <fieldset className="space-y-1.5">
+   711→                      <legend className="font-mono text-[11px] tracking-widest text-white/60">
+   712→                        PRICING MODEL *
+   713→                      </legend>
+   714→                      <div className="grid gap-1.5 sm:grid-cols-2">
+   715→                        {PRICING_MODELS.map((p) => (
+   716→                          <label
+   717→                            key={p.value}
+   718→                            className={cn(
+   719→                              "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 transition-all",
+   720→                              form.pricingModel === p.value
+   721→                                ? "border-ember bg-ember/[0.08]"
+   722→                                : "border-white/10 bg-white/[0.02] hover:border-white/25"
+   723→                            )}
+   724→                          >
+   725→                            <input
+   726→                              type="radio"
+   727→                              name="su-pricing"
+   728→                              value={p.value}
+   729→                              checked={form.pricingModel === p.value}
+   730→                              onChange={() => set("pricingModel", p.value)}
+   731→                              className="mt-1 accent-[#FF6A00]"
+   732→                            />
+   733→                            <span>
+   734→                              <span className="block text-sm font-semibold text-white">
+   735→                                {p.label}
+   736→                              </span>
+   737→                              <span className="block text-[11px] text-white/40">{p.helper}</span>
+   738→                            </span>
+   739→                          </label>
+   740→                        ))}
+   741→                      </div>
+   742→                    </fieldset>
+   743→
+   744→                    {form.pricingModel !== "free" && form.pricingModel !== "open_source" && (
+   745→                      <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
+   746→                        <div className="space-y-1.5">
+   747→                          <FieldLabel htmlFor="su-price">STARTING AT</FieldLabel>
+   748→                          <Input
+   749→                            id="su-price"
+   750→                            value={form.startingPrice}
+   751→                            onChange={(e) => set("startingPrice", e.target.value)}
+   752→                            placeholder="$19"
+   753→                            className={cn(inputCls, "font-mono")}
+   754→                            maxLength={20}
+   755→                          />
+   756→                          <FieldError msg={errors.startingPrice} />
+   757→                        </div>
+   758→                        <div className="space-y-1.5">
+   759→                          <FieldLabel htmlFor="su-pnote" hint="optional">
+   760→                            PRICING NOTE
+   761→                          </FieldLabel>
+   762→                          <Input
+   763→                            id="su-pnote"
+   764→                            value={form.pricingNote}
+   765→                            onChange={(e) => set("pricingNote", e.target.value)}
+   766→                            placeholder="Pro / 20 free queries per month"
+   767→                            className={inputCls}
+   768→                            maxLength={120}
+   769→                          />
+   770→                        </div>
+   771→                      </div>
+   772→                    )}
+   773→
+   774→                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/30">
+   775→                      <Checkbox
+   776→                        checked={form.hasApi}
+   777→                        onCheckedChange={(v) => set("hasApi", v === true)}
+   778→                        className="border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-black"
+   779→                      />
+   780→                      <span className="text-sm text-white/75">
+   781→                        Public API available
+   782→                        <span className="ml-2 font-mono text-[10px] text-white/35">
+   783→                          gets an API chip in the feed
+   784→                        </span>
+   785→                      </span>
+   786→                    </label>
+   787→
+   788→                    <div className="grid gap-3 sm:grid-cols-3">
+   789→                      <div className="space-y-1.5">
+   790→                        <FieldLabel htmlFor="su-gh" hint={form.pricingModel === "open_source" ? "required" : "optional"}>
+   791→                          GITHUB
+   792→                        </FieldLabel>
+   793→                        <Input
+   794→                          id="su-gh"
+   795→                          value={form.githubUrl}
+   796→                          onChange={(e) => set("githubUrl", e.target.value)}
+   797→                          placeholder="github.com/you/tool"
+   798→                          className={cn(inputCls, errors.githubUrl && "border-red-400/60")}
+   799→                        />
+   800→                        <FieldError msg={errors.githubUrl} />
+   801→                      </div>
+   802→                      <div className="space-y-1.5">
+   803→                        <FieldLabel htmlFor="su-docs">DOCS</FieldLabel>
+   804→                        <Input
+   805→                          id="su-docs"
+   806→                          value={form.docsUrl}
+   807→                          onChange={(e) => set("docsUrl", e.target.value)}
+   808→                          placeholder="yourtool.ai/docs"
+   809→                          className={inputCls}
+   810→                        />
+   811→                      </div>
+   812→                      <div className="space-y-1.5">
+   813→                        <FieldLabel htmlFor="su-x">𝕏 / TWITTER</FieldLabel>
+   814→                        <Input
+   815→                          id="su-x"
+   816→                          value={form.twitterUrl}
+   817→                          onChange={(e) => set("twitterUrl", e.target.value)}
+   818→                          placeholder="x.com/yourtool"
+   819→                          className={inputCls}
+   820→                        />
+   821→                      </div>
+   822→                    </div>
+   823→                  </>
+   824→                )}
+   825→
+   826→                {/* STEP 4 — Media */}
+   827→                {step === 3 && (
+   828→                  <>
+   829→                    <div className="space-y-1.5">
+   830→                      <FieldLabel hint="stands in for the auto-fetched favicon/logo">LOGO EMOJI</FieldLabel>
+   831→                      <div className="flex flex-wrap gap-1.5">
+   832→                        {LOGO_EMOJIS.map((e) => (
+   833→                          <button
+   834→                            key={e}
+   835→                            type="button"
+   836→                            aria-pressed={form.logoEmoji === e}
+   837→                            aria-label={`Logo emoji ${e}`}
+   838→                            onClick={() => set("logoEmoji", e)}
+   839→                            className={cn(
+   840→                              "flex size-10 items-center justify-center rounded-xl border text-lg transition-all active:scale-95",
+   841→                              form.logoEmoji === e
+   842→                                ? "border-ember bg-ember/15"
+   843→                                : "border-white/10 bg-white/[0.02] hover:border-white/30"
+   844→                            )}
+   845→                          >
+   846→                            {e}
+   847→                          </button>
+   848→                        ))}
+   849→                      </div>
+   850→                    </div>
+   851→                    <div className="space-y-1.5">
+   852→                      <FieldLabel hint="previews in the feed + daily email">LOGO GRADIENT</FieldLabel>
+   853→                      <div className="flex flex-wrap gap-2">
+   854→                        {GRADIENTS.map((g) => (
+   855→                          <button
+   856→                            key={g.value}
+   857→                            type="button"
+   858→                            aria-pressed={form.logoGradient === g.value}
+   859→                            aria-label={`Gradient ${g.label}`}
+   860→                            title={g.label}
+   861→                            onClick={() => set("logoGradient", g.value)}
+   862→                            className={cn(
+   863→                              "size-9 rounded-lg border-2 bg-gradient-to-br transition-all active:scale-95",
+   864→                              g.value,
+   865→                              form.logoGradient === g.value
+   866→                                ? "border-white/80"
+   867→                                : "border-transparent opacity-70 hover:opacity-100"
+   868→                            )}
+   869→                          />
+   870→                        ))}
+   871→                      </div>
+   872→                    </div>
+   873→                    <p className="rounded-xl border border-ember/20 bg-ember/[0.06] p-3.5 text-xs leading-relaxed text-white/60">
+   874→                      <span className="font-semibold text-ember">Heads up:</span> screenshots
+   875→                      and real logo upload ship with maker accounts (Phase 2). Editors
+   876→                      enrich your listing before launch — you&apos;ll get a preview.
+   877→                    </p>
+   878→                  </>
+   879→                )}
+   880→
+   881→                {/* STEP 5 — Confirm */}
+   882→                {step === 4 && (
+   883→                  <>
+   884→                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+   885→                      <p className="font-mono text-[10px] tracking-widest text-white/40">
+   886→                        SUMMARY
+   887→                      </p>
+   888→                      <div className="mt-2 grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
+   889→                        {[
+   890→                          ["Name", form.name.trim()],
+   891→                          ["URL", domainOf(form.websiteUrl) ?? form.websiteUrl],
+   892→                          ["Category", CATEGORIES.find((c) => c.slug === form.categorySlug)?.name ?? "—"],
+   893→                          ["Pricing", PRICING_MODELS.find((p) => p.value === form.pricingModel)?.label ?? "—"],
+   894→                          ["Tags", form.tags.length ? form.tags.join(", ") : "none"],
+   895→                          ["Contact", form.email.trim()],
+   896→                        ].map(([k, v]) => (
+   897→                          <p key={k} className="truncate">
+   898→                            <span className="font-mono text-[10px] tracking-widest text-white/40">
+   899→                              {k.toUpperCase()}
+   900→                            </span>{" "}
+   901→                            <span className="text-white/80">{v}</span>
+   902→                          </p>
+   903→                        ))}
+   904→                      </div>
+   905→                    </div>
+   906→
+   907→                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/30">
+   908→                      <Checkbox
+   909→                        checked={form.confirmedLive}
+   910→                        onCheckedChange={(v) => set("confirmedLive", v === true)}
+   911→                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-black"
+   912→                      />
+   913→                      <span className="text-sm text-white/75">
+   914→                        My tool is <em>live and usable right now</em> — no waitlists,
+   915→                        coming-soon pages, or closed betas (S1).
+   916→                      </span>
+   917→                    </label>
+   918→                    <FieldError msg={errors.confirmedLive} />
+   919→
+   920→                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/30">
+   921→                      <Checkbox
+   922→                        checked={form.agreedStandards}
+   923→                        onCheckedChange={(v) => set("agreedStandards", v === true)}
+   924→                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-black"
+   925→                      />
+   926→                      <span className="text-sm text-white/75">
+   927→                        I&apos;ve read the{" "}
+   928→                        <a
+   929→                          href="/about#standards"
+   930→                          onClick={(e) => {
+   931→                            e.preventDefault();
+   932→                            onOpenChange(false);
+   933→                            // Standards live on /about now — navigate there from any route.
+   934→                            router.push("/about#standards");
+   935→                          }}
+   936→                          className="text-ember underline-offset-2 hover:underline"
+   937→                        >
+   938→                          Listing Standards (S1–S6)
+   939→                        </a>{" "}
+   940→                        and my listing is honest, complete, and in English (S3–S6).
+   941→                      </span>
+   942→                    </label>
+   943→                    <FieldError msg={errors.agreedStandards} />
+   944→
+   945→                    <p className="font-mono text-[11px] leading-relaxed text-white/35">
+   946→                      Rate limits: 3 submissions / email / 7 days · 1 per domain.
+   947→                      By submitting you agree to editor review — rejections cite the
+   948→                      failed standard(s) with one-click resubmit.
+   949→                    </p>
+   950→                  </>
+   951→                )}
+   952→              </div>
+   953→
+   954→              {/* Footer nav */}
+   955→              <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-white/10 bg-coal/95 px-5 py-4 backdrop-blur sm:px-6">
+   956→                <Button
+   957→                  type="button"
+   958→                  variant="ghost"
+   959→                  onClick={() => (step === 0 ? onOpenChange(false) : setStep((s) => s - 1))}
+   960→                  className="rounded-lg text-white/60 hover:bg-white/5 hover:text-white"
+   961→                >
+   962→                  <ArrowLeft className="size-4" aria-hidden />
+   963→                  {step === 0 ? "Cancel" : "Back"}
+   964→                </Button>
+   965→                <div className="flex items-center gap-2.5">
+   966→                  {step === 0 && dup?.kind === "submission" && (
+   967→                    <span className="font-mono text-[11px] text-amber-300">
+   968→                      Domain already queued
+   969→                    </span>
+   970→                  )}
+   971→                  {step < 4 ? (
+   972→                    <Button
+   973→                      type="button"
+   974→                      onClick={goNext}
+   975→                      disabled={checkingDup || (step === 0 && dup?.kind === "submission")}
+   976→                      className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-40 dark:text-black"
+   977→                    >
+   978→                      Continue
+   979→                      <ArrowRight className="size-4" aria-hidden />
+   980→                    </Button>
+   981→                  ) : (
+   982→                    <Button
+   983→                      type="button"
+   984→                      onClick={onSubmit}
+   985→                      disabled={submitting}
+   986→                      className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-60 dark:text-black"
+   987→                    >
+   988→                      {submitting ? (
+   989→                        <>
+   990→                          <Loader2 className="size-4 animate-spin" aria-hidden />
+   991→                          Submitting…
+   992→                        </>
+   993→                      ) : (
+   994→                        <>
+   995→                          <BadgeCheck className="size-4" aria-hidden />
+   996→                          Submit for review
+   997→                        </>
+   998→                      )}
+   999→                    </Button>
+  1000→                  )}
+  1001→                </div>
+  1002→              </div>
+  1003→            </div>
+  1004→
+  1005→            {/* ── Right: persistent live preview (PRD §11) ──────────────── */}
+  1006→            <aside className="hidden border-l border-white/10 bg-black/20 p-5 lg:block">
+  1007→              <LivePreview form={form} />
+  1008→              <button
+  1009→                type="button"
+  1010→                onClick={() => onOpenChange(false)}
+  1011→                className="mt-5 inline-flex items-center gap-1 font-mono text-[11px] text-white/30 transition-colors hover:text-white/60"
+  1012→              >
+  1013→                <X className="size-3" aria-hidden /> close &amp; finish later
+  1014→              </button>
+  1015→            </aside>
+  1016→          </div>
+  1017→        )}
+  1018→      </DialogContent>
+  1019→    </Dialog>
+  1020→  );
+  1021→}
+  1022→

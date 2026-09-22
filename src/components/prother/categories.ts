@@ -1,6 +1,9 @@
-/** Prother taxonomy (§13) — hardcoded for the ticker + browse chips + ⌘K palette.
- *  `name` mirrors the seeded Category rows so search/labels stay consistent.
- *  `helper` = one-line radio helper in the submission wizard (PRD §11 step ②). */
+/**
+ * Prother taxonomy — 7 primary categories for the search & discovery
+ * directory. Hardcoded for the ticker + browse chips + ⌘K palette.
+ * `name` mirrors the seeded Category rows so search/labels stay consistent.
+ * `helper` = one-line radio helper in the submission wizard.
+ */
 export const CATEGORIES: {
   slug: string;
   name: string;
@@ -8,14 +11,16 @@ export const CATEGORIES: {
   short: string;
   helper: string;
 }[] = [
-  { slug: "generative-ai-chatbots", name: "Generative AI & Chatbots", emoji: "🤖", short: "Chatbots", helper: "Assistants, answer engines, conversational products" },
-  { slug: "coding-tools", name: "AI Coding Tools & Assistants", emoji: "👨‍💻", short: "Coding", helper: "Copilots, code review, agents that ship software" },
-  { slug: "art-image-video", name: "AI Art, Image & Video", emoji: "🎨", short: "Art & Video", helper: "Generation, editing, avatars, creative pipelines" },
-  { slug: "data-analysis", name: "AI for Data Analysis & Prediction", emoji: "📈", short: "Data", helper: "Insights, forecasting, BI copilots" },
-  { slug: "infra-devtools", name: "AI Infrastructure & DevTools", emoji: "⚙️", short: "Infra & DevTools", helper: "Model serving, embeddings, evals, orchestration" },
-  { slug: "audio-voice-music", name: "AI Audio, Voice & Music", emoji: "🔊", short: "Audio & Voice", helper: "Voice cloning, dubbing, transcription, mastering" },
-  { slug: "agents-automation", name: "AI Agents & Automation", emoji: "🧠", short: "Agents", helper: "Autonomous workers, workflows, RPA-style agents" },
-  { slug: "vertical-ai", name: "Vertical AI", emoji: "🏥", short: "Vertical AI", helper: "Healthcare, legal, finance, education, marketing" },
-  { slug: "writing-productivity", name: "AI Writing & Productivity", emoji: "📝", short: "Writing", helper: "Drafting, editing, email, docs, personal ops" },
-  { slug: "safety-governance", name: "AI Safety, Ethics & Governance", emoji: "🛡️", short: "Safety", helper: "Guardrails, policy checks, fact-checking, audits" },
+  { slug: "conversational-ai", name: "Conversational AI & Chatbots", emoji: "💬", short: "Chatbots", helper: "Assistants, answer engines, customer-support agents" },
+  { slug: "generative-content", name: "Generative Content Creation", emoji: "🎨", short: "Generative", helper: "Image, video, audio, and code generation from prompts" },
+  { slug: "nlp-text", name: "NLP & Text Utilities", emoji: "📝", short: "NLP & Text", helper: "Summarize, translate, transcribe, grammar, sentiment" },
+  { slug: "computer-vision", name: "Computer Vision", emoji: "👁️", short: "Vision", helper: "Detect, classify, and interpret images and video" },
+  { slug: "data-analytics", name: "Data Analytics & Predictive Modeling", emoji: "📊", short: "Data", helper: "Forecasting, BI copilots, CRM intelligence" },
+  { slug: "automation", name: "Automation & Workflow Orchestration", emoji: "⚙️", short: "Automation", helper: "Multi-step workflows, app-to-app integration, RPA" },
+  { slug: "dev-platforms", name: "Developer Frameworks & Infrastructure", emoji: "🛠️", short: "Frameworks", helper: "Model training, serving, RAG plumbing, vector stores" },
 ];
+
+/** Client-safe lookup: category by slug. */
+export function categoryBySlug(slug: string): (typeof CATEGORIES)[number] | undefined {
+  return CATEGORIES.find((c) => c.slug === slug);
+}

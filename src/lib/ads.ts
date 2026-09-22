@@ -1,7 +1,7 @@
 /**
- * Advertising (Task 23) — campaign management + serving for the placements
- * sold on /advertise: feed_row (sponsored row in the launch feed),
- * journal_bar, category_spotlight.
+ * Advertising — campaign management + serving for the placements
+ * sold on /advertise: directory_banner (sponsored row in the tools
+ * directory), journal_bar, category_spotlight, serp_footer.
  *
  * Serving picks a weighted-random ACTIVE campaign whose flight window covers
  * "now" (and whose total budget, when set, isn't exhausted by impressions ×
@@ -14,7 +14,6 @@
 import { db } from "@/lib/db";
 
 export const AD_PLACEMENTS = [
-  "feed_row",
   "journal_bar",
   "category_spotlight",
   "directory_banner",
@@ -113,7 +112,7 @@ function mapCampaign(r: {
     advertiser: r.advertiser,
     placement: (AD_PLACEMENTS.includes(r.placement as AdPlacement)
       ? r.placement
-      : "feed_row") as AdPlacement,
+      : "directory_banner") as AdPlacement,
     status: (AD_STATUSES.includes(r.status as AdStatus)
       ? r.status
       : "draft") as AdStatus,

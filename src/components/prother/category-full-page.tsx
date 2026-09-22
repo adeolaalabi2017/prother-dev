@@ -1,18 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Triangle } from "lucide-react";
+import { Bell, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
 import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
+import type { DirectoryRow } from "@/app/api/tools/route";
 
 /**
  * Category browse FULL PAGE — every tool in one category, opened via
  * ?category=<slug> (explorer-store.categoryView). The tool page stacks on
- * top when a card is clicked. API contract (parallel agent):
- * GET /api/tools?category=<slug>&sort=<votes|new>&limit=60 →
- * { rows, total, categoryMeta: { slug, name, emoji, blurb, count } }
+ * top when a card is clicked. API contract:
+ * GET /api/tools?category=<slug>&sort=<featured|top-rated|newest>&pageSize=60 →
+ * { rows: DirectoryRow[], total, pages, categoryMeta: { slug, name, emoji, blurb, count } }
  */
 
 type CategoryMeta = {
@@ -23,26 +24,15 @@ type CategoryMeta = {
   count: number;
 };
 
-type CategoryToolRow = {
-  slug: string;
-  name: string;
-  tagline: string;
-  emoji: string;
-  gradient: string;
-  votes: number;
-  maker: string;
-  pricing: { model: string; price: string | null; note: string | null };
-};
-
 type CategoryToolsResponse = {
-  rows: CategoryToolRow[];
+  rows: DirectoryRow[];
   total: number;
   categoryMeta: CategoryMeta;
 };
 
-type Sort = "votes" | "new";
+type Sort = "featured" | "top-rated" | "newest";
 
-function pricingLabel(row: CategoryToolRow): string {
+function pricingLabel(row: DirectoryRow): string {
   const { model, price } = row.pricing ?? { model: "free", price: null };
   switch (model) {
     case "freemium":
@@ -56,13 +46,19 @@ function pricingLabel(row: CategoryToolRow): string {
   }
 }
 
+/** True when the listing went live within the last 14 days. */
+function isNewListing(iso: string): boolean {
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && Date.now() - t < 14 * 86_400_000;
+}
+
 export function CategoryFullPage() {
   const { toast } = useToast();
   const slug = useExplorer((s) => s.categoryView);
   const closeCategory = useExplorer((s) => s.closeCategory);
   const openTool = useExplorer((s) => s.openTool);
 
-  const [sort, setSort] = useState<Sort>("votes");
+  const [sort, setSort] = useState<Sort>("featured");
   const [data, setData] = useState<
     (CategoryToolsResponse & { slug: string; sort: Sort }) | null
   >(null);
@@ -83,7 +79,7 @@ export function CategoryFullPage() {
     if (!slug) return;
     let alive = true;
     fetch(
-      `/api/tools?category=${encodeURIComponent(slug)}&sort=${sort}&limit=60`
+      `/api/tools?category=${encodeURIComponent(slug)}&sort=${sort}&pageSize=60`
     )
       .then(async (r) => {
         if (!r.ok) throw new Error("not found");
@@ -169,7 +165,7 @@ export function CategoryFullPage() {
               onClick={() => closeCategory()}
               className="rounded-lg border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-ember/50 hover:text-ember"
             >
-              Back to feed
+              Back to the directory
             </button>
           }
         />
@@ -180,7 +176,7 @@ export function CategoryFullPage() {
       {isEmpty && (
         <PageError
           title="No tools yet"
-          message="Nothing has been submitted to this category so far — browse all tools from the launch feed."
+          message="Nothing has been submitted to this category so far — browse all tools in this category from the directory."
           action={
             <button
               type="button"
@@ -258,7 +254,7 @@ export function CategoryFullPage() {
               aria-label="Sort tools"
               className="flex items-center gap-2"
             >
-              {(["votes", "new"] as const).map((s) => (
+              {(["featured", "top-rated", "newest"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -271,12 +267,12 @@ export function CategoryFullPage() {
                       : "border-white/10 text-white/50 hover:border-white/25 hover:text-white/80"
                   )}
                 >
-                  {s === "votes" ? "Votes" : "New"}
+                  {s === "featured" ? "Featured" : s === "top-rated" ? "Top rated" : "Newest"}
                 </button>
               ))}
             </div>
             <p className="font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">
-              Sorted by {sort === "votes" ? "community votes" : "recency"}
+              Sorted by {sort === "featured" ? "editorial picks" : sort === "top-rated" ? "review rating" : "recency"}
             </p>
           </div>
 
@@ -317,20 +313,29 @@ export function CategoryFullPage() {
                     {row.tagline}
                   </span>
                   <span className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 font-mono text-[10px] tracking-wider text-white/40 uppercase">
-                    <span className="inline-flex items-center gap-1 text-ember">
-                      <Triangle className="size-3" fill="currentColor" aria-hidden />
-                      {row.votes}
-                    </span>
+                    {row.editorsPick && (
+                      <span className="inline-flex items-center gap-1 text-ember">
+                        <Star className="size-3" fill="currentColor" aria-hidden />
+                        Editor&apos;s Pick
+                      </span>
+                    )}
+                    {row.reviews.count > 0 && (
+                      <span className="inline-flex items-center gap-1 text-ember">
+                        <Star className="size-3" aria-hidden />
+                        {row.reviews.count}
+                      </span>
+                    )}
+                    {isNewListing(row.listedAt) && (
+                      <span className="rounded border border-mint/30 bg-mint/10 px-1.5 py-0.5 text-mint">
+                        New
+                      </span>
+                    )}
                     <span aria-hidden className="text-white/20">
                       ·
                     </span>
                     <span className="rounded border border-white/10 px-1.5 py-0.5 text-white/55">
                       {pricingLabel(row)}
                     </span>
-                    <span aria-hidden className="text-white/20">
-                      ·
-                    </span>
-                    <span className="truncate">{row.maker}</span>
                   </span>
                 </button>
               </li>

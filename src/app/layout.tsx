@@ -16,7 +16,6 @@ import { CollectionsMineFullPage } from "@/components/prother/collections-mine-f
 import { SavedFullPage } from "@/components/prother/saved-full-page";
 import { CollectionFullPage } from "@/components/prother/collection-full-page";
 import { CategoryFullPage } from "@/components/prother/category-full-page";
-import { LaunchesFullPage } from "@/components/prother/launches-full-page";
 import { CompareFullPage } from "@/components/prother/compare-full-page";
 import { PostFullPage } from "@/components/prother/post-full-page";
 import { ToolFullPage } from "@/components/prother/tool-full-page";
@@ -40,30 +39,31 @@ export const metadata: Metadata = {
     // localhost into every og:image/canonical URL in production.
     siteUrl()
   ),
-  title: "Prother — Where AI products get discovered",
+  title: "Prother — Find the right AI tool",
   description:
-    "Discover every new AI tool the day it launches. A fresh batch of AI products daily — upvote, review, compare, and never miss the one that changes how you work.",
+    "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms — with honest pricing and real reviews.",
   keywords: [
     "Prother",
-    "AI launches",
     "AI tools",
-    "product launch",
-    "daily feed",
+    "AI tools directory",
+    "AI tools search",
+    "best AI tools",
     "AI products",
+    "find AI tools",
   ],
   openGraph: {
-    title: "Prother — Where AI products get discovered",
+    title: "Prother — Find the right AI tool",
     description:
-      "Discover every new AI tool the day it launches. A fresh batch of AI products daily — upvote, review, compare, and never miss the one that changes how you work.",
+      "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms — with honest pricing and real reviews.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Prother — Where AI products get discovered",
+    title: "Prother — Find the right AI tool",
     description:
-      "Discover every new AI tool the day it launches. A fresh batch of AI products daily — upvote, review, compare, and never miss the one that changes how you work.",
+      "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms — with honest pricing and real reviews.",
     images: ["/api/og"],
   },
   alternates: {
@@ -104,7 +104,6 @@ export default function RootLayout({
             <SavedFullPage />
             <CollectionFullPage />
             <CategoryFullPage />
-            <LaunchesFullPage />
             <CompareFullPage />
             <PostFullPage />
             <ToolFullPage />

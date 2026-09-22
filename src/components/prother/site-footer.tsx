@@ -15,11 +15,12 @@ type FooterLink = {
 
 const COLS: { title: string; links: FooterLink[] }[] = [
   {
-    title: "Product",
+    title: "Directory",
     links: [
-      { label: "The feed", href: "/#feed" },
-      { label: "Browse tools", href: "/tools" },
-      { label: "Categories", href: "/tools" },
+      { label: "All tools", href: "/tools" },
+      { label: "Conversational AI", href: "/categories/conversational-ai" },
+      { label: "Generative Content", href: "/categories/generative-content" },
+      { label: "Automation", href: "/categories/automation" },
       { label: "Forums", href: "/forums" },
       { label: "Submit your tool", href: "/submit" },
       { label: "Check submission status", href: "#", tracker: true },
@@ -29,12 +30,11 @@ const COLS: { title: string; links: FooterLink[] }[] = [
     title: "Resources",
     links: [
       { label: "The Journal", href: "/journal" },
-      { label: "Launch playbooks", href: "/journal" },
+      { label: "Guides", href: "/journal" },
       { label: "FAQ", href: "/about" },
       { label: "For makers", href: "/submit" },
       { label: "Listing standards", href: "/about" },
-      { label: "RSS — launches", href: "/api/rss", external: true },
-      { label: "RSS — journal", href: "/api/rss?kind=journal", external: true },
+      { label: "RSS — journal", href: "/api/rss", external: true },
     ],
   },
   {
@@ -79,8 +79,7 @@ export function SiteFooter() {
               <span className="text-lg font-black tracking-tight text-white">Prother</span>
             </div>
             <p className="mt-3 max-w-xs text-sm text-white/50">
-              Where AI products get discovered. The daily feed for AI tools, makers, and the
-              people who evaluate them.
+              The curated directory for AI tools. Search, compare, and save your stack.
             </p>
             <p className="mt-4 font-mono text-xs text-white/30">@PROTHER_DEV · PROTHER.DEV</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">

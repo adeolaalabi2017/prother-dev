@@ -1,6 +1,7 @@
 /**
  * CMS seed — Journal posts + site settings.
  * Idempotent: upserts by slug / key, safe to re-run.
+ * Discovery-era copy: directory, listings, evaluation — no launch framing.
  * Run: bun prisma/seed-cms.ts
  */
 import { PrismaClient } from "@prisma/client";
@@ -26,116 +27,106 @@ type SeedPost = {
 
 const POSTS: SeedPost[] = [
   {
-    slug: "how-to-launch-an-ai-tool-in-2026",
-    title: "How to Launch an AI Tool in 2026: The Prother Playbook",
+    slug: "how-to-evaluate-an-ai-tool-in-15-minutes",
+    title: "How to Evaluate an AI Tool in 15 Minutes",
     excerpt:
-      "A step-by-step launch playbook for AI founders — from S1–S6 listing standards to launch-day mechanics, vote velocity, and the 72-hour follow-through that separates hits from noise.",
+      "A practical 15-minute checklist for evaluating an AI tool before it touches your workflow — free-tier reality check, data retention, export paths, pricing math, and a 3-task test.",
     category: "Playbooks",
-    tags: "launch|makers|guide",
-    coverEmoji: "🚀",
+    tags: "evaluation|makers|guide",
+    coverEmoji: "🧪",
     coverGradient: "from-orange-500 to-amber-700",
-    readingMinutes: 8,
-    seoTitle: "How to Launch an AI Tool in 2026 — The Prother Playbook",
+    readingMinutes: 6,
+    seoTitle: "How to Evaluate an AI Tool in 15 Minutes — The Prother Checklist",
     seoDescription:
-      "The complete AI product launch playbook: listing standards, launch-day ranking mechanics, vote velocity, and the 72-hour follow-through. Built from Prother feed data.",
-    keywords: "launch an ai tool, ai product launch, ai launch checklist, product launch playbook",
+      "The 15-minute AI tool evaluation checklist: free-tier reality check, data-retention questions, export paths, pricing math, and a 3-task test on your own material.",
+    keywords: "evaluate ai tools, ai tool checklist, ai tool evaluation, choose the right ai tool",
     publishedAt: "2026-09-14T09:00:00.000Z",
-    body: `Every week, hundreds of AI tools ship. Most launches flare for an afternoon and die in a Discord channel. The ones that compound share a pattern — and after watching thousands of launches move through the Prother feed, the pattern is legible enough to write down.
+    body: `Fifteen minutes is enough to know whether an AI tool deserves a slot in your workflow — if you spend them on the right checks. This is the same checklist our editors run before a tool earns its listing, and it works just as well for your own stack.
 
-## Before you submit: pass the six standards
+## Minutes 0–3: the free-tier reality check
 
-Every listing on Prother clears the same six standards (S1–S6). They sound bureaucratic until you read them as a **launch checklist**:
+Sign up and use the real product, not the demo video. The free tier is where tools tell the truth about themselves:
 
-- **S1 — Live & accessible.** If a reviewer can't use it *right now*, it's not a launch, it's a promise. Pre-launch pages convert worse than delayed launches with working demos.
-- **S2 — AI-native.** The core value must be powered by AI/ML. "AI button bolted on" is the most common rejection reason — and the most common reason users churn after clicking.
-- **S3 — Complete listing.** Logo, a ≤60-character tagline, an informative description, working links, honest pricing. Thin listings get thin traffic.
-- **S4 — Honest presentation.** No fake "free," no inflated claims. The feed remembers.
-- **S5 — Safe & legal.** Obvious, still enforced.
-- **S6 — English listing.** Your product can serve any market; your listing must be legible to reviewers.
+- Is the core feature available without a card, or is the "free" plan a brochure?
+- Do you hit the wall after three tasks, or can you finish real work?
+- Is the paid price posted honestly, or is the pricing page a sales-call form?
 
-## The tagline is 80% of your click-through
+A tool that hides its pricing behind a call has already told you something.
 
-Feed rows give you roughly twelve words of earned attention. A tagline that says *what it does in the first five words* consistently outperforms clever-but-vague ones. Compare:
+## Minutes 3–6: data retention and export paths
 
-- ❌ "Supercharge your workflow with the power of AI"
-- ✅ "Review AI code diffs before your team ships"
+Check two things: the data policy and the export settings. You want three answers — what is stored, for how long, and is your content used for training by default? Then find the export path: can you get your work out in a usable format today, without emailing support? A tool you can't leave is a tool that owns you.
 
-The second one names the actor, the object, and the moment of use. That's the whole game.
+## Minutes 6–9: the 3-task test
 
-## Launch day mechanics
+Run three tasks on **your** material, not the vendor's samples:
 
-Prother's ranking is **score = weighted_upvotes / hours^1.2** — recency-weighted, so early velocity matters but a slow burn can still win the day. Practical consequences:
+1. One easy task — the obvious use case. Does it just work?
+2. One representative task — the actual job you'd hire it for, at real complexity.
+3. One adversarial task — messy input, edge case, the thing that breaks demos.
 
-1. **Line up your first 20 upvotes before 00:00 UTC.** Your community, your list, your co-founders' groups. Accounts younger than 24h carry half weight — real fans, not fresh signups, are the asset.
-2. **Be present in the comments.** Maker replies are the highest-signal trust marker on a launch row.
-3. **Ship screenshots.** Listings with 3+ media assets get roughly 2× clicks in our data.
+Grade all three against what a careful human produced. Most tools pass the demo and fail the representative task; that's a fail.
 
-## The 72-hour follow-through
+## Minutes 9–12: pricing math
 
-The vote window closes at UTC midnight, but the listing lives forever. The moves that compound:
+Price per seat is theater. The real math: (expected monthly usage × the plan that covers it) versus the hours the tool replaces. Watch for seat models that count bots or collaborators as humans, usage meters that reset on calendar days instead of rolling windows, and annual-only discounts that lock you into a tool you've used for fifteen minutes.
 
-- Publish a "what we learned launching" post (the Journal is open to makers).
-- Respond to every review — including the harsh ones.
-- Watch your listing's outbound clicks in the maker dashboard; that's your true conversion signal.
+## Minutes 12–15: the trust check
 
-Cold-start is a solved problem if you treat the launch as a *campaign with a deadline*, not a listing. The feed rewards teams that show up like it's game day — because it is.`,
+Read the changelog and one recent review from an account that isn't the maker's. A tool shipping fixes weekly is telling you the failure you found is already on someone's list. A tool whose only updates are landing-page redesigns is telling you something too.
+
+Fifteen minutes won't make you an expert, but it reliably separates the tools worth a month of your attention from the ones worth a shrug. The checklist is deliberately boring — that's what makes it work.`,
   },
   {
-    slug: "inside-prother-ranking-algorithm",
-    title: "Inside Prother's Ranking Algorithm: Velocity, Decay, and Fairness",
+    slug: "inside-prother-listing-standards",
+    title: "Inside Prother's Listing Standards: S1–S6",
     excerpt:
-      "How the daily feed actually ranks launches: the weighted vote formula, the hours^1.2 decay curve, age-weighted voting, and the anti-manipulation signals we run before anything hits the homepage.",
+      "The six listing standards every tool must clear to appear in Prother's directory — live & accessible, AI-native, complete listing, honest presentation, safe & legal, English listing — and the reasoning behind each.",
     category: "Engineering",
-    tags: "ranking|algorithm|engineering",
-    coverEmoji: "📈",
+    tags: "standards|listing|engineering",
+    coverEmoji: "📐",
     coverGradient: "from-amber-500 to-orange-700",
     readingMinutes: 6,
-    seoTitle: "How the Prother Ranking Algorithm Works — Velocity & Decay",
+    seoTitle: "Inside Prother's Listing Standards: S1–S6",
     seoDescription:
-      "The exact math behind Prother's daily launch feed: weighted upvotes, the hours^1.2 decay curve, new-account vote damping, and anomaly flags that keep the homepage honest.",
-    keywords: "launch ranking algorithm, hacker news ranking, vote decay curve, feed algorithm",
+      "The six listing standards every AI tool must clear to be listed on Prother: live & accessible, AI-native, complete listing, honest presentation, safe & legal, English listing.",
+    keywords: "ai tool listing standards, directory quality standards, ai directory curation",
     publishedAt: "2026-09-16T09:00:00.000Z",
-    body: `Ranking a daily launch feed is a trust problem disguised as a math problem. This post documents exactly how Prother ranks launches — the same transparency we require of the tools we list.
+    body: `Every listing in the Prother directory clears the same six standards. We publish them because evaluators deserve to know what "listed" means, and because makers deserve a checklist instead of a mystery. This post documents each standard and the reasoning behind it.
 
-## The formula
+## S1 — Live & accessible
 
-\`\`\`
-score = weighted_upvotes / hours^1.2
-\`\`\`
+If a reviewer can't use it *right now*, it's not a listing, it's a promise. Tools must be live at a working URL — no waitlists as landing pages, no "coming soon" with a screenshot. A dead link or a gated demo fails S1; the most common fix is shipping the demo you already have.
 
-\`hours\` is time since 00:00 UTC of the launch day. The exponent is the tuning knob:
+## S2 — AI-native
 
-- \`1.0\` would be pure division — early votes dominate forever, late comebacks never happen.
-- \`1.2\` is the sweet spot we landed on: **early velocity matters, but a tool with 90 votes at hour 20 can still overtake 40 votes at hour 2.**
-- Anything above ~1.5 turns the feed into a countdown clock where only the first hour matters.
+The core value must be powered by AI/ML. "AI button bolted on" is the most common rejection reason — and the most common reason users churn after clicking. A form builder with a model in a modal is not AI-native; a document tool where the model is the editor is.
 
-## Vote weighting
+## S3 — Complete listing
 
-Not all upvotes are equal. Accounts younger than 24 hours cast votes worth **0.5**. This single rule killed most of the "create 50 accounts and upvote yourself" experiments in testing — fresh cohorts simply don't have the account age to move the needle, and they cost real effort to mature.
+Logo, a ≤60-character tagline, an informative description, working links, honest pricing. Thin listings get thin traffic — the standard exists because evaluators compare tools side by side, and a listing with three words and a broken link wastes everyone's fifteen minutes.
 
-One vote per account per launch is enforced at the database level, and re-launches get a **fresh vote pool** by design: votes reference the launch, not the tool.
+## S4 — Honest presentation
 
-## Anomaly signals
+No fake "free," no inflated claims, no screenshots of features that don't exist yet. If the free tier has a hard cap, the listing says so. If the model is a fine-tune of someone else's work, say whose. Evaluators forgive honest limitations; they don't forgive discovering them after signup.
 
-We flag (and freeze pending review) when we see:
+## S5 — Safe & legal
 
-- Burst voting from single IP ranges or referrers
-- Vote velocity far outside the launch's category baseline
-- Clusters of brand-new accounts arriving together
+Obvious, still enforced. No malware distribution, no privacy-hostile data practices presented as features, no categories we can't responsibly index.
 
-Flags don't auto-punish; they queue for a human. False positives happen, and a silent algorithm should never be the judge of a launch day someone spent months preparing.
+## S6 — English listing
 
-## Why not engagement-weighted ranking?
+Your product can serve any market; your listing must be legible to reviewers and to the evaluators browsing the directory. Localized products are welcome — the listing itself needs English copy alongside.
 
-Clicks, dwell time, and outbound CTR are tempting signals, but they advantage flashy listings over useful ones. Votes from people who *tried the tool* remain the least gameable quality proxy we have. We do use velocity + CTR for the weekly "trending" windows — different question, different math.
+## How the standards get applied
 
-The algorithm is short enough to fit in a tweet. That's the point: makers should be able to reason about their own launch without reverse-engineering a black box.`,
+Every submission is reviewed by an editor against S1–S6 before it appears in the directory. Rejections name the failed standard(s) with a one-click resubmit — the median fix time is under a day. None of the standards are about size or budget: a two-person team with a working product and an honest listing clears all six. That's the point.`,
   },
   {
     slug: "ai-tool-directory-seo-guide",
     title: "SEO for AI Tool Directories: The Long-Tail System That Actually Works",
     excerpt:
-      "Programmatic SEO for launch platforms: how daily archive pages, category landing pages, and structured data turn a launch feed into an organic acquisition machine — without doorway-page penalties.",
+      "Programmatic SEO for AI directories: how category pages, tool listing pages, and a searchable /tools index turn a curated directory into an organic acquisition machine — without doorway-page penalties.",
     category: "Growth",
     tags: "seo|growth|content",
     coverEmoji: "🔍",
@@ -143,16 +134,16 @@ The algorithm is short enough to fit in a tweet. That's the point: makers should
     readingMinutes: 7,
     seoTitle: "SEO for AI Tool Directories — The Long-Tail System (2026)",
     seoDescription:
-      "How AI tool directories win organic search: daily indexable archive pages, category landing pages with unique copy, SoftwareApplication schema, and sitemap discipline.",
+      "How AI tool directories win organic search: category landing pages with unique copy, tool listing pages, a crawlable /tools search experience, SoftwareApplication schema, and sitemap discipline.",
     keywords: "ai tools directory seo, programmatic seo, softwareapplication schema, tool directory traffic",
     publishedAt: "2026-09-17T09:00:00.000Z",
-    body: `Static AI directories won SEO in 2024 with stale listicles. The next wave wins it with **living pages** — and a launch feed is accidentally the best SEO machine in the category.
+    body: `Static AI directories won SEO in 2024 with stale listicles. The next wave wins it with **living pages** — and a curated directory with real search is accidentally the best SEO machine in the category.
 
 ## The three-layer keyword system
 
-1. **Head terms** ("AI tools", "best AI tools") — brutal competition, won slowly by brand + freshness.
-2. **Daily long-tail** ("new AI tools today", "AI launches September 18") — a launch feed answers this *by existing*. The homepage and daily archive pages are the only pages on the internet that are born fresh every morning.
-3. **Intent long-tail** ("AI tool to turn podcasts into blog posts") — lives on tool detail and category pages, where specific tools with specific taglines match specific queries.
+1. **Head terms** ("AI tools", "best AI tools") — brutal competition, won slowly by brand + curation.
+2. **Category long-tail** ("best AI tools for podcast clipping", "computer vision tools for retail") — the category pages answer this *by existing*. Each category page is the only page on the internet that ranks every serious tool in that category, updated as the ecosystem moves.
+3. **Intent long-tail** ("AI tool to turn podcasts into blog posts") — lives on tool listing pages and the /tools search results, where specific tools with specific taglines match specific queries.
 
 Most directories attack layer 3 with doorway pages and get filtered. The difference between a doorway page and a useful one is simple: **does the page exist to rank, or does it rank because it exists?**
 
@@ -167,87 +158,89 @@ Every tool listing should emit:
 
 Ratings below threshold must stay hidden. Schema spam is the fastest way to lose a manual-action-free history.
 
-## Freshness without fluff
+## The /tools directory and the SERP
 
-Daily archive pages (\`/launches/{date}\`) are indexable and *differentiated by nature* — each contains that day's actual launches, vote counts, and editorial notes. Sitemap discipline does the rest: new URLs in the sitemap within an hour of rollover, \`lastmod\` honest, no URL churn.
+A searchable directory page (\`/tools\`) is the underused layer: every query a visitor types is a real search demand you can see in your own logs. Internally, the SERP teaches you which queries deserve dedicated category copy; externally, a fast, crawlable search experience with clean URLs captures the long tail no category page can enumerate. Sitemap discipline does the rest: new tools in the sitemap the day they're listed, \`lastmod\` honest, no URL churn.
 
 ## The compounding layer nobody does
 
-The blog is layer four: **proving expertise about the ecosystem itself.** Ranking explainers, launch playbooks, category deep-dives — these earn links to the pages that list the tools. A directory with a brain outranks a directory with a database, every algorithm update.`,
+The journal is layer four: **proving expertise about the ecosystem itself.** Evaluation checklists, taxonomy deep-dives, ecosystem recaps — these earn links to the pages that list the tools. A directory with a brain outranks a directory with a database, every algorithm update.`,
   },
   {
-    slug: "what-makers-ask-before-launching",
-    title: "What Makers Ask Before Launching — Answered From 1,000+ Launches",
+    slug: "what-makers-ask-before-listing",
+    title: "12 Questions Makers Ask Before Listing a Tool",
     excerpt:
-      "The twelve questions every AI founder asks before launch day — timing, pricing pages, screenshots, vote mechanics, claims, and re-launches — answered with what the feed data actually shows.",
+      "Screenshots, pricing honesty, claims, review gating, claiming an unclaimed listing, the rejection flow — the twelve questions every maker asks before listing a tool, answered from real directory data.",
     category: "Makers",
-    tags: "makers|faq|launch",
+    tags: "makers|faq|listing",
     coverEmoji: "🧭",
     coverGradient: "from-orange-600 to-red-700",
     readingMinutes: 5,
-    seoTitle: "Maker FAQ: Launching an AI Tool, Answered From Real Feed Data",
+    seoTitle: "Maker FAQ: Listing a Tool on Prother, Answered",
     seoDescription:
-      "When to launch, how many screenshots, do badges matter, what happens after rejection — the 12 questions AI founders ask most, answered with Prother feed data.",
-    keywords: "ai founder questions, when to launch ai product, launch day faq",
+      "How many screenshots, how honest is honest pricing, what claims get flagged, how claiming works, what happens after rejection — the 12 questions AI makers ask most before listing a tool.",
+    keywords: "list ai tool on directory, ai tool listing faq, submit ai tool",
     publishedAt: "2026-09-18T09:00:00.000Z",
-    body: `Collected from moderation notes and maker emails across the first months of the feed. Short answers, data where we have it.
+    body: `Collected from moderation notes and maker emails across the first months of the directory. Short answers, data where we have it.
 
-**1. What day should I launch?**
-Weekdays outperform weekends for B2B-leaning tools; the gap narrows for consumer. The feed floors at 5 launches/day, so you're never alone on the homepage.
-
-**2. Does the hour I submit matter?**
-Launches go live at 00:00 UTC regardless. What matters is *your* first-hour velocity — coordinate your announcement to when your audience is awake.
-
-**3. How many screenshots?**
+**1. How many screenshots should a listing have?**
 Three or more. Listings with 3+ media get roughly 2× clicks. Five is the cap; use it.
 
-**4. Do I need a video?**
+**2. Do I need a video?**
 No. A crisp GIF of the core loop beats a 90-second sizzle reel.
 
-**5. What gets listings rejected most?**
+**3. What gets listings rejected most?**
 S2 ("AI button bolted on") and S3 (incomplete listing). Both are fixable in an afternoon.
 
-**6. Can I review my own product?**
+**4. Can I review my own product?**
 No — maker self-review is blocked, including domain-matched accounts. Competitor reviews are allowed and often the most useful ones.
 
-**7. How do votes work?**
-One per account per launch. Accounts under 24h count half. Anomalous bursts get frozen for review, not silently deleted.
+**5. How honest does the pricing section need to be?**
+Completely. If the free tier has a hard cap, the listing says so. If there's a seat model, the listing says what counts as a seat. Listings with vague pricing convert worse and churn reviewers faster — honesty is the cheaper option.
+
+**6. What kind of claims get flagged?**
+Unverifiable superlatives ("the best AI writer"), metrics without a method ("10× faster"), and "free" that isn't. Write claims you could defend with a demo and a methodology paragraph.
+
+**7. Can I gate reviews to verified users?**
+On your own site, sure. On Prother, reviews come from community accounts — that's what makes the aggregate meaningful. You can respond to every review, including the harsh ones.
 
 **8. What's an Editor's Pick, and can I pay for it?**
-An editorial badge, never for sale. Sponsored placements are separately labeled and never inside organic rankings.
+An editorial badge, never for sale. Sponsored placements are separately labeled and never inside organic listings.
 
 **9. Someone else listed my tool. Can I claim it?**
 Yes — unclaimed listings carry "Claim this →". Verification is by domain email, DNS TXT, or meta tag. Rights transfer after verification.
 
-**10. When can I re-launch?**
-Once per 6 months for a major release, editor-approved, badged, with a fresh vote pool.
+**10. Can I pay to be listed?**
+No. Listing is free and editorially reviewed; the six standards (S1–S6) are the only gate. Paid placements exist, are labeled, and never affect whether a tool is listed.
 
 **11. My listing was rejected — now what?**
 The rejection email names the failed standard(s) with a one-click resubmit. Median fix time is under a day.
 
-**12. What should I do the day after?**
-Reply to every comment and review, thank your top supporters publicly, and ship the thing they asked for. Launches are a beginning, not a verdict.`,
+**12. What should I do the week after listing?**
+Reply to every comment and review, keep the pricing section current, and ship the thing reviewers asked for. A listing is a beginning, not a verdict.`,
   },
   {
     slug: "category-taxonomy-design-for-ai-tools",
     title: "Designing a Category Taxonomy for AI Tools That Won't Rot",
     excerpt:
-      "Ten categories, one per tool, plus a controlled tag vocabulary: the taxonomy decisions behind Prother, why 'Other' is a trap, and the quarterly review that keeps the map matching the territory.",
+      "Seven categories, one per tool, plus a controlled tag vocabulary: the taxonomy decisions behind Prother, why 'Other' is a trap, and the quarterly review that keeps the map matching the territory.",
     category: "Engineering",
     tags: "taxonomy|information-architecture",
     coverEmoji: "🗂️",
     coverGradient: "from-lime-600 to-emerald-700",
     readingMinutes: 6,
-    seoTitle: "AI Tool Taxonomy Design — 10 Categories That Scale",
+    seoTitle: "AI Tool Taxonomy Design — 7 Categories That Scale",
     seoDescription:
-      "How to design category taxonomy for an AI tools directory: one primary category per tool, controlled tag vocabulary, SEO landing pages, and the quarterly drift review.",
+      "How to design category taxonomy for an AI tools directory: seven categories evaluators actually shop by, one primary category per tool, controlled tag vocabulary, and the quarterly drift review.",
     keywords: "ai tool categories, taxonomy design, information architecture directory",
     publishedAt: "2026-09-19T09:00:00.000Z",
-    body: `Taxonomies rot because models drift and categories accrete. Prother's answer is boring on purpose: **ten primary categories, one per tool, plus a controlled tag vocabulary** that crosses categories.
+    body: `Taxonomies rot because models drift and categories accrete. Prother's answer is boring on purpose: **seven primary categories, one per tool, plus a controlled tag vocabulary** that crosses categories.
 
-## The ten
+## The seven
 
-🤖 Generative AI & Chatbots · 🎨 AI Art, Image & Video · 👨‍💻 AI Coding Tools · 📝 AI Writing & Productivity · 📈 AI for Data Analysis · ⚙️ AI Infrastructure & DevTools · 🔊 AI Audio, Voice & Music · 🕹️ AI Agents & Automation · 🏥 Vertical AI · 🛡️ AI Safety, Ethics & Governance.
+💬 Conversational AI & Chatbots · 🎨 Generative Content Creation · 📝 NLP & Text Utilities · 👁️ Computer Vision · 📊 Data Analytics & Predictive Modeling · ⚙️ Automation & Workflow Orchestration · 🛠️ Developer Frameworks & Infrastructure.
+
+We rebuilt the taxonomy around the seven ways evaluators actually shop for AI — ask, create, write, see, analyze, orchestrate, build. The old buckets described marketing decks; these describe jobs to be done.
 
 Rules that keep it alive:
 
@@ -257,64 +250,63 @@ Rules that keep it alive:
 
 ## Tags do the cross-cutting
 
-Where a category answers *what is it*, tags answer *how does it run*: \`open-source\`, \`free-tier\`, \`api-available\`, \`self-hosted\`, \`no-code\`, \`enterprise\`, \`browser-extension\`, \`mobile\`. Controlled vocabulary — free-text tags become spam within a quarter.
+Where a category answers *what is it for*, tags answer *how does it run*: \`open-source\`, \`free-tier\`, \`api-available\`, \`self-hosted\`, \`no-code\`, \`enterprise\`, \`browser-extension\`, \`mobile\`. Controlled vocabulary — free-text tags become spam within a quarter.
 
 ## The quarterly drift review
 
 Every quarter: pull the zero-result search queries, the category page bounce rates, and the "uncategorizable" submissions. If three tools failed to fit last month, the taxonomy has a hole. If a category has two tools, it's a tag, not a category.
 
-Taxonomy is a product surface, not metadata. It's how evaluators think, how category pages rank, and how the feed avoids becoming an undifferentiated firehose.`,
+Taxonomy is a product surface, not metadata. It's how evaluators think, how category pages rank, and how a directory avoids becoming an undifferentiated firehose.`,
   },
   {
-    slug: "launch-week-recap-september-2026",
-    title: "Launch Week Recap: What 100+ AI Launches Tell Us About Right Now",
+    slug: "state-of-ai-tooling-ecosystem-2026",
+    title: "State of the AI Tooling Ecosystem: September 2026",
     excerpt:
-      "Agents took the top slot, coding tools consolidated, vertical AI quietly doubled — a data-backed recap of this launch week on Prother, with the vote patterns and category signals that mattered.",
+      "A quarterly trend recap of the AI tooling ecosystem — category consolidation, agent frameworks growing up, local models going mainstream, and voice cloning's compliance reckoning.",
     category: "Ecosystem",
-    tags: "recap|data|trends",
+    tags: "recap|trends|ecosystem",
     coverEmoji: "🗞️",
     coverGradient: "from-rose-600 to-orange-700",
-    readingMinutes: 4,
-    seoTitle: "AI Launch Week Recap — Category & Vote Trends From Prother",
+    readingMinutes: 5,
+    seoTitle: "State of the AI Tooling Ecosystem — September 2026",
     seoDescription:
-      "This week on Prother: 100+ AI launches ranked by community votes. Agents lead, coding tools consolidate, vertical AI doubles — the trends with the numbers behind them.",
-    keywords: "ai launches this week, ai tool trends, new ai tools september 2026",
+      "Where the AI tooling ecosystem stands in September 2026: attention consolidating around fewer tools, agent frameworks maturing, local models entering procurement, and voice cloning's compliance era.",
+    keywords: "ai tool trends 2026, ai ecosystem report, ai tooling state",
     publishedAt: "2026-09-20T09:00:00.000Z",
-    body: `A weekly read of the feed, so you don't have to scrape it.
+    body: `A quarterly read of the catalog and the conversation around it — what evaluators are searching for, what makers are shipping, and where the money is moving. The interesting signals this quarter are structural, not volume-based.
 
-## The headline: agents ate the week
+## Consolidation, not explosion
 
-🕹️ AI Agents & Automation took the largest share of top-ten slots for the first time — not because more agent tools launched, but because agent tools **kept their votes past hour six**. Persistence beats splash.
+The tool count keeps rising; the *attention* is consolidating. In almost every category the top five listings now absorb the majority of outbound clicks, and the long tail is being priced out of relevance rather than out of existence. The "model wrapper with a pricing page" tier is disappearing — evaluators have learned to spot it in one screenshot, and the fifteen-minute evaluation checklist is doing to thin tools what review aggregates did to thin apps.
 
-## Coding tools consolidated
+## Agent frameworks grew up
 
-The 👨‍💻 Coding category didn't grow; it *concentrated*. The top three coding launches out-voted the remaining seven combined. Interpretation: the eval-driven buyer has consolidated around fewer, deeper tools, and the "GPT wrapper with a CLI" tier is being priced out of attention.
+Automation & Workflow Orchestration has quietly become the ecosystem's center of gravity. The tools that survived the year share a shape: durable state, human checkpoints, and honest failure modes. The conversation moved from "what can an agent do" to "what does an agent do when it fails" — which is what maturity sounds like.
 
-## Vertical AI quietly doubled
+## Local models went mainstream
 
-🏥 Vertical AI submissions doubled week-over-week. None charted #1 — but their outbound CTR was the highest of any category. Vertical tools convert a smaller, much hotter audience. Watch this lane.
+A year ago local inference was a hobbyist flex; now the Developer Frameworks & Infrastructure category treats it as table stakes. Privacy-sensitive buyers — legal, healthcare, finance — are the driver: the pitch "your data never leaves the building" now closes deals that cloud-only vendors used to win. Expect the local-versus-API tradeoff to be a standard comparison filter within the year.
 
-## What didn't move
+## Voice cloning hits its compliance era
 
-- 🎨 Image & Video: steady volume, votes spread thin — the category is a market, not a moment.
-- 🛡️ Safety & Governance: two launches, both solid, neither viral. The category grows on procurement cycles, not launch days.
+Voice moved from demo to deployment, and immediately collided with consent law. Watermarking, per-voice consent records, and cloning opt-out registries are becoming procurement requirements, not differentiators. The tools that treated this as a product feature early are the ones showing up on enterprise shortlists now.
 
 ## One number to remember
 
-**Median upvotes per launch this week: 22.** The floor for a top-five slot was 58. If your launch plan doesn't know how it gets 58 real votes, the plan is the thing to fix — not the ranking.`,
+**Seven categories.** We rebuilt the directory's taxonomy this month around the seven that describe how evaluators actually shop for AI — conversational, generative content, NLP, vision, data, automation, and developer infrastructure. When the shelves match how people think, discovery gets boring in the best way: you search, you compare, you get back to work.`,
   },
 ];
 
 // ─────────────────────────────────────────────────────── Site settings KV
 const SETTINGS: Record<string, string> = {
-  "hero.headline": "Where AI products launch.",
+  "hero.headline": "Find the right AI tool.",
   "hero.subline":
-    "A fresh batch of AI tools every day. Discover, upvote, and compare — before the rest of the internet catches on.",
-  "hero.announcement": "Now in open beta — submit your tool free",
-  "footer.note": "Curated, community-ranked, never for sale.",
-  "seo.defaultTitle": "Prother — Where AI products launch",
+    "A curated directory of AI products and tools. Search, compare, and read real reviews — before you commit your workflow.",
+  "hero.announcement": "46 tools indexed — free forever",
+  "footer.note": "Curated, human-reviewed, never for sale.",
+  "seo.defaultTitle": "Prother — AI tool discovery",
   "seo.defaultDescription":
-    "A curated, community-driven launchpad for AI products. A fresh batch of AI tools launches every day at 00:00 UTC — discover, upvote, review, and compare.",
+    "A curated search & discovery directory for AI products and tools. Compare pricing, read reviews, and find the right AI for the job.",
 };
 
 async function main() {
@@ -351,7 +343,7 @@ async function main() {
   for (const [key, value] of Object.entries(SETTINGS)) {
     await db.siteSetting.upsert({
       where: { key },
-      update: {}, // don't clobber admin-managed copy on re-seed
+      update: { value }, // repositioning overwrite — replace stale launch-era copy rows
       create: { key, value },
     });
     settings++;

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const createSchema = z.object({
   name: z.string().trim().min(2).max(80),
   advertiser: z.string().trim().min(2).max(60),
-  placement: z.enum(AD_PLACEMENTS).default("feed_row"),
+  placement: z.enum(AD_PLACEMENTS).default("directory_banner"),
   headline: z.string().trim().min(4).max(90),
   body: z.string().trim().max(140).default(""),
   clickUrl: z.string().url().max(400),

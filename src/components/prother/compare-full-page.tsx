@@ -23,23 +23,15 @@ type CompareRow = {
   category: { slug: string; name: string; emoji: string };
   tags: string[];
   links: { github: string | null; docs: string | null; twitter: string | null };
-  votes: number;
   /** Aggregate object (unlocks at ≥3 published reviews) — see /api/compare. */
   rating: { count: number; ease: number; power: number; value: number; overall: number } | null;
   reviewCount: number;
   comments: number;
-  launchDate: string | null;
   verified: boolean;
   claimed: boolean;
   hasApi: boolean;
   track: string;
   maker: string;
-  relaunchCount: number;
-  /** Optional per-dimension review scores (additive API field). */
-  ease?: number | null;
-  power?: number | null;
-  value?: number | null;
-  // (legacy optional dims — superseded by rating.ease/power/value)
 };
 
 type PopularPair = {
@@ -64,7 +56,7 @@ type DirectoryRow = {
   tagline: string;
   emoji: string;
   gradient: string;
-  votes: number;
+  editorsPick?: boolean;
 };
 
 const MONO = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
@@ -74,16 +66,6 @@ const PRICING_LABEL: Record<string, string> = {
   paid: "Paid",
   open_source: "Open Source",
 };
-
-function fmtDay(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 // ── Tool picker combobox ──────────────────────────────────────────────────
 
@@ -154,7 +136,6 @@ function ToolPicker({
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white/90">
                   {current.name}
                 </span>
-                <span className="shrink-0 font-mono text-xs tabular-nums text-ember">▲{current.votes}</span>
               </>
             ) : (
               <span className="flex items-center gap-2 text-sm">
@@ -202,7 +183,6 @@ function ToolPicker({
                   <span className="block truncate text-sm font-semibold text-white/90">{r.name}</span>
                   <span className="block truncate text-xs text-white/40">{r.tagline}</span>
                 </span>
-                <span className="shrink-0 font-mono text-xs tabular-nums text-ember">▲{r.votes}</span>
               </button>
             ))}
             {filtered.length === 0 && (
@@ -306,7 +286,7 @@ export function CompareFullPage() {
   useEffect(() => {
     if (!compareOpen || directoryLoaded) return;
     let alive = true;
-    fetch("/api/tools?limit=60&sort=votes")
+    fetch("/api/tools?pageSize=60")
       .then(async (res) => {
         if (!res.ok) throw new Error("failed");
         return (await res.json()) as { rows: DirectoryRow[] };
@@ -408,10 +388,15 @@ export function CompareFullPage() {
 
   const verdict = useMemo(() => {
     if (!dataValid) return null;
-    const diff = Math.abs(data!.a.votes - data!.b.votes);
-    if (diff === 0) return "DEAD EVEN — SPLIT THE ROOM";
-    const winner = data!.a.votes > data!.b.votes ? data!.a.name : data!.b.name;
-    return `COMMUNITY LEANS ${winner.toUpperCase()} · ${diff} VOTE${diff === 1 ? "" : "S"}`;
+    const a = data!.a.rating;
+    const b = data!.b.rating;
+    // No vote winner — the honest verdict is the review aggregate (when both
+    // tools have one). Otherwise no banner; the table below does the talking.
+    if (!a || !b) return null;
+    const diff = Math.round((a.overall - b.overall) * 10) / 10;
+    if (diff === 0) return "EVEN ON REVIEW RATING";
+    const winner = diff > 0 ? data!.a.name : data!.b.name;
+    return `${winner.toUpperCase()} LEADS · BY REVIEW RATING (+${Math.abs(diff).toFixed(1)})`;
   }, [data, dataValid]);
 
   if (!compareOpen) return null;
@@ -498,7 +483,11 @@ export function CompareFullPage() {
                     <p className="mt-0.5 truncate text-sm text-white/55">{r.tagline}</p>
                   </div>
                   <span className="shrink-0 rounded-full bg-ember/10 px-3 py-1.5 font-mono text-sm font-black tabular-nums text-ember">
-                    ▲ {r.votes}
+                    {r.rating != null ? (
+                      <>★ {r.rating.overall.toFixed(1)}/5</>
+                    ) : (
+                      <>{r.reviewCount} reviews</>
+                    )}
                   </span>
                 </div>
               ))}
@@ -514,11 +503,6 @@ export function CompareFullPage() {
             {/* Metric table */}
             <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-1 sm:px-5">
               <MetricRow
-                label="Votes"
-                a={<span className="font-mono font-bold tabular-nums text-ember">{rowA.votes}</span>}
-                b={<span className="font-mono font-bold tabular-nums text-ember">{rowB.votes}</span>}
-              />
-              <MetricRow
                 label="Rating"
                 a={
                   rowA.rating != null ? (
@@ -528,7 +512,7 @@ export function CompareFullPage() {
                     </span>
                   ) : (
                     <span className="font-mono text-xs text-white/40">
-                      LOCKED ({rowA.reviewCount})
+                      UNRATED · {rowA.reviewCount} reviews
                     </span>
                   )
                 }
@@ -540,7 +524,7 @@ export function CompareFullPage() {
                     </span>
                   ) : (
                     <span className="font-mono text-xs text-white/40">
-                      LOCKED ({rowB.reviewCount})
+                      UNRATED · {rowB.reviewCount} reviews
                     </span>
                   )
                 }
@@ -602,14 +586,12 @@ export function CompareFullPage() {
                   </button>
                 }
               />
-              <MetricRow label="Launched" a={<span className="font-mono text-xs">{fmtDay(rowA.launchDate)}</span>} b={<span className="font-mono text-xs">{fmtDay(rowB.launchDate)}</span>} />
               <MetricRow label="Comments" a={<span className="tabular-nums">{rowA.comments}</span>} b={<span className="tabular-nums">{rowB.comments}</span>} />
               <MetricRow
                 label="Maker"
                 a={<span className="text-ember">{rowA.maker}</span>}
                 b={<span className="text-ember">{rowB.maker}</span>}
               />
-              <MetricRow label="Relaunches" a={<span className="tabular-nums">{rowA.relaunchCount}</span>} b={<span className="tabular-nums">{rowB.relaunchCount}</span>} />
               <MetricRow
                 label="Links"
                 a={

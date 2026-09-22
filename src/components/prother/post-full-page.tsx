@@ -173,7 +173,7 @@ export function PostFullPage() {
               onClick={() => closePost()}
               className="rounded-lg border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-ember/50 hover:text-ember"
             >
-              Back to feed
+              Back to Journal
             </button>
           }
         />

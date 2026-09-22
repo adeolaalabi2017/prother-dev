@@ -10,20 +10,20 @@ import {
 
 const FAQS = [
   {
-    q: "Do I need an invite?",
-    a: "No. The feed is open — browse, search, and vote without an account. Signing in only unlocks collections and follows.",
+    q: "What is Prother?",
+    a: "A curated search and discovery directory for AI products and tools. Every listing is indexed across seven categories — conversational AI, generative content, NLP utilities, computer vision, analytics, automation, and developer platforms — with honest pricing, real reviews, and side-by-side comparisons.",
   },
   {
-    q: "What kind of tools get listed?",
-    a: "Live, working AI products. Every listing passes our published quality standards before it can launch — no vaporware, no 'coming soon' pages.",
+    q: "How are tools ranked?",
+    a: "Editorial curation first: Editor's Pick and curated badges are earned through hands-on testing — never payment. Within the directory, listings surface by review ratings and trending engagement (comments, reviews, and saves). Sponsored slots exist and are always labeled; they never touch organic results.",
   },
   {
-    q: "How do I follow the feed?",
-    a: "Bookmark the homepage or subscribe to the launch RSS. Today's batch, yesterday's standings, and the launch archive are all public.",
+    q: "Do you host launches?",
+    a: "No. Prother is a pure directory — no launch days, no upvoting, no leaderboards. Tools are listed once they pass our six published standards, and they stay listed on merit. Want the newest arrivals? Sort the directory by newest.",
   },
   {
-    q: "Is submitting free?",
-    a: "Yes — submitting and launching are free. Approved products get a launch day on the homepage; you pick the date from the open calendar.",
+    q: "How much does it cost?",
+    a: "Free for users, forever — browsing, search, collections, and reviews. Listings are free for makers too. The only paid thing on Prother is clearly labeled advertising, and it never influences ranking or editorial picks.",
   },
 ];
 

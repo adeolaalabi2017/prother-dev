@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowUpRight, Compass, Triangle } from "lucide-react";
+import { ArrowUpRight, Compass, Star } from "lucide-react";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { blurbFor } from "@/lib/category-blurbs";
@@ -46,9 +46,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     where: { slug },
     include: {
       _count: {
-        select: {
-          tools: { where: { status: "live", launch: { is: { scheduled: false } } } },
-        },
+        select: { tools: { where: { status: "live" } } },
       },
     },
   });
@@ -56,7 +54,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
   const blurb = blurbFor(category.slug, category.name);
   const count = category._count.tools;
-  const title = `${category.name} — AI tools, ranked | Prother`;
+  const title = `${category.name} — AI tools | Prother`;
   const description = clamp(`${blurb} ${count} ${count === 1 ? "tool" : "tools"} listed.`, 200);
 
   return {
@@ -65,8 +63,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     keywords: [
       `${category.name} AI tools`,
       "AI tools",
-      "AI directory",
-      "community voted",
+      "AI tools directory",
+      "AI tool discovery",
     ],
     alternates: { canonical: `/categories/${slug}` },
     openGraph: {
@@ -93,31 +91,41 @@ export default async function CategoryPage({ params }: Params) {
     where: { slug },
     include: {
       tools: {
-        where: { status: "live", launch: { is: { scheduled: false } } },
-        include: {
-          launch: {
-            include: { _count: { select: { votes: true } } },
-          },
+        where: { status: "live" },
+        // Explicit select — a stale cached PrismaClient in a long-running dev
+        // server references dropped columns on full-row Tool selects.
+        select: {
+          slug: true,
+          name: true,
+          tagline: true,
+          logoEmoji: true,
+          logoGradient: true,
+          pricingModel: true,
+          startingPrice: true,
+          editorsPick: true,
+          createdAt: true,
         },
-        // baseUpvotes ordering gets close; the exact community-vote total is
-        // re-sorted below (base + live vote count).
-        orderBy: { launch: { baseUpvotes: "desc" } },
+        // Featured ordering (mirrors GET /api/tools, sort=featured):
+        // pinned listings first, then Editor's Picks, then newest.
+        orderBy: [
+          { pinned: "desc" },
+          { editorsPick: "desc" },
+          { createdAt: "desc" },
+        ],
       },
     },
   });
   if (!category) notFound();
 
-  const tools = category.tools
-    .map((t) => ({
-      slug: t.slug,
-      name: t.name,
-      tagline: t.tagline,
-      emoji: t.logoEmoji,
-      gradient: t.logoGradient,
-      pricing: pricingChip(t.pricingModel, t.startingPrice),
-      votes: (t.launch?.baseUpvotes ?? 0) + (t.launch?._count.votes ?? 0),
-    }))
-    .sort((a, b) => b.votes - a.votes);
+  const tools = category.tools.map((t) => ({
+    slug: t.slug,
+    name: t.name,
+    tagline: t.tagline,
+    emoji: t.logoEmoji,
+    gradient: t.logoGradient,
+    pricing: pricingChip(t.pricingModel, t.startingPrice),
+    editorsPick: t.editorsPick,
+  }));
 
   const blurb = blurbFor(category.slug, category.name);
   const spotlightOn = await placementEnabled("category_spotlight");
@@ -164,8 +172,8 @@ export default async function CategoryPage({ params }: Params) {
             {blurb}
           </p>
           <p className="mt-4 font-mono text-[11px] tracking-[0.2em] text-white/35 uppercase">
-            {tools.length} {tools.length === 1 ? "tool" : "tools"} · ranked by community
-            votes
+            {tools.length} {tools.length === 1 ? "tool" : "tools"} listed · curated
+            daily
           </p>
         </header>
 
@@ -185,11 +193,10 @@ export default async function CategoryPage({ params }: Params) {
           {tools.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
               <p className="font-mono text-sm tracking-wider text-white/60 uppercase">
-                Nothing live here yet
+                Nothing listed here yet
               </p>
               <p className="mt-2 text-sm text-white/40">
-                New {category.name.toLowerCase()} launches appear the day they go
-                live —{" "}
+                New {category.name.toLowerCase()} tools appear as they&apos;re approved —{" "}
                 <Link href="/submit" className="text-ember hover:underline">
                   submit yours
                 </Link>
@@ -221,10 +228,12 @@ export default async function CategoryPage({ params }: Params) {
                           #{i + 1}
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
-                        <Triangle className="size-2.5 fill-current" aria-hidden />
-                        {t.votes}
-                      </span>
+                      {t.editorsPick && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                          <Star className="size-2.5 fill-current" aria-hidden />
+                          Editor&apos;s Pick
+                        </span>
+                      )}
                     </span>
                   </div>
 
@@ -252,7 +261,7 @@ export default async function CategoryPage({ params }: Params) {
             </div>
           )}
 
-          {/* Cross-links — directory + feed stay one hop away */}
+          {/* Cross-links — the directory stays one hop away */}
           <p className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">
             <Link
               href="/tools"
@@ -261,8 +270,8 @@ export default async function CategoryPage({ params }: Params) {
               Browse the full directory
             </Link>
             <span aria-hidden>/</span>
-            <Link href="/#feed" className="transition-colors hover:text-ember">
-              Today&apos;s launches
+            <Link href="/submit" className="transition-colors hover:text-ember">
+              List your tool
             </Link>
           </p>
         </div>

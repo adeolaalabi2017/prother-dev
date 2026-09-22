@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import Link from "next/link";
 import {
   ArrowRight,
   BadgeCheck,
   Inbox,
   Loader2,
   MailSearch,
-  Rocket,
   TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,17 +37,10 @@ function relTime(iso: string): string {
   return d === 1 ? "1 day ago" : `${d} days ago`;
 }
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
-
 /** reviewNote looks like "Failed: S1, S4 — optional note" (PRD §7). */
 function parseReviewNote(note: string): { ids: string[]; note: string } {
-  const m = note.match(/^Failed:\s*(.+?)(?:\s+—\s*(.*))?$/s);
+  // [\s\S] instead of the `s` flag — project targets ES2017 (TS1501).
+  const m = note.match(/^Failed:\s*([\s\S]+?)(?:\s+—\s*([\s\S]*))?$/);
   if (!m) return { ids: [], note };
   return {
     ids: m[1].split(",").map((s) => s.trim()).filter(Boolean),
@@ -71,16 +64,9 @@ function StatusChip({ item }: { item: SubmissionStatusItem }) {
     );
   }
   if (item.status === "approved") {
-    return item.live ? (
+    return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-emerald-400">
-        <BadgeCheck className="size-3" aria-hidden /> LIVE NOW
-      </span>
-    ) : (
-      <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember"
-        title="Scheduled launches go live at 00:00 UTC"
-      >
-        <Rocket className="size-3" aria-hidden /> GOES LIVE {item.launchDate ? fmtDate(item.launchDate) : "SOON"}
+        <BadgeCheck className="size-3" aria-hidden /> LISTING LIVE
       </span>
     );
   }
@@ -98,7 +84,6 @@ function ResultCard({
   item: SubmissionStatusItem;
   email: string;
 }) {
-  const openTool = useExplorer((s) => s.openTool);
   const setTrackOpen = useExplorer((s) => s.setTrackOpen);
   const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   const parsed = item.reviewNote ? parseReviewNote(item.reviewNote) : null;
@@ -181,24 +166,20 @@ function ResultCard({
         </div>
       )}
 
-      {/* Approved → open the listing (scheduled tools work via the modal too) */}
+      {/* Approved → the live listing in the directory */}
       {item.status === "approved" && item.toolSlug && (
-        <button
-          type="button"
-          onClick={() => {
-            setTrackOpen(false);
-            window.setTimeout(() => openTool(item.toolSlug!), 80);
-          }}
+        <Link
+          href={`/tools/${item.toolSlug}`}
           className="group mt-3 inline-flex w-full items-center justify-between rounded-lg border border-ember/25 bg-ember/[0.06] px-3 py-2 text-left transition-colors hover:bg-ember/[0.12]"
         >
           <span className="font-mono text-[11px] tracking-wider text-ember">
-            {item.live ? "VIEW LISTING" : "PREVIEW LISTING"}
+            Listing live — view it
           </span>
           <ArrowRight
             className="size-3.5 text-ember transition-transform group-hover:translate-x-0.5"
             aria-hidden
           />
-        </button>
+        </Link>
       )}
     </motion.li>
   );
@@ -366,7 +347,7 @@ export function StatusTracker() {
                 </p>
                 <p className="mt-1 max-w-xs text-xs text-white/40">
                   Shipped something? Every listing that passes the quality bar
-                  gets a launch day on the front page.
+                  gets a permanent listing in the directory.
                 </p>
                 <Button
                   type="button"
@@ -384,7 +365,7 @@ export function StatusTracker() {
 
           {searchedFor && items && items.length > 0 && (
             <p className="mt-4 border-t border-white/10 pt-3 text-center font-mono text-[10px] tracking-wider text-white/30">
-              ALSO SENT TO {searchedFor.toUpperCase()} · QUEUE MOVES AT 00:00 UTC
+              ALSO SENT TO {searchedFor.toUpperCase()} · REVIEW USUALLY TAKES 1–2 DAYS
             </p>
           )}
         </div>

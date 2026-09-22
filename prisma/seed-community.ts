@@ -4,11 +4,11 @@
  *
  * Creates:
  *  - 4 users (dana/mira/sam/leo @prother.dev, createdAt backdated 30 days)
- *  - Reviews: promptly ×3 published (aggregate unlocked), codepilotx ×2
- *    (aggregate locked), pixelforge ×1 filtered (soft moderation demo)
+ *  - Reviews: perplexity ×3 published (aggregate unlocked), claude ×2
+ *    (aggregate locked), midjourney ×1 filtered (soft moderation demo)
  *  - Collections: public "Starter AI stack" (dana, 4 tools) +
  *    private "Watchlist" (dana, 1 tool)
- *  - Follows: dana → tool "promptly", dana → category "coding-tools"
+ *  - Follows: dana → tool "perplexity", dana → category "conversational-ai"
  *
  * NOTE: runs in its own process, so the freshly generated PrismaClient knows
  * every model — no $queryRaw needed here (unlike the API routes).
@@ -57,45 +57,45 @@ async function main() {
   const sam = userMap.get("sam@prother.dev")!;
   const leo = userMap.get("leo@prother.dev")!;
 
-  const promptly = await db.tool.findUnique({ where: { slug: "promptly" } });
-  const codepilotx = await db.tool.findUnique({ where: { slug: "codepilotx" } });
-  const pixelforge = await db.tool.findUnique({ where: { slug: "pixelforge" } });
-  if (!promptly || !codepilotx || !pixelforge) {
+  const perplexity = await db.tool.findUnique({ where: { slug: "perplexity" } });
+  const claude = await db.tool.findUnique({ where: { slug: "claude" } });
+  const midjourney = await db.tool.findUnique({ where: { slug: "midjourney" } });
+  if (!perplexity || !claude || !midjourney) {
     throw new Error("Base tools missing — run prisma/seed.ts first.");
   }
 
-  // ── Reviews: promptly ×3 published (unlocks the aggregate) ────────────
-  const promptlyReviews = [
+  // ── Reviews: perplexity ×3 published (unlocks the aggregate) ──────────
+  const perplexityReviews = [
     {
       user: dana,
       ease: 5,
       power: 4,
       value: 4,
-      body: "Dropped Promptly into our support queue and the citation-first answers held up on the first week of real tickets. Setup took an afternoon, the API is boring in the best way, and the audit log saved us during our compliance review. Only knock: the prompt library search gets slow past a few hundred entries.",
+      body: "Dropped Perplexity into our research workflow and the citation-first answers held up on the first week of real questions. Setup took an afternoon, the API is boring in the best way, and the audit log saved us during our compliance review. Only knock: the Spaces search gets slow past a few hundred threads.",
     },
     {
       user: mira,
       ease: 4,
       power: 4,
       value: 5,
-      body: "We evaluated three chatbot platforms and Promptly was the only one where the free tier was actually usable for a pilot. Hallucination controls are honest — it cites or it says it doesn't know. Docking one point on ease because the webhook config assumes you already speak HTTP headers.",
+      body: "We evaluated three answer engines and Perplexity was the only one where the free tier was actually usable for a pilot. Hallucination controls are honest — it cites or it says it doesn't know. Docking one point on ease because the API config assumes you already speak HTTP headers.",
     },
     {
       user: sam,
       ease: 4,
       power: 5,
       value: 3,
-      body: "Powerful retrieval tuning — the per-source weighting is the best I've used. Pro pricing stings for solo founders though, and the seat model counts bots, which feels sneaky. Still: answer quality on our 40k-doc corpus beat the incumbent by a wide margin in blind tests.",
+      body: "Powerful retrieval controls — the per-source weighting is the best I've used. Pro pricing stings for solo founders though, and the seat model counts search agents, which feels sneaky. Still: answer quality on our 40k-doc corpus beat the incumbent by a wide margin in blind tests.",
     },
   ];
-  for (const r of promptlyReviews) {
+  for (const r of perplexityReviews) {
     const exists = await db.review.findUnique({
-      where: { toolId_userId: { toolId: promptly.id, userId: r.user.id } },
+      where: { toolId_userId: { toolId: perplexity.id, userId: r.user.id } },
     });
     if (!exists) {
       await db.review.create({
         data: {
-          toolId: promptly.id,
+          toolId: perplexity.id,
           userId: r.user.id,
           author: `@${r.user.handle ?? "maker"}`,
           ease: r.ease,
@@ -110,31 +110,31 @@ async function main() {
     }
   }
 
-  // ── Reviews: codepilotx ×2 published (aggregate stays locked at 2) ────
-  const codepilotxReviews = [
+  // ── Reviews: claude ×2 published (aggregate stays locked at 2) ────────
+  const claudeReviews = [
     {
       user: dana,
       ease: 4,
       power: 4,
       value: 4,
-      body: "The diff review gate is genuinely useful — it caught two prompt-injection vectors in a generated PR before CI did. GitHub app setup is five minutes. Would like inline monorepo path filters before I call it complete.",
+      body: "The diff review gate is genuinely useful — it caught two prompt-injection vectors in a generated PR before CI did. Claude Code setup is five minutes. Would like inline monorepo path filters before I call it complete.",
     },
     {
       user: mira,
       ease: 3,
       power: 5,
       value: 4,
-      body: "Review policies are the deep feature here: you can encode 'no raw secrets in generated code' as a rule and it enforces. UI is dense and the onboarding assumes senior context. Per-seat pricing is fair for what it replaces.",
+      body: "Review policies are the deep feature here: you can encode 'no raw secrets in generated code' as a project rule and it enforces. The UI is dense and the onboarding assumes senior context. Per-seat pricing is fair for what it replaces.",
     },
   ];
-  for (const r of codepilotxReviews) {
+  for (const r of claudeReviews) {
     const exists = await db.review.findUnique({
-      where: { toolId_userId: { toolId: codepilotx.id, userId: r.user.id } },
+      where: { toolId_userId: { toolId: claude.id, userId: r.user.id } },
     });
     if (!exists) {
       await db.review.create({
         data: {
-          toolId: codepilotx.id,
+          toolId: claude.id,
           userId: r.user.id,
           author: `@${r.user.handle ?? "maker"}`,
           ease: r.ease,
@@ -149,20 +149,20 @@ async function main() {
     }
   }
 
-  // ── Review: pixelforge ×1 FILTERED (soft-moderation demo — <48h account)
-  const leoPixelforge = await db.review.findUnique({
-    where: { toolId_userId: { toolId: pixelforge.id, userId: leo.id } },
+  // ── Review: midjourney ×1 FILTERED (soft-moderation demo — <48h account)
+  const leoMidjourney = await db.review.findUnique({
+    where: { toolId_userId: { toolId: midjourney.id, userId: leo.id } },
   });
-  if (!leoPixelforge) {
+  if (!leoMidjourney) {
     await db.review.create({
       data: {
-        toolId: pixelforge.id,
+        toolId: midjourney.id,
         userId: leo.id,
         author: `@${leo.handle ?? "maker"}`,
         ease: 4,
         power: 3,
         value: 4,
-        body: "Sketch-to-design-system is real, not vaporware — imported a Figma dump and got tokens plus components. Export fidelity to Tailwind needs work but the direction is right.",
+        body: "Style-reference is real, not vaporware — fed it one mood-board image and got a whole campaign that held the palette. Character consistency across scenes needs work but the direction is right.",
         status: "filtered",
         createdAt: REVIEW_BACKDATED,
         updatedAt: REVIEW_BACKDATED,
@@ -179,7 +179,7 @@ async function main() {
         slug: "starter-ai-stack",
         name: "Starter AI stack",
         description:
-          "The four tools I install on day one of every AI project: a citation-first chatbot, a self-healing agent runtime, plain-English spreadsheets, and an on-call engineer that never sleeps.",
+          "The four tools I install on day one of every AI project: a reasoning workhorse, a citation-first answer engine, a workflow connector that never sleeps, and the open model hub that holds it all together.",
         isPublic: true,
         ownerEmail: dana.email!,
         ownerName: "Dana",
@@ -187,7 +187,7 @@ async function main() {
       },
     }));
 
-  const starterSlugs = ["promptly", "agentrun", "sheetsense", "stacksherpa"];
+  const starterSlugs = ["claude", "perplexity", "zapier", "hugging-face"];
   let position = await db.collectionItem.count({ where: { collectionId: starterCollection.id } });
   for (const slug of starterSlugs) {
     const tool = await db.tool.findUnique({ where: { slug } });
@@ -220,7 +220,7 @@ async function main() {
       },
     }));
 
-  const watchSlugs = ["voiceloom"];
+  const watchSlugs = ["elevenlabs"];
   for (const slug of watchSlugs) {
     const tool = await db.tool.findUnique({ where: { slug } });
     if (!tool) continue;
@@ -236,43 +236,43 @@ async function main() {
   }
 
   // ── Follows ───────────────────────────────────────────────────────────
-  const promptlyFollow = await db.follow.findUnique({
+  const perplexityFollow = await db.follow.findUnique({
     where: {
       userEmail_targetType_targetId: {
         userEmail: dana.email!,
         targetType: "tool",
-        targetId: "promptly",
+        targetId: "perplexity",
       },
     },
   });
-  if (!promptlyFollow) {
+  if (!perplexityFollow) {
     await db.follow.create({
       data: {
         userEmail: dana.email!,
         targetType: "tool",
-        targetId: "promptly",
-        targetLabel: "Promptly",
+        targetId: "perplexity",
+        targetLabel: "Perplexity",
         createdAt: BACKDATED,
       },
     });
   }
 
-  const codingFollow = await db.follow.findUnique({
+  const conversationalFollow = await db.follow.findUnique({
     where: {
       userEmail_targetType_targetId: {
         userEmail: dana.email!,
         targetType: "category",
-        targetId: "coding-tools",
+        targetId: "conversational-ai",
       },
     },
   });
-  if (!codingFollow) {
+  if (!conversationalFollow) {
     await db.follow.create({
       data: {
         userEmail: dana.email!,
         targetType: "category",
-        targetId: "coding-tools",
-        targetLabel: "AI Coding Tools & Assistants",
+        targetId: "conversational-ai",
+        targetLabel: "Conversational AI & Chatbots",
         createdAt: BACKDATED,
       },
     });
@@ -290,10 +290,10 @@ async function main() {
     [
       "✅ Community seed summary (idempotent):",
       `  users:              ${userCount} (seeded: dana, mira, sam, leo — backdated 30d)`,
-      `  reviews:            ${reviewCount} (promptly ×3 published, codepilotx ×2, pixelforge ×1 filtered)`,
+      `  reviews:            ${reviewCount} (perplexity ×3 published, claude ×2, midjourney ×1 filtered)`,
       `  collections:        ${collectionCount} (starter-ai-stack public ×4 items, watchlist private ×1)`,
       `  collection items:   ${itemCount}`,
-      `  follows:            ${followCount} (dana → tool promptly, dana → category coding-tools)`,
+      `  follows:            ${followCount} (dana → tool perplexity, dana → category conversational-ai)`,
     ].join("\n")
   );
 }

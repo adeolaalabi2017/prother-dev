@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prother";
 import { commentCountsByTool } from "@/lib/discussion";
-import {
-  anonVotesByLaunch,
-  bumpComparison,
-  popularComparisons,
-  reviewStats,
-  toolCommunityFieldsBySlugs,
-} from "@/lib/community";
+import { bumpComparison, popularComparisons, reviewStats } from "@/lib/community";
 import type { ReviewAggregate } from "@/lib/community";
 
 export const dynamic = "force-dynamic";
 
-/** Side-by-side comparison row (F-08). */
+/**
+ * Side-by-side comparison row (F-08). No vote winner — quality signals are
+ * the review aggregates (null until ≥3 published reviews) plus discussion;
+ * the client renders the verdict.
+ */
 export type CompareRow = {
   slug: string;
   name: string;
@@ -25,17 +23,14 @@ export type CompareRow = {
   category: { slug: string; name: string; emoji: string };
   tags: string[];
   links: { github: string | null; docs: string | null; twitter: string | null };
-  votes: number;
   rating: ReviewAggregate | null;
   reviewCount: number;
   comments: number;
-  launchDate: string | null;
   verified: boolean;
   claimed: boolean;
   hasApi: boolean;
   track: "editor_seed" | "community";
   maker: string;
-  relaunchCount: number;
 };
 
 type CompareTool = {
@@ -59,18 +54,35 @@ type CompareTool = {
   verifiedAt: Date | null;
   track: string;
   makerHandle: string;
-  launch: {
-    id: string;
-    baseUpvotes: number;
-    launchDate: Date;
-    scheduled: boolean;
-    _count: { votes: number };
-  } | null;
   category: { slug: string; name: string; emoji: string };
 };
 
-const compareInclude = {
-  launch: { include: { _count: { select: { votes: true } } } },
+/**
+ * Explicit select — full-row Tool reads break on a stale pre-v6 cached
+ * PrismaClient (it still SELECTs the dropped relaunch columns). Selecting
+ * named columns makes the query version-agnostic (see worklog Task 27).
+ */
+const compareSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  tagline: true,
+  description: true,
+  websiteUrl: true,
+  logoEmoji: true,
+  logoGradient: true,
+  pricingModel: true,
+  startingPrice: true,
+  pricingNote: true,
+  hasApi: true,
+  githubUrl: true,
+  docsUrl: true,
+  twitterUrl: true,
+  tags: true,
+  claimed: true,
+  verifiedAt: true,
+  track: true,
+  makerHandle: true,
   category: { select: { slug: true, name: true, emoji: true } },
 } as const;
 
@@ -103,8 +115,8 @@ export async function GET(req: Request) {
   }
 
   const [toolA, toolB] = await Promise.all([
-    db.tool.findUnique({ where: { slug: a }, include: compareInclude }),
-    db.tool.findUnique({ where: { slug: b }, include: compareInclude }),
+    db.tool.findUnique({ where: { slug: a }, select: compareSelect }),
+    db.tool.findUnique({ where: { slug: b }, select: compareSelect }),
   ]);
   if (!toolA || !toolB) {
     return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
@@ -114,12 +126,9 @@ export async function GET(req: Request) {
   const [left, right] = toolA.slug <= toolB.slug ? [toolA, toolB] : [toolB, toolA];
   await bumpComparison(left.slug, right.slug);
 
-  // relaunchCount is a post-boot column — fetched raw (stale-client note).
-  const fieldsBySlug = await toolCommunityFieldsBySlugs([toolA.slug, toolB.slug]);
-
   const [rowA, rowB] = await Promise.all([
-    buildCompareRow(toolA, fieldsBySlug.get(toolA.slug)?.relaunchCount ?? 0),
-    buildCompareRow(toolB, fieldsBySlug.get(toolB.slug)?.relaunchCount ?? 0),
+    buildCompareRow(toolA),
+    buildCompareRow(toolB),
   ]);
 
   return NextResponse.json(
@@ -128,13 +137,11 @@ export async function GET(req: Request) {
   );
 }
 
-async function buildCompareRow(t: CompareTool, relaunchCount: number): Promise<CompareRow> {
-  const [stats, commentCounts, voteCounts] = await Promise.all([
+async function buildCompareRow(t: CompareTool): Promise<CompareRow> {
+  const [stats, commentCounts] = await Promise.all([
     reviewStats(t.id),
     commentCountsByTool([t.id]),
-    t.launch ? anonVotesByLaunch([t.launch.id]) : Promise.resolve(new Map<string, number>()),
   ]);
-  const scheduled = t.launch?.scheduled ?? false;
 
   return {
     slug: t.slug,
@@ -148,16 +155,13 @@ async function buildCompareRow(t: CompareTool, relaunchCount: number): Promise<C
     category: t.category,
     tags: t.tags.split("|").filter(Boolean),
     links: { github: t.githubUrl, docs: t.docsUrl, twitter: t.twitterUrl },
-    votes: (t.launch?.baseUpvotes ?? 0) + (t.launch ? voteCounts.get(t.launch.id) ?? 0 : 0),
     rating: stats.aggregate,
     reviewCount: stats.count,
     comments: commentCounts.get(t.id) ?? 0,
-    launchDate: t.launch?.launchDate.toISOString() ?? null,
-    verified: t.verifiedAt != null && !scheduled,
+    verified: t.verifiedAt != null,
     claimed: t.claimed,
     hasApi: t.hasApi,
     track: t.track === "community" ? "community" : "editor_seed",
     maker: t.makerHandle,
-    relaunchCount,
   };
 }

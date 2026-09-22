@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * Ad serving (Task 23; Task 27 adds serving-config gating).
- *  GET /api/ads/serve?placement=feed_row&category=<slug>
+ *  GET /api/ads/serve?placement=directory_banner&category=<slug>
+ *  (placement defaults to directory_banner; invalid values fall back to it)
  *
  * Waterfall per the Task 26 plan:
  *  - serving disabled (ads.master / ads.placement.<key> = "0")
@@ -19,10 +20,11 @@ export const dynamic = "force-dynamic";
  *    is real.
  */
 export async function GET(req: NextRequest) {
-  const placementParam = req.nextUrl.searchParams.get("placement") ?? "feed_row";
+  const placementParam =
+    req.nextUrl.searchParams.get("placement") ?? "directory_banner";
   const placement = AD_PLACEMENTS.includes(placementParam as AdPlacement)
     ? (placementParam as AdPlacement)
-    : "feed_row";
+    : "directory_banner";
   const category = req.nextUrl.searchParams.get("category");
 
   const noStore = { headers: { "Cache-Control": "no-store" } };

@@ -479,7 +479,7 @@ export function CollectionsMineFullPage() {
               <p className="text-sm text-white/70">You&apos;re not following anything yet.</p>
               <p className="max-w-sm text-xs leading-relaxed text-white/40">
                 Follow tools, categories, and makers from their pages — new
-                launches and updates land here.
+                listings land here.
               </p>
             </div>
           ) : (

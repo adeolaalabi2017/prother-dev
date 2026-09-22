@@ -2,16 +2,16 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Compass, Search, SearchX, Triangle, X } from "lucide-react";
+import { ArrowUpRight, Compass, Search, SearchX, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
 import type { DirectoryRow } from "@/app/api/tools/route";
 
 /**
- * /tools — the open discovery directory. Search + category chips + sort,
+ * /tools — the discovery directory. Search + category chips + sort,
  * all client-side against GET /api/tools. Cards are real links to the
  * server-rendered /tools/[slug] pages (Task 25) — the overlay stays a
- * homepage-feed-only enhancement.
+ * homepage-explorer-only enhancement.
  *
  * The page can bootstrap this component with the first page of live tools
  * (`initialRows`/`initialTotal`, rendered by /tools) so the HTML carries real
@@ -20,7 +20,7 @@ import type { DirectoryRow } from "@/app/api/tools/route";
  * toolbar mirrors the searched query.
  */
 
-type Sort = "top" | "new";
+type Sort = "featured" | "top-rated" | "newest" | "trending";
 
 const PAGE_LIMIT = 60;
 
@@ -53,13 +53,19 @@ function pricingLabel(row: DirectoryRow): string {
   }
 }
 
-function launchLabel(row: DirectoryRow): string {
-  if (!row.launchDate) return "Listed";
-  return new Date(row.launchDate).toLocaleDateString("en-US", {
+/** ISO listing date → "Mar 2026" (UTC, deterministic). */
+function listedLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
-    day: "numeric",
+    year: "numeric",
     timeZone: "UTC",
   });
+}
+
+/** True when the listing went live within the last 14 days. */
+function isNewListing(iso: string): boolean {
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && Date.now() - t < 14 * 86_400_000;
 }
 
 export function ToolsDirectory({
@@ -82,7 +88,7 @@ export function ToolsDirectory({
             .slice(0, 64))
   );
   const [category, setCategory] = useState<string>("all");
-  const [sort, setSort] = useState<Sort>("top");
+  const [sort, setSort] = useState<Sort>("featured");
   const [rows, setRows] = useState<DirectoryRow[] | null>(initialRows ?? null);
   const [total, setTotal] = useState(initialTotal ?? 0);
   const [failed, setFailed] = useState(false);
@@ -104,7 +110,7 @@ export function ToolsDirectory({
         "",
         q ? `/tools?q=${encodeURIComponent(q)}` : "/tools"
       );
-      const sp = new URLSearchParams({ sort, limit: String(PAGE_LIMIT) });
+      const sp = new URLSearchParams({ sort, pageSize: String(PAGE_LIMIT) });
       if (q) sp.set("q", q);
       if (category !== "all") sp.set("category", category);
       fetch(`/api/tools?${sp.toString()}`, { signal: ctrl.signal })
@@ -166,8 +172,8 @@ export function ToolsDirectory({
             One shelf.
           </h1>
           <p className="mt-4 max-w-xl text-lg text-white/60">
-            Search the full archive of launches — ranked by community votes or
-            newest first. Free, open, no account needed.
+            Search the full directory — {total} tools, honestly listed. Filter by
+            category, pricing, and tags. Free, open, no account needed.
           </p>
         </div>
       )}
@@ -219,8 +225,10 @@ export function ToolsDirectory({
             >
               {(
                 [
-                  { key: "top", label: "Top voted" },
-                  { key: "new", label: "Newest" },
+                  { key: "featured", label: "Featured" },
+                  { key: "top-rated", label: "Top rated" },
+                  { key: "newest", label: "Newest" },
+                  { key: "trending", label: "Trending" },
                 ] as const
               ).map((s) => (
                 <button
@@ -361,10 +369,12 @@ export function ToolsDirectory({
                     >
                       {row.emoji}
                     </div>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
-                      <Triangle className="size-2.5 fill-current" aria-hidden />
-                      {row.votes}
-                    </span>
+                    {row.editorsPick && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                        <Star className="size-2.5 fill-current" aria-hidden />
+                        Editor&apos;s Pick
+                      </span>
+                    )}
                   </div>
 
                   <h2 className="mt-4 text-lg leading-snug font-bold text-white transition-colors group-hover:text-ember">
@@ -381,8 +391,19 @@ export function ToolsDirectory({
                     <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
                       {pricingLabel(row)}
                     </span>
+                    {row.reviews.count > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                        <Star className="size-2.5 fill-current" aria-hidden />
+                        {row.reviews.count}
+                      </span>
+                    )}
+                    {isNewListing(row.listedAt) && (
+                      <span className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-mint uppercase">
+                        New
+                      </span>
+                    )}
                     <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-white/35 uppercase">
-                      {launchLabel(row)}
+                      Listed {listedLabel(row.listedAt)}
                       <ArrowUpRight
                         className="size-3.5 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
                         aria-hidden

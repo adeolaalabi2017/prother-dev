@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/og            → branded site card (1200×630)
- * GET /api/og?tool=slug  → per-tool launch card for share unfurls
+ * GET /api/og?tool=slug  → per-tool directory card for share unfurls
  *
  * Rendered with next/og (satori) using the Prother design tokens:
  * ink black, ember orange, mono labels. Referenced from layout metadata
@@ -26,8 +26,14 @@ const SANS =
 async function getToolData(slug: string) {
   const tool = await db.tool.findUnique({
     where: { slug },
-    include: {
-      launch: { include: { _count: { select: { votes: true } } } },
+    // Explicit select — full-row Tool reads break on a stale pre-v6 cached
+    // PrismaClient (it still SELECTs the dropped relaunch columns).
+    select: {
+      name: true,
+      tagline: true,
+      logoEmoji: true,
+      logoGradient: true,
+      editorsPick: true,
       category: { select: { slug: true, name: true, emoji: true } },
     },
   });
@@ -38,9 +44,7 @@ async function getToolData(slug: string) {
     emoji: tool.logoEmoji,
     gradient: GRADIENT_HEX[tool.logoGradient] ?? OG_FALLBACK_GRADIENT,
     category: tool.category,
-    scheduled: tool.launch?.scheduled ?? false,
-    launchDate: tool.launch?.launchDate ?? null,
-    votes: (tool.launch?.baseUpvotes ?? 0) + (tool.launch?._count.votes ?? 0),
+    editorsPick: tool.editorsPick,
   };
 }
 
@@ -143,7 +147,7 @@ export async function GET(req: Request) {
           marginLeft: "auto",
         }}
       >
-        DAILY AI LAUNCH FEED · 00:00 UTC
+        AI TOOL DIRECTORY
       </div>
     </div>
   );
@@ -187,7 +191,7 @@ export async function GET(req: Request) {
           flexShrink: 0,
         }}
       >
-        VOTE · LAUNCH · REPEAT
+        SEARCH · COMPARE · CHOOSE
       </div>
     </div>
   );
@@ -229,7 +233,7 @@ export async function GET(req: Request) {
               marginBottom: 14,
             }}
           >
-            {tool.scheduled ? "GOES LIVE ON PROTHER" : "LIVE ON PROTHER"}
+            LISTED ON PROTHER
           </div>
           <div
             style={{
@@ -262,9 +266,11 @@ export async function GET(req: Request) {
         <Chip borderColor={C.white18} color={C.white70}>
           {tool.category.emoji} {tool.category.name.toUpperCase()}
         </Chip>
-        <Chip borderColor="rgba(255,106,0,0.45)" color={C.ember}>
-          {tool.votes} VOTES
-        </Chip>
+        {tool.editorsPick ? (
+          <Chip borderColor="rgba(255,106,0,0.45)" color={C.ember}>
+            EDITOR&apos;S PICK
+          </Chip>
+        ) : null}
       </div>
       {bottomBar}
     </div>
@@ -339,7 +345,7 @@ export async function GET(req: Request) {
           {post.readingMinutes} MIN READ
         </Chip>
         <Chip borderColor="rgba(255,106,0,0.45)" color={C.ember}>
-          NOTES FROM THE LAUNCH LAYER
+          NOTES FROM THE DIRECTORY
         </Chip>
       </div>
       {bottomBar}
@@ -358,7 +364,7 @@ export async function GET(req: Request) {
             marginBottom: 20,
           }}
         >
-          THE FRONT PAGE OF AI LAUNCHES
+          PROTHER — FIND THE RIGHT AI TOOL
         </div>
         <div
           style={{
@@ -372,9 +378,9 @@ export async function GET(req: Request) {
             fontFamily: SANS,
           }}
         >
-          <span>Where AI products get</span>
+          <span>Prother — Find the</span>
           <span>
-            discovered.
+            right AI tool.
             <span style={{ color: C.ember }}>_</span>
           </span>
         </div>
@@ -387,8 +393,8 @@ export async function GET(req: Request) {
             fontFamily: SANS,
           }}
         >
-          What launched, what&apos;s climbing, and what&apos;s actually worth your
-          time.
+          Search, compare, and choose from the best AI tools — rated by
+          reviews.
         </div>
       </div>
       {bottomBar}

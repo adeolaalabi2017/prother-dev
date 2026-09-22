@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   BadgeCheck,
   BarChart3,
-  CalendarClock,
-  CalendarDays,
   CheckCircle2,
   ChevronDown,
   Database,
@@ -32,7 +30,6 @@ import {
   Tags,
   Trash2,
   Users,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -115,7 +112,7 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
           Enter the backstage
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-white/50">
-          Listings, launch calendar, journal, taxonomy and site copy — one key,
+          Listings, journal, taxonomy and site copy — one key,
           no deploys. Demo key:{" "}
           <button
             type="button"
@@ -160,22 +157,19 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
 type Overview = {
   kpis: {
     toolsLive: number;
-    toolsDraft: number;
-    toolsRemoved: number;
-    launchesToday: number;
-    launchesTomorrow: number;
     pendingSubs: number;
-    votes: number;
-    votesToday: number;
-    votesYesterday: number;
-    comments: number;
     postsPublished: number;
-    postsDrafts: number;
-    postViews: number;
+    comments: number;
+    reviewsPublished: number;
+    reportsOpen: number;
+    adsActive: number;
+    adImpressions: number;
+    adClicks: number;
+    pageviewsToday: number;
     categories: number;
   };
-  launchesByDay: number[];
-  votesByDay: number[];
+  listingsByDay: number[];
+  reviewsByDay: number[];
   categoryMix: { name: string; count: number }[];
   pricingMix: { model: string; count: number }[];
   queueAgeH: number;
@@ -216,9 +210,8 @@ type AdminTool = {
   makerHandle: string;
   verifiedAt: string | null;
   category: { id: string; name: string; emoji: string; slug: string };
-  votes: number;
-  launchDate: string | null;
-  scheduled: boolean;
+  comments: number;
+  reviews: number;
   createdAt: string;
 };
 
@@ -240,46 +233,6 @@ type AdminPost = {
   keywords: string | null;
   publishedAt: string | null;
   updatedAt: string;
-};
-
-type DaySlot = {
-  date: string;
-  weekday: string;
-  locked: boolean;
-  count: number;
-  teaserCount: number;
-  tools: {
-    launchId: string;
-    id: string;
-    slug: string;
-    name: string;
-    logoEmoji: string;
-    logoGradient: string;
-    track: string;
-    status: string;
-    editorsPick: boolean;
-    pinned: number;
-    category: string;
-    votes: number;
-    scheduled: boolean;
-  }[];
-};
-
-type ScheduleData = {
-  floor: number;
-  cap: number;
-  days: DaySlot[];
-  pool: {
-    id: string;
-    slug: string;
-    name: string;
-    logoEmoji: string;
-    logoGradient: string;
-    track: string;
-    status: string;
-    waitingDays: number;
-    category: { name: string; emoji: string };
-  }[];
 };
 
 // ── Section: Submissions (moderation queue) ──────────────────────────────
@@ -329,10 +282,10 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
           return;
         }
         toast({
-          title: decision === "approve" ? "Approved & scheduled" : "Rejected",
+          title: decision === "approve" ? "Listing approved" : "Rejected",
           description:
             decision === "approve"
-              ? "Launches tomorrow at 00:00 UTC."
+              ? "Now live in the directory."
               : "Maker email names the failed standards.",
         });
         setRejecting(null);
@@ -439,9 +392,9 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
                 {busy === s.id ? (
                   <Loader2 className="size-3.5 animate-spin" aria-hidden />
                 ) : (
-                  <CalendarClock className="size-3.5" aria-hidden />
+                  <CheckCircle2 className="size-3.5" aria-hidden />
                 )}
-                Approve → tomorrow
+                Approve &amp; publish
               </Button>
               <Button
                 size="sm"
@@ -461,162 +414,6 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
           )}
         </div>
       ))}
-    </div>
-  );
-}
-
-// ── Section: Schedule (launch calendar) ──────────────────────────────────
-
-function CalendarTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
-  const { toast } = useToast();
-  const [data, setData] = useState<ScheduleData | null>(null);
-  const [dates, setDates] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    adminFetch(apiKey, "/api/admin/schedule")
-      .then((r) => r.json())
-      .then((d: ScheduleData) => setData(d))
-      .catch(() => toast({ title: "Calendar unavailable", variant: "destructive" }));
-  }, [apiKey, toast]);
-
-  useEffect(load, [load]);
-
-  const schedule = useCallback(
-    async (toolId: string, date: string | null, name: string) => {
-      setBusy(toolId);
-      try {
-        const res = await adminFetch(apiKey, "/api/admin/schedule", {
-          method: "POST",
-          body: JSON.stringify({ toolId, date }),
-        });
-        const d = (await res.json()) as { ok?: boolean; error?: string };
-        if (!res.ok || !d.ok) {
-          toast({ title: d.error ?? "Scheduling failed", variant: "destructive" });
-          return;
-        }
-        toast({ title: date ? `${name} → ${date}` : `${name} unscheduled` });
-        load();
-        onChanged();
-      } catch {
-        toast({ title: "Network error", variant: "destructive" });
-      } finally {
-        setBusy(null);
-      }
-    },
-    [apiKey, load, onChanged, toast]
-  );
-
-  if (!data) return <Spinner />;
-
-  const chip = (n: number) => {
-    if (n < data.floor) return { emoji: "🔴", label: "below floor" };
-    if (n >= 11) return { emoji: "🟡", label: "11–15" };
-    return { emoji: "🟢", label: `${data.floor}–10` };
-  };
-
-  return (
-    <div className="space-y-5">
-      <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
-        Floor ≥{data.floor} · Cap ≤{data.cap} · today locked (live ranking)
-      </p>
-
-      {/* 14-day grid */}
-      <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
-        {data.days.map((d) => {
-          const c = chip(d.count);
-          return (
-            <div
-              key={d.date}
-              className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="w-20 shrink-0 font-mono text-[11px] text-white/70">
-                  {d.weekday} {d.date.slice(5)}
-                </span>
-                <span
-                  title={c.label}
-                  className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60"
-                >
-                  {d.locked ? "🔒" : c.emoji} {d.count}
-                </span>
-                <div className="flex min-w-0 flex-1 flex-wrap gap-1">
-                  {d.tools.map((t) => (
-                    <span
-                      key={t.id}
-                      className={cn(
-                        "group inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]",
-                        t.scheduled
-                          ? "border-ember/40 bg-ember/10 text-ember"
-                          : "border-white/15 bg-white/5 text-white/70"
-                      )}
-                    >
-                      <span aria-hidden>{t.logoEmoji}</span>
-                      {t.name}
-                      {t.editorsPick && <Star className="size-3 text-ember" aria-label="Editor's Pick" />}
-                      {!d.locked && (
-                        <button
-                          type="button"
-                          onClick={() => void schedule(t.id, null, t.name)}
-                          aria-label={`Unschedule ${t.name}`}
-                          className="ml-0.5 text-white/30 transition-colors hover:text-red-400"
-                        >
-                          <X className="size-3" aria-hidden />
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                  {d.tools.length === 0 && (
-                    <span className="font-mono text-[10px] text-white/25">empty</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* unscheduled pool */}
-      <div>
-        <p className={labelCx}>Unscheduled pool ({data.pool.length})</p>
-        <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto pr-1">
-          {data.pool.length === 0 && (
-            <p className="py-6 text-center text-sm text-white/30">
-              Pool empty — every listing is on the calendar.
-            </p>
-          )}
-          {data.pool.map((t) => (
-            <div
-              key={t.id}
-              className="flex flex-wrap items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
-            >
-              <span aria-hidden className="text-base">{t.logoEmoji}</span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-white">{t.name}</p>
-                <p className="truncate font-mono text-[10px] text-white/40">
-                  {t.category.emoji} {t.category.name} · {t.track === "editor_seed" ? "seed" : "sub"} · waiting {t.waitingDays}d
-                </p>
-              </div>
-              <Input
-                type="date"
-                value={dates[t.id] ?? ""}
-                onChange={(e) => setDates((p) => ({ ...p, [t.id]: e.target.value }))}
-                aria-label={`Launch date for ${t.name}`}
-                className="h-8 w-36 border-white/10 bg-white/5 px-2 font-mono text-[11px] text-white"
-              />
-              <Button
-                size="sm"
-                disabled={!dates[t.id] || busy === t.id}
-                onClick={() => void schedule(t.id, dates[t.id], t.name)}
-                className="h-8 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-30 dark:text-black"
-              >
-                <CalendarClock className="size-3.5" aria-hidden />
-                Schedule
-              </Button>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -837,7 +634,7 @@ function ListingEditor({
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Pin rank (0 = none, leads feed)">
+        <Field label="Pin rank (0 = none — tops the directory)">
           <Input
             type="number"
             min={0}
@@ -963,18 +760,32 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
                   {t.name}
                   {t.pinned > 0 && <Pin className="size-3 text-ember" aria-hidden />}
                   {t.editorsPick && <Star className="size-3 shrink-0 text-ember" aria-label="Editor's Pick" />}
-                  {t.status !== "live" && (
-                    <span className="rounded bg-white/10 px-1.5 py-px font-mono text-[9px] text-white/60">
-                      {t.status}
-                    </span>
-                  )}
+                  <span
+                    className={cn(
+                      "shrink-0 rounded px-1.5 py-px font-mono text-[9px] tracking-wider uppercase",
+                      t.status === "live"
+                        ? "bg-emerald-400/10 text-emerald-400/80"
+                        : "bg-white/10 text-white/60"
+                    )}
+                  >
+                    {t.status.replace("_", " ")}
+                  </span>
                 </p>
                 <p className="truncate text-xs text-white/50">{t.tagline}</p>
               </div>
               <span className="hidden shrink-0 font-mono text-[10px] text-white/40 md:block">
                 {t.category.emoji} {t.category.name}
               </span>
-              <span className="shrink-0 font-mono text-[11px] text-ember">▲{t.votes}</span>
+              <span className="hidden shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60 sm:inline">
+                {t.pricingModel.replace("_", " ")}
+                {t.startingPrice ? ` · ${t.startingPrice}` : ""}
+              </span>
+              <span
+                className="hidden shrink-0 font-mono text-[10px] tabular-nums text-white/50 lg:block"
+                title={`${t.reviews} published reviews · ${t.comments} comments`}
+              >
+                {t.reviews} rev · {t.comments} cmt
+              </span>
               <ChevronDown
                 className={cn("size-4 shrink-0 text-white/40 transition-transform", expanded === t.id && "rotate-180")}
                 aria-hidden
@@ -1110,10 +921,10 @@ function PostEditor({
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Title (≤120)">
-          <Input value={f.title} maxLength={120} onChange={(e) => setF({ ...f, title: e.target.value })} className={inputCx} placeholder="How to launch an AI tool…" />
+          <Input value={f.title} maxLength={120} onChange={(e) => setF({ ...f, title: e.target.value })} className={inputCx} placeholder="How to evaluate an AI tool in 15 minutes" />
         </Field>
         <Field label="Slug (auto from title if blank)">
-          <Input value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value })} className={cn(inputCx, "font-mono")} placeholder="how-to-launch-an-ai-tool" />
+          <Input value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value })} className={cn(inputCx, "font-mono")} placeholder="how-to-evaluate-an-ai-tool" />
         </Field>
       </div>
 
@@ -1186,7 +997,7 @@ function PostEditor({
             </p>
           </Field>
           <Field label="Keywords (comma-separated)">
-            <Input value={f.keywords} onChange={(e) => setF({ ...f, keywords: e.target.value })} className={inputCx} placeholder="launch an ai tool, ai launch checklist" />
+            <Input value={f.keywords} onChange={(e) => setF({ ...f, keywords: e.target.value })} className={inputCx} placeholder="evaluate ai tools, ai tool directory" />
           </Field>
           <div className="sm:col-span-2">
             <Field label="SEO description (≤160 — falls back to excerpt)">
@@ -1666,13 +1477,13 @@ function computeDelta(cur: number, prev: number): Delta {
   if (prev === 0 && cur === 0)
     return { text: "±0", dir: "flat", title: "No change vs yesterday" };
   if (prev === 0)
-    return { text: "▲ new", dir: "up", title: `${cur} today · none yesterday` };
+    return { text: "↑ new", dir: "up", title: `${cur} today · none yesterday` };
   const pct = Math.round(((cur - prev) / prev) * 100);
   if (pct === 0)
     return { text: "±0%", dir: "flat", title: `${cur} today vs ${prev} yesterday` };
   return pct > 0
-    ? { text: `▲ ${pct}%`, dir: "up", title: `${cur} today vs ${prev} yesterday` }
-    : { text: `▼ ${Math.abs(pct)}%`, dir: "down", title: `${cur} today vs ${prev} yesterday` };
+    ? { text: `↑ ${pct}%`, dir: "up", title: `${cur} today vs ${prev} yesterday` }
+    : { text: `↓ ${Math.abs(pct)}%`, dir: "down", title: `${cur} today vs ${prev} yesterday` };
 }
 
 const DELTA_CX: Record<Delta["dir"], string> = {
@@ -1764,26 +1575,34 @@ function dayLabel(utcDayIndex: number): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-function LaunchesChartCard({ byDay }: { byDay: number[] }) {
+function TrendChartCard({
+  label,
+  noun,
+  byDay,
+}: {
+  label: string;
+  noun: string;
+  byDay: number[];
+}) {
   const max = Math.max(...byDay, 1);
   const total = byDay.reduce((a, b) => a + b, 0);
   return (
     <Panel>
       <div className="flex items-center justify-between gap-2">
-        <p className={labelCx}>Launches — last 14 days</p>
+        <p className={labelCx}>{label} — last 14 days</p>
         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
           {total} total
         </span>
       </div>
       <div
         role="img"
-        aria-label={`Launches per day over the last 14 days, ${total} total`}
+        aria-label={`${noun}s per day over the last 14 days, ${total} total`}
         className="mt-5 flex h-40 items-end gap-1.5 border-b border-white/10 pb-px"
       >
         {byDay.map((v, i) => (
           <div
             key={i}
-            title={`${dayLabel(i)} · ${v} launch${v === 1 ? "" : "es"}`}
+            title={`${dayLabel(i)} · ${v} ${noun}${v === 1 ? "" : "s"}`}
             className="group flex h-full flex-1 items-end"
           >
             <span
@@ -2061,12 +1880,12 @@ function OverviewSkeleton() {
   return (
     <div className="space-y-4 sm:space-y-5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+        {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="h-[118px] rounded-2xl bg-white/[0.04]" />
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-64 rounded-2xl bg-white/[0.04]" />
         ))}
       </div>
@@ -2082,18 +1901,14 @@ function OverviewView({ data, apiKey }: { data: Overview; apiKey: string }) {
   const k = data.kpis;
   return (
     <div className="space-y-4 sm:space-y-5">
-      {/* KPI row — reference layout: 4 stat cards with delta pills */}
+      {/* KPI row — reference layout: stat cards with delta pills (2 rows of 4) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Live tools"
+          label="Listings live"
           value={k.toolsLive}
+          delta={computeDelta(data.listingsByDay[13] ?? 0, data.listingsByDay[12] ?? 0)}
+          spark={data.listingsByDay}
           caption={`across ${k.categories} categories`}
-        />
-        <StatCard
-          label="Launches today"
-          value={k.launchesToday}
-          delta={computeDelta(data.launchesByDay[13] ?? 0, data.launchesByDay[12] ?? 0)}
-          spark={data.launchesByDay}
         />
         <StatCard
           label="Pending submissions"
@@ -2106,16 +1921,31 @@ function OverviewView({ data, apiKey }: { data: Overview; apiKey: string }) {
           }
         />
         <StatCard
-          label="Total votes"
-          value={k.votes}
-          delta={computeDelta(k.votesToday, k.votesYesterday)}
-          caption={`${k.votesToday} cast today`}
+          label="Reviews published"
+          value={k.reviewsPublished}
+          delta={computeDelta(data.reviewsByDay[13] ?? 0, data.reviewsByDay[12] ?? 0)}
+          spark={data.reviewsByDay}
+        />
+        <StatCard label="Comments" value={k.comments} />
+        <StatCard label="Pageviews today" value={k.pageviewsToday} />
+        <StatCard
+          label="Ad impressions"
+          value={k.adImpressions}
+          caption={`${k.adClicks} clicks · ${k.adsActive} campaigns active`}
+        />
+        <StatCard label="Journal posts" value={k.postsPublished} caption="published" />
+        <StatCard
+          label="Open reports"
+          value={k.reportsOpen}
+          accent={k.reportsOpen > 0}
+          caption={k.reportsOpen > 0 ? "needs moderation" : "all clear"}
         />
       </div>
 
-      {/* Charts row — 3 cards like the reference */}
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
-        <LaunchesChartCard byDay={data.launchesByDay} />
+      {/* Charts row — listings & reviews trends + mix breakdowns */}
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+        <TrendChartCard label="Listings" noun="listing" byDay={data.listingsByDay} />
+        <TrendChartCard label="Reviews" noun="review" byDay={data.reviewsByDay} />
         <CategoryMixCard mix={data.categoryMix} />
         <PricingDonutCard mix={data.pricingMix} />
       </div>
@@ -2187,7 +2017,7 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
             )}
             title="Today vs yesterday (UTC)"
           >
-            {today >= yesterday ? "▲" : "▼"} {today} today
+            {today >= yesterday ? "↑" : "↓"} {today} today
           </span>
         </div>
       </div>
@@ -2288,7 +2118,6 @@ type SectionId =
   | "overview"
   | "submissions"
   | "tools"
-  | "schedule"
   | "categories"
   | "users"
   | "reports"
@@ -2305,8 +2134,7 @@ const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: 
     label: "Manage",
     items: [
       { id: "submissions", label: "Submissions", icon: ListChecks },
-      { id: "tools", label: "Tools", icon: Database },
-      { id: "schedule", label: "Schedule", icon: CalendarDays },
+      { id: "tools", label: "Listings", icon: Database },
       { id: "categories", label: "Categories", icon: Tags },
       { id: "users", label: "Users", icon: Users },
       { id: "reports", label: "Reports", icon: Flag },
@@ -2329,8 +2157,7 @@ const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: 
 const SECTION_TITLES: Record<SectionId, string> = {
   overview: "Overview",
   submissions: "Submissions",
-  tools: "Tools",
-  schedule: "Launch schedule",
+  tools: "Listings",
   categories: "Categories",
   users: "Users",
   reports: "Reports",
@@ -2340,10 +2167,9 @@ const SECTION_TITLES: Record<SectionId, string> = {
 };
 
 const SECTION_NOTES: Record<SectionId, string> = {
-  overview: "Launch velocity, moderation load, first-party traffic and the live audit trail.",
-  submissions: "Community queue — approve schedules tomorrow, rejections cite standards.",
+  overview: "Directory growth, moderation load, first-party traffic and the live audit trail.",
+  submissions: "Community queue — approval publishes the listing, rejections cite standards.",
   tools: "Every listing: edit copy, pricing, status, pins and verification.",
-  schedule: "14-day launch calendar, floor/cap guardrails, unscheduled pool.",
   categories: "Primary taxonomy — names, emoji, slugs, tool counts.",
   users: "Community roster — roles, bans and activity, sessions revoke on ban.",
   reports: "Community moderation queue — hide content, resolve or dismiss with a note.",
@@ -2471,7 +2297,7 @@ function SidebarContent({
           page review desk.
         </p>
         <a
-          href="/#feed"
+          href="/"
           className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-2.5 py-1.5 font-mono text-[10px] tracking-[0.15em] text-ember uppercase transition-colors hover:bg-ember/20"
         >
           Open on home
@@ -2667,9 +2493,6 @@ export function AdminDashboard() {
                   )}
                   {section === "tools" && (
                     <ListingsTab apiKey={key} onChanged={bumpOverview} />
-                  )}
-                  {section === "schedule" && (
-                    <CalendarTab apiKey={key} onChanged={bumpOverview} />
                   )}
                   {section === "categories" && (
                     <TaxonomyTab apiKey={key} onChanged={bumpOverview} />

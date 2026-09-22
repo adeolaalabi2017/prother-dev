@@ -11,12 +11,12 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/editor/decision — PRD §12: approve (schedule for tomorrow) or
- * reject (must cite failed standard(s), PRD §7).
+ * POST /api/editor/decision — PRD §12: approve (listing goes live
+ * immediately) or reject (must cite failed standard(s), PRD §7).
  *
- * Approve closes the Track-B loop: Submission → Tool (community, claimed) +
- * Launch (scheduled=true, tomorrow UTC midnight) → shows up in the feed's
- * Tomorrow tab and launches at 00:00 UTC.
+ * Approve closes the Track-B loop: Submission → Tool (community track,
+ * verified, live at once — no scheduled state) + the exact submissionId FK
+ * so the maker tracker links back to the listing.
  */
 const bodySchema = z.discriminatedUnion("decision", [
   z.object({
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, decision: "rejected", reviewNote: note });
   }
 
-  // ── Approve: Submission → Tool + tomorrow's Launch ────────────────────
+  // ── Approve: Submission → Tool, live immediately ─────────────────────
   const cat = await db.category.findUnique({ where: { slug: sub.categorySlug } });
   if (!cat) {
     return NextResponse.json(
@@ -100,10 +100,6 @@ export async function POST(req: NextRequest) {
   const slug = await uniqueToolSlug(baseSlug);
 
   const now = new Date();
-  const todayStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  );
-  const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
 
   const tool = await db.tool.create({
     data: {
@@ -123,19 +119,13 @@ export async function POST(req: NextRequest) {
       twitterUrl: sub.twitterUrl,
       tags: sub.tags,
       track: "community",
-      claimed: Boolean(sub.isOwner),
+      claimed: false, // ownership goes through the claim flow (F-30)
       makerHandle: `@${sub.email.split("@")[0]?.replace(/[^a-z0-9_-]/gi, "") || "maker"}`,
       verifiedAt: now,
       categoryId: cat.id,
-      launch: {
-        create: {
-          launchDate: tomorrowStart, // teasers now → goes live at the 00:00 UTC rollover
-          scheduled: true,
-          baseUpvotes: 0,
-          createdAt: now,
-        },
-      },
     },
+    // Narrow return — stale cached clients SELECT dropped columns on full-row returns.
+    select: { id: true, slug: true },
   });
 
   await setSubmissionStatus(sub.id, "approved", null);
@@ -149,6 +139,5 @@ export async function POST(req: NextRequest) {
     ok: true,
     decision: "approved",
     slug: tool.slug,
-    launchDate: tomorrowStart.toISOString().slice(0, 10),
   });
 }

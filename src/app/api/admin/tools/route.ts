@@ -64,13 +64,61 @@ export async function GET(req: NextRequest) {
 
   const tools = await db.tool.findMany({
     where,
-    include: {
+    // Explicit select — full-row Tool reads break on a stale pre-v6 cached
+    // PrismaClient (it still SELECTs the dropped relaunch columns).
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      tagline: true,
+      description: true,
+      websiteUrl: true,
+      logoEmoji: true,
+      logoGradient: true,
+      pricingModel: true,
+      startingPrice: true,
+      pricingNote: true,
+      hasApi: true,
+      githubUrl: true,
+      docsUrl: true,
+      twitterUrl: true,
+      tags: true,
+      track: true,
+      status: true,
+      pinned: true,
+      editorsPick: true,
+      curated: true,
+      claimed: true,
+      makerHandle: true,
+      verifiedAt: true,
+      createdAt: true,
       category: { select: { id: true, name: true, emoji: true, slug: true } },
-      launch: { include: { _count: { select: { votes: true } } } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
+
+  // Per-tool discussion/review counts — raw SQL (Comment joins are cheap;
+  // Review is a post-boot model → $queryRaw per the lib/community note).
+  const ids = tools.map((t) => t.id);
+  const [commentRows, reviewRows] = await Promise.all([
+    ids.length
+      ? db.$queryRaw<{ toolId: string; n: number }[]>`
+          SELECT toolId, COUNT(*) as n
+          FROM Comment
+          WHERE toolId IN (${Prisma.join(ids)})
+          GROUP BY toolId`
+      : Promise.resolve([] as { toolId: string; n: number }[]),
+    ids.length
+      ? db.$queryRaw<{ toolId: string; n: number }[]>`
+          SELECT toolId, COUNT(*) as n
+          FROM Review
+          WHERE status = 'published' AND toolId IN (${Prisma.join(ids)})
+          GROUP BY toolId`
+      : Promise.resolve([] as { toolId: string; n: number }[]),
+  ]);
+  const commentCount = new Map(commentRows.map((r) => [r.toolId, Number(r.n)]));
+  const reviewCount = new Map(reviewRows.map((r) => [r.toolId, Number(r.n)]));
 
   return NextResponse.json({
     tools: tools.map((t) => ({
@@ -99,9 +147,8 @@ export async function GET(req: NextRequest) {
       makerHandle: t.makerHandle,
       verifiedAt: t.verifiedAt?.toISOString() ?? null,
       category: t.category,
-      votes: (t.launch?.baseUpvotes ?? 0) + (t.launch?._count.votes ?? 0),
-      launchDate: t.launch?.launchDate.toISOString() ?? null,
-      scheduled: t.launch?.scheduled ?? false,
+      comments: commentCount.get(t.id) ?? 0,
+      reviews: reviewCount.get(t.id) ?? 0,
       createdAt: t.createdAt.toISOString(),
     })),
   });
@@ -127,7 +174,12 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
-    const tool = await db.tool.update({ where: { id }, data });
+    const tool = await db.tool.update({
+      where: { id },
+      data,
+      // Narrow return — stale cached clients SELECT dropped columns on full-row returns.
+      select: { slug: true },
+    });
     logAudit(
       "tool.update",
       "tool",
@@ -151,6 +203,7 @@ export async function DELETE(req: NextRequest) {
   const tool = await db.tool.update({
     where: { id },
     data: { status: "removed" },
+    select: { slug: true },
   }).catch(() => null);
   if (!tool) return NextResponse.json({ error: "Tool not found" }, { status: 404 });
 

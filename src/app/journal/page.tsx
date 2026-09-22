@@ -12,34 +12,33 @@ export const metadata: Metadata = {
   // first (and the canonical with it).
   alternates: {
     canonical: "/journal",
-    // Journal RSS autodiscovery — /api/rss supports ?kind=journal (see
-    // src/app/api/rss/route.ts). The main launches feed is advertised in
-    // layout.tsx metadata.
+    // Journal RSS autodiscovery — /api/rss serves the journal feed for both
+    // /api/rss and /api/rss?kind=journal (see src/app/api/rss/route.ts).
     types: { "application/rss+xml": "/api/rss?kind=journal" },
   },
   title: "The Journal — Prother",
   description:
-    "Launch playbooks, ranking explainers, and weekly ecosystem data from Prother — written by the people who watch every AI launch cross the feed.",
+    "Guides, evaluation playbooks, taxonomy notes, and ecosystem trends from Prother — notes from the directory.",
   keywords: [
-    "AI launch playbook",
-    "AI product launch",
-    "launch journal",
+    "AI tool guides",
+    "AI tool evaluation",
+    "AI tools directory",
     "Prother journal",
-    "how to launch AI tools",
+    "how to evaluate AI tools",
   ],
   openGraph: {
-    title: "The Prother Journal — Notes from the launch layer",
+    title: "The Prother Journal — Notes from the directory",
     description:
-      "Launch playbooks, ranking explainers, and weekly ecosystem data from Prother — written by the people who watch every AI launch cross the feed.",
+      "Guides, evaluation playbooks, taxonomy notes, and ecosystem trends from Prother — notes from the directory.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "The Prother Journal — Notes from the launch layer",
+    title: "The Prother Journal — Notes from the directory",
     description:
-      "Launch playbooks, ranking explainers, and weekly ecosystem data from Prother.",
+      "Guides, evaluation playbooks, taxonomy notes, and ecosystem trends from Prother.",
     images: ["/api/og"],
   },
 };
@@ -76,7 +75,7 @@ export default async function JournalPage() {
     "@type": "Blog",
     name: "Prother Journal",
     description:
-      "Launch playbooks, ranking explainers, and ecosystem data from Prother — where AI products get discovered.",
+      "Guides, evaluation playbooks, and ecosystem trends from Prother — find the right AI tool.",
     blogPost: cards.slice(0, 10).map((p) => ({
       "@type": "BlogPosting",
       headline: p.title,

@@ -7,18 +7,18 @@ export const metadata: Metadata = {
   alternates: { canonical: "/submit" },
   title: "Submit your AI tool — Prother",
   description:
-    "Submitting is free. Every approved product gets a launch day on the Prother homepage feed — reviewed against six published standards, ranked by the community.",
+    "Submitting is free. Every approved product gets a permanent listing in the AI tools directory — reviewed against six published standards, searchable from day one.",
   keywords: [
     "submit AI tool",
-    "launch AI product",
+    "get listed AI tool",
     "AI tool directory submission",
-    "product launch day",
+    "AI tools directory",
     "Prother submission",
   ],
   openGraph: {
     title: "Submit your AI tool — Prother",
     description:
-      "Submitting is free. Every approved product gets a launch day on the Prother homepage feed — reviewed against six published standards, ranked by the community.",
+      "Submitting is free. Every approved product gets a permanent listing in the AI tools directory — reviewed against six published standards.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Submit your AI tool — Prother",
     description:
-      "Submitting is free. Every approved product gets a launch day on the Prother homepage feed.",
+      "Submitting is free. Every approved product gets a permanent listing in the AI tools directory.",
     images: ["/api/og"],
   },
 };
@@ -81,15 +81,15 @@ const TIMELINE = [
   },
   {
     n: "03",
-    title: "Editor check & slot",
-    body: "Once it clears, we confirm the details and you pick a launch date from the open calendar — one curated batch per day, so your launch is never buried.",
-    minutes: "Date of your choice",
+    title: "Editor decision",
+    body: "Review usually takes 1–2 days. Approved listings go live immediately — no calendar, no waiting room.",
+    minutes: "1–2 days",
   },
   {
     n: "04",
-    title: "Launch day",
-    body: "You go live on the homepage feed at 00:00 UTC. The community ranks the batch by votes for 24 hours; yesterday's standings close at midnight.",
-    minutes: "24-hour window",
+    title: "Listed in the directory",
+    body: "Your listing is permanent and free: searchable, filterable, comparable, and open for honest reviews from day one.",
+    minutes: "Forever",
   },
 ];
 
@@ -97,12 +97,12 @@ const REASSURANCE = [
   {
     icon: CheckCircle2,
     q: "Is submitting free?",
-    a: "Yes — submitting and launching are free. No paid placement, no fast-lane upsell. Curation is never sold.",
+    a: "Yes — submitting and being listed are free, forever. No paid placement, no fast-lane upsell. Curation is never sold.",
   },
   {
     icon: Clock3,
     q: "How long does review take?",
-    a: "Editors work the queue in submission order. Track your position any time with the status tracker — same email, no account needed.",
+    a: "Review usually takes 1–2 days. Approved listings go live immediately. Track your position any time with the status tracker — same email, no account needed.",
   },
   {
     icon: RefreshCcw,
@@ -133,12 +133,12 @@ export default function SubmitPage() {
             For makers
           </p>
           <h1 className="mt-3 max-w-3xl text-5xl font-black tracking-tighter text-white md:text-6xl">
-            Get your <span className="text-ember">launch day.</span>
+            Submit your tool to <span className="text-ember">the directory.</span>
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-white/60">
             Submitting is free and open — no waitlist, no invite. Approved
-            products launch on the homepage feed, in front of people who show
-            up for AI every day.
+            listings go live in the directory, in front of people who search
+            for AI tools every day.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <SubmitOpenButton
@@ -146,7 +146,7 @@ export default function SubmitPage() {
               className="h-12 px-6 text-base"
             />
             <p className="font-mono text-[11px] tracking-[0.2em] text-white/40 uppercase">
-              6 standards · 1 open calendar · $0
+              6 standards · 7 categories · $0
             </p>
           </div>
         </div>
@@ -190,7 +190,7 @@ export default function SubmitPage() {
             The quality bar — public
           </p>
           <h2 className="mt-3 text-3xl font-black tracking-tighter text-white md:text-4xl">
-            Every tool passes all six. Before it can launch.
+            Every tool passes all six. Before it&apos;s listed.
           </h2>
           <ul role="list" className="mt-8 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02]">
             {STANDARDS.map((s) => (
@@ -204,7 +204,8 @@ export default function SubmitPage() {
             ))}
           </ul>
           <p className="mt-6 text-sm italic text-white/45">
-            Not live yet? Submit when you are — the calendar is open every day.
+            Not live yet? Submit when you are — the directory takes submissions
+            every day.
           </p>
         </div>
       </section>
@@ -238,10 +239,10 @@ export default function SubmitPage() {
         />
         <div className="relative mx-auto max-w-2xl px-4 text-center sm:px-6">
           <h2 className="text-4xl font-black tracking-tighter text-white md:text-5xl">
-            The calendar is open.
+            The directory is open.
           </h2>
           <p className="mt-3 text-white/60">
-            Pick your day. Stand in front of the feed.
+            Submit your tool. Get listed. Get discovered.
           </p>
           <div className="mt-8">
             <SubmitOpenButton

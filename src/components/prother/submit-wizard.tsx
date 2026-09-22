@@ -91,7 +91,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
         <Eye className="size-3.5 text-ember" aria-hidden /> LIVE PREVIEW
       </p>
 
-      {/* Feed-row mock */}
+      {/* Listing mock */}
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex gap-3">
           <div
@@ -161,7 +161,6 @@ type DuplicateInfo = {
   kind: string;
   name: string;
   slug?: string;
-  votes?: number;
   maker?: string;
 };
 
@@ -186,9 +185,7 @@ function DuplicateBanner({
           This tool may already be on Prother —{" "}
           <span className="font-semibold">{dup.name}</span>
           {dup.kind === "tool" && (
-            <span className="text-amber-200/70">
-              {" "}· ▲{dup.votes} · Listed by {dup.maker}
-            </span>
+            <span className="text-amber-200/70"> · already listed</span>
           )}
           {dup.kind === "submission" && (
             <span className="text-amber-200/70"> · already in the review queue</span>
@@ -409,7 +406,8 @@ export function SubmitWizard() {
               <span className="font-semibold text-white">{form.name.trim()}</span> is
               in the moderation queue. Editors check the six standards and reply
               to <span className="font-mono text-ember">{form.email.trim()}</span> —
-              typically within 24h. Approved launches get 72h notice + a launch kit.
+              typically within 24h. Review usually takes 1–2 days — approved
+              listings go live immediately, free forever.
             </p>
             <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-3">
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
@@ -431,7 +429,7 @@ export function SubmitWizard() {
                 onClick={() => onOpenChange(false)}
                 className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
               >
-                Done — back to the feed
+                Done — back to the directory
               </Button>
               <Button
                 type="button"
@@ -780,7 +778,7 @@ export function SubmitWizard() {
                       <span className="text-sm text-white/75">
                         Public API available
                         <span className="ml-2 font-mono text-[10px] text-white/35">
-                          gets an API chip in the feed
+                          gets an API chip on your listing
                         </span>
                       </span>
                     </label>
@@ -849,7 +847,7 @@ export function SubmitWizard() {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <FieldLabel hint="previews in the feed + daily email">LOGO GRADIENT</FieldLabel>
+                      <FieldLabel hint="previews on your listing">LOGO GRADIENT</FieldLabel>
                       <div className="flex flex-wrap gap-2">
                         {GRADIENTS.map((g) => (
                           <button
@@ -873,7 +871,7 @@ export function SubmitWizard() {
                     <p className="rounded-xl border border-ember/20 bg-ember/[0.06] p-3.5 text-xs leading-relaxed text-white/60">
                       <span className="font-semibold text-ember">Heads up:</span> screenshots
                       and real logo upload ship with maker accounts (Phase 2). Editors
-                      enrich your listing before launch — you&apos;ll get a preview.
+                      enrich your listing — you&apos;ll get a preview.
                     </p>
                   </>
                 )}

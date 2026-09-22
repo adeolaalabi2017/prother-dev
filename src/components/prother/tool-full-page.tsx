@@ -10,7 +10,6 @@ import {
   Check,
   ChevronDown,
   CircleDashed,
-  Clock,
   Copy,
   Flag,
   Heart,
@@ -22,7 +21,6 @@ import {
   Send,
   ShieldCheck,
   Star,
-  Triangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +38,6 @@ import type { ToolDetailResponse } from "@/lib/prother";
 import type { CommentRow } from "@/lib/discussion";
 import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
 import { useExplorer } from "./explorer-store";
-import { getVoterKey } from "./voter";
 import { useBookmark } from "./use-bookmarks";
 import { ReportDialog } from "./report-dialog";
 
@@ -54,18 +51,9 @@ type ReviewsAggregate = {
   overall: number;
 };
 
-type RelaunchEvent = {
-  version: string;
-  note: string | null;
-  launchedAt: string;
-  totalVotes: number;
-};
-
 type ToolViewer = {
   isMaker: boolean;
   following: boolean;
-  canRelaunch: boolean;
-  nextEligibleAt: string | null;
   claim: null | {
     id: string;
     status: string;
@@ -81,10 +69,6 @@ type ToolViewer = {
 
 type ToolFullDetail = ToolDetailResponse & {
   reviews?: { count: number; aggregate: ReviewsAggregate | null };
-  launchHistory?: RelaunchEvent[];
-  relaunchCount?: number;
-  relaunchNote?: string | null;
-  originalLaunchDate?: string | null;
   viewer?: ToolViewer | null;
 };
 
@@ -107,7 +91,7 @@ type ReviewsResponse = {
   /** My review (object) or null — defensively guarded below. */
   mine?: unknown;
   canReview: boolean;
-  reason: null | "auth" | "maker" | "scheduled";
+  reason: null | "auth" | "maker";
 };
 
 type CollectionRow = {
@@ -131,16 +115,6 @@ const PRICING_LABEL: Record<string, string> = {
   paid: "Paid",
   open_source: "Open Source",
 };
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 function fmtDay(iso: string | null): string {
   if (!iso) return "—";
@@ -234,21 +208,20 @@ function FactsRail({ detail }: { detail: ToolFullDetail }) {
       ? { label: `VERIFIED ${verifiedDays}D AGO ✓`, ok: true }
       : detail.verified
         ? { label: "VERIFIED ✓", ok: true }
-        : { label: "UNVERIFIED", ok: false };
-  const relaunches = detail.relaunchCount ?? detail.launchHistory?.length ?? 0;
+        : { label: "UNCLAIMED", ok: false };
 
   return (
     <aside aria-label="Key facts" className="lg:sticky lg:top-20 lg:self-start">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-1 lg:gap-y-0">
-        <Fact label="Launched">
-          {detail.scheduled ? (
-            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-ember">
-              <Clock className="size-3.5" aria-hidden />
-              TOMORROW — TEASER
-            </span>
-          ) : (
-            fmtDay(detail.launchDate)
-          )}
+        <Fact label="Website">
+          <a
+            href={detail.websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="break-all text-ember transition-colors hover:text-ember-hot"
+          >
+            {detail.websiteUrl.replace(/^https?:\/\//, "")}
+          </a>
         </Fact>
         <Fact label="Pricing">
           <span className="font-semibold text-white">
@@ -265,18 +238,6 @@ function FactsRail({ detail }: { detail: ToolFullDetail }) {
             </span>
           )}
         </Fact>
-        <Fact label="API">
-          {detail.badges.hasApi ? (
-            <span className="text-mint">✓ AVAILABLE</span>
-          ) : (
-            <span className="text-white/35">✗ NONE</span>
-          )}
-        </Fact>
-        <Fact label="Verified">
-          <span className={verified.ok ? "text-mint" : "text-white/35"}>
-            {verified.label}
-          </span>
-        </Fact>
         <Fact label="Category">
           <button
             type="button"
@@ -287,16 +248,23 @@ function FactsRail({ detail }: { detail: ToolFullDetail }) {
             {detail.category.emoji} {detail.category.name}
           </button>
         </Fact>
-        <Fact label="Maker">
-          <span className="text-ember">{detail.maker}</span>
+        <Fact label="Listed">
+          {fmtDay(detail.submittedAt)}
         </Fact>
-        <Fact label="Relaunches">
-          {relaunches}
-          {detail.relaunchNote && (
-            <span className="mt-0.5 block text-xs text-white/45">
-              {detail.relaunchNote}
-            </span>
-          )}
+        {detail.badges.hasApi && (
+          <Fact label="API">
+            <span className="text-mint">✓ AVAILABLE</span>
+          </Fact>
+        )}
+        {detail.badges.openSource && (
+          <Fact label="Source">
+            <span className="text-mint">✓ OPEN SOURCE</span>
+          </Fact>
+        )}
+        <Fact label="Claimed">
+          <span className={verified.ok ? "text-mint" : "text-white/35"}>
+            {verified.label}
+          </span>
         </Fact>
       </dl>
     </aside>
@@ -783,7 +751,9 @@ function ReviewsSection({
       )}
       {!loading && !loadErr && !aggregate && (
         <p className={cn(PANEL, "p-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/45")}>
-          Ratings unlock at 3 reviews · {count} so far
+          {count === 0
+            ? "No reviews yet — be the first after you've tried it."
+            : `Ratings unlock at 3 reviews · ${count} so far`}
         </p>
       )}
       {!loading && loadErr && (
@@ -854,10 +824,6 @@ function ReviewsSection({
         <p className={cn(PANEL, "p-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/40")}>
           Makers can&apos;t review their own product
         </p>
-      ) : data?.reason === "scheduled" ? (
-        <p className={cn(PANEL, "p-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/40")}>
-          Reviews open on launch day
-        </p>
       ) : data?.canReview ? (
         <div className={cn(PANEL, "space-y-4 p-4")}>
           <StarPicker label="EASE" value={ease} onChange={setEase} />
@@ -920,148 +886,6 @@ function slugToName(slug: string): string {
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
-}
-
-// ── Re-launch (PRD F-35) ──────────────────────────────────────────────────
-
-function RelaunchSection({
-  slug,
-  viewer,
-  history,
-  originalLaunchDate,
-  launchDate,
-  currentVotes,
-  onRefresh,
-}: {
-  slug: string;
-  viewer: ToolViewer | null;
-  history: RelaunchEvent[];
-  originalLaunchDate: string | null;
-  launchDate: string | null;
-  currentVotes: number;
-  onRefresh: () => void;
-}) {
-  const { toast } = useToast();
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [cooldown, setCooldown] = useState<string | null>(viewer?.nextEligibleAt ?? null);
-
-  const relaunch = useCallback(async () => {
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/tools/${encodeURIComponent(slug)}/relaunch`, {
-        method: "POST",
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        relaunched?: boolean;
-        version?: string;
-        date?: string;
-        error?: string;
-        nextEligibleAt?: string;
-      };
-      if (res.ok && data.relaunched) {
-        toast({
-          title: `Re-launched as ${data.version ?? "a new version"}`,
-          description: "Fresh vote pool — the feed resets for today.",
-        });
-        setConfirming(false);
-        onRefresh();
-      } else if (res.status === 403 && data.error === "cooldown") {
-        setCooldown(data.nextEligibleAt ?? null);
-        toast({
-          title: "Cooldown active",
-          description: "One re-launch per tool per period.",
-          variant: "destructive",
-        });
-      } else if (res.status === 409) {
-        toast({ title: "Launch is scheduled — re-launch after it goes live.", variant: "destructive" });
-      } else {
-        toast({ title: "Could not re-launch", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Could not re-launch", description: "Please try again.", variant: "destructive" });
-    } finally {
-      setBusy(false);
-    }
-  }, [slug, toast, onRefresh]);
-
-  const canRelaunch = viewer?.canRelaunch && !cooldown;
-
-  return (
-    <section aria-label="Re-launch history" className="space-y-4">
-      <SectionHead>Re-launch</SectionHead>
-
-      {viewer?.isMaker && (
-        <div className="rounded-xl border border-ember/30 bg-ember/[0.05] p-4">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/60">
-            Launch a new version
-          </p>
-          <p className="mt-1.5 text-sm text-white/65">
-            Shipping a major update? Re-launch resets the vote pool and puts you
-            back on today&apos;s feed.
-          </p>
-          {canRelaunch ? (
-            confirming ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  onClick={() => void relaunch()}
-                  disabled={busy}
-                  className="h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
-                >
-                  {busy ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden /> RE-LAUNCHING…
-                    </>
-                  ) : (
-                    "CONFIRM — RE-LAUNCH NOW"
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setConfirming(false)}
-                  className="h-10 font-mono text-xs text-white/60 hover:text-white"
-                >
-                  CANCEL
-                </Button>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                onClick={() => setConfirming(true)}
-                className="mt-3 h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
-              >
-                RE-LAUNCH — FRESH VOTE POOL
-              </Button>
-            )
-          ) : (
-            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.2em] text-white/45">
-              Next eligible {cooldown ? fmtDate(cooldown) : "— later"}
-            </p>
-          )}
-        </div>
-      )}
-
-      <ul className={cn(PANEL, "divide-y divide-white/[0.06]")}>
-        {(history ?? []).map((h) => (
-          <li key={`${h.version}-${h.launchedAt}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3.5">
-            <span className="font-mono text-xs font-bold text-ember">{h.version}</span>
-            {h.note && <span className="min-w-0 flex-1 truncate text-xs text-white/55">{h.note}</span>}
-            <span className="ml-auto font-mono text-[10px] text-white/40">{fmtDay(h.launchedAt)}</span>
-            <span className="font-mono text-xs tabular-nums text-white/70">▲ {h.totalVotes}</span>
-          </li>
-        ))}
-        <li className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3.5">
-          <span className="font-mono text-xs font-bold text-white/60">V1 · ORIGINAL</span>
-          <span className="ml-auto font-mono text-[10px] text-white/40">
-            {fmtDay(originalLaunchDate ?? launchDate)}
-          </span>
-          <span className="font-mono text-xs tabular-nums text-white/70">▲ {currentVotes}</span>
-        </li>
-      </ul>
-    </section>
-  );
 }
 
 // ── Discussion (ported from the legacy modal — same API shapes) ──────────
@@ -1532,7 +1356,6 @@ export function ToolFullPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
-  const [vote, setVote] = useState<{ votes: number; voted: boolean } | null>(null);
   const [following, setFollowing] = useState(false);
   const [savedLocal, setSavedLocal] = useState<{ slug: string; name: string }[] | null>(null);
   const [copied, setCopied] = useState(false);
@@ -1552,9 +1375,7 @@ export function ToolFullPage() {
     setLoadErr(false);
     setSavedLocal(null);
     try {
-      const res = await fetch(
-        `/api/tools/${encodeURIComponent(slug)}?vk=${encodeURIComponent(getVoterKey())}`
-      );
+      const res = await fetch(`/api/tools/${encodeURIComponent(slug)}`);
       if (res.status === 404) {
         setNotFound(true);
         return;
@@ -1562,7 +1383,6 @@ export function ToolFullPage() {
       if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as ToolFullDetail;
       setDetail(data);
-      setVote({ votes: data.votes, voted: data.voted });
       setFollowing(data.viewer?.following ?? false);
     } catch {
       setLoadErr(true);
@@ -1575,29 +1395,6 @@ export function ToolFullPage() {
     setDetail(null);
     void load();
   }, [load]);
-
-  const onVote = useCallback(async () => {
-    if (!detail?.launchId || !vote) return;
-    const nextVoted = !vote.voted;
-    setVote({ votes: vote.votes + (nextVoted ? 1 : -1), voted: nextVoted });
-    try {
-      const res = await fetch("/api/vote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ launchId: detail.launchId, voterKey: getVoterKey() }),
-      });
-      const data = (await res.json()) as { voted: boolean; votes: number };
-      setVote({ votes: data.votes, voted: data.voted });
-      window.dispatchEvent(
-        new CustomEvent("prother:vote", {
-          detail: { launchId: detail.launchId, votes: data.votes, voted: data.voted },
-        })
-      );
-    } catch {
-      setVote(vote);
-      toast({ title: "Vote failed", description: "Please try again.", variant: "destructive" });
-    }
-  }, [detail, vote, toast]);
 
   const onFollow = useCallback(async () => {
     if (!detail) return;
@@ -1704,7 +1501,7 @@ export function ToolFullPage() {
     );
   }
 
-  if (loadErr || !detail || !vote) {
+  if (loadErr || !detail) {
     return (
       <PageError
         title="COULDN'T LOAD THIS TOOL"
@@ -1777,14 +1574,6 @@ export function ToolFullPage() {
                 CURATED
               </li>
             )}
-            {detail.badges.relaunch && (
-              <li
-                title={detail.relaunchNote ?? undefined}
-                className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-mint"
-              >
-                RE-LAUNCH
-              </li>
-            )}
             {detail.badges.unclaimed && (
               <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/40">
                 UNCLAIMED
@@ -1805,35 +1594,32 @@ export function ToolFullPage() {
             </li>
           </ul>
 
-          {/* Actions row: vote + secondary icon buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void onVote()}
-              disabled={!detail.launchId}
-              aria-label={vote.voted ? "Remove upvote" : "Upvote this tool"}
-              aria-pressed={vote.voted}
-              className={cn(
-                "inline-flex h-11 items-center gap-2 rounded-full px-5 text-base font-black tabular-nums transition active:scale-95",
-                vote.voted
-                  ? "border border-ember bg-ember/10 text-ember"
-                  : "bg-ember text-[#0A0A0A] hover:bg-ember-hot",
-                !detail.launchId && "cursor-not-allowed opacity-40"
-              )}
-            >
-              <Triangle
-                className="size-4"
-                fill={vote.voted ? "currentColor" : "none"}
-                aria-hidden
-              />
-              {vote.votes}
-            </button>
+          {/* Rating summary — shown whenever the review aggregate exists */}
+          {detail.reviews?.aggregate && (
+            <div className={cn(PANEL, "flex flex-wrap items-center gap-x-5 gap-y-3 p-4")} aria-label="Rating summary">
+              <span className="inline-flex items-center gap-2">
+                <Star className="size-5 fill-ember text-ember" aria-hidden />
+                <span className="text-2xl font-black tabular-nums text-white">
+                  {detail.reviews.aggregate.overall.toFixed(1)}
+                  <span className="text-sm text-white/35">/5</span>
+                </span>
+              </span>
+              <span className="grid min-w-0 flex-1 gap-1.5 sm:max-w-xs">
+                <DimBar label="EASE" value={detail.reviews.aggregate.ease} />
+                <DimBar label="POWER" value={detail.reviews.aggregate.power} />
+                <DimBar label="VALUE" value={detail.reviews.aggregate.value} />
+              </span>
+              <span className="font-mono text-[10px] tracking-[0.2em] text-white/40 uppercase">
+                {detail.reviews.aggregate.count} reviews
+              </span>
+            </div>
+          )}
 
+          {/* Actions row: primary outbound + secondary icon buttons */}
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               asChild
-              variant="outline"
-              size="icon"
-              className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember"
+              className="h-11 rounded-full bg-ember px-6 text-sm font-black tracking-wide text-[#0A0A0A] hover:bg-ember-hot"
             >
               <a
                 href={detail.websiteUrl}
@@ -1841,6 +1627,7 @@ export function ToolFullPage() {
                 rel="noopener noreferrer"
                 aria-label={`Visit ${name} website`}
               >
+                Visit website
                 <ArrowUpRight className="size-4" aria-hidden />
               </a>
             </Button>
@@ -2043,21 +1830,10 @@ export function ToolFullPage() {
               onRefreshTool={() => void load()}
             />
 
-            {/* f. Re-launch (F-35) */}
-            <RelaunchSection
-              slug={slug}
-              viewer={detail.viewer ?? null}
-              history={detail.launchHistory ?? []}
-              originalLaunchDate={detail.originalLaunchDate ?? null}
-              launchDate={detail.launchDate}
-              currentVotes={vote.votes}
-              onRefresh={() => void load()}
-            />
-
-            {/* g. Discussion */}
+            {/* f. Discussion */}
             <Discussion slug={detail.slug} makerHandle={detail.maker} />
 
-            {/* h. Related */}
+            {/* g. Related */}
             {detail.related && detail.related.length > 0 && (
               <section aria-label="More like this" className="space-y-3">
                 <SectionHead>More like this</SectionHead>
@@ -2081,7 +1857,12 @@ export function ToolFullPage() {
                       </span>
                       <span className="mt-2.5 flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-bold text-white/90">{r.name}</span>
-                        <span className="shrink-0 font-mono text-xs tabular-nums text-ember">▲{r.votes}</span>
+                        {r.editorsPick && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-ember uppercase">
+                            <Star className="size-2.5 fill-current" aria-hidden />
+                            Pick
+                          </span>
+                        )}
                       </span>
                       <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/45">
                         {r.tagline}
@@ -2101,8 +1882,7 @@ export function ToolFullPage() {
                   )}
                 >
                   <span className={MONO}>
-                    Quality bar — {passedCount}/{detail.standards.length}{" "}
-                    {detail.scheduled ? "pending" : "passed"}
+                    Quality bar — {passedCount}/{detail.standards.length} passed
                   </span>
                   <ChevronDown
                     className="size-4 text-white/50 transition-transform group-data-[state=open]:rotate-180"

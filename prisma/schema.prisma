@@ -17,7 +17,7 @@ model Category {
   tools     Tool[]
 }
 
-// ── Tools (one table, status-driven per PRD §16 schema decisions) ───────
+// ── Tools (one table, status-driven — directory listings) ───────────────
 model Tool {
   id            String    @id @default(cuid())
   slug          String    @unique
@@ -42,21 +42,14 @@ model Tool {
   curated       Boolean   @default(false)
   claimed       Boolean   @default(false)
   makerHandle   String    @default("@prother")
-  relaunch      Boolean   @default(false)
-  /** F-35: number of successful re-launches + latest version label. */
-  relaunchCount Int       @default(0)
-  relaunchNote  String?
-  /** UTC date of the ORIGINAL launch window (survives re-launches). */
-  originalLaunchDate DateTime?
-  /** Lifecycle per PRD §16: draft → pending_review → approved → live → removed
-   *  (soft delete — history and votes survive). Admin-managed. */
+  /** Lifecycle: draft → pending_review → approved → live → removed
+   *  (soft delete — history and reviews survive). Admin-managed. */
   status        String    @default("live")
-  /** Editorial pin rank 0–3 (0 = unpinned). Pinned rows lead today's feed. */
+  /** Editorial pin rank 0–3 (0 = unpinned). Pinned rows lead the directory. */
   pinned        Int       @default(0)
   verifiedAt    DateTime?
   categoryId    String
   category      Category  @relation(fields: [categoryId], references: [id])
-  launch        Launch?
   /** Exact link back to the approved Submission (set by the editor decision
    *  route; nullable for editor-seeded tools). Written via $queryRaw — see
    *  the stale-PrismaClient note in lib/prother.ts. */
@@ -65,30 +58,7 @@ model Tool {
   reviews       Review[]
   claims        Claim[]
   collectionItems CollectionItem[]
-  relaunchEvents  RelaunchEvent[]
   createdAt     DateTime  @default(now())
-}
-
-// ── Launches (votes reference launch_id → fresh vote pools on re-launch) ─
-model Launch {
-  id          String   @id @default(cuid())
-  tool        Tool     @relation(fields: [toolId], references: [id])
-  toolId      String   @unique
-  launchDate  DateTime // UTC midnight of launch day
-  scheduled   Boolean  @default(false) // true = tomorrow teaser
-  baseUpvotes Int      @default(0) // seeded community votes
-  votes       Vote[]
-  createdAt   DateTime @default(now())
-}
-
-// ── Votes (1 per anonymous visitor per launch, F-14) ────────────────────
-model Vote {
-  id        String   @id @default(cuid())
-  launch    Launch   @relation(fields: [launchId], references: [id])
-  launchId  String
-  voterKey  String // anon localStorage key
-  createdAt DateTime @default(now())
-  @@unique([launchId, voterKey])
 }
 
 // ── Submission wizard queue (PRD §11 — Track B: community submit, F-21) ─
@@ -123,7 +93,7 @@ model Submission {
   @@index([status, createdAt])
 }
 
-// ── Launch discussion (comments on tool listings) ────────────────────────
+// ── Listing discussion (comments on tool listings) ─────────────────────
 // Auth-lite: display-name only for the landing scope; isMaker is derived by
 // the API when the author matches the tool's makerHandle. Access goes through
 // $queryRaw helpers in lib/discussion.ts (stale-PrismaClient note there).
@@ -333,23 +303,6 @@ model Follow {
   @@index([userEmail])
 }
 
-// ── Re-launch history (F-35) — archived launch windows + fresh vote pool ─
-// On re-launch the current Launch row is reset (new date, votes cleared) and
-// the previous window is archived here so launch history survives.
-model RelaunchEvent {
-  id         String   @id @default(cuid())
-  tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
-  toolId     String
-  version    String // e.g. "v2.0"
-  note       String?
-  /** UTC date of the archived (previous) launch window. */
-  launchedAt DateTime
-  totalVotes Int      @default(0)
-  createdAt  DateTime @default(now())
-
-  @@index([toolId, createdAt])
-}
-
 // ── Comparison log (F-08) — powers "popular comparisons" ─────────────────
 model Comparison {
   id        String   @id @default(cuid())
@@ -364,8 +317,8 @@ model Comparison {
 
 // ── Forums (Task 22-b) — community threads across 4 topics ───────────────
 // topic: "general" | "vibecoding" | "show" | "introduce"
-// Votes reuse the anonymous voterKey scheme from the launch Vote model
-// (1 per visitor per thread, unique on threadId+voterKey). Threads created
+// Votes reuse the anonymous voterKey scheme (1 per visitor per thread,
+// unique on threadId+voterKey). Threads created
 // signed-in carry the NextAuth user id; anon seeds only carry the handle.
 // NOTE: installed Prisma rejects `@createdAt` — use `@default(now())`.
 model ForumThread {
@@ -460,16 +413,16 @@ model Bookmark {
 }
 
 // ── Ad campaigns (Task 23) — Advertising module in the Admin Console ─────
-// Placements mirror the fixed slots sold on /advertise: feed_row (sponsored
-// row in the launch feed), journal_bar, category_spotlight. Serving picks a
-// weighted-random ACTIVE campaign inside its flight window; impressions and
-// clicks are counters on the row (CTR computed on read).
+// Placements mirror the fixed slots sold on /advertise: directory_banner
+// (sponsored row in the tools directory), journal_bar, category_spotlight.
+// Serving picks a weighted-random ACTIVE campaign inside its flight window;
+// impressions and clicks are counters on the row (CTR computed on read).
 model AdCampaign {
   id             String    @id @default(cuid())
   name           String
   advertiser     String
-  /** feed_row | journal_bar | category_spotlight */
-  placement      String    @default("feed_row")
+  /** directory_banner | journal_bar | category_spotlight */
+  placement      String    @default("directory_banner")
   /** draft | active | paused | ended */
   status         String    @default("draft")
   headline       String

@@ -1,0 +1,1104 @@
+     1→"use client";
+     2→
+     3→import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+     4→import Link from "next/link";
+     5→import { AnimatePresence, motion } from "framer-motion";
+     6→import { ArrowUpRight, Clock, Crown, MessageSquare, Star, Triangle, X } from "lucide-react";
+     7→import { Button } from "@/components/ui/button";
+     8→import { Skeleton } from "@/components/ui/skeleton";
+     9→import { useToast } from "@/hooks/use-toast";
+    10→import { useViewable } from "@/hooks/use-viewable";
+    11→import { cn } from "@/lib/utils";
+    12→import type { DayArchiveResponse, FeedRow, TopWeekRow } from "@/lib/prother";
+    13→import { useFeed } from "./use-feed";
+    14→import { useExplorer } from "./explorer-store";
+    15→import { getVoterKey } from "./voter";
+    16→import { CATEGORIES } from "./categories";
+    17→
+    18→type Tab = "new" | "top" | "tomorrow" | "yesterday";
+    19→type VoteState = Record<string, { votes: number; voted: boolean }>;
+    20→
+    21→function formatCountdown(totalSec: number): string {
+    22→  const s = Math.max(0, totalSec);
+    23→  const hh = String(Math.floor(s / 3600)).padStart(2, "0");
+    24→  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+    25→  const ss = String(s % 60).padStart(2, "0");
+    26→  return `${hh}:${mm}:${ss}`;
+    27→}
+    28→
+    29→function pricingLabel(row: FeedRow): string {
+    30→  const { model, price } = row.pricing;
+    31→  switch (model) {
+    32→    case "free":
+    33→      return "Free";
+    34→    case "freemium":
+    35→      return `Freemium ${price ?? ""}`.trim();
+    36→    case "paid":
+    37→      return `Paid ${price ?? ""}`.trim();
+    38→    case "open_source":
+    39→      return "Open Source";
+    40→    default:
+    41→      return "Free";
+    42→  }
+    43→}
+    44→
+    45→function Logo({
+    46→  emoji,
+    47→  gradient,
+    48→  size,
+    49→}: {
+    50→  emoji: string;
+    51→  gradient: string;
+    52→  size: "sm" | "md" | "lg";
+    53→}) {
+    54→  const sizes = {
+    55→    sm: "size-7 rounded-md text-sm",
+    56→    md: "size-12 rounded-xl text-xl",
+    57→    lg: "size-10 rounded-xl text-lg",
+    58→  } as const;
+    59→  return (
+    60→    <div
+    61→      aria-hidden
+    62→      className={cn(
+    63→        "flex shrink-0 items-center justify-center bg-gradient-to-br shadow-inner",
+    64→        gradient,
+    65→        sizes[size]
+    66→      )}
+    67→    >
+    68→      {emoji}
+    69→    </div>
+    70→  );
+    71→}
+    72→
+    73→function BadgeChip({
+    74→  children,
+    75→  className,
+    76→}: {
+    77→  children: React.ReactNode;
+    78→  className?: string;
+    79→}) {
+    80→  return (
+    81→    <span
+    82→      className={cn(
+    83→        "inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px]",
+    84→        className
+    85→      )}
+    86→    >
+    87→      {children}
+    88→    </span>
+    89→  );
+    90→}
+    91→
+    92→function UpvoteButton({
+    93→  votes,
+    94→  voted,
+    95→  onVote,
+    96→}: {
+    97→  votes: number;
+    98→  voted: boolean;
+    99→  onVote: (e: React.MouseEvent<HTMLButtonElement>) => void;
+   100→}) {
+   101→  return (
+   102→    <button
+   103→      type="button"
+   104→      onClick={onVote}
+   105→      aria-label={voted ? "Remove upvote" : "Upvote"}
+   106→      aria-pressed={voted}
+   107→      className={cn(
+   108→        "flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border border-white/10 px-3 py-2 transition hover:border-ember/50 hover:text-ember active:scale-95",
+   109→        voted ? "border-ember bg-ember/10 text-ember hover:border-ember" : "text-white/60"
+   110→      )}
+   111→    >
+   112→      <Triangle className="size-4" fill={voted ? "currentColor" : "none"} aria-hidden />
+   113→      {/* key={votes} re-runs the entrance so the number pops on every change */}
+   114→      <motion.span
+   115→        key={votes}
+   116→        initial={{ scale: 1.35, color: "var(--color-ember)" }}
+   117→        animate={{ scale: 1 }}
+   118→        transition={{ type: "spring", stiffness: 500, damping: 22 }}
+   119→        className="font-mono text-sm font-semibold tabular-nums"
+   120→      >
+   121→        {votes}
+   122→      </motion.span>
+   123→    </button>
+   124→  );
+   125→}
+   126→
+   127→/** Final score for closed launch days — voting is locked, count is history. */
+   128→function FinalScore({ votes, rank }: { votes: number; rank: number }) {
+   129→  return (
+   130→    <div
+   131→      title={`Voting closed — final #${rank} score`}
+   132→      className="flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2 text-white/40"
+   133→      aria-label={`Final score ${votes} votes, rank ${rank}`}
+   134→    >
+   135→      <Triangle className="size-4" aria-hidden />
+   136→      <span className="font-mono text-sm font-semibold tabular-nums">{votes}</span>
+   137→    </div>
+   138→  );
+   139→}
+   140→
+   141→/** Compact comment counter, PH-style — stacked under the upvote button. */
+   142→function CommentsButton({
+   143→  count,
+   144→  slug,
+   145→  name,
+   146→}: {
+   147→  count: number;
+   148→  slug: string;
+   149→  name: string;
+   150→}) {
+   151→  return (
+   152→    <button
+   153→      type="button"
+   154→      onClick={(e) => {
+   155→        e.stopPropagation();
+   156→        // Same destination as the row itself — the tool page's discussion.
+   157→        useExplorer.getState().openTool(slug);
+   158→      }}
+   159→      aria-label={`View ${count} ${count === 1 ? "comment" : "comments"} on ${name}`}
+   160→      className="flex min-w-[52px] flex-col items-center gap-0.5 rounded-lg border border-white/10 px-3 py-2 text-white/50 transition hover:border-ember/50 hover:text-ember"
+   161→    >
+   162→      <MessageSquare className="size-4" aria-hidden />
+   163→      <span className="font-mono text-sm font-semibold tabular-nums">{count}</span>
+   164→    </button>
+   165→  );
+   166→}
+   167→
+   168→/** Mono topic chip under the tagline — mirrors the tag row on directory cards. */
+   169→function TagChip({ children }: { children: React.ReactNode }) {
+   170→  return (
+   171→    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] text-white/50 transition-colors group-hover:border-ember/25 group-hover:text-white/70">
+   172→      {children}
+   173→    </span>
+   174→  );
+   175→}
+   176→
+   177→function FeedRowItem({
+   178→  row,
+   179→  rank,
+   180→  vote,
+   181→  onVote,
+   182→  votingOpen = true,
+   183→}: {
+   184→  row: FeedRow;
+   185→  rank: number;
+   186→  vote?: { votes: number; voted: boolean };
+   187→  onVote: (row: FeedRow) => void;
+   188→  /** false for archive days — shows the locked final score instead. */
+   189→  votingOpen?: boolean;
+   190→}) {
+   191→  const openTool = useExplorer((s) => s.openTool);
+   192→  return (
+   193→    <article
+   194→      onClick={() => openTool(row.slug)}
+   195→      onKeyDown={(e) => {
+   196→        if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "BUTTON") {
+   197→          openTool(row.slug);
+   198→        }
+   199→      }}
+   200→      tabIndex={0}
+   201→      role="button"
+   202→      aria-label={`View ${row.name} details`}
+   203→      className={cn(
+   204→        "group relative flex cursor-pointer gap-3 overflow-hidden rounded-xl border p-4 transition-all hover:translate-x-0.5 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60 sm:gap-4",
+   205→        // Archive day winner gets a gold-tinted frame on top of the hover ring.
+   206→        rank === 1 && !votingOpen
+   207→          ? "border-amber-400/30 bg-amber-400/[0.04] hover:border-amber-400/60"
+   208→          : "border-white/10 bg-white/[0.02] hover:border-ember/40",
+   209→      )}
+   210→    >
+   211→      {/* ember accent bar — slides in from the left on hover */}
+   212→      <span
+   213→        aria-hidden
+   214→        className="absolute inset-y-0 left-0 w-[3px] origin-top scale-y-0 bg-ember transition-transform duration-200 group-hover:scale-y-100"
+   215→      />
+   216→      <Logo emoji={row.emoji} gradient={row.gradient} size="md" />
+   217→      <div className="min-w-0 flex-1">
+   218→        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+   219→          {/* PH-style rank, inline with the name */}
+   220→          <span
+   221→            className={cn(
+   222→              "font-mono text-base tabular-nums",
+   223→              rank === 1 ? "font-bold text-ember" : rank <= 3 ? "text-white/50" : "text-white/30"
+   224→            )}
+   225→            aria-hidden
+   226→          >
+   227→            {rank}.
+   228→          </span>
+   229→          <h3 className="text-lg font-bold text-white">
+   230→            {/* Crawlable anchor with the tool name as anchor text. JS users
+   231→                still get the overlay (preventDefault → openTool); crawlers
+   232→                and middle-click get the clean /tools/<slug> URL. */}
+   233→            <a
+   234→              href={`/tools/${encodeURIComponent(row.slug)}`}
+   235→              onClick={(e) => {
+   236→                e.preventDefault();
+   237→                e.stopPropagation();
+   238→                openTool(row.slug);
+   239→              }}
+   240→              className="transition-colors hover:text-ember"
+   241→            >
+   242→              {row.name}
+   243→            </a>
+   244→          </h3>
+   245→          {rank === 1 && !votingOpen && (
+   246→            <BadgeChip className="border-amber-400/40 bg-amber-400/10 text-amber-300">
+   247→              <Crown className="mr-1 size-3" aria-hidden /> DAY WINNER
+   248→            </BadgeChip>
+   249→          )}
+   250→          {row.badges.editorsPick && (
+   251→            <BadgeChip className="border-ember/30 bg-ember/15 text-ember">
+   252→              <Star className="mr-1 size-3" aria-hidden /> Editor&apos;s Pick
+   253→            </BadgeChip>
+   254→          )}
+   255→          {row.badges.curated && (
+   256→            <BadgeChip className="border-yellow-500/30 bg-yellow-500/10 text-yellow-500">
+   257→              Curated
+   258→            </BadgeChip>
+   259→          )}
+   260→          {row.badges.relaunch && (
+   261→            <BadgeChip className="border-white/15 bg-white/5 text-white/60">Re-launch</BadgeChip>
+   262→          )}
+   263→          {row.badges.unclaimed && (
+   264→            <a
+   265→              href="#submit"
+   266→              onClick={(e) => e.stopPropagation()}
+   267→              className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-ember/40 px-2 py-0.5 font-mono text-[10px] text-ember transition-colors hover:bg-ember/10"
+   268→            >
+   269→              Claim this <ArrowUpRight className="size-3" aria-hidden />
+   270→            </a>
+   271→          )}
+   272→        </div>
+   273→        <p className="mt-0.5 truncate text-sm text-white/70">{row.tagline}</p>
+   274→        {/* Tag-chip row (PH topic tags) + maker handle */}
+   275→        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+   276→          <TagChip>
+   277→            {row.category.emoji} {row.category.name}
+   278→          </TagChip>
+   279→          <TagChip>{pricingLabel(row)}</TagChip>
+   280→          {row.badges.openSource && <TagChip>OSS</TagChip>}
+   281→          {row.badges.hasApi && <TagChip>API</TagChip>}
+   282→          <span className="ml-1 hidden font-mono text-[11px] text-white/35 sm:inline">
+   283→            @{row.maker.replace(/^@/, "")}
+   284→          </span>
+   285→        </div>
+   286→      </div>
+   287→      {/* Right-stacked action pair — the PH signature (comments over votes) */}
+   288→      <div className="flex shrink-0 flex-col justify-center gap-1.5">
+   289→        {(row.comments ?? 0) > 0 ? (
+   290→          <CommentsButton count={row.comments ?? 0} slug={row.slug} name={row.name} />
+   291→        ) : (
+   292→          <span aria-hidden className="h-[52px]" />
+   293→        )}
+   294→        {votingOpen ? (
+   295→          <UpvoteButton
+   296→            votes={vote?.votes ?? row.votes}
+   297→            voted={vote?.voted ?? row.voted}
+   298→            onVote={(e) => {
+   299→              e.stopPropagation();
+   300→              onVote(row);
+   301→            }}
+   302→          />
+   303→        ) : (
+   304→          <FinalScore votes={row.votes} rank={rank} />
+   305→        )}
+   306→      </div>
+   307→    </article>
+   308→  );
+   309→}
+   310→
+   311→function TeaserRow({
+   312→  slug,
+   313→  name,
+   314→  tagline,
+   315→  emoji,
+   316→  gradient,
+   317→  goesLiveInH,
+   318→}: {
+   319→  slug: string;
+   320→  name: string;
+   321→  tagline: string;
+   322→  emoji: string;
+   323→  gradient: string;
+   324→  goesLiveInH: number;
+   325→}) {
+   326→  const openTool = useExplorer((s) => s.openTool);
+   327→  return (
+   328→    <a
+   329→      key={slug}
+   330→      href={`/tools/${encodeURIComponent(slug)}`}
+   331→      onClick={(e) => {
+   332→        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+   333→        e.preventDefault();
+   334→        openTool(slug);
+   335→      }}
+   336→      className="flex cursor-pointer items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition hover:border-ember/40 hover:bg-white/5"
+   337→    >
+   338→      <Logo emoji={emoji} gradient={gradient} size="md" />
+   339→      <div className="min-w-0 flex-1">
+   340→        <h3 className="font-bold text-white">{name}</h3>
+   341→        <p className="truncate text-sm text-white/60">{tagline}</p>
+   342→      </div>
+   343→      <span className="shrink-0 font-mono text-xs whitespace-nowrap text-ember">
+   344→        GOES LIVE IN {goesLiveInH}H
+   345→      </span>
+   346→    </a>
+   347→  );
+   348→}
+   349→
+   350→function TopWeekItem({ row, rank }: { row: TopWeekRow; rank: number }) {
+   351→  const openTool = useExplorer((s) => s.openTool);
+   352→  return (
+   353→    <a
+   354→      href={`/tools/${encodeURIComponent(row.slug)}`}
+   355→      onClick={(e) => {
+   356→        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+   357→        e.preventDefault();
+   358→        openTool(row.slug);
+   359→      }}
+   360→      className="flex w-full items-center gap-3 py-2.5 text-left transition-colors first:pt-0 last:pb-0 hover:[&_span[data-name]]:text-ember"
+   361→    >
+   362→      <span className="w-5 font-mono text-sm text-white/40" aria-hidden>
+   363→        {rank}
+   364→      </span>
+   365→      <Logo emoji={row.emoji} gradient={row.gradient} size="sm" />
+   366→      <span data-name className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+   367→        {row.name}
+   368→      </span>
+   369→      <span className="font-mono text-sm text-ember">▲{row.votes}</span>
+   370→    </a>
+   371→  );
+   372→}
+   373→
+   374→function FeedSkeleton() {
+   375→  return (
+   376→    <div className="space-y-3">
+   377→      {[0, 1, 2].map((i) => (
+   378→        <div
+   379→          key={i}
+   380→          className="flex gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4"
+   381→        >
+   382→          <Skeleton className="h-6 w-6 bg-white/10" />
+   383→          <Skeleton className="h-[52px] w-[52px] rounded-lg bg-white/10" />
+   384→          <Skeleton className="h-12 w-12 rounded-xl bg-white/10" />
+   385→          <div className="flex-1 space-y-2 py-1">
+   386→            <Skeleton className="h-4 w-1/3 bg-white/10" />
+   387→            <Skeleton className="h-3 w-2/3 bg-white/10" />
+   388→            <Skeleton className="h-3 w-1/2 bg-white/10" />
+   389→          </div>
+   390→        </div>
+   391→      ))}
+   392→    </div>
+   393→  );
+   394→}
+   395→
+   396→// ── Promoted feed row (Task 23) ────────────────────────────────────────
+   397→
+   398→/** Fields of /api/ads/serve the row actually renders. */
+   399→type PromoAd = {
+   400→  id: string;
+   401→  headline: string;
+   402→  body: string;
+   403→  emoji: string;
+   404→  gradient: string;
+   405→  advertiser: string;
+   406→};
+   407→
+   408→type ServedPromo = { ad: PromoAd; clickHref: string };
+   409→
+   410→/**
+   411→ * Sponsored row in the TODAY list — visually a sibling of FeedRowItem but
+   412→ * unmistakably an ad: mono PROMOTED chip (ember outline), "by {advertiser} ·
+   413→ * Sponsored" byline, and the whole card is ONE link through /api/ads/click
+   414→ * (target=_blank, nofollow) so CTR is real. min-h matches the reserved slot
+   415→ * rendered while the serve request is in flight → no layout shift.
+   416→ */
+   417→function PromotedFeedRow({ promo }: { promo: ServedPromo | null | undefined }) {
+   418→  // MRC viewability (Task 28) — one ping per served creative, ≥50% on screen
+   419→  // ≥1s. Hooks before the early returns so the order is stable across the
+   420→  // loading/loaded/empty phases; the skeleton never counts (active=false).
+   421→  const boxRef = useRef<HTMLAnchorElement | null>(null);
+   422→  const adId = promo?.ad.id ?? null;
+   423→  useViewable(boxRef, adId !== null, () => {
+   424→    if (!adId) return;
+   425→    fetch("/api/ads/viewable", {
+   426→      method: "POST",
+   427→      headers: { "Content-Type": "application/json" },
+   428→      body: JSON.stringify({ id: adId }),
+   429→      keepalive: true,
+   430→    }).catch(() => {});
+   431→  });
+   432→
+   433→  if (promo === undefined) {
+   434→    // Serve request in flight — reserve the row's space (render-when-loaded,
+   435→    // reserved space) so the card taking its place never jumps the list.
+   436→    return (
+   437→      <div
+   438→        aria-hidden
+   439→        className="min-h-[120px] rounded-xl border border-white/[0.05] bg-white/[0.01]"
+   440→      />
+   441→    );
+   442→  }
+   443→  if (promo === null) return null; // nothing eligible — render nothing
+   444→
+   445→  const { ad, clickHref } = promo;
+   446→  return (
+   447→    <a
+   448→      ref={boxRef}
+   449→      href={clickHref}
+   450→      target="_blank"
+   451→      rel="noopener noreferrer nofollow"
+   452→      aria-label={`Sponsored: ${ad.headline} — opens the advertiser's page in a new tab`}
+   453→      className="group relative flex min-h-[120px] items-center gap-3 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-ember/60 sm:gap-4"
+   454→    >
+   455→      <Logo emoji={ad.emoji} gradient={ad.gradient} size="md" />
+   456→      <div className="min-w-0 flex-1">
+   457→        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+   458→          <span className="inline-flex shrink-0 items-center rounded-full border border-ember/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-ember">
+   459→            Promoted
+   460→          </span>
+   461→          <h3 className="text-lg leading-snug font-bold text-white">{ad.headline}</h3>
+   462→        </div>
+   463→        {ad.body && (
+   464→          <p className="mt-0.5 line-clamp-2 text-sm text-white/70">{ad.body}</p>
+   465→        )}
+   466→        <p className="mt-2 flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-white/35">
+   467→          <span>by {ad.advertiser}</span>
+   468→          <span aria-hidden>·</span>
+   469→          <span>Sponsored</span>
+   470→          <ArrowUpRight
+   471→            className="size-3.5 transition-colors group-hover:text-ember"
+   472→            aria-hidden
+   473→          />
+   474→        </p>
+   475→      </div>
+   476→    </a>
+   477→  );
+   478→}
+   479→
+   480→export function LaunchFeed() {
+   481→  const { toast } = useToast();
+   482→  const { feed, loading, error, refresh } = useFeed();
+   483→  const openTool = useExplorer((s) => s.openTool);
+   484→  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
+   485→  const categoryFilter = useExplorer((s) => s.categoryFilter);
+   486→  const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
+   487→  // ?tab= persistence — shareable feed states (new | top | tomorrow | yesterday).
+   488→  // Read AFTER mount only: reading window.location during the initial render makes
+   489→  // the server HTML ("new") and the hydrated client (?tab=top) diverge, which
+   490→  // React reports as a hydration mismatch. Post-mount sync keeps SSR markup valid.
+   491→  const [tab, setTab] = useState<Tab>("new");
+   492→  useEffect(() => {
+   493→    const t = new URLSearchParams(window.location.search).get("tab");
+   494→    if (t === "top" || t === "tomorrow" || t === "yesterday") setTab(t);
+   495→  }, []);
+   496→
+   497→  // ── Promoted row (Task 23) ──────────────────────────────────────────
+   498→  // ONE impression-counting serve per visit, lazily fired the first time a
+   499→  // TODAY list (new/top) is shown — never for Tomorrow/Archive viewers.
+   500→  // undefined = request in flight · null = nothing eligible.
+   501→  const [promo, setPromo] = useState<ServedPromo | null | undefined>(undefined);
+   502→  const promoRequestedRef = useRef(false);
+   503→  useEffect(() => {
+   504→    if (promoRequestedRef.current) return;
+   505→    // The URL is the authority on mount — a deep link straight to
+   506→    // ?tab=yesterday must not spend an impression on an archive view.
+   507→    const urlTab = new URLSearchParams(window.location.search).get("tab");
+   508→    const effective =
+   509→      urlTab === "top" || urlTab === "tomorrow" || urlTab === "yesterday"
+   510→        ? urlTab
+   511→        : tab;
+   512→    if (effective !== "new" && effective !== "top") return;
+   513→    promoRequestedRef.current = true;
+   514→    let alive = true;
+   515→    fetch("/api/ads/serve?placement=feed_row", { cache: "no-store" })
+   516→      .then((r) => (r.ok ? r.json() : Promise.resolve({ ad: null })))
+   517→      .then((j: { ad: PromoAd | null; clickHref?: string }) => {
+   518→        if (!alive) return;
+   519→        setPromo(j.ad && j.clickHref ? { ad: j.ad, clickHref: j.clickHref } : null);
+   520→      })
+   521→      .catch(() => {
+   522→        if (alive) setPromo(null);
+   523→      });
+   524→    return () => {
+   525→      alive = false;
+   526→    };
+   527→  }, [tab]);
+   528→
+   529→  // Archive day browser: null = yesterday (served from the main feed payload),
+   530→  // otherwise an ISO day from the strip — fetched once, then cached.
+   531→  const [archiveDate, setArchiveDate] = useState<string | null>(null);
+   532→  const [dayCache, setDayCache] = useState<Record<string, DayArchiveResponse>>({});
+   533→  const [dayLoading, setDayLoading] = useState(false);
+   534→
+   535→  // Fetch (and cache) a selected archive day's final standings.
+   536→  useEffect(() => {
+   537→    if (!archiveDate || dayCache[archiveDate]) return;
+   538→    let alive = true;
+   539→    setDayLoading(true);
+   540→    fetch(`/api/feed/day?date=${encodeURIComponent(archiveDate)}`)
+   541→      .then(async (res) => {
+   542→        if (!res.ok) throw new Error("Failed to load this archive day");
+   543→        return (await res.json()) as DayArchiveResponse;
+   544→      })
+   545→      .then((data) => {
+   546→        if (alive) setDayCache((c) => ({ ...c, [data.date]: data }));
+   547→      })
+   548→      .catch(() => {
+   549→        if (alive) setArchiveDate(null); // gracefully fall back to yesterday
+   550→      })
+   551→      .finally(() => {
+   552→        if (alive) setDayLoading(false);
+   553→      });
+   554→    return () => {
+   555→      alive = false;
+   556→    };
+   557→  }, [archiveDate, dayCache]);
+   558→
+   559→  // UTC rollover shifts the whole archive window — drop cached days + selection.
+   560→  useEffect(() => {
+   561→    setDayCache({});
+   562→    setArchiveDate(null);
+   563→  }, [feed?.date]);
+   564→
+   565→  // Keep the selected tab in the URL (replaceState — no history spam).
+   566→  const setTabSync = useCallback((next: Tab) => {
+   567→    setTab(next);
+   568→    if (typeof window === "undefined") return;
+   569→    const url = new URL(window.location.href);
+   570→    const prev = url.searchParams.get("tab");
+   571→    if (next === "new") {
+   572→      if (prev) {
+   573→        url.searchParams.delete("tab");
+   574→        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+   575→      }
+   576→    } else if (prev !== next) {
+   577→      url.searchParams.set("tab", next);
+   578→      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+   579→    }
+   580→  }, []);
+   581→  const [now, setNow] = useState<number>(() => Date.now());
+   582→  const [voteState, setVoteState] = useState<VoteState>({});
+   583→
+   584→  // Countdown deadline — computed from the feed at render (no effect-synced state).
+   585→  const deadlineRef = useRef<{ date: string | null; at: number }>({ date: null, at: 0 });
+   586→  if (feed && deadlineRef.current.date !== feed.date) {
+   587→    deadlineRef.current = { date: feed.date, at: Date.now() + feed.resetsInSec * 1000 };
+   588→  }
+   589→  const deadline = deadlineRef.current.at;
+   590→
+   591→  // Tick the clock every second (setState inside the interval callback is fine).
+   592→  useEffect(() => {
+   593→    const iv = setInterval(() => setNow(Date.now()), 1000);
+   594→    return () => clearInterval(iv);
+   595→  }, []);
+   596→
+   597→  // Votes cast inside the tool detail modal sync back into the feed list.
+   598→  useEffect(() => {
+   599→    const onModalVote = (e: Event) => {
+   600→      const d = (e as CustomEvent).detail as {
+   601→        launchId: string;
+   602→        votes: number;
+   603→        voted: boolean;
+   604→      };
+   605→      setVoteState((prev) => ({
+   606→        ...prev,
+   607→        [d.launchId]: { votes: d.votes, voted: d.voted },
+   608→      }));
+   609→    };
+   610→    window.addEventListener("prother:vote", onModalVote);
+   611→    return () => window.removeEventListener("prother:vote", onModalVote);
+   612→  }, []);
+   613→
+   614→  const remaining = feed ? Math.max(0, Math.round((deadline - now) / 1000)) : null;
+   615→
+   616→  // UTC-midnight rollover: refetch the feed exactly once when the countdown hits zero.
+   617→  const rolledRef = useRef(false);
+   618→  useEffect(() => {
+   619→    if (remaining !== null && remaining > 0) {
+   620→      rolledRef.current = false;
+   621→    } else if (remaining === 0 && !rolledRef.current) {
+   622→      rolledRef.current = true;
+   623→      void refresh();
+   624→    }
+   625→  }, [remaining, refresh]);
+   626→
+   627→  const onVote = useCallback(
+   628→    async (row: FeedRow) => {
+   629→      const current = voteState[row.launchId] ?? { votes: row.votes, voted: row.voted };
+   630→      const nextVoted = !current.voted;
+   631→      const nextVotes = current.votes + (nextVoted ? 1 : -1);
+   632→      setVoteState((prev) => ({
+   633→        ...prev,
+   634→        [row.launchId]: { votes: nextVotes, voted: nextVoted },
+   635→      }));
+   636→      try {
+   637→        const res = await fetch("/api/vote", {
+   638→          method: "POST",
+   639→          headers: { "Content-Type": "application/json" },
+   640→          body: JSON.stringify({ launchId: row.launchId, voterKey: getVoterKey() }),
+   641→        });
+   642→        const data = (await res.json()) as { voted: boolean; votes: number };
+   643→        setVoteState((prev) => ({
+   644→          ...prev,
+   645→          [row.launchId]: { votes: data.votes, voted: data.voted },
+   646→        }));
+   647→      } catch {
+   648→        setVoteState((prev) => ({ ...prev, [row.launchId]: current }));
+   649→        toast({ title: "Vote failed", description: "Please try again.", variant: "destructive" });
+   650→      }
+   651→    },
+   652→    [voteState, toast]
+   653→  );
+   654→
+   655→  const rows = useMemo<FeedRow[]>(() => {
+   656→    if (!feed) return [];
+   657→    const base =
+   658→      tab === "top"
+   659→        ? feed.top ?? []
+   660→        : tab === "yesterday"
+   661→          ? archiveDate
+   662→            ? dayCache[archiveDate]?.rows ?? []
+   663→            : feed.yesterday ?? []
+   664→          : feed.new ?? [];
+   665→    if (!categoryFilter) return base;
+   666→    return base.filter((r) => r.category?.slug === categoryFilter);
+   667→  }, [feed, tab, categoryFilter, archiveDate, dayCache]);
+   668→
+   669→  const tomorrowRows = useMemo(() => {
+   670→    if (!feed) return [];
+   671→    if (!categoryFilter) return feed.tomorrow ?? [];
+   672→    return (feed.tomorrow ?? []).filter((t) => t.category?.slug === categoryFilter);
+   673→  }, [feed, categoryFilter]);
+   674→
+   675→  const activeCategory = useMemo(
+   676→    () => CATEGORIES.find((c) => c.slug === categoryFilter) ?? null,
+   677→    [categoryFilter]
+   678→  );
+   679→
+   680→  const dayLabel = feed?.dayLabel ?? "Today";
+   681→  const todayCount = feed?.todayCount ?? 0;
+   682→  const isTomorrow = tab === "tomorrow";
+   683→  const isYesterday = tab === "yesterday";
+   684→
+   685→  // Sponsored slot — TODAY lists (new/top) only, after the 3rd ranked row
+   686→  // (falls back to the last row when fewer than three launches are listed).
+   687→  const showPromotedRow = !isTomorrow && !isYesterday && rows.length > 0;
+   688→  const promoInsertAfter = Math.min(2, rows.length - 1);
+   689→  const weekDays = feed?.weekDays ?? [];
+   690→  const archiveLabel = archiveDate
+   691→    ? dayCache[archiveDate]?.label ?? feed?.yesterdayLabel ?? "Archive"
+   692→    : feed?.yesterdayLabel ?? "Yesterday";
+   693→
+   694→  const tabs: { key: Tab; label: string; short: string }[] = [
+   695→    { key: "new", label: "New", short: "New" },
+   696→    { key: "top", label: "Top Today", short: "Top" },
+   697→    { key: "tomorrow", label: `Tomorrow (${feed?.tomorrow?.length ?? 0})`, short: `Tmrw (${feed?.tomorrow?.length ?? 0})` },
+   698→    { key: "yesterday", label: `Archive (${feed?.yesterday?.length ?? 0})`, short: `Arch. (${feed?.yesterday?.length ?? 0})` },
+   699→  ];
+   700→
+   701→  return (
+   702→    <section id="feed" className="bg-ink py-24">
+   703→      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   704→        {/* Header */}
+   705→        <motion.div
+   706→          initial={{ opacity: 0, y: 20 }}
+   707→          whileInView={{ opacity: 1, y: 0 }}
+   708→          viewport={{ once: true, margin: "-80px" }}
+   709→          transition={{ duration: 0.55, ease: "easeOut" }}
+   710→          className="flex flex-wrap items-end justify-between gap-4"
+   711→        >
+   712→          <div>
+   713→            <p className="font-mono text-xs tracking-[0.25em] text-ember">TODAY&apos;S LAUNCHES</p>
+   714→            <h2 className="mt-2 text-4xl font-black tracking-tighter text-white md:text-5xl">
+   715→              {dayLabel} · {todayCount} launches
+   716→            </h2>
+   717→          </div>
+   718→          <div className="flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 font-mono text-sm text-white/70">
+   719→            <Clock className="size-4 text-ember" aria-hidden />
+   720→            Resets in{" "}
+   721→            <span className="tabular-nums">
+   722→              {remaining === null ? "--:--:--" : formatCountdown(remaining)}
+   723→            </span>
+   724→          </div>
+   725→        </motion.div>
+   726→
+   727→        {/* Tabs — sliding ember pill (framer-motion layout animation) */}
+   728→        <div className="my-8 flex max-w-full flex-wrap gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/5 p-1 sm:inline-flex">
+   729→          {tabs.map((t) => (
+   730→            <button
+   731→              key={t.key}
+   732→              type="button"
+   733→              onClick={() => setTabSync(t.key)}
+   734→              aria-pressed={tab === t.key}
+   735→              className={cn(
+   736→                "relative shrink-0 rounded-lg px-3.5 py-2 text-sm transition-colors sm:px-4",
+   737→                tab === t.key ? "font-semibold text-black" : "text-white/60 hover:text-white"
+   738→              )}
+   739→            >
+   740→              {tab === t.key && (
+   741→                <motion.span
+   742→                  layoutId="feed-tab-pill"
+   743→                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+   744→                  className="absolute inset-0 rounded-lg bg-ember"
+   745→                  aria-hidden
+   746→                />
+   747→              )}
+   748→              <span className="relative z-10">
+   749→                <span className="sm:hidden">{t.short}</span>
+   750→                <span className="hidden sm:inline">{t.label}</span>
+   751→              </span>
+   752→            </button>
+   753→          ))}
+   754→        </div>
+   755→
+   756→        {/* Category filter status (set from BROWSE chips or ⌘K palette) */}
+   757→        <AnimatePresence initial={false}>
+   758→          {activeCategory && (
+   759→            <motion.div
+   760→              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+   761→              animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
+   762→              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+   763→              transition={{ duration: 0.22, ease: "easeOut" }}
+   764→              className="overflow-hidden"
+   765→            >
+   766→              <div className="inline-flex flex-wrap items-center gap-3 rounded-full border border-ember/30 bg-ember/[0.08] py-1.5 pr-1.5 pl-4">
+   767→                <p className="font-mono text-xs text-ember">
+   768→                  FILTER · {activeCategory.emoji} {activeCategory.short}
+   769→                </p>
+   770→                <button
+   771→                  type="button"
+   772→                  onClick={() => setCategoryFilter(null)}
+   773→                  className="inline-flex items-center gap-1 rounded-full bg-ember px-3 py-1 font-mono text-[10px] font-semibold text-black transition-colors hover:bg-ember-hot"
+   774→                  aria-label="Clear category filter"
+   775→                >
+   776→                  CLEAR <X className="size-3" aria-hidden />
+   777→                </button>
+   778→              </div>
+   779→            </motion.div>
+   780→          )}
+   781→        </AnimatePresence>
+   782→
+   783→        {/* Content grid */}
+   784→        <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+   785→          {/* Sidebar — first on mobile, last on desktop */}
+   786→          <aside className="order-first min-w-0 space-y-6 lg:order-last">
+   787→            <div className="rounded-2xl border border-white/10 bg-coal p-5">
+   788→              <h3 className="font-mono text-xs tracking-widest text-ember">BROWSE THE ARCHIVE</h3>
+   789→              <p className="mt-2 text-sm text-white/60">
+   790→                Every tool that ever launched — searchable, ranked, free.
+   791→              </p>
+   792→              <Link
+   793→                href="/tools"
+   794→                className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-ember px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-ember-hot"
+   795→              >
+   796→                Open the directory
+   797→                <ArrowUpRight className="size-4" aria-hidden />
+   798→              </Link>
+   799→            </div>
+   800→
+   801→            <div className="rounded-2xl border border-white/10 bg-coal p-5">
+   802→              <h3 className="font-mono text-xs tracking-widest text-ember">TOP WEEK</h3>
+   803→              <div className="mt-3 divide-y divide-white/5">
+   804→                {(feed?.topWeek ?? []).map((row, i) => (
+   805→                  <TopWeekItem key={row.slug} row={row} rank={i + 1} />
+   806→                ))}
+   807→                {!feed && [0, 1, 2, 3, 4].map((i) => (
+   808→                  <div key={i} className="py-2.5">
+   809→                    <Skeleton className="h-7 w-full bg-white/10" />
+   810→                  </div>
+   811→                ))}
+   812→              </div>
+   813→            </div>
+   814→
+   815→            {feed?.editorsPick && (
+   816→              <div className="rounded-2xl border border-ember/30 bg-ember/[0.06] p-5">
+   817→                <h3 className="font-mono text-xs tracking-widest text-ember">EDITOR&apos;S PICK</h3>
+   818→                <a
+   819→                  href={`/tools/${encodeURIComponent(feed.editorsPick!.slug)}`}
+   820→                  onClick={(e) => {
+   821→                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+   822→                    e.preventDefault();
+   823→                    openTool(feed.editorsPick!.slug);
+   824→                  }}
+   825→                  className="mt-3 flex w-full items-center gap-3 text-left"
+   826→                >
+   827→                  <Logo
+   828→                    emoji={feed.editorsPick.emoji}
+   829→                    gradient={feed.editorsPick.gradient}
+   830→                    size="lg"
+   831→                  />
+   832→                  <div className="min-w-0">
+   833→                    <p className="font-bold text-white">{feed.editorsPick.name}</p>
+   834→                    <p className="truncate text-sm text-white/60">{feed.editorsPick.tagline}</p>
+   835→                  </div>
+   836→                </a>
+   837→                <a
+   838→                  href="/about#standards"
+   839→                  className="mt-3 inline-block font-mono text-xs text-ember hover:underline"
+   840→                >
+   841→                  Why we picked it →
+   842→                </a>
+   843→              </div>
+   844→            )}
+   845→
+   846→            <div className="rounded-2xl border border-white/10 bg-coal p-5">
+   847→              <h3 className="font-mono text-xs tracking-widest text-white/50">BROWSE</h3>
+   848→              <p className="mt-1 font-mono text-[10px] text-white/30">
+   849→                TODAY&apos;S LAUNCHES PER CATEGORY
+   850→              </p>
+   851→              <div className="mt-3 flex flex-wrap gap-2">
+   852→                {CATEGORIES.map((c) => {
+   853→                  const active = categoryFilter === c.slug;
+   854→                  const count = feed?.categoryCounts?.[c.slug] ?? 0;
+   855→                  return (
+   856→                    <button
+   857→                      key={c.slug}
+   858→                      type="button"
+   859→                      aria-pressed={active}
+   860→                      title={`${c.name} · ${count} today`}
+   861→                      onClick={() => setCategoryFilter(active ? null : c.slug)}
+   862→                      className={cn(
+   863→                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-all active:scale-95",
+   864→                        active
+   865→                          ? "border-ember bg-ember font-semibold text-black"
+   866→                          : "border-white/10 text-white/70 hover:border-ember/40 hover:text-white"
+   867→                      )}
+   868→                    >
+   869→                      <span aria-hidden>{c.emoji}</span>
+   870→                      <span>{c.short}</span>
+   871→                      {count > 0 && (
+   872→                        <span
+   873→                          className={cn(
+   874→                            "rounded-full px-1.5 py-px font-mono text-[10px] leading-4 tabular-nums",
+   875→                            active ? "bg-black/15 text-black" : "bg-white/10 text-white/50"
+   876→                          )}
+   877→                        >
+   878→                          {count}
+   879→                        </span>
+   880→                      )}
+   881→                    </button>
+   882→                  );
+   883→                })}
+   884→              </div>
+   885→            </div>
+   886→          </aside>
+   887→
+   888→          {/* Main feed list */}
+   889→          <div className="min-w-0">
+   890→            {loading && <FeedSkeleton />}
+   891→
+   892→            {!loading && error && (
+   893→              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-8 text-center text-sm text-white/60">
+   894→                Couldn&apos;t load the feed — please refresh the page.
+   895→              </div>
+   896→            )}
+   897→
+   898→            {!loading && !error && (
+   899→              <>
+   900→                {isYesterday && (
+   901→                  <>
+   902→                    {/* Launch-week day strip — any of the past 6 days is browsable */}
+   903→                    {weekDays.length > 0 && (
+   904→                      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+   905→                        <span className="mr-1 font-mono text-[10px] tracking-widest text-white/30">
+   906→                          PAST 6 DAYS
+   907→                        </span>
+   908→                        {weekDays.map((d) => {
+   909→                          const selected =
+   910→                            archiveDate === d.date || (!archiveDate && d.date === weekDays[weekDays.length - 1]?.date);
+   911→                          return (
+   912→                            <button
+   913→                              key={d.date}
+   914→                              type="button"
+   915→                              onClick={() => setArchiveDate(archiveDate === d.date ? null : d.date)}
+   916→                              aria-pressed={selected}
+   917→                              title={`${d.label} · ${d.count} launches — final standings`}
+   918→                              className={cn(
+   919→                                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-[11px] transition-all active:scale-95",
+   920→                                selected
+   921→                                  ? "border-ember bg-ember font-semibold text-black"
+   922→                                  : "border-white/10 text-white/55 hover:border-ember/40 hover:text-white",
+   923→                              )}
+   924→                            >
+   925→                              <span className="hidden sm:inline text-white/40 group-hover:text-inherit">{d.weekday}</span>
+   926→                              <span className="hidden sm:inline">·</span>
+   927→                              <span>{d.label}</span>
+   928→                              {/* heat dot — count → ember intensity */}
+   929→                              <span
+   930→                                aria-hidden
+   931→                                className={cn(
+   932→                                  "size-1.5 rounded-full",
+   933→                                  d.count === 0 && (selected ? "bg-black/30" : "bg-white/15"),
+   934→                                  d.count > 0 && (selected ? "bg-black/60" : "bg-ember"),
+   935→                                  d.count >= 2 && !selected && "ring-1 ring-ember/40",
+   936→                                )}
+   937→                              />
+   938→                              <span className={cn("tabular-nums", selected ? "text-black/70" : "text-white/35")}>
+   939→                                {d.count}
+   940→                              </span>
+   941→                            </button>
+   942→                          );
+   943→                        })}
+   944→                        <span className="ml-auto hidden font-mono text-[10px] tracking-widest text-white/25 sm:inline">
+   945→                          UTC DAYS
+   946→                        </span>
+   947→                      </div>
+   948→                    )}
+   949→                    <div className="mb-4 flex items-center gap-2 font-mono text-[11px] tracking-widest text-white/40">
+   950→                      <span className="h-px flex-1 bg-white/10" aria-hidden />
+   951→                      ARCHIVE · {archiveLabel.toUpperCase()} · FINAL STANDINGS · VOTING CLOSED
+   952→                      <span className="h-px flex-1 bg-white/10" aria-hidden />
+   953→                    </div>
+   954→                  </>
+   955→                )}
+   956→
+   957→                <div className="space-y-3">
+   958→                  {isTomorrow
+   959→                    ? tomorrowRows.map((t) => (
+   960→                        <TeaserRow
+   961→                          key={t.slug}
+   962→                          slug={t.slug}
+   963→                          name={t.name}
+   964→                          tagline={t.tagline}
+   965→                          emoji={t.emoji}
+   966→                          gradient={t.gradient}
+   967→                          goesLiveInH={t.goesLiveInH}
+   968→                        />
+   969→                      ))
+   970→                    : rows.map((row, i) => (
+   971→                        <Fragment key={row.launchId}>
+   972→                          <FeedRowItem
+   973→                            row={row}
+   974→                            rank={i + 1}
+   975→                            vote={voteState[row.launchId]}
+   976→                            onVote={onVote}
+   977→                            votingOpen={!isYesterday}
+   978→                          />
+   979→                          {/* Sponsored slot — after the 3rd ranked row
+   980→                              (TODAY lists only, one serve per visit) */}
+   981→                          {showPromotedRow && i === promoInsertAfter && (
+   982→                            <PromotedFeedRow promo={promo} />
+   983→                          )}
+   984→                        </Fragment>
+   985→                      ))}
+   986→                </div>
+   987→
+   988→                {/* PH pattern — wide "see all" affordance under the ranked list */}
+   989→                {!isTomorrow && rows.length > 0 && (
+   990→                  <Link
+   991→                    href="/tools"
+   992→                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm font-semibold text-white/80 transition-colors hover:border-ember/40 hover:text-ember"
+   993→                  >
+   994→                    See all products in the directory
+   995→                    <ArrowUpRight className="size-4" aria-hidden />
+   996→                  </Link>
+   997→                )}
+   998→
+   999→                {!isTomorrow && !dayLoading && rows.length === 0 && (
+  1000→                  <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
+  1001→                    <p className="font-mono text-sm text-white/60">
+  1002→                      No{" "}
+  1003→                      {activeCategory ? activeCategory.short : ""} launches{" "}
+  1004→                      {isYesterday
+  1005→                        ? archiveDate
+  1006→                          ? `on ${archiveLabel}`
+  1007→                          : "yesterday"
+  1008→                        : "in this list today"}
+  1009→                      .
+  1010→                    </p>
+  1011→                    {activeCategory && (
+  1012→                      <button
+  1013→                        type="button"
+  1014→                        onClick={() => setCategoryFilter(null)}
+  1015→                        className="mt-3 font-mono text-xs text-ember hover:underline"
+  1016→                      >
+  1017→                        Show all categories
+  1018→                      </button>
+  1019→                    )}
+  1020→                  </div>
+  1021→                )}
+  1022→
+  1023→                {isYesterday && dayLoading && (
+  1024→                  <div className="space-y-3" aria-busy="true">
+  1025→                    {[0, 1].map((i) => (
+  1026→                      <Skeleton key={i} className="h-24 w-full rounded-xl bg-white/5" />
+  1027→                    ))}
+  1028→                  </div>
+  1029→                )}
+  1030→
+  1031→                {isTomorrow && (
+  1032→                  <p className="mt-6 font-mono text-xs text-white/40">
+  1033→                    → Editors schedule every launch day. Want yours?{" "}
+  1034→                    <button
+  1035→                      type="button"
+  1036→                      onClick={() => setSubmitOpen(true)}
+  1037→                      className="text-ember hover:underline"
+  1038→                    >
+  1039→                      Submit your tool.
+  1040→                    </button>
+  1041→                  </p>
+  1042→                )}
+  1043→
+  1044→                {isYesterday && (
+  1045→                  <p className="mt-6 font-mono text-xs text-white/40">
+  1046→                    {archiveDate
+  1047→                      ? "Final standings for this UTC day."
+  1048→                      : "Winner gets the top of tomorrow's daily email."}{" "}
+  1049→                    Voting re-opens at 00:00 UTC.
+  1050→                  </p>
+  1051→                )}
+  1052→
+  1053→                <div className="mt-8 flex flex-col justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center">
+  1054→                  <button
+  1055→                    type="button"
+  1056→                    onClick={() => setTabSync(isYesterday ? "new" : "yesterday")}
+  1057→                    aria-live="polite"
+  1058→                    className="group/nav inline-flex items-center gap-1.5 self-start rounded-md px-1 py-0.5 font-mono text-sm text-white/50 transition-colors hover:text-ember focus-visible:outline-2 focus-visible:outline-ember/60"
+  1059→                  >
+  1060→                    {isYesterday ? (
+  1061→                      <>→ Back to today&apos;s launches</>
+  1062→                    ) : (
+  1063→                      <>
+  1064→                        ← Launch-week archive · {archiveLabel}
+  1065→                        <span className="rounded border border-white/15 px-1.5 py-px font-mono text-[10px] text-white/40 transition-colors group-hover/nav:border-ember/40 group-hover/nav:text-ember">
+  1066→                          {feed?.yesterday.length ?? 0}
+  1067→                        </span>
+  1068→                      </>
+  1069→                    )}
+  1070→                  </button>
+  1071→                  <div className="flex flex-wrap items-center gap-3">
+  1072→                    <p className="text-sm text-white/60">
+  1073→                      Built something with AI?{" "}
+  1074→                      <span className="font-semibold text-white">Launch it free.</span>
+  1075→                    </p>
+  1076→                    <Button
+  1077→                      asChild
+  1078→                      className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+  1079→                    >
+  1080→                      <button type="button" onClick={() => setSubmitOpen(true)}>
+  1081→                        Submit your tool →
+  1082→                      </button>
+  1083→                    </Button>
+  1084→                  </div>
+  1085→                </div>
+  1086→              </>
+  1087→            )}
+  1088→          </div>
+  1089→        </div>
+  1090→      </div>
+  1091→
+  1092→      {/* Mobile sticky submit bar — opens the §11 wizard */}
+  1093→      <button
+  1094→        type="button"
+  1095→        onClick={() => setSubmitOpen(true)}
+  1096→        className="fixed inset-x-0 bottom-0 z-40 bg-ember py-3.5 text-center text-sm font-bold text-black md:hidden"
+  1097→        style={{ paddingBottom: "calc(0.875rem + env(safe-area-inset-bottom))" }}
+  1098→      >
+  1099→        Submit your tool →
+  1100→      </button>
+  1101→    </section>
+  1102→  );
+  1103→}
+  1104→

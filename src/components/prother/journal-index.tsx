@@ -66,13 +66,13 @@ export function JournalIndex({
               The Prother Journal
             </p>
             <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
-              Notes from the
+              Notes from
               <br />
-              launch layer.
+              the directory.
             </h1>
             <p className="mt-4 max-w-xl text-lg text-white/60">
-              Playbooks, algorithm explainers, and weekly ecosystem data —
-              written by the people who watch every launch cross the feed.
+              Evaluation guides, taxonomy notes, and ecosystem trends —
+              written by the people who watch the AI tool ecosystem.
             </p>
           </div>
           <Link

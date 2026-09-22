@@ -1,0 +1,699 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useMemo, useState } from "react";
+     4→import { ExternalLink, FileText, Github, Search, X } from "lucide-react";
+     5→import { Button } from "@/components/ui/button";
+     6→import { Input } from "@/components/ui/input";
+     7→import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+     8→import { cn } from "@/lib/utils";
+     9→import { FullPageShell, PageSkeleton } from "./page-shell";
+    10→import { useExplorer } from "./explorer-store";
+    11→
+    12→// ── Types (per the compare API contract) ──────────────────────────────────
+    13→
+    14→type CompareRow = {
+    15→  slug: string;
+    16→  name: string;
+    17→  tagline: string;
+    18→  emoji: string;
+    19→  gradient: string;
+    20→  description: string | null;
+    21→  websiteUrl: string;
+    22→  pricing: { model: string; price: string | null; note: string | null };
+    23→  category: { slug: string; name: string; emoji: string };
+    24→  tags: string[];
+    25→  links: { github: string | null; docs: string | null; twitter: string | null };
+    26→  votes: number;
+    27→  /** Aggregate object (unlocks at ≥3 published reviews) — see /api/compare. */
+    28→  rating: { count: number; ease: number; power: number; value: number; overall: number } | null;
+    29→  reviewCount: number;
+    30→  comments: number;
+    31→  launchDate: string | null;
+    32→  verified: boolean;
+    33→  claimed: boolean;
+    34→  hasApi: boolean;
+    35→  track: string;
+    36→  maker: string;
+    37→  relaunchCount: number;
+    38→  /** Optional per-dimension review scores (additive API field). */
+    39→  ease?: number | null;
+    40→  power?: number | null;
+    41→  value?: number | null;
+    42→  // (legacy optional dims — superseded by rating.ease/power/value)
+    43→};
+    44→
+    45→type PopularPair = {
+    46→  aSlug: string;
+    47→  bSlug: string;
+    48→  views: number;
+    49→  aName: string;
+    50→  aEmoji: string;
+    51→  bName: string;
+    52→  bEmoji: string;
+    53→};
+    54→
+    55→type CompareResponse = {
+    56→  a: CompareRow;
+    57→  b: CompareRow;
+    58→  popular?: PopularPair[];
+    59→};
+    60→
+    61→type DirectoryRow = {
+    62→  slug: string;
+    63→  name: string;
+    64→  tagline: string;
+    65→  emoji: string;
+    66→  gradient: string;
+    67→  votes: number;
+    68→};
+    69→
+    70→const MONO = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+    71→const PRICING_LABEL: Record<string, string> = {
+    72→  free: "Free",
+    73→  freemium: "Freemium",
+    74→  paid: "Paid",
+    75→  open_source: "Open Source",
+    76→};
+    77→
+    78→function fmtDay(iso: string | null): string {
+    79→  if (!iso) return "—";
+    80→  return new Date(iso).toLocaleDateString("en-US", {
+    81→    month: "short",
+    82→    day: "numeric",
+    83→    year: "numeric",
+    84→    timeZone: "UTC",
+    85→  });
+    86→}
+    87→
+    88→// ── Tool picker combobox ──────────────────────────────────────────────────
+    89→
+    90→function ToolPicker({
+    91→  label,
+    92→  current,
+    93→  excludeSlug,
+    94→  rows,
+    95→  onPick,
+    96→  onClear,
+    97→}: {
+    98→  label: string;
+    99→  current: DirectoryRow | null;
+   100→  excludeSlug: string | null;
+   101→  rows: DirectoryRow[];
+   102→  onPick: (slug: string) => void;
+   103→  onClear: () => void;
+   104→}) {
+   105→  const [open, setOpen] = useState(false);
+   106→  const [q, setQ] = useState("");
+   107→
+   108→  const filtered = useMemo(() => {
+   109→    const needle = q.trim().toLowerCase();
+   110→    return rows
+   111→      .filter((r) => r.slug !== excludeSlug)
+   112→      .filter(
+   113→        (r) =>
+   114→          needle === "" ||
+   115→          r.name.toLowerCase().includes(needle) ||
+   116→          r.slug.includes(needle) ||
+   117→          r.tagline.toLowerCase().includes(needle)
+   118→      )
+   119→      .slice(0, 40);
+   120→  }, [rows, excludeSlug, q]);
+   121→
+   122→  return (
+   123→    <div className="flex min-w-0 items-center gap-3">
+   124→      <span className={cn(MONO, "w-14 shrink-0")}>{label}</span>
+   125→      <Popover
+   126→        open={open}
+   127→        onOpenChange={(next) => {
+   128→          setOpen(next);
+   129→          if (next) setQ("");
+   130→        }}
+   131→      >
+   132→        <PopoverTrigger asChild>
+   133→          <button
+   134→            type="button"
+   135→            aria-label={current ? `Change tool ${label}` : `Pick tool for ${label}`}
+   136→            className={cn(
+   137→              "flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl border px-3 text-left transition-colors",
+   138→              current
+   139→                ? "border-white/10 bg-white/[0.02] hover:border-ember/40"
+   140→                : "border-dashed border-white/20 text-white/40 hover:border-ember/40 hover:text-white/70"
+   141→            )}
+   142→          >
+   143→            {current ? (
+   144→              <>
+   145→                <span
+   146→                  aria-hidden
+   147→                  className={cn(
+   148→                    "grid size-7 shrink-0 place-items-center rounded-md bg-gradient-to-br text-sm",
+   149→                    current.gradient
+   150→                  )}
+   151→                >
+   152→                  {current.emoji}
+   153→                </span>
+   154→                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white/90">
+   155→                  {current.name}
+   156→                </span>
+   157→                <span className="shrink-0 font-mono text-xs tabular-nums text-ember">▲{current.votes}</span>
+   158→              </>
+   159→            ) : (
+   160→              <span className="flex items-center gap-2 text-sm">
+   161→                <Search className="size-4" aria-hidden /> Pick a tool…
+   162→              </span>
+   163→            )}
+   164→          </button>
+   165→        </PopoverTrigger>
+   166→        <PopoverContent
+   167→          align="start"
+   168→          sideOffset={8}
+   169→          className="w-80 border-white/10 bg-coal p-0 text-white"
+   170→          aria-label={`Choose ${label}`}
+   171→        >
+   172→          <div className="border-b border-white/10 p-2">
+   173→            <Input
+   174→              value={q}
+   175→              onChange={(e) => setQ(e.target.value.slice(0, 60))}
+   176→              placeholder="Filter tools…"
+   177→              aria-label={`Filter tools for ${label}`}
+   178→              className="h-9 border-white/10 bg-transparent text-sm focus-visible:border-ember/50 focus-visible:ring-0"
+   179→            />
+   180→          </div>
+   181→          <div className="max-h-64 overflow-y-auto p-1.5">
+   182→            {filtered.map((r) => (
+   183→              <button
+   184→                key={r.slug}
+   185→                type="button"
+   186→                onClick={() => {
+   187→                  onPick(r.slug);
+   188→                  setOpen(false);
+   189→                }}
+   190→                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-ember/10"
+   191→              >
+   192→                <span
+   193→                  aria-hidden
+   194→                  className={cn(
+   195→                    "grid size-7 shrink-0 place-items-center rounded-md bg-gradient-to-br text-sm",
+   196→                    r.gradient
+   197→                  )}
+   198→                >
+   199→                  {r.emoji}
+   200→                </span>
+   201→                <span className="min-w-0 flex-1">
+   202→                  <span className="block truncate text-sm font-semibold text-white/90">{r.name}</span>
+   203→                  <span className="block truncate text-xs text-white/40">{r.tagline}</span>
+   204→                </span>
+   205→                <span className="shrink-0 font-mono text-xs tabular-nums text-ember">▲{r.votes}</span>
+   206→              </button>
+   207→            ))}
+   208→            {filtered.length === 0 && (
+   209→              <p className="px-3 py-6 text-center text-xs text-white/40">
+   210→                No tools match “{q}”.
+   211→              </p>
+   212→            )}
+   213→          </div>
+   214→        </PopoverContent>
+   215→      </Popover>
+   216→      {current && (
+   217→        <Button
+   218→          type="button"
+   219→          variant="outline"
+   220→          size="icon"
+   221→          aria-label={`Clear ${label}`}
+   222→          onClick={onClear}
+   223→          className="bg-white/[0.03] hover:bg-white/[0.08] size-11 shrink-0 border-white/10 text-white/50 hover:border-ember/40 hover:text-white"
+   224→        >
+   225→          <X className="size-4" aria-hidden />
+   226→        </Button>
+   227→      )}
+   228→    </div>
+   229→  );
+   230→}
+   231→
+   232→// ── Metric row ────────────────────────────────────────────────────────────
+   233→
+   234→function MetricRow({
+   235→  label,
+   236→  a,
+   237→  b,
+   238→}: {
+   239→  label: string;
+   240→  a: React.ReactNode;
+   241→  b: React.ReactNode;
+   242→}) {
+   243→  return (
+   244→    <div className="grid gap-2 border-b border-white/[0.06] py-3 last:border-0 lg:grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)] lg:gap-4">
+   245→      <div className={cn(MONO, "lg:pt-0.5")}>{label}</div>
+   246→      <div className="flex min-w-0 items-center gap-2 text-sm text-white/85">
+   247→        <span className="shrink-0 font-mono text-[9px] text-white/30 lg:hidden">A</span>
+   248→        <span className="min-w-0">{a}</span>
+   249→      </div>
+   250→      <div className="flex min-w-0 items-center gap-2 text-sm text-white/85">
+   251→        <span className="shrink-0 font-mono text-[9px] text-white/30 lg:hidden">B</span>
+   252→        <span className="min-w-0">{b}</span>
+   253→      </div>
+   254→    </div>
+   255→  );
+   256→}
+   257→
+   258→function MiniBar({ value }: { value: number }) {
+   259→  return (
+   260→    <span className="inline-flex min-w-0 flex-1 items-center gap-2">
+   261→      <span className="h-1.5 min-w-16 max-w-40 flex-1 overflow-hidden rounded-full bg-white/10">
+   262→        <span
+   263→          className="block h-full rounded-full bg-ember"
+   264→          style={{ width: `${Math.max(4, Math.min(100, (value / 5) * 100))}%` }}
+   265→        />
+   266→      </span>
+   267→      <span className="font-mono text-[11px] tabular-nums text-white/60">
+   268→        {value.toFixed(1)}
+   269→      </span>
+   270→    </span>
+   271→  );
+   272→}
+   273→
+   274→function YesNo({ yes, yesLabel = "YES" }: { yes: boolean; yesLabel?: string }) {
+   275→  return yes ? (
+   276→    <span className="text-mint">✓ {yesLabel}</span>
+   277→  ) : (
+   278→    <span className="text-white/35">✗</span>
+   279→  );
+   280→}
+   281→
+   282→// ── Main page ─────────────────────────────────────────────────────────────
+   283→
+   284→export function CompareFullPage() {
+   285→  const compareOpen = useExplorer((s) => s.compareOpen);
+   286→  const compare = useExplorer((s) => s.compare);
+   287→  const closeCompare = useExplorer((s) => s.closeCompare);
+   288→  const openCompare = useExplorer((s) => s.openCompare);
+   289→  const addCompare = useExplorer((s) => s.addCompare);
+   290→  const removeCompare = useExplorer((s) => s.removeCompare);
+   291→  const openCategory = useExplorer((s) => s.openCategory);
+   292→
+   293→  const [rows, setRows] = useState<DirectoryRow[]>([]);
+   294→  const [directoryLoaded, setDirectoryLoaded] = useState(false);
+   295→  const [data, setData] = useState<CompareResponse | null>(null);
+   296→  /** Slug pair the stored head-to-head data was fetched for — guards staleness. */
+   297→  const [dataPair, setDataPair] = useState<string[]>([]);
+   298→  const [popular, setPopular] = useState<PopularPair[]>([]);
+   299→  const [loading, setLoading] = useState(false);
+   300→  const [loadErr, setLoadErr] = useState(false);
+   301→
+   302→  const a = compare[0] ?? null;
+   303→  const b = compare[1] ?? null;
+   304→
+   305→  // Directory list powers both pickers (client-side filtering).
+   306→  useEffect(() => {
+   307→    if (!compareOpen || directoryLoaded) return;
+   308→    let alive = true;
+   309→    fetch("/api/tools?limit=60&sort=votes")
+   310→      .then(async (res) => {
+   311→        if (!res.ok) throw new Error("failed");
+   312→        return (await res.json()) as { rows: DirectoryRow[] };
+   313→      })
+   314→      .then((json) => {
+   315→        if (!alive) return;
+   316→        setRows(json.rows ?? []);
+   317→        setDirectoryLoaded(true);
+   318→      })
+   319→      .catch(() => {
+   320→        /* pickers stay empty; the page still renders chips/slugs */
+   321→        if (alive) setDirectoryLoaded(true);
+   322→      });
+   323→    return () => {
+   324→      alive = false;
+   325→    };
+   326→  }, [compareOpen, directoryLoaded]);
+   327→
+   328→  // Head-to-head data (only when both slugs are chosen).
+   329→  const loadPair = useCallback(async (aSlug: string, bSlug: string) => {
+   330→    setLoading(true);
+   331→    setLoadErr(false);
+   332→    try {
+   333→      const res = await fetch(
+   334→        `/api/compare?a=${encodeURIComponent(aSlug)}&b=${encodeURIComponent(bSlug)}`
+   335→      );
+   336→      if (!res.ok) throw new Error("failed");
+   337→      const json = (await res.json()) as CompareResponse;
+   338→      setData(json);
+   339→      setDataPair([aSlug, bSlug]);
+   340→      setPopular(json.popular ?? []);
+   341→    } catch {
+   342→      setLoadErr(true);
+   343→      setData(null);
+   344→      setDataPair([]);
+   345→    } finally {
+   346→      setLoading(false);
+   347→    }
+   348→  }, []);
+   349→
+   350→  useEffect(() => {
+   351→    if (!compareOpen || !a || !b) return;
+   352→    // Stale responses are harmless: rendering is guarded by dataPair.
+   353→    void loadPair(a, b);
+   354→  }, [compareOpen, a, b, loadPair]);
+   355→
+   356→  // Popular strip for the picker view (when no head-to-head yet).
+   357→  useEffect(() => {
+   358→    if (!compareOpen || (a && b)) return;
+   359→    let alive = true;
+   360→    fetch("/api/compare?popular=1")
+   361→      .then(async (res) => {
+   362→        if (!res.ok) throw new Error("failed");
+   363→        return (await res.json()) as { popular: PopularPair[] };
+   364→      })
+   365→      .then((json) => {
+   366→        if (alive) setPopular(json.popular ?? []);
+   367→      })
+   368→      .catch(() => {
+   369→        /* strip is optional */
+   370→      });
+   371→    return () => {
+   372→      alive = false;
+   373→    };
+   374→  }, [compareOpen, a, b]);
+   375→
+   376→  const rowOf = useCallback(
+   377→    (slug: string | null) => rows.find((r) => r.slug === slug) ?? null,
+   378→    [rows]
+   379→  );
+   380→
+   381→  /** Head-to-head data matches the currently selected pair. */
+   382→  const dataValid =
+   383→    !!data && dataPair.length === 2 && dataPair[0] === a && dataPair[1] === b;
+   384→
+   385→  const pickA = useCallback(
+   386→    (slug: string) => {
+   387→      if (b) openCompare(slug, b);
+   388→      else {
+   389→        if (a) removeCompare(a);
+   390→        addCompare(slug);
+   391→      }
+   392→    },
+   393→    [a, b, openCompare, removeCompare, addCompare]
+   394→  );
+   395→
+   396→  const pickB = useCallback(
+   397→    (slug: string) => {
+   398→      if (a) openCompare(a, slug);
+   399→      else addCompare(slug);
+   400→    },
+   401→    [a, openCompare, addCompare]
+   402→  );
+   403→
+   404→  const shareUrl =
+   405→    typeof window !== "undefined"
+   406→      ? `${window.location.origin}/?compare=${encodeURIComponent(a ?? "")},${encodeURIComponent(b ?? "")}`
+   407→      : `/?compare=${encodeURIComponent(a ?? "")},${encodeURIComponent(b ?? "")}`;
+   408→
+   409→  const verdict = useMemo(() => {
+   410→    if (!dataValid) return null;
+   411→    const diff = Math.abs(data!.a.votes - data!.b.votes);
+   412→    if (diff === 0) return "DEAD EVEN — SPLIT THE ROOM";
+   413→    const winner = data!.a.votes > data!.b.votes ? data!.a.name : data!.b.name;
+   414→    return `COMMUNITY LEANS ${winner.toUpperCase()} · ${diff} VOTE${diff === 1 ? "" : "S"}`;
+   415→  }, [data, dataValid]);
+   416→
+   417→  if (!compareOpen) return null;
+   418→
+   419→  const rowA = dataValid ? data!.a : null;
+   420→  const rowB = dataValid ? data!.b : null;
+   421→  const hasPair = !!a && !!b;
+   422→
+   423→  return (
+   424→    <FullPageShell
+   425→      kicker="Side-by-side"
+   426→      breadcrumb={[{ label: "Home" }, { label: "Compare" }]}
+   427→      onClose={closeCompare}
+   428→      shareUrl={hasPair ? shareUrl : undefined}
+   429→      wide
+   430→      ariaLabel="Compare tools side by side"
+   431→    >
+   432→      <div className="space-y-8">
+   433→        {/* Pickers */}
+   434→        <section aria-label="Choose tools to compare" className="space-y-3">
+   435→          <div className="grid gap-3 sm:grid-cols-2">
+   436→            <ToolPicker
+   437→              label="TOOL A"
+   438→              current={rowOf(a)}
+   439→              excludeSlug={b}
+   440→              rows={rows}
+   441→              onPick={pickA}
+   442→              onClear={() => a && removeCompare(a)}
+   443→            />
+   444→            <ToolPicker
+   445→              label="TOOL B"
+   446→              current={rowOf(b)}
+   447→              excludeSlug={a}
+   448→              rows={rows}
+   449→              onPick={pickB}
+   450→              onClear={() => b && removeCompare(b)}
+   451→            />
+   452→          </div>
+   453→          {!hasPair && (
+   454→            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/40">
+   455→              {a || b
+   456→                ? "Pick the second tool to unlock the side-by-side."
+   457→                : "Pick two tools to compare — or start from a popular matchup below."}
+   458→            </p>
+   459→          )}
+   460→        </section>
+   461→
+   462→        {/* Loading */}
+   463→        {hasPair && loading && <PageSkeleton />}
+   464→
+   465→        {/* Load failure — pickers stay usable */}
+   466→        {hasPair && !loading && (loadErr || !rowA || !rowB) && (
+   467→          <p className="rounded-xl border border-red-500/25 bg-red-500/[0.04] p-4 text-sm text-red-300">
+   468→            Couldn&apos;t load the comparison for this pair — try different tools.
+   469→          </p>
+   470→        )}
+   471→
+   472→        {/* Comparison grid */}
+   473→        {hasPair && !loading && rowA && rowB && (
+   474→          <section aria-label="Comparison" className="space-y-6">
+   475→            {/* Header cards */}
+   476→            <div className="grid gap-4 sm:grid-cols-2">
+   477→              {[rowA, rowB].map((r, i) => (
+   478→                <div
+   479→                  key={r.slug}
+   480→                  className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40"
+   481→                >
+   482→                  <span
+   483→                    aria-hidden
+   484→                    className={cn(
+   485→                      "grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-3xl",
+   486→                      r.gradient
+   487→                    )}
+   488→                  >
+   489→                    {r.emoji}
+   490→                  </span>
+   491→                  <div className="min-w-0 flex-1">
+   492→                    <div className="flex items-center gap-2">
+   493→                      <h2 className="truncate text-xl font-black text-white">{r.name}</h2>
+   494→                      <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px font-mono text-[9px] tracking-wider text-white/50">
+   495→                        {i === 0 ? "TOOL A" : "TOOL B"}
+   496→                      </span>
+   497→                    </div>
+   498→                    <p className="mt-0.5 truncate text-sm text-white/55">{r.tagline}</p>
+   499→                  </div>
+   500→                  <span className="shrink-0 rounded-full bg-ember/10 px-3 py-1.5 font-mono text-sm font-black tabular-nums text-ember">
+   501→                    ▲ {r.votes}
+   502→                  </span>
+   503→                </div>
+   504→              ))}
+   505→            </div>
+   506→
+   507→            {/* Auto-verdict */}
+   508→            {verdict && (
+   509→              <p className="text-center font-mono text-[11px] uppercase tracking-[0.25em] text-white/50" aria-live="polite">
+   510→                {verdict}
+   511→              </p>
+   512→            )}
+   513→
+   514→            {/* Metric table */}
+   515→            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-1 sm:px-5">
+   516→              <MetricRow
+   517→                label="Votes"
+   518→                a={<span className="font-mono font-bold tabular-nums text-ember">{rowA.votes}</span>}
+   519→                b={<span className="font-mono font-bold tabular-nums text-ember">{rowB.votes}</span>}
+   520→              />
+   521→              <MetricRow
+   522→                label="Rating"
+   523→                a={
+   524→                  rowA.rating != null ? (
+   525→                    <span className="tabular-nums">
+   526→                      {rowA.rating.overall.toFixed(1)}{" "}
+   527→                      <span className="font-mono text-[10px] text-white/40">({rowA.rating.count})</span>
+   528→                    </span>
+   529→                  ) : (
+   530→                    <span className="font-mono text-xs text-white/40">
+   531→                      LOCKED ({rowA.reviewCount})
+   532→                    </span>
+   533→                  )
+   534→                }
+   535→                b={
+   536→                  rowB.rating != null ? (
+   537→                    <span className="tabular-nums">
+   538→                      {rowB.rating.overall.toFixed(1)}{" "}
+   539→                      <span className="font-mono text-[10px] text-white/40">({rowB.rating.count})</span>
+   540→                    </span>
+   541→                  ) : (
+   542→                    <span className="font-mono text-xs text-white/40">
+   543→                      LOCKED ({rowB.reviewCount})
+   544→                    </span>
+   545→                  )
+   546→                }
+   547→              />
+   548→              {rowA.rating?.ease != null && rowB.rating?.ease != null && (
+   549→                <MetricRow label="Ease" a={<MiniBar value={rowA.rating.ease} />} b={<MiniBar value={rowB.rating.ease} />} />
+   550→              )}
+   551→              {rowA.rating?.power != null && rowB.rating?.power != null && (
+   552→                <MetricRow label="Power" a={<MiniBar value={rowA.rating.power} />} b={<MiniBar value={rowB.rating.power} />} />
+   553→              )}
+   554→              {rowA.rating?.value != null && rowB.rating?.value != null && (
+   555→                <MetricRow label="Value" a={<MiniBar value={rowA.rating.value} />} b={<MiniBar value={rowB.rating.value} />} />
+   556→              )}
+   557→              <MetricRow
+   558→                label="Pricing"
+   559→                a={
+   560→                  <span>
+   561→                    <span className="font-semibold text-white">
+   562→                      {PRICING_LABEL[rowA.pricing.model] ?? "Free"}
+   563→                    </span>
+   564→                    {rowA.pricing.price && (
+   565→                      <span className="ml-1.5 font-mono text-xs text-ember">{rowA.pricing.price}</span>
+   566→                    )}
+   567→                  </span>
+   568→                }
+   569→                b={
+   570→                  <span>
+   571→                    <span className="font-semibold text-white">
+   572→                      {PRICING_LABEL[rowB.pricing.model] ?? "Free"}
+   573→                    </span>
+   574→                    {rowB.pricing.price && (
+   575→                      <span className="ml-1.5 font-mono text-xs text-ember">{rowB.pricing.price}</span>
+   576→                    )}
+   577→                  </span>
+   578→                }
+   579→              />
+   580→              <MetricRow label="API" a={<YesNo yes={rowA.hasApi} yesLabel="AVAILABLE" />} b={<YesNo yes={rowB.hasApi} yesLabel="AVAILABLE" />} />
+   581→              <MetricRow label="Open source" a={<YesNo yes={rowA.pricing.model === "open_source"} />} b={<YesNo yes={rowB.pricing.model === "open_source"} />} />
+   582→              <MetricRow
+   583→                label="Category"
+   584→                a={
+   585→                  <button
+   586→                    type="button"
+   587→                    onClick={() => openCategory(rowA.category.slug)}
+   588→                    aria-label={`Browse the ${rowA.category.name} category`}
+   589→                    className="text-left transition-colors hover:text-ember"
+   590→                  >
+   591→                    {rowA.category.emoji} {rowA.category.name}
+   592→                  </button>
+   593→                }
+   594→                b={
+   595→                  <button
+   596→                    type="button"
+   597→                    onClick={() => openCategory(rowB.category.slug)}
+   598→                    aria-label={`Browse the ${rowB.category.name} category`}
+   599→                    className="text-left transition-colors hover:text-ember"
+   600→                  >
+   601→                    {rowB.category.emoji} {rowB.category.name}
+   602→                  </button>
+   603→                }
+   604→              />
+   605→              <MetricRow label="Launched" a={<span className="font-mono text-xs">{fmtDay(rowA.launchDate)}</span>} b={<span className="font-mono text-xs">{fmtDay(rowB.launchDate)}</span>} />
+   606→              <MetricRow label="Comments" a={<span className="tabular-nums">{rowA.comments}</span>} b={<span className="tabular-nums">{rowB.comments}</span>} />
+   607→              <MetricRow
+   608→                label="Maker"
+   609→                a={<span className="text-ember">{rowA.maker}</span>}
+   610→                b={<span className="text-ember">{rowB.maker}</span>}
+   611→              />
+   612→              <MetricRow label="Relaunches" a={<span className="tabular-nums">{rowA.relaunchCount}</span>} b={<span className="tabular-nums">{rowB.relaunchCount}</span>} />
+   613→              <MetricRow
+   614→                label="Links"
+   615→                a={
+   616→                  <span className="flex items-center gap-1.5">
+   617→                    <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   618→                      <a href={rowA.websiteUrl} target="_blank" rel="noopener noreferrer" aria-label={`${rowA.name} website`}>
+   619→                        <ExternalLink className="size-3.5" aria-hidden />
+   620→                      </a>
+   621→                    </Button>
+   622→                    {rowA.links.github && (
+   623→                      <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   624→                        <a href={rowA.links.github} target="_blank" rel="noopener noreferrer" aria-label={`${rowA.name} on GitHub`}>
+   625→                          <Github className="size-3.5" aria-hidden />
+   626→                        </a>
+   627→                      </Button>
+   628→                    )}
+   629→                    {rowA.links.docs && (
+   630→                      <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   631→                        <a href={rowA.links.docs} target="_blank" rel="noopener noreferrer" aria-label={`${rowA.name} documentation`}>
+   632→                          <FileText className="size-3.5" aria-hidden />
+   633→                        </a>
+   634→                      </Button>
+   635→                    )}
+   636→                  </span>
+   637→                }
+   638→                b={
+   639→                  <span className="flex items-center gap-1.5">
+   640→                    <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   641→                      <a href={rowB.websiteUrl} target="_blank" rel="noopener noreferrer" aria-label={`${rowB.name} website`}>
+   642→                        <ExternalLink className="size-3.5" aria-hidden />
+   643→                      </a>
+   644→                    </Button>
+   645→                    {rowB.links.github && (
+   646→                      <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   647→                        <a href={rowB.links.github} target="_blank" rel="noopener noreferrer" aria-label={`${rowB.name} on GitHub`}>
+   648→                          <Github className="size-3.5" aria-hidden />
+   649→                        </a>
+   650→                      </Button>
+   651→                    )}
+   652→                    {rowB.links.docs && (
+   653→                      <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   654→                        <a href={rowB.links.docs} target="_blank" rel="noopener noreferrer" aria-label={`${rowB.name} documentation`}>
+   655→                          <FileText className="size-3.5" aria-hidden />
+   656→                        </a>
+   657→                      </Button>
+   658→                    )}
+   659→                  </span>
+   660→                }
+   661→              />
+   662→              <MetricRow
+   663→                label="About"
+   664→                a={<span className="line-clamp-3 text-xs leading-relaxed text-white/55">{rowA.description ?? "—"}</span>}
+   665→                b={<span className="line-clamp-3 text-xs leading-relaxed text-white/55">{rowB.description ?? "—"}</span>}
+   666→              />
+   667→            </div>
+   668→          </section>
+   669→        )}
+   670→
+   671→        {/* Popular matchups */}
+   672→        {popular.length > 0 && (
+   673→          <section aria-label="Popular comparisons" className="space-y-3">
+   674→            <h2 className={MONO}>Popular matchups</h2>
+   675→            <div className="flex flex-wrap gap-2">
+   676→              {popular.map((p) => (
+   677→                <button
+   678→                  key={`${p.aSlug}-${p.bSlug}`}
+   679→                  type="button"
+   680→                  onClick={() => openCompare(p.aSlug, p.bSlug)}
+   681→                  aria-label={`Compare ${p.aName} vs ${p.bName}, viewed ${p.views} times`}
+   682→                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3.5 py-2 text-xs text-white/80 transition-colors hover:border-ember/40 hover:bg-ember/[0.05]"
+   683→                >
+   684→                  <span aria-hidden>{p.aEmoji}</span>
+   685→                  <span className="font-semibold">{p.aName}</span>
+   686→                  <span className="font-mono text-[10px] text-ember">VS</span>
+   687→                  <span aria-hidden>{p.bEmoji}</span>
+   688→                  <span className="font-semibold">{p.bName}</span>
+   689→                  <span className="font-mono text-[10px] tabular-nums text-white/35">· {p.views}</span>
+   690→                </button>
+   691→              ))}
+   692→            </div>
+   693→          </section>
+   694→        )}
+   695→      </div>
+   696→    </FullPageShell>
+   697→  );
+   698→}
+   699→

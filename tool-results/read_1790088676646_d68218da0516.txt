@@ -1,0 +1,1004 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useRef, useState } from "react";
+     4→import { Megaphone, Pause, Pencil, Play, Plus, Power, Trash2 } from "lucide-react";
+     5→import { Button } from "@/components/ui/button";
+     6→import {
+     7→  Dialog,
+     8→  DialogContent,
+     9→  DialogDescription,
+    10→  DialogHeader,
+    11→  DialogTitle,
+    12→} from "@/components/ui/dialog";
+    13→import { Input } from "@/components/ui/input";
+    14→import {
+    15→  Select,
+    16→  SelectContent,
+    17→  SelectItem,
+    18→  SelectTrigger,
+    19→  SelectValue,
+    20→} from "@/components/ui/select";
+    21→import { Skeleton } from "@/components/ui/skeleton";
+    22→import { Switch } from "@/components/ui/switch";
+    23→import { Textarea } from "@/components/ui/textarea";
+    24→import { useToast } from "@/hooks/use-toast";
+    25→import { cn } from "@/lib/utils";
+    26→import {
+    27→  adminFetch,
+    28→  Field,
+    29→  inputCx,
+    30→  LoadError,
+    31→  MiniStat,
+    32→} from "./admin-shared";
+    33→
+    34→/**
+    35→ * Admin — Advertising module (Task 23-b).
+    36→ * Sponsored campaigns: stats strip, flight/budget/performance columns,
+    37→ * status management (select + quick activate/pause), create & edit dialog
+    38→ * and a two-step delete. POST validates clickUrl with new URL(); the API
+    39→ * re-validates and 400s are surfaced verbatim.
+    40→ */
+    41→
+    42→type Placement =
+    43→  | "feed_row"
+    44→  | "journal_bar"
+    45→  | "category_spotlight"
+    46→  | "directory_banner"
+    47→  | "serp_footer";
+    48→type CampaignStatus = "draft" | "active" | "paused" | "ended";
+    49→type WindowState = "scheduled" | "running" | "finished" | "none";
+    50→
+    51→type AdCampaign = {
+    52→  id: string;
+    53→  name: string;
+    54→  advertiser: string;
+    55→  placement: Placement;
+    56→  status: CampaignStatus;
+    57→  headline: string;
+    58→  body: string | null;
+    59→  clickUrl: string;
+    60→  emoji: string | null;
+    61→  gradient: string | null;
+    62→  targetCategory: string | null;
+    63→  weight: number;
+    64→  startsAt: string | null;
+    65→  endsAt: string | null;
+    66→  totalBudgetCents: number | null;
+    67→  dailyBudgetCents: number | null;
+    68→  impressions: number;
+    69→  clicks: number;
+    70→  viewableImpressions: number;
+    71→  ctr: number;
+    72→  vRate: number;
+    73→  windowState: WindowState;
+    74→};
+    75→
+    76→type AdsStats = { total: number; active: number; impressions: number; clicks: number; ctr: number };
+    77→
+    78→type PlacementMeasurement = {
+    79→  placement: Placement;
+    80→  served: number;
+    81→  house: number;
+    82→  unfilled: number;
+    83→  unfillRate: number;
+    84→};
+    85→
+    86→type Measurement = {
+    87→  days: { day: string; date: string }[];
+    88→  perPlacement: PlacementMeasurement[];
+    89→};
+    90→
+    91→const PLACEMENTS: { value: Placement; label: string }[] = [
+    92→  { value: "feed_row", label: "Feed row" },
+    93→  { value: "journal_bar", label: "Journal bar" },
+    94→  { value: "category_spotlight", label: "Category spotlight" },
+    95→  { value: "directory_banner", label: "Directory banner" },
+    96→  { value: "serp_footer", label: "Search results footer" },
+    97→];
+    98→
+    99→const STATUSES: CampaignStatus[] = ["draft", "active", "paused", "ended"];
+   100→
+   101→const PLACEMENT_LABEL: Record<Placement, string> = {
+   102→  feed_row: "Feed row",
+   103→  journal_bar: "Journal bar",
+   104→  category_spotlight: "Spotlight",
+   105→  directory_banner: "Directory",
+   106→  serp_footer: "SERP",
+   107→};
+   108→
+   109→function urlOk(value: string): boolean {
+   110→  try {
+   111→    const u = new URL(value.trim());
+   112→    return u.protocol === "http:" || u.protocol === "https:";
+   113→  } catch {
+   114→    return false;
+   115→  }
+   116→}
+   117→
+   118→const fmtCtr = (ctr: number) => `${ctr.toFixed(1)}%`;
+   119→
+   120→function fmtMoney(cents: number | null | undefined): string {
+   121→  if (!cents || cents <= 0) return "no cap";
+   122→  const dollars = cents / 100;
+   123→  return `$${dollars % 1 === 0 ? dollars.toLocaleString("en-US") : dollars.toFixed(2)} cap`;
+   124→}
+   125→
+   126→function fmtWindow(c: AdCampaign): string {
+   127→  const s = c.startsAt ? c.startsAt.slice(0, 10) : "—";
+   128→  const e = c.endsAt ? c.endsAt.slice(0, 10) : "—";
+   129→  return `${s} → ${e}`;
+   130→}
+   131→
+   132→const WINDOW_CX: Record<WindowState, string> = {
+   133→  running: "border-emerald-400/30 bg-emerald-400/10 text-emerald-400",
+   134→  scheduled: "border-white/15 bg-white/5 text-white/50",
+   135→  finished: "border-white/10 bg-white/[0.03] text-white/30",
+   136→  none: "border-white/10 bg-white/[0.03] text-white/30",
+   137→};
+   138→
+   139→function CampaignsSkeleton() {
+   140→  return (
+   141→    <div className="space-y-2">
+   142→      {Array.from({ length: 4 }).map((_, i) => (
+   143→        <Skeleton key={i} className="h-[86px] rounded-xl bg-white/[0.04]" />
+   144→      ))}
+   145→    </div>
+   146→  );
+   147→}
+   148→
+   149→// ── Create / edit dialog ─────────────────────────────────────────────────
+   150→
+   151→type CampaignForm = {
+   152→  name: string;
+   153→  advertiser: string;
+   154→  placement: Placement;
+   155→  status: CampaignStatus;
+   156→  headline: string;
+   157→  body: string;
+   158→  clickUrl: string;
+   159→  emoji: string;
+   160→  weight: string;
+   161→  startsAt: string;
+   162→  endsAt: string;
+   163→  totalBudgetCents: string;
+   164→  dailyBudgetCents: string;
+   165→};
+   166→
+   167→function formFromCampaign(c: AdCampaign | null): CampaignForm {
+   168→  return {
+   169→    name: c?.name ?? "",
+   170→    advertiser: c?.advertiser ?? "",
+   171→    placement: c?.placement ?? "feed_row",
+   172→    status: c?.status ?? "draft",
+   173→    headline: c?.headline ?? "",
+   174→    body: c?.body ?? "",
+   175→    clickUrl: c?.clickUrl ?? "",
+   176→    emoji: c?.emoji ?? "",
+   177→    weight: String(c?.weight ?? 5),
+   178→    startsAt: c?.startsAt ? c.startsAt.slice(0, 10) : "",
+   179→    endsAt: c?.endsAt ? c.endsAt.slice(0, 10) : "",
+   180→    totalBudgetCents: c?.totalBudgetCents ? String(c.totalBudgetCents) : "",
+   181→    dailyBudgetCents: c?.dailyBudgetCents ? String(c.dailyBudgetCents) : "",
+   182→  };
+   183→}
+   184→
+   185→function CampaignDialog({
+   186→  apiKey,
+   187→  campaign,
+   188→  onDone,
+   189→}: {
+   190→  apiKey: string;
+   191→  campaign: AdCampaign | null;
+   192→  onDone: () => void;
+   193→}) {
+   194→  const { toast } = useToast();
+   195→  const [f, setF] = useState<CampaignForm>(() => formFromCampaign(campaign));
+   196→  const [busy, setBusy] = useState(false);
+   197→  const isNew = !campaign;
+   198→
+   199→  const weightNum = Math.round(Number(f.weight));
+   200→  const valid =
+   201→    f.name.trim().length > 0 &&
+   202→    f.advertiser.trim().length > 0 &&
+   203→    f.headline.trim().length > 0 &&
+   204→    urlOk(f.clickUrl) &&
+   205→    weightNum >= 1 &&
+   206→    weightNum <= 10;
+   207→
+   208→  const submit = async () => {
+   209→    if (!valid || busy) return;
+   210→    setBusy(true);
+   211→    try {
+   212→      const payload = {
+   213→        name: f.name.trim(),
+   214→        advertiser: f.advertiser.trim(),
+   215→        placement: f.placement,
+   216→        status: f.status,
+   217→        headline: f.headline.trim(),
+   218→        body: f.body.trim() || undefined,
+   219→        clickUrl: f.clickUrl.trim(),
+   220→        emoji: f.emoji.trim() || undefined,
+   221→        weight: weightNum,
+   222→        startsAt: f.startsAt ? new Date(`${f.startsAt}T00:00:00.000Z`).toISOString() : undefined,
+   223→        endsAt: f.endsAt ? new Date(`${f.endsAt}T00:00:00.000Z`).toISOString() : undefined,
+   224→        totalBudgetCents: f.totalBudgetCents.trim()
+   225→          ? Math.max(0, Math.round(Number(f.totalBudgetCents)))
+   226→          : undefined,
+   227→        dailyBudgetCents: f.dailyBudgetCents.trim()
+   228→          ? Math.max(0, Math.round(Number(f.dailyBudgetCents)))
+   229→          : undefined,
+   230→      };
+   231→      const res = await adminFetch(
+   232→        apiKey,
+   233→        isNew ? "/api/admin/ads" : `/api/admin/ads/${campaign.id}`,
+   234→        { method: isNew ? "POST" : "PATCH", body: JSON.stringify(payload) }
+   235→      );
+   236→      const d = (await res.json()) as { ok?: boolean; error?: string };
+   237→      if (!res.ok || !d.ok) {
+   238→        toast({ title: d.error ?? "Save failed", variant: "destructive" });
+   239→        return;
+   240→      }
+   241→      toast({
+   242→        title: isNew ? "Campaign created" : "Campaign saved",
+   243→        description: `${f.name.trim()} · ${f.status}`,
+   244→      });
+   245→      onDone();
+   246→    } catch {
+   247→      toast({ title: "Network error", variant: "destructive" });
+   248→    } finally {
+   249→      setBusy(false);
+   250→    }
+   251→  };
+   252→
+   253→  return (
+   254→    <Dialog open onOpenChange={(open) => !open && onDone()}>
+   255→      <DialogContent
+   256→        className="max-h-[92vh] gap-0 overflow-y-auto border-white/10 bg-coal p-0 text-white sm:max-w-xl"
+   257→        aria-describedby={undefined}
+   258→      >
+   259→        <DialogHeader className="border-b border-white/10 p-5 text-left">
+   260→          <DialogTitle className="text-lg font-black tracking-tight">
+   261→            {isNew ? "New campaign" : `Edit — ${campaign.name}`}
+   262→          </DialogTitle>
+   263→          <DialogDescription className="mt-1 text-sm text-white/50">
+   264→            Sponsored slots across the feed, journal and category pages.
+   265→          </DialogDescription>
+   266→        </DialogHeader>
+   267→
+   268→        <div className="space-y-4 p-5">
+   269→          <div className="grid gap-3 sm:grid-cols-2">
+   270→            <Field label="Campaign name">
+   271→              <Input
+   272→                value={f.name}
+   273→                maxLength={80}
+   274→                onChange={(e) => setF({ ...f, name: e.target.value })}
+   275→                placeholder="Launch Week sponsorship"
+   276→                className={inputCx}
+   277→              />
+   278→            </Field>
+   279→            <Field label="Advertiser">
+   280→              <Input
+   281→                value={f.advertiser}
+   282→                maxLength={60}
+   283→                onChange={(e) => setF({ ...f, advertiser: e.target.value })}
+   284→                placeholder="IndieShip"
+   285→                className={inputCx}
+   286→              />
+   287→            </Field>
+   288→            <Field label="Placement">
+   289→              <Select
+   290→                value={f.placement}
+   291→                onValueChange={(v) => setF({ ...f, placement: v as Placement })}
+   292→              >
+   293→                <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   294→                <SelectContent className="border-white/10 bg-coal text-white">
+   295→                  {PLACEMENTS.map((p) => (
+   296→                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+   297→                  ))}
+   298→                </SelectContent>
+   299→              </Select>
+   300→            </Field>
+   301→            <Field label="Status">
+   302→              <Select
+   303→                value={f.status}
+   304→                onValueChange={(v) => setF({ ...f, status: v as CampaignStatus })}
+   305→              >
+   306→                <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   307→                <SelectContent className="border-white/10 bg-coal text-white">
+   308→                  {STATUSES.map((s) => (
+   309→                    <SelectItem key={s} value={s}>{s}</SelectItem>
+   310→                  ))}
+   311→                </SelectContent>
+   312→              </Select>
+   313→            </Field>
+   314→          </div>
+   315→
+   316→          <Field label="Headline (shown on the placement)">
+   317→            <Input
+   318→              value={f.headline}
+   319→              maxLength={90}
+   320→              onChange={(e) => setF({ ...f, headline: e.target.value })}
+   321→              placeholder="Ship AI features without the plumbing"
+   322→              className={inputCx}
+   323→            />
+   324→          </Field>
+   325→          <Field label="Body (secondary line)">
+   326→            <Textarea
+   327→              value={f.body}
+   328→              rows={2}
+   329→              maxLength={140}
+   330→              onChange={(e) => setF({ ...f, body: e.target.value })}
+   331→              placeholder="One supporting sentence — optional."
+   332→              className={inputCx}
+   333→            />
+   334→          </Field>
+   335→
+   336→          <div className="grid gap-3 sm:grid-cols-2">
+   337→            <Field label="Click URL">
+   338→              <Input
+   339→                value={f.clickUrl}
+   340→                type="url"
+   341→                onChange={(e) => setF({ ...f, clickUrl: e.target.value })}
+   342→                placeholder="https://example.com/?utm_source=prother"
+   343→                className={cn(inputCx, "font-mono text-xs")}
+   344→              />
+   345→              {f.clickUrl.trim() && !urlOk(f.clickUrl) && (
+   346→                <p className="text-[10px] text-red-400">Not a valid http(s) URL</p>
+   347→              )}
+   348→            </Field>
+   349→            <Field label="Emoji">
+   350→              <Input
+   351→                value={f.emoji}
+   352→                maxLength={4}
+   353→                onChange={(e) => setF({ ...f, emoji: e.target.value })}
+   354→                placeholder="🧭"
+   355→                className={inputCx}
+   356→              />
+   357→            </Field>
+   358→          </div>
+   359→
+   360→          <div className="grid gap-3 sm:grid-cols-3">
+   361→            <Field label="Weight (1–10)">
+   362→              <Input
+   363→                value={f.weight}
+   364→                type="number"
+   365→                min={1}
+   366→                max={10}
+   367→                onChange={(e) => setF({ ...f, weight: e.target.value })}
+   368→                className={inputCx}
+   369→              />
+   370→              {!Number.isNaN(weightNum) && (weightNum < 1 || weightNum > 10) && (
+   371→                <p className="text-[10px] text-red-400">Pick 1–10 — higher wins the slot</p>
+   372→              )}
+   373→            </Field>
+   374→            <Field label="Starts (UTC)">
+   375→              <Input
+   376→                value={f.startsAt}
+   377→                type="date"
+   378→                onChange={(e) => setF({ ...f, startsAt: e.target.value })}
+   379→                className={cn(inputCx, "[color-scheme:dark]")}
+   380→              />
+   381→            </Field>
+   382→            <Field label="Ends (UTC)">
+   383→              <Input
+   384→                value={f.endsAt}
+   385→                type="date"
+   386→                onChange={(e) => setF({ ...f, endsAt: e.target.value })}
+   387→                className={cn(inputCx, "[color-scheme:dark]")}
+   388→              />
+   389→            </Field>
+   390→          </div>
+   391→
+   392→          <div className="grid gap-3 sm:grid-cols-2">
+   393→            <Field label="Total budget (cents)" hint="Blank = no cap">
+   394→              <Input
+   395→                value={f.totalBudgetCents}
+   396→                type="number"
+   397→                min={0}
+   398→                onChange={(e) => setF({ ...f, totalBudgetCents: e.target.value })}
+   399→                placeholder="50000"
+   400→                className={inputCx}
+   401→              />
+   402→            </Field>
+   403→            <Field label="Daily budget (cents)" hint="Blank = no cap">
+   404→              <Input
+   405→                value={f.dailyBudgetCents}
+   406→                type="number"
+   407→                min={0}
+   408→                onChange={(e) => setF({ ...f, dailyBudgetCents: e.target.value })}
+   409→                placeholder="5000"
+   410→                className={inputCx}
+   411→              />
+   412→            </Field>
+   413→          </div>
+   414→
+   415→          <div className="flex items-center gap-2 border-t border-white/10 pt-4">
+   416→            <Button
+   417→              disabled={!valid || busy}
+   418→              onClick={() => void submit()}
+   419→              className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   420→            >
+   421→              <Plus className="size-4" aria-hidden />
+   422→              {isNew ? "Create campaign" : "Save changes"}
+   423→            </Button>
+   424→            <Button
+   425→              variant="ghost"
+   426→              disabled={busy}
+   427→              onClick={() => onDone()}
+   428→              className="rounded-lg text-white/60 hover:text-white"
+   429→            >
+   430→              Cancel
+   431→            </Button>
+   432→            {!valid && (
+   433→              <p className="hidden font-mono text-[10px] text-white/30 sm:block">
+   434→                NAME · ADVERTISER · HEADLINE · VALID URL · WEIGHT 1–10 REQUIRED
+   435→              </p>
+   436→            )}
+   437→          </div>
+   438→        </div>
+   439→      </DialogContent>
+   440→    </Dialog>
+   441→  );
+   442→}
+   443→
+   444→// ── Serving controls (Task 27) ─────────────────────────────────────────
+   445→
+   446→const SERVING_MASTER_KEY = "ads.master";
+   447→const servingPlacementKey = (p: Placement) => `ads.placement.${p}`;
+   448→
+   449→/**
+   450→ * Live kill switches, backed by the SiteSetting KV via /api/admin/settings —
+   451→ * the same keys /api/ads/serve reads before counting an impression. Flipping
+   452→ * one takes effect on the next slot request, no deploy. When a placement is
+   453→ * off, pages don't even mount the client island (zero ad JS).
+   454→ */
+   455→function ServingControls({ apiKey }: { apiKey: string }) {
+   456→  const { toast } = useToast();
+   457→  const [config, setConfig] = useState<{
+   458→    master: boolean;
+   459→    placements: Record<Placement, boolean>;
+   460→  } | null>(null);
+   461→  const [busyKey, setBusyKey] = useState<string | null>(null);
+   462→
+   463→  useEffect(() => {
+   464→    let alive = true;
+   465→    adminFetch(apiKey, "/api/admin/settings")
+   466→      .then((r) => {
+   467→        if (!r.ok) throw new Error(String(r.status));
+   468→        return r.json() as Promise<{ settings?: Record<string, string> }>;
+   469→      })
+   470→      .then((d) => {
+   471→        if (!alive) return;
+   472→        const s = d.settings ?? {};
+   473→        setConfig({
+   474→          master: s[SERVING_MASTER_KEY] !== "0",
+   475→          placements: Object.fromEntries(
+   476→            PLACEMENTS.map((p) => [p.value, s[servingPlacementKey(p.value)] !== "0"])
+   477→          ) as Record<Placement, boolean>,
+   478→        });
+   479→      })
+   480→      .catch(() => {
+   481→        if (!alive) return;
+   482→        setConfig({
+   483→          master: true,
+   484→          placements: Object.fromEntries(
+   485→            PLACEMENTS.map((p) => [p.value, true])
+   486→          ) as Record<Placement, boolean>,
+   487→        });
+   488→      });
+   489→    return () => {
+   490→      alive = false;
+   491→    };
+   492→  }, [apiKey]);
+   493→
+   494→  const put = useCallback(
+   495→    async (key: string, on: boolean, label: string) => {
+   496→      setBusyKey(key);
+   497→      try {
+   498→        const res = await adminFetch(apiKey, "/api/admin/settings", {
+   499→          method: "PUT",
+   500→          body: JSON.stringify({ key, value: on ? "1" : "0" }),
+   501→        });
+   502→        const d = (await res.json()) as { ok?: boolean; error?: string };
+   503→        if (!res.ok || !d.ok) throw new Error(d.error ?? "Save failed");
+   504→        setConfig((cur) =>
+   505→          !cur
+   506→            ? cur
+   507→            : key === SERVING_MASTER_KEY
+   508→              ? { ...cur, master: on }
+   509→              : {
+   510→                  ...cur,
+   511→                  placements: {
+   512→                    ...cur.placements,
+   513→                    [key.slice("ads.placement.".length) as Placement]: on,
+   514→                  },
+   515→                }
+   516→        );
+   517→        toast({
+   518→          title: `${label} ${on ? "enabled" : "disabled"}`,
+   519→          description: on ? undefined : "Slots render nothing while off.",
+   520→        });
+   521→      } catch (err) {
+   522→        toast({
+   523→          title: err instanceof Error ? err.message : "Network error",
+   524→          variant: "destructive",
+   525→        });
+   526→      } finally {
+   527→        setBusyKey(null);
+   528→      }
+   529→    },
+   530→    [apiKey, toast]
+   531→  );
+   532→
+   533→  return (
+   534→    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+   535→      <div className="flex items-center justify-between gap-3">
+   536→        <div className="min-w-0">
+   537→          <p className="text-sm font-bold text-white">Serving controls</p>
+   538→          <p className="text-xs text-white/45">
+   539→            Live kill switches — no deploy. Off slots render nothing and spend no
+   540→            impressions.
+   541→          </p>
+   542→        </div>
+   543→        <div className="flex shrink-0 items-center gap-2">
+   544→          <Power
+   545→            className={cn("size-4", config?.master ? "text-ember" : "text-white/30")}
+   546→            aria-hidden
+   547→          />
+   548→          <Switch
+   549→            checked={config?.master ?? false}
+   550→            disabled={!config || busyKey === SERVING_MASTER_KEY}
+   551→            onCheckedChange={(v) => void put(SERVING_MASTER_KEY, v, "All ad serving")}
+   552→            aria-label="Master ad serving switch"
+   553→          />
+   554→        </div>
+   555→      </div>
+   556→
+   557→      <div className="mt-3 grid gap-1.5 border-t border-white/10 pt-3 sm:grid-cols-2">
+   558→        {PLACEMENTS.map((p) => (
+   559→          <div
+   560→            key={p.value}
+   561→            className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
+   562→          >
+   563→            <span className="min-w-0">
+   564→              <span className="block truncate font-mono text-[11px] tracking-wider text-white/70 uppercase">
+   565→                {p.label}
+   566→              </span>
+   567→              <span className="block truncate font-mono text-[9px] text-white/30">
+   568→                {p.value}
+   569→              </span>
+   570→            </span>
+   571→            <Switch
+   572→              checked={config?.placements[p.value] ?? false}
+   573→              disabled={!config || busyKey === servingPlacementKey(p.value)}
+   574→              onCheckedChange={(v) =>
+   575→                void put(servingPlacementKey(p.value), v, p.label)
+   576→              }
+   577→              aria-label={`Serve ${p.label} placement`}
+   578→            />
+   579→          </div>
+   580→        ))}
+   581→      </div>
+   582→    </div>
+   583→  );
+   584→}
+   585→
+   586→// ── Measurement (Task 28, P4) ──────────────────────────────────────────
+   587→
+   588→/**
+   589→ * 7-day fill accounting per placement, read from the same GET as the
+   590→ * campaign list (measurement field). "Unfill" = requested slots that did
+   591→ * NOT yield a direct-sold campaign — house fills included, since the slot
+   592→ * was requested and no advertiser paid for it. That number is the sales
+   593→ * pitch: it is the inventory currently going out at $0.
+   594→ */
+   595→function MeasurementCard({ m }: { m: Measurement | null }) {
+   596→  const maxServed = m
+   597→    ? Math.max(1, ...m.perPlacement.map((p) => p.served))
+   598→    : 1;
+   599→  return (
+   600→    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+   601→      <div className="flex items-center justify-between gap-3">
+   602→        <div className="min-w-0">
+   603→          <p className="text-sm font-bold text-white">Measurement — 7-day fill</p>
+   604→          <p className="text-xs text-white/45">
+   605→            Served vs. unsold demand per placement. Unfill = no campaign (house fills
+   606→            included) — that gap is open selling inventory.
+   607→          </p>
+   608→        </div>
+   609→        <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-white/40 uppercase">
+   610→          {m ? `${m.days[0]?.day} → ${m.days[m.days.length - 1]?.day}` : "…"}
+   611→        </span>
+   612→      </div>
+   613→
+   614→      <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+   615→        {(m?.perPlacement ?? PLACEMENTS.map((p) => ({
+   616→          placement: p.value,
+   617→          served: 0,
+   618→          house: 0,
+   619→          unfilled: 0,
+   620→          unfillRate: 0,
+   621→        }))).map((row) => {
+   622→          const label =
+   623→            PLACEMENTS.find((p) => p.value === row.placement)?.label ?? row.placement;
+   624→          const requested = row.served + row.house + row.unfilled;
+   625→          return (
+   626→            <div
+   627→              key={row.placement}
+   628→              className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
+   629→            >
+   630→              <span className="w-28 shrink-0 truncate font-mono text-[11px] tracking-wider text-white/70 uppercase">
+   631→                {label}
+   632→              </span>
+   633→              <span className="w-16 shrink-0 text-right font-mono text-[11px] tabular-nums text-white">
+   634→                {row.served.toLocaleString("en-US")}
+   635→                <span className="ml-1 text-white/35">imp</span>
+   636→              </span>
+   637→              <span className="hidden w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/45 sm:block">
+   638→                {row.house} hs
+   639→              </span>
+   640→              <span className="hidden w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/45 sm:block">
+   641→                {row.unfilled} un
+   642→              </span>
+   643→              {/* served share bar + unfill rate readout */}
+   644→              <span className="flex min-w-0 flex-1 items-center gap-2">
+   645→                <span
+   646→                  aria-hidden
+   647→                  className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10"
+   648→                >
+   649→                  <span
+   650→                    className="block h-full rounded-full bg-ember transition-all"
+   651→                    style={{ width: `${Math.round((row.served / maxServed) * 100)}%` }}
+   652→                  />
+   653→                </span>
+   654→                <span
+   655→                  className={cn(
+   656→                    "w-16 shrink-0 text-right font-mono text-[10px] tabular-nums",
+   657→                    requested === 0
+   658→                      ? "text-white/30"
+   659→                      : row.unfillRate >= 50
+   660→                        ? "text-amber-400"
+   661→                        : "text-emerald-400"
+   662→                  )}
+   663→                  title="Unfill rate — (house + unfilled) / requested"
+   664→                >
+   665→                  {requested === 0 ? "—" : `${row.unfillRate}% unfill`}
+   666→                </span>
+   667→              </span>
+   668→            </div>
+   669→          );
+   670→        })}
+   671→      </div>
+   672→
+   673→      <p className="mt-3 font-mono text-[10px] leading-relaxed text-white/25">
+   674→        VIEWABILITY (VW) IS COUNTED MRC-STYLE — ≥50% OF THE CREATIVE ON SCREEN FOR ≥1S —
+   675→        PER CAMPAIGN BELOW · DISABLED SLOTS COUNT NOTHING (AN OFF SWITCH IS NOT A FILL)
+   676→      </p>
+   677→    </div>
+   678→  );
+   679→}
+   680→
+   681→// ── Ads tab ──────────────────────────────────────────────────────────────
+   682→
+   683→export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+   684→  const { toast } = useToast();
+   685→  const [campaigns, setCampaigns] = useState<AdCampaign[] | null>(null);
+   686→  const [stats, setStats] = useState<AdsStats | null>(null);
+   687→  const [measurement, setMeasurement] = useState<Measurement | null>(null);
+   688→  const [error, setError] = useState(false);
+   689→  const [busy, setBusy] = useState<string | null>(null);
+   690→  const [dialog, setDialog] = useState<{ open: boolean; campaign: AdCampaign | null }>({
+   691→    open: false,
+   692→    campaign: null,
+   693→  });
+   694→  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+   695→  const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+   696→
+   697→  const load = useCallback(() => {
+   698→    adminFetch(apiKey, "/api/admin/ads")
+   699→      .then((r) => {
+   700→        if (!r.ok) throw new Error(String(r.status));
+   701→        return r.json() as Promise<{
+   702→          campaigns: AdCampaign[];
+   703→          stats: AdsStats;
+   704→          measurement?: Measurement;
+   705→        }>;
+   706→      })
+   707→      .then((d) => {
+   708→        setCampaigns(d.campaigns);
+   709→        setStats(d.stats);
+   710→        setMeasurement(d.measurement ?? null);
+   711→        setError(false);
+   712→      })
+   713→      .catch(() => setError(true));
+   714→  }, [apiKey]);
+   715→
+   716→  useEffect(load, [load]);
+   717→
+   718→  const retry = useCallback(() => {
+   719→    setCampaigns(null);
+   720→    setError(false);
+   721→    load();
+   722→  }, [load]);
+   723→
+   724→  const patchStatus = useCallback(
+   725→    async (c: AdCampaign, nextStatus: CampaignStatus, note?: string) => {
+   726→      const snapshot = campaigns;
+   727→      setCampaigns((cur) =>
+   728→        cur?.map((x) => (x.id === c.id ? { ...x, status: nextStatus } : x)) ?? cur
+   729→      );
+   730→      setBusy(c.id);
+   731→      try {
+   732→        const res = await adminFetch(apiKey, `/api/admin/ads/${c.id}`, {
+   733→          method: "PATCH",
+   734→          body: JSON.stringify({ status: nextStatus }),
+   735→        });
+   736→        const d = (await res.json()) as { ok?: boolean; error?: string };
+   737→        if (!res.ok || !d.ok) throw new Error(d.error ?? "Status update failed");
+   738→        toast({ title: `${c.name} → ${nextStatus}`, description: note });
+   739→        onChanged();
+   740→      } catch (err) {
+   741→        setCampaigns(snapshot);
+   742→        toast({
+   743→          title: err instanceof Error ? err.message : "Network error",
+   744→          variant: "destructive",
+   745→        });
+   746→      } finally {
+   747→        setBusy(null);
+   748→      }
+   749→    },
+   750→    [apiKey, campaigns, toast, onChanged]
+   751→  );
+   752→
+   753→  const doDelete = useCallback(
+   754→    async (c: AdCampaign) => {
+   755→      setBusy(c.id);
+   756→      try {
+   757→        const res = await adminFetch(apiKey, `/api/admin/ads/${c.id}`, { method: "DELETE" });
+   758→        const d = (await res.json()) as { ok?: boolean; error?: string };
+   759→        if (!res.ok || !d.ok) throw new Error(d.error ?? "Delete failed");
+   760→        toast({ title: `${c.name} deleted` });
+   761→        setCampaigns((cur) => cur?.filter((x) => x.id !== c.id) ?? cur);
+   762→        onChanged();
+   763→      } catch (err) {
+   764→        toast({
+   765→          title: err instanceof Error ? err.message : "Network error",
+   766→          variant: "destructive",
+   767→        });
+   768→      } finally {
+   769→        setBusy(null);
+   770→      }
+   771→    },
+   772→    [apiKey, toast, onChanged]
+   773→  );
+   774→
+   775→  const onDeleteClick = useCallback(
+   776→    (c: AdCampaign) => {
+   777→      if (confirmDelete === c.id) {
+   778→        if (deleteTimer.current) clearTimeout(deleteTimer.current);
+   779→        setConfirmDelete(null);
+   780→        void doDelete(c);
+   781→      } else {
+   782→        setConfirmDelete(c.id);
+   783→        if (deleteTimer.current) clearTimeout(deleteTimer.current);
+   784→        deleteTimer.current = setTimeout(() => setConfirmDelete(null), 3000);
+   785→      }
+   786→    },
+   787→    [confirmDelete, doDelete]
+   788→  );
+   789→
+   790→  return (
+   791→    <div className="space-y-3">
+   792→      {/* stats strip */}
+   793→      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+   794→        <MiniStat label="Active campaigns" value={stats ? `${stats.active}/${stats.total}` : "…"} />
+   795→        <MiniStat label="Impressions" value={stats?.impressions ?? "…"} />
+   796→        <MiniStat label="Clicks" value={stats?.clicks ?? "…"} />
+   797→        <MiniStat label="Avg CTR" value={stats ? fmtCtr(stats.ctr) : "…"} accent />
+   798→      </div>
+   799→
+   800→      {/* serving controls — master + per-placement kill switches (Task 27) */}
+   801→      <ServingControls apiKey={apiKey} />
+   802→
+   803→      {/* 7-day fill/unfill accounting per placement (Task 28) */}
+   804→      <MeasurementCard m={measurement} />
+   805→
+   806→      <div className="flex items-center justify-between">
+   807→        <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+   808→          {campaigns ? `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"}` : "…"} ·
+   809→          weight picks the slot winner
+   810→        </p>
+   811→        <Button
+   812→          size="sm"
+   813→          onClick={() => setDialog({ open: true, campaign: null })}
+   814→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   815→        >
+   816→          <Plus className="size-4" aria-hidden />
+   817→          New campaign
+   818→        </Button>
+   819→      </div>
+   820→
+   821→      {error ? (
+   822→        <LoadError label="Campaigns" onRetry={retry} />
+   823→      ) : campaigns === null ? (
+   824→        <CampaignsSkeleton />
+   825→      ) : campaigns.length === 0 ? (
+   826→        <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
+   827→          <Megaphone className="mx-auto size-8 text-white/25" aria-hidden />
+   828→          <p className="mt-3 font-mono text-sm text-white/60">
+   829→            No campaigns yet — create the first one
+   830→          </p>
+   831→          <Button
+   832→            onClick={() => setDialog({ open: true, campaign: null })}
+   833→            className="mt-4 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   834→          >
+   835→            <Plus className="size-4" aria-hidden />
+   836→            New campaign
+   837→          </Button>
+   838→        </div>
+   839→      ) : (
+   840→        <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+   841→          {campaigns.map((c) => (
+   842→            <div
+   843→              key={c.id}
+   844→              className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
+   845→            >
+   846→              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+   847→                <span aria-hidden className="text-lg">
+   848→                  {c.emoji || "📢"}
+   849→                </span>
+   850→                <div className="min-w-44 flex-1">
+   851→                  <p className="truncate text-sm font-bold text-white">{c.name}</p>
+   852→                  <p className="truncate text-xs text-white/45">{c.headline}</p>
+   853→                </div>
+   854→
+   855→                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+   856→                  <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[9px] tracking-wider text-white/60 uppercase">
+   857→                    {PLACEMENT_LABEL[c.placement]}
+   858→                  </span>
+   859→                  {c.windowState !== "none" && (
+   860→                    <span
+   861→                      className={cn(
+   862→                        "rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wider uppercase",
+   863→                        WINDOW_CX[c.windowState]
+   864→                      )}
+   865→                    >
+   866→                      {c.windowState}
+   867→                    </span>
+   868→                  )}
+   869→                  {c.targetCategory && (
+   870→                    <span
+   871→                      title={`Category spotlight: ${c.targetCategory}`}
+   872→                      className="rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-ember"
+   873→                    >
+   874→                      → {c.targetCategory}
+   875→                    </span>
+   876→                  )}
+   877→                </div>
+   878→
+   879→                <div className="hidden shrink-0 text-right font-mono text-[10px] leading-relaxed text-white/40 lg:block">
+   880→                  <p>{fmtWindow(c)}</p>
+   881→                  <p>
+   882→                    {fmtMoney(c.totalBudgetCents)}
+   883→                    {c.dailyBudgetCents && c.dailyBudgetCents > 0
+   884→                      ? ` · $${(c.dailyBudgetCents / 100).toLocaleString("en-US")}/day`
+   885→                      : ""}
+   886→                  </p>
+   887→                </div>
+   888→
+   889→                <div className="hidden shrink-0 text-right font-mono text-[10px] leading-relaxed text-white/50 sm:block">
+   890→                  <p>
+   891→                    {c.impressions.toLocaleString("en-US")} imp
+   892→                    {c.impressions > 0 && (
+   893→                      <span className="text-white/30">
+   894→                        {" "}· {Math.round(c.vRate)}% vw
+   895→                      </span>
+   896→                    )}
+   897→                  </p>
+   898→                  <p>
+   899→                    {c.clicks.toLocaleString("en-US")} clk ·{" "}
+   900→                    <span className="text-ember">{fmtCtr(c.ctr)}</span>
+   901→                  </p>
+   902→                </div>
+   903→
+   904→                <Select
+   905→                  value={c.status}
+   906→                  onValueChange={(v) => void patchStatus(c, v as CampaignStatus)}
+   907→                  disabled={busy === c.id}
+   908→                >
+   909→                  <SelectTrigger
+   910→                    aria-label={`Status for ${c.name}`}
+   911→                    className={cn(inputCx, "h-8 w-28 shrink-0 text-xs")}
+   912→                  >
+   913→                    <SelectValue />
+   914→                  </SelectTrigger>
+   915→                  <SelectContent className="border-white/10 bg-coal text-white">
+   916→                    {STATUSES.map((s) => (
+   917→                      <SelectItem key={s} value={s}>{s}</SelectItem>
+   918→                    ))}
+   919→                  </SelectContent>
+   920→                </Select>
+   921→
+   922→                <div className="flex shrink-0 items-center gap-1">
+   923→                  {c.status === "active" ? (
+   924→                    <Button
+   925→                      size="icon"
+   926→                      variant="outline"
+   927→                      disabled={busy === c.id}
+   928→                      onClick={() => void patchStatus(c, "paused")}
+   929→                      aria-label={`Pause ${c.name}`}
+   930→                      title="Pause"
+   931→                      className="size-8 rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+   932→                    >
+   933→                      <Pause className="size-3.5" aria-hidden />
+   934→                    </Button>
+   935→                  ) : (
+   936→                    <Button
+   937→                      size="icon"
+   938→                      variant="outline"
+   939→                      disabled={busy === c.id}
+   940→                      onClick={() =>
+   941→                        void patchStatus(c, "active", "Serves only inside the flight window.")
+   942→                      }
+   943→                      aria-label={`Activate ${c.name}`}
+   944→                      title="Activate"
+   945→                      className="size-8 rounded-lg border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300"
+   946→                    >
+   947→                      <Play className="size-3.5" aria-hidden />
+   948→                    </Button>
+   949→                  )}
+   950→                  <Button
+   951→                    size="icon"
+   952→                    variant="ghost"
+   953→                    disabled={busy === c.id}
+   954→                    onClick={() => setDialog({ open: true, campaign: c })}
+   955→                    aria-label={`Edit ${c.name}`}
+   956→                    className="size-8 rounded-lg text-white/40 hover:text-ember"
+   957→                  >
+   958→                    <Pencil className="size-3.5" aria-hidden />
+   959→                  </Button>
+   960→                  <Button
+   961→                    size="sm"
+   962→                    variant="ghost"
+   963→                    disabled={busy === c.id}
+   964→                    onClick={() => onDeleteClick(c)}
+   965→                    aria-label={
+   966→                      confirmDelete === c.id ? `Confirm delete ${c.name}` : `Delete ${c.name}`
+   967→                    }
+   968→                    className={cn(
+   969→                      "h-8 rounded-lg font-mono text-[10px] tracking-wider uppercase",
+   970→                      confirmDelete === c.id
+   971→                        ? "bg-red-500/15 text-red-300 hover:bg-red-500/25"
+   972→                        : "text-red-400/70 hover:bg-red-400/10 hover:text-red-300"
+   973→                    )}
+   974→                  >
+   975→                    <Trash2 className="size-3.5" aria-hidden />
+   976→                    {confirmDelete === c.id ? "Sure?" : ""}
+   977→                  </Button>
+   978→                </div>
+   979→              </div>
+   980→            </div>
+   981→          ))}
+   982→        </div>
+   983→      )}
+   984→
+   985→      <p className="font-mono text-[10px] leading-relaxed text-white/25">
+   986→        IMPRESSIONS &amp; CLICKS COUNT THROUGH THE PUBLIC /API/ADS ENDPOINTS ·
+   987→        DELETE IS TWO-CLICK CONFIRM (CLICK AGAIN WITHIN 3S) · FLIGHT DATES ARE UTC
+   988→      </p>
+   989→
+   990→      {dialog.open && (
+   991→        <CampaignDialog
+   992→          apiKey={apiKey}
+   993→          campaign={dialog.campaign}
+   994→          onDone={() => {
+   995→            setDialog({ open: false, campaign: null });
+   996→            load();
+   997→            onChanged();
+   998→          }}
+   999→        />
+  1000→      )}
+  1001→    </div>
+  1002→  );
+  1003→}
+  1004→

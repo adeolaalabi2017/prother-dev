@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/trending — most-engaged live tools over a rolling window (F-06).
- * ?window=week|month (default week) &limit=1..24 (default 12).
+ * Score = recent comments/reviews/collection saves + editorial bonus (no
+ * votes). ?window=week|month (default week) &limit=1..24 (default 12).
  */
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
@@ -18,28 +19,29 @@ export async function GET(req: Request) {
   const scores = await trendingScores(window);
 
   const live = await db.tool.findMany({
-    where: { status: "live", launch: { is: { scheduled: false } } },
+    where: { status: "live" },
     select: {
       slug: true,
       name: true,
       tagline: true,
       logoEmoji: true,
       logoGradient: true,
-      launch: { select: { baseUpvotes: true } },
       category: { select: { slug: true, name: true, emoji: true } },
     },
   });
 
   const rows = live
     .map((t) => {
-      const entry = scores.get(t.slug) ?? { score: 0, signals: { votes: 0, comments: 0, reviews: 0 } };
+      const entry = scores.get(t.slug) ?? {
+        score: 0,
+        signals: { comments: 0, reviews: 0, saves: 0 },
+      };
       return {
         slug: t.slug,
         name: t.name,
         tagline: t.tagline,
         emoji: t.logoEmoji,
         gradient: t.logoGradient,
-        votes: entry.signals.votes || (t.launch?.baseUpvotes ?? 0),
         score: entry.score,
         signals: entry.signals,
         category: t.category,

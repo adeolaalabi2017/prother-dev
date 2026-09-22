@@ -1,0 +1,1077 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useState } from "react";
+     4→import { AnimatePresence, motion } from "framer-motion";
+     5→import {
+     6→  BadgeCheck,
+     7→  CalendarClock,
+     8→  CheckCircle2,
+     9→  ChevronDown,
+    10→  CircleDashed,
+    11→  Clock,
+    12→  KeyRound,
+    13→  Loader2,
+    14→  ShieldAlert,
+    15→  ShieldCheck,
+    16→  Star,
+    17→  XCircle,
+    18→} from "lucide-react";
+    19→import { Button } from "@/components/ui/button";
+    20→import { Checkbox } from "@/components/ui/checkbox";
+    21→import {
+    22→  Dialog,
+    23→  DialogContent,
+    24→  DialogDescription,
+    25→  DialogTitle,
+    26→} from "@/components/ui/dialog";
+    27→import { Input } from "@/components/ui/input";
+    28→import { useToast } from "@/hooks/use-toast";
+    29→import { cn } from "@/lib/utils";
+    30→import { CATEGORIES } from "./categories";
+    31→import { useExplorer } from "./explorer-store";
+    32→import { STANDARD_DEFS } from "@/lib/standards";
+    33→import { PRICING_MODELS } from "@/lib/submit";
+    34→
+    35→// ── Types (mirrors /api/editor/queue) ────────────────────────────────────
+    36→
+    37→type EditorSubmission = {
+    38→  id: string;
+    39→  email: string;
+    40→  websiteUrl: string;
+    41→  domain: string;
+    42→  name: string;
+    43→  tagline: string;
+    44→  description: string;
+    45→  categorySlug: string;
+    46→  tags: string;
+    47→  pricingModel: string;
+    48→  startingPrice: string | null;
+    49→  pricingNote: string | null;
+    50→  hasApi: boolean;
+    51→  githubUrl: string | null;
+    52→  docsUrl: string | null;
+    53→  twitterUrl: string | null;
+    54→  logoEmoji: string;
+    55→  logoGradient: string;
+    56→  isOwner: boolean;
+    57→  confirmedLive: boolean;
+    58→  agreedStandards: boolean;
+    59→  status: string;
+    60→  createdAt: string;
+    61→  ageH: number;
+    62→};
+    63→
+    64→type QueueResponse = {
+    65→  ok?: boolean;
+    66→  error?: string;
+    67→  pending?: EditorSubmission[];
+    68→  counts?: { pending: number; approved: number; rejected: number };
+    69→  capacity?: { today: number; tomorrow: number; floor: number; cap: number };
+    70→  claims?: EditorClaim[];
+    71→  filteredReviews?: EditorReview[];
+    72→};
+    73→
+    74→/** Ownership claim awaiting arbitration (F-30 — editor gate). */
+    75→type EditorClaim = {
+    76→  id: string;
+    77→  toolSlug: string;
+    78→  toolName: string;
+    79→  toolEmoji: string;
+    80→  userEmail: string;
+    81→  userName: string;
+    82→  method: string;
+    83→  status: "pending" | "failed" | "disputed";
+    84→  token: string;
+    85→  note: string | null;
+    86→  ageH: number;
+    87→};
+    88→
+    89→/** Review held back by the <48h account-age filter (F-16 soft moderation). */
+    90→type EditorReview = {
+    91→  id: string;
+    92→  toolSlug: string;
+    93→  toolName: string;
+    94→  toolEmoji: string;
+    95→  author: string;
+    96→  ease: number;
+    97→  power: number;
+    98→  value: number;
+    99→  body: string;
+   100→  ageH: number;
+   101→};
+   102→
+   103→/** Demo passcode — real auth (NextAuth) ships in Phase 2. */
+   104→const DEMO_HINT = "ember-dev";
+   105→const KEY_STORAGE = "prother_editor_key";
+   106→
+   107→function capacityChip(n: number, floor: number, cap: number) {
+   108→  if (n < floor) return { emoji: "🔴", label: "below floor" };
+   109→  if (n > cap) return { emoji: "⛔", label: "over cap" };
+   110→  if (n >= 11) return { emoji: "🟡", label: "11–15" };
+   111→  return { emoji: "🟢", label: "5–10" };
+   112→}
+   113→
+   114→// ── Gate screen ──────────────────────────────────────────────────────────
+   115→
+   116→function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
+   117→  const [value, setValue] = useState("");
+   118→  return (
+   119→    <div className="flex flex-col items-center px-8 py-16 text-center">
+   120→      <div className="flex size-14 items-center justify-center rounded-2xl border border-ember/30 bg-ember/10">
+   121→        <KeyRound className="size-6 text-ember" aria-hidden />
+   122→      </div>
+   123→      <h2 className="mt-5 text-xl font-black tracking-tight text-white">
+   124→        Editor access
+   125→      </h2>
+   126→      <p className="mt-1.5 max-w-xs text-sm text-white/50">
+   127→        Review queue for the moderation desk. Demo key:{" "}
+   128→        <button
+   129→          type="button"
+   130→          onClick={() => setValue(DEMO_HINT)}
+   131→          className="font-mono text-ember underline-offset-2 hover:underline"
+   132→        >
+   133→          {DEMO_HINT}
+   134→        </button>
+   135→      </p>
+   136→      <form
+   137→        className="mt-6 flex w-full max-w-xs gap-2"
+   138→        onSubmit={(e) => {
+   139→          e.preventDefault();
+   140→          if (value.trim()) onUnlock(value.trim());
+   141→        }}
+   142→      >
+   143→        <Input
+   144→          value={value}
+   145→          onChange={(e) => setValue(e.target.value)}
+   146→          placeholder="Editor key"
+   147→          type="password"
+   148→          aria-label="Editor key"
+   149→          className="border-white/10 bg-white/5 font-mono text-white placeholder:text-white/25"
+   150→        />
+   151→        <Button
+   152→          type="submit"
+   153→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   154→        >
+   155→          Unlock
+   156→        </Button>
+   157→      </form>
+   158→    </div>
+   159→  );
+   160→}
+   161→
+   162→// ── One pending submission card ──────────────────────────────────────────
+   163→
+   164→function PendingCard({
+   165→  sub,
+   166→  onApproved,
+   167→  onRejected,
+   168→}: {
+   169→  sub: EditorSubmission;
+   170→  onApproved: (slug: string) => void;
+   171→  onRejected: (id: string) => void;
+   172→}) {
+   173→  const { toast } = useToast();
+   174→  const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
+   175→  const [rejecting, setRejecting] = useState(false);
+   176→  const [failed, setFailed] = useState<string[]>([]);
+   177→  const [note, setNote] = useState("");
+   178→  const [expanded, setExpanded] = useState(false);
+   179→
+   180→  const category = CATEGORIES.find((c) => c.slug === sub.categorySlug);
+   181→  const pricing =
+   182→    PRICING_MODELS.find((p) => p.value === sub.pricingModel)?.label ??
+   183→    sub.pricingModel;
+   184→  const tags = sub.tags ? sub.tags.split("|").filter(Boolean) : [];
+   185→
+   186→  const decide = useCallback(
+   187→    async (decision: "approve" | "reject") => {
+   188→      setBusy(decision);
+   189→      try {
+   190→        const res = await fetch("/api/editor/decision", {
+   191→          method: "POST",
+   192→          headers: {
+   193→            "Content-Type": "application/json",
+   194→            "x-editor-key": sessionStorage.getItem(KEY_STORAGE) ?? "",
+   195→          },
+   196→          body: JSON.stringify(
+   197→            decision === "approve"
+   198→              ? { decision, id: sub.id }
+   199→              : { decision, id: sub.id, failedStandards: failed, note }
+   200→          ),
+   201→        });
+   202→        const data = (await res.json()) as {
+   203→          ok?: boolean;
+   204→          error?: string;
+   205→          slug?: string;
+   206→          reviewNote?: string;
+   207→        };
+   208→        if (!res.ok || !data.ok) {
+   209→          toast({
+   210→            title: data.error ?? "Decision failed",
+   211→            variant: "destructive",
+   212→          });
+   213→          return;
+   214→        }
+   215→        if (decision === "approve" && data.slug) {
+   216→          toast({
+   217→            title: `${sub.name} scheduled`,
+   218→            description: `Added to tomorrow's launch day as /tool/${data.slug}.`,
+   219→          });
+   220→          onApproved(data.slug);
+   221→        } else {
+   222→          toast({ title: `${sub.name} rejected`, description: data.reviewNote });
+   223→          onRejected(sub.id);
+   224→        }
+   225→      } catch {
+   226→        toast({
+   227→          title: "Decision failed",
+   228→          description: "Network error — try again.",
+   229→          variant: "destructive",
+   230→        });
+   231→      } finally {
+   232→        setBusy(null);
+   233→      }
+   234→    },
+   235→    [sub, failed, note, toast, onApproved, onRejected]
+   236→  );
+   237→
+   238→  return (
+   239→    <div className="rounded-xl border border-white/10 bg-white/[0.02]">
+   240→      {/* header row */}
+   241→      <button
+   242→        type="button"
+   243→        onClick={() => setExpanded((v) => !v)}
+   244→        aria-expanded={expanded}
+   245→        className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-white/[0.03]"
+   246→      >
+   247→        <div
+   248→          aria-hidden
+   249→          className={cn(
+   250→            "flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg shadow-inner",
+   251→            sub.logoGradient
+   252→          )}
+   253→        >
+   254→          {sub.logoEmoji}
+   255→        </div>
+   256→        <div className="min-w-0 flex-1">
+   257→          <p className="flex items-center gap-2 font-bold text-white">
+   258→            <span className="truncate">{sub.name}</span>
+   259→            {sub.isOwner ? (
+   260→              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-px font-mono text-[9px] text-emerald-400">
+   261→                <BadgeCheck className="size-2.5" aria-hidden /> OWNER
+   262→              </span>
+   263→            ) : (
+   264→              <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px font-mono text-[9px] text-white/50">
+   265→                3RD PARTY
+   266→              </span>
+   267→            )}
+   268→          </p>
+   269→          <p className="truncate text-sm text-white/60">{sub.tagline}</p>
+   270→        </div>
+   271→        <div className="hidden shrink-0 text-right sm:block">
+   272→          <p className="font-mono text-[10px] text-white/40">{sub.domain}</p>
+   273→          <p className="flex items-center justify-end gap-1 font-mono text-[10px] text-ember">
+   274→            <Clock className="size-3" aria-hidden /> {sub.ageH}h in queue
+   275→          </p>
+   276→        </div>
+   277→        <ChevronDown
+   278→          className={cn(
+   279→            "size-4 shrink-0 text-white/40 transition-transform",
+   280→            expanded && "rotate-180"
+   281→          )}
+   282→          aria-hidden
+   283→        />
+   284→      </button>
+   285→
+   286→      {/* expanded detail */}
+   287→      <AnimatePresence initial={false}>
+   288→        {expanded && (
+   289→          <motion.div
+   290→            initial={{ height: 0, opacity: 0 }}
+   291→            animate={{ height: "auto", opacity: 1 }}
+   292→            exit={{ height: 0, opacity: 0 }}
+   293→            transition={{ duration: 0.22, ease: "easeOut" }}
+   294→            className="overflow-hidden"
+   295→          >
+   296→            <div className="space-y-4 border-t border-white/10 p-4">
+   297→              <div className="grid gap-3 sm:grid-cols-2">
+   298→                <div>
+   299→                  <p className="font-mono text-[10px] tracking-widest text-white/40">
+   300→                    LISTING
+   301→                  </p>
+   302→                  <p className="mt-1 text-xs leading-relaxed text-white/70">
+   303→                    {sub.description}
+   304→                  </p>
+   305→                </div>
+   306→                <div className="space-y-1.5 text-xs text-white/70">
+   307→                  <p>
+   308→                    <span className="font-mono text-[10px] text-white/40">CATEGORY</span>{" "}
+   309→                    {category ? `${category.emoji} ${category.name}` : sub.categorySlug}
+   310→                  </p>
+   311→                  <p>
+   312→                    <span className="font-mono text-[10px] text-white/40">PRICING</span>{" "}
+   313→                    {pricing}
+   314→                    {sub.startingPrice && (
+   315→                      <span className="ml-1 font-mono text-ember">{sub.startingPrice}</span>
+   316→                    )}
+   317→                    {sub.pricingNote && (
+   318→                      <span className="text-white/50"> — {sub.pricingNote}</span>
+   319→                    )}
+   320→                  </p>
+   321→                  <p>
+   322→                    <span className="font-mono text-[10px] text-white/40">EMAIL</span>{" "}
+   323→                    <span className="font-mono">{sub.email}</span>
+   324→                  </p>
+   325→                  <p className="flex flex-wrap gap-1.5 pt-0.5">
+   326→                    {sub.hasApi && (
+   327→                      <span className="rounded border border-white/15 px-1.5 py-px font-mono text-[10px] text-white/60">
+   328→                        API
+   329→                      </span>
+   330→                    )}
+   331→                    {tags.map((t) => (
+   332→                      <span
+   333→                        key={t}
+   334→                        className="rounded border border-white/15 px-1.5 py-px font-mono text-[10px] text-white/60"
+   335→                      >
+   336→                        {t}
+   337→                      </span>
+   338→                    ))}
+   339→                  </p>
+   340→                  <a
+   341→                    href={sub.websiteUrl}
+   342→                    target="_blank"
+   343→                    rel="noopener noreferrer"
+   344→                    className="inline-block font-mono text-[11px] text-ember hover:underline"
+   345→                  >
+   346→                    Visit {sub.domain} ↗
+   347→                  </a>
+   348→                </div>
+   349→              </div>
+   350→
+   351→              {/* S1–S6 quick audit (PRD §7 — reviewer checklist) */}
+   352→              <div className="grid gap-1.5 sm:grid-cols-2">
+   353→                {STANDARD_DEFS.map((s) => {
+   354→                  const selfDeclared =
+   355→                    (s.id === "S1" && sub.confirmedLive) ||
+   356→                    (s.id === "S3" && sub.agreedStandards);
+   357→                  return (
+   358→                    <div
+   359→                      key={s.id}
+   360→                      className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5"
+   361→                    >
+   362→                      {selfDeclared ? (
+   363→                        <CheckCircle2
+   364→                          className="size-3.5 shrink-0 text-emerald-400"
+   365→                          aria-hidden
+   366→                        />
+   367→                      ) : (
+   368→                        <CircleDashed
+   369→                          className="size-3.5 shrink-0 text-white/30"
+   370→                          aria-hidden
+   371→                        />
+   372→                      )}
+   373→                      <p className="min-w-0 text-[11px] text-white/60">
+   374→                        <span className="font-mono text-ember">{s.id}</span>{" "}
+   375→                        {s.title}
+   376→                      </p>
+   377→                    </div>
+   378→                  );
+   379→                })}
+   380→              </div>
+   381→
+   382→              {/* decision row */}
+   383→              {!rejecting ? (
+   384→                <div className="flex flex-wrap items-center gap-2.5 border-t border-white/10 pt-3.5">
+   385→                  <Button
+   386→                    type="button"
+   387→                    disabled={busy !== null}
+   388→                    onClick={() => decide("approve")}
+   389→                    className="h-9 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-50 dark:text-black"
+   390→                  >
+   391→                    {busy === "approve" ? (
+   392→                      <Loader2 className="size-4 animate-spin" aria-hidden />
+   393→                    ) : (
+   394→                      <CalendarClock className="size-4" aria-hidden />
+   395→                    )}
+   396→                    Approve → schedule tomorrow
+   397→                  </Button>
+   398→                  <Button
+   399→                    type="button"
+   400→                    variant="outline"
+   401→                    disabled={busy !== null}
+   402→                    onClick={() => setRejecting(true)}
+   403→                    className="h-9 rounded-lg border-red-400/30 bg-transparent text-red-400 hover:bg-red-400/10 hover:text-red-300"
+   404→                  >
+   405→                    <XCircle className="size-4" aria-hidden />
+   406→                    Reject…
+   407→                  </Button>
+   408→                </div>
+   409→              ) : (
+   410→                <div className="space-y-3 rounded-xl border border-red-400/25 bg-red-400/[0.05] p-3.5">
+   411→                  <p className="flex items-center gap-2 font-mono text-[11px] tracking-widest text-red-300">
+   412→                    <ShieldAlert className="size-4" aria-hidden />
+   413→                    REJECTIONS MUST CITE FAILED STANDARD(S)
+   414→                  </p>
+   415→                  <div className="flex flex-wrap gap-1.5">
+   416→                    {STANDARD_DEFS.map((s) => {
+   417→                      const on = failed.includes(s.id);
+   418→                      return (
+   419→                        <label
+   420→                          key={s.id}
+   421→                          className={cn(
+   422→                            "flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] transition-all active:scale-95",
+   423→                            on
+   424→                              ? "border-red-400 bg-red-400/15 text-red-200"
+   425→                              : "border-white/15 text-white/60 hover:border-red-400/40"
+   426→                          )}
+   427→                        >
+   428→                          <Checkbox
+   429→                            checked={on}
+   430→                            onCheckedChange={(v) =>
+   431→                              setFailed((prev) =>
+   432→                                v
+   433→                                  ? [...prev, s.id]
+   434→                                  : prev.filter((x) => x !== s.id)
+   435→                              )
+   436→                            }
+   437→                            className="size-3 border-white/30 data-[state=checked]:border-red-400 data-[state=checked]:bg-red-400 data-[state=checked]:text-black"
+   438→                          />
+   439→                          {s.id} {s.title}
+   440→                        </label>
+   441→                      );
+   442→                    })}
+   443→                  </div>
+   444→                  <Input
+   445→                    value={note}
+   446→                    onChange={(e) => setNote(e.target.value)}
+   447→                    placeholder="Optional note for the maker…"
+   448→                    maxLength={500}
+   449→                    className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+   450→                  />
+   451→                  <div className="flex gap-2">
+   452→                    <Button
+   453→                      type="button"
+   454→                      disabled={busy !== null || failed.length === 0}
+   455→                      onClick={() => decide("reject")}
+   456→                      className="h-9 rounded-lg bg-red-500 font-semibold text-white shadow-none hover:bg-red-400 disabled:opacity-40"
+   457→                    >
+   458→                      {busy === "reject" ? (
+   459→                        <Loader2 className="size-4 animate-spin" aria-hidden />
+   460→                      ) : (
+   461→                        <XCircle className="size-4" aria-hidden />
+   462→                      )}
+   463→                      Reject with {failed.length} citation{failed.length === 1 ? "" : "s"}
+   464→                    </Button>
+   465→                    <Button
+   466→                      type="button"
+   467→                      variant="ghost"
+   468→                      onClick={() => setRejecting(false)}
+   469→                      className="h-9 rounded-lg text-white/60 hover:bg-white/5 hover:text-white"
+   470→                    >
+   471→                      Back
+   472→                    </Button>
+   473→                  </div>
+   474→                </div>
+   475→              )}
+   476→            </div>
+   477→          </motion.div>
+   478→        )}
+   479→      </AnimatePresence>
+   480→    </div>
+   481→  );
+   482→}
+   483→
+   484→// ── One ownership-claim arbitration card (F-30) ──────────────────────────
+   485→
+   486→const CLAIM_STATUS_STYLE: Record<EditorClaim["status"], string> = {
+   487→  pending: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+   488→  failed: "border-red-400/30 bg-red-400/10 text-red-300",
+   489→  disputed: "border-white/15 bg-white/5 text-white/50",
+   490→};
+   491→
+   492→function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }) {
+   493→  const { toast } = useToast();
+   494→  const [busy, setBusy] = useState<"verify" | "dismiss" | null>(null);
+   495→  const [dismissing, setDismissing] = useState(false);
+   496→  const [note, setNote] = useState("");
+   497→
+   498→  const decide = useCallback(
+   499→    async (action: "verify" | "dismiss") => {
+   500→      setBusy(action);
+   501→      try {
+   502→        const res = await fetch("/api/editor/arbitrate", {
+   503→          method: "POST",
+   504→          headers: {
+   505→            "Content-Type": "application/json",
+   506→            "x-editor-key": sessionStorage.getItem(KEY_STORAGE) ?? "",
+   507→          },
+   508→          body: JSON.stringify(
+   509→            action === "verify"
+   510→              ? { type: "claim", id: claim.id, action }
+   511→              : { type: "claim", id: claim.id, action, note: note || undefined }
+   512→          ),
+   513→        });
+   514→        const data = (await res.json()) as { ok?: boolean; error?: string };
+   515→        if (!res.ok || !data.ok) {
+   516→          toast({ title: data.error ?? "Arbitration failed", variant: "destructive" });
+   517→          return;
+   518→        }
+   519→        toast({
+   520→          title:
+   521→            action === "verify"
+   522→              ? `${claim.toolName} verified → ${claim.userName}`
+   523→              : `Claim by ${claim.userName} dismissed`,
+   524→          description:
+   525→            action === "verify"
+   526→              ? "Listing ownership transferred, badge goes live."
+   527→              : "Claimant sees DISPUTED — they can re-claim with proof.",
+   528→        });
+   529→        onDone();
+   530→      } catch {
+   531→        toast({
+   532→          title: "Arbitration failed",
+   533→          description: "Network error — try again.",
+   534→          variant: "destructive",
+   535→        });
+   536→      } finally {
+   537→        setBusy(null);
+   538→      }
+   539→    },
+   540→    [claim, note, toast, onDone]
+   541→  );
+   542→
+   543→  return (
+   544→    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+   545→      <div className="flex items-start gap-3">
+   546→        <div
+   547→          aria-hidden
+   548→          className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-lg"
+   549→        >
+   550→          {claim.toolEmoji}
+   551→        </div>
+   552→        <div className="min-w-0 flex-1">
+   553→          <p className="flex flex-wrap items-center gap-2 font-bold text-white">
+   554→            <span className="truncate">{claim.toolName}</span>
+   555→            <span
+   556→              className={cn(
+   557→                "rounded-full border px-1.5 py-px font-mono text-[9px] uppercase",
+   558→                CLAIM_STATUS_STYLE[claim.status]
+   559→              )}
+   560→            >
+   561→              {claim.status}
+   562→            </span>
+   563→            <span className="rounded-full border border-white/15 px-1.5 py-px font-mono text-[9px] text-white/50">
+   564→              {claim.method === "email_domain" ? "EMAIL DOMAIN" : "META TAG"}
+   565→            </span>
+   566→          </p>
+   567→          <p className="truncate text-sm text-white/60">
+   568→            {claim.userName} · <span className="font-mono text-xs">{claim.userEmail}</span>
+   569→          </p>
+   570→          <p className="mt-0.5 flex items-center gap-1 font-mono text-[10px] text-white/40">
+   571→            <Clock className="size-3" aria-hidden /> waiting {claim.ageH}h · /{claim.toolSlug}
+   572→          </p>
+   573→          {claim.note && (
+   574→            <p className="mt-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs text-white/60">
+   575→              {claim.note}
+   576→            </p>
+   577→          )}
+   578→        </div>
+   579→      </div>
+   580→
+   581→      {/* verification token — editors can spot-check the live site */}
+   582→      <div className="mt-3 rounded-lg border border-white/10 bg-black/40 p-2.5">
+   583→        <p className="font-mono text-[10px] tracking-widest text-white/35">EXPECTED META TAG</p>
+   584→        <p className="mt-1 break-all font-mono text-[11px] text-white/70">
+   585→          &lt;meta name=&quot;prother-claim&quot; content=&quot;
+   586→          <span className="text-ember">{claim.token}</span>&quot;&gt;
+   587→        </p>
+   588→      </div>
+   589→
+   590→      {!dismissing ? (
+   591→        <div className="mt-3 flex flex-wrap items-center gap-2.5">
+   592→          <Button
+   593→            type="button"
+   594→            disabled={busy !== null}
+   595→            onClick={() => decide("verify")}
+   596→            className="h-9 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-50 dark:text-black"
+   597→          >
+   598→            {busy === "verify" ? (
+   599→              <Loader2 className="size-4 animate-spin" aria-hidden />
+   600→            ) : (
+   601→              <ShieldCheck className="size-4" aria-hidden />
+   602→            )}
+   603→            Verify &amp; transfer ownership
+   604→          </Button>
+   605→          <Button
+   606→            type="button"
+   607→            variant="outline"
+   608→            disabled={busy !== null}
+   609→            onClick={() => setDismissing(true)}
+   610→            className="h-9 rounded-lg border-red-400/30 bg-transparent text-red-400 hover:bg-red-400/10 hover:text-red-300"
+   611→          >
+   612→            <XCircle className="size-4" aria-hidden />
+   613→            Dismiss…
+   614→          </Button>
+   615→        </div>
+   616→      ) : (
+   617→        <div className="mt-3 space-y-2.5 rounded-xl border border-red-400/25 bg-red-400/[0.05] p-3">
+   618→          <p className="flex items-center gap-2 font-mono text-[11px] tracking-widest text-red-300">
+   619→            <ShieldAlert className="size-4" aria-hidden />
+   620→            DISMISSAL IS FINAL FOR THIS CLAIM
+   621→          </p>
+   622→          <Input
+   623→            value={note}
+   624→            onChange={(e) => setNote(e.target.value)}
+   625→            placeholder="Reason shown to the claimant…"
+   626→            maxLength={500}
+   627→            className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+   628→          />
+   629→          <div className="flex gap-2">
+   630→            <Button
+   631→              type="button"
+   632→              disabled={busy !== null}
+   633→              onClick={() => decide("dismiss")}
+   634→              className="h-9 rounded-lg bg-red-500 font-semibold text-white shadow-none hover:bg-red-400 disabled:opacity-40"
+   635→            >
+   636→              {busy === "dismiss" ? (
+   637→                <Loader2 className="size-4 animate-spin" aria-hidden />
+   638→              ) : (
+   639→                <XCircle className="size-4" aria-hidden />
+   640→              )}
+   641→              Dismiss claim
+   642→            </Button>
+   643→            <Button
+   644→              type="button"
+   645→              variant="ghost"
+   646→              onClick={() => setDismissing(false)}
+   647→              className="h-9 rounded-lg text-white/60 hover:bg-white/5 hover:text-white"
+   648→            >
+   649→              Back
+   650→            </Button>
+   651→          </div>
+   652→        </div>
+   653→      )}
+   654→    </div>
+   655→  );
+   656→}
+   657→
+   658→// ── One filtered-review moderation card (F-16) ───────────────────────────
+   659→
+   660→function StarRow({ label, value }: { label: string; value: number }) {
+   661→  return (
+   662→    <span className="inline-flex items-center gap-1" title={`${label} ${value}/5`}>
+   663→      <span className="font-mono text-[10px] tracking-widest text-white/40">{label}</span>
+   664→      {Array.from({ length: 5 }, (_, i) => (
+   665→        <Star
+   666→          key={i}
+   667→          className={cn(
+   668→            "size-3",
+   669→            i < value ? "fill-ember text-ember" : "text-white/20"
+   670→          )}
+   671→          aria-hidden
+   672→        />
+   673→      ))}
+   674→    </span>
+   675→  );
+   676→}
+   677→
+   678→function FilteredReviewCard({
+   679→  review,
+   680→  onDone,
+   681→}: {
+   682→  review: EditorReview;
+   683→  onDone: () => void;
+   684→}) {
+   685→  const { toast } = useToast();
+   686→  const [busy, setBusy] = useState<"publish" | "spam" | null>(null);
+   687→  const [confirmSpam, setConfirmSpam] = useState(false);
+   688→
+   689→  const decide = useCallback(
+   690→    async (action: "publish" | "spam") => {
+   691→      setBusy(action);
+   692→      try {
+   693→        const res = await fetch("/api/editor/arbitrate", {
+   694→          method: "POST",
+   695→          headers: {
+   696→            "Content-Type": "application/json",
+   697→            "x-editor-key": sessionStorage.getItem(KEY_STORAGE) ?? "",
+   698→          },
+   699→          body: JSON.stringify({ type: "review", id: review.id, action }),
+   700→        });
+   701→        const data = (await res.json()) as { ok?: boolean; error?: string };
+   702→        if (!res.ok || !data.ok) {
+   703→          toast({ title: data.error ?? "Moderation failed", variant: "destructive" });
+   704→          return;
+   705→        }
+   706→        toast({
+   707→          title:
+   708→            action === "publish"
+   709→              ? `Review on ${review.toolName} published`
+   710→              : `Spam removed from ${review.toolName}`,
+   711→          description:
+   712→            action === "publish"
+   713→              ? "It now counts toward the tool's rating aggregate."
+   714→              : "The review was deleted permanently.",
+   715→        });
+   716→        onDone();
+   717→      } catch {
+   718→        toast({
+   719→          title: "Moderation failed",
+   720→          description: "Network error — try again.",
+   721→          variant: "destructive",
+   722→        });
+   723→      } finally {
+   724→        setBusy(null);
+   725→      }
+   726→    },
+   727→    [review, toast, onDone]
+   728→  );
+   729→
+   730→  return (
+   731→    <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-4">
+   732→      <div className="flex items-start gap-3">
+   733→        <div
+   734→          aria-hidden
+   735→          className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-lg"
+   736→        >
+   737→          {review.toolEmoji}
+   738→        </div>
+   739→        <div className="min-w-0 flex-1">
+   740→          <p className="flex flex-wrap items-center gap-2 font-bold text-white">
+   741→            <span className="truncate">{review.toolName}</span>
+   742→            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-px font-mono text-[9px] text-amber-300">
+   743→              HELD &lt;48H ACCOUNT
+   744→            </span>
+   745→          </p>
+   746→          <p className="font-mono text-xs text-white/50">
+   747→            by {review.author} · waiting {review.ageH}h · /{review.toolSlug}
+   748→          </p>
+   749→        </div>
+   750→      </div>
+   751→
+   752→      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+   753→        <StarRow label="EASE" value={review.ease} />
+   754→        <StarRow label="POWER" value={review.power} />
+   755→        <StarRow label="VALUE" value={review.value} />
+   756→      </div>
+   757→      <p className="mt-2.5 whitespace-pre-line rounded-lg border border-white/10 bg-black/30 p-3 text-sm leading-relaxed text-white/75">
+   758→        {review.body}
+   759→      </p>
+   760→
+   761→      <div className="mt-3 flex flex-wrap items-center gap-2.5">
+   762→        <Button
+   763→          type="button"
+   764→          disabled={busy !== null}
+   765→          onClick={() => decide("publish")}
+   766→          className="h-9 rounded-lg bg-emerald-500 font-semibold text-black shadow-none hover:bg-emerald-400 disabled:opacity-50"
+   767→        >
+   768→          {busy === "publish" ? (
+   769→            <Loader2 className="size-4 animate-spin" aria-hidden />
+   770→          ) : (
+   771→            <CheckCircle2 className="size-4" aria-hidden />
+   772→          )}
+   773→          Publish
+   774→        </Button>
+   775→        {!confirmSpam ? (
+   776→          <Button
+   777→            type="button"
+   778→            variant="outline"
+   779→            disabled={busy !== null}
+   780→            onClick={() => setConfirmSpam(true)}
+   781→            className="h-9 rounded-lg border-red-400/30 bg-transparent text-red-400 hover:bg-red-400/10 hover:text-red-300"
+   782→          >
+   783→            <XCircle className="size-4" aria-hidden />
+   784→            Spam…
+   785→          </Button>
+   786→        ) : (
+   787→          <>
+   788→            <Button
+   789→              type="button"
+   790→              disabled={busy !== null}
+   791→              onClick={() => decide("spam")}
+   792→              className="h-9 rounded-lg bg-red-500 font-semibold text-white shadow-none hover:bg-red-400 disabled:opacity-40"
+   793→            >
+   794→              {busy === "spam" ? (
+   795→                <Loader2 className="size-4 animate-spin" aria-hidden />
+   796→              ) : (
+   797→                <XCircle className="size-4" aria-hidden />
+   798→              )}
+   799→              Delete permanently
+   800→            </Button>
+   801→            <Button
+   802→              type="button"
+   803→              variant="ghost"
+   804→              onClick={() => setConfirmSpam(false)}
+   805→              className="h-9 rounded-lg text-white/60 hover:bg-white/5 hover:text-white"
+   806→            >
+   807→              Back
+   808→            </Button>
+   809→          </>
+   810→        )}
+   811→      </div>
+   812→    </div>
+   813→  );
+   814→}
+   815→
+   816→// ── The console ──────────────────────────────────────────────────────────
+   817→
+   818→export function EditorConsole() {
+   819→  const { toast } = useToast();
+   820→  const open = useExplorer((s) => s.editorOpen);
+   821→  const setOpen = useExplorer((s) => s.setEditorOpen);
+   822→  const [authed, setAuthed] = useState(false);
+   823→  const [queue, setQueue] = useState<QueueResponse | null>(null);
+   824→  const [loading, setLoading] = useState(false);
+   825→  const [tab, setTab] = useState<"submissions" | "claims" | "reviews">(
+   826→    "submissions"
+   827→  );
+   828→
+   829→  const load = useCallback(async () => {
+   830→    setLoading(true);
+   831→    try {
+   832→      const res = await fetch("/api/editor/queue", {
+   833→        headers: { "x-editor-key": sessionStorage.getItem(KEY_STORAGE) ?? "" },
+   834→      });
+   835→      if (res.status === 401) {
+   836→        sessionStorage.removeItem(KEY_STORAGE);
+   837→        setAuthed(false);
+   838→        return;
+   839→      }
+   840→      setQueue((await res.json()) as QueueResponse);
+   841→    } catch {
+   842→      toast({
+   843→        title: "Queue unavailable",
+   844→        description: "Could not reach the review desk.",
+   845→        variant: "destructive",
+   846→      });
+   847→    } finally {
+   848→      setLoading(false);
+   849→    }
+   850→  }, [toast]);
+   851→
+   852→  const unlock = useCallback(
+   853→    (key: string) => {
+   854→      sessionStorage.setItem(KEY_STORAGE, key);
+   855→      setAuthed(true);
+   856→      void load();
+   857→    },
+   858→    [load]
+   859→  );
+   860→
+   861→  // Restore session key + ⌘⇧E shortcut.
+   862→  useEffect(() => {
+   863→    if (sessionStorage.getItem(KEY_STORAGE)) {
+   864→      setAuthed(true);
+   865→    }
+   866→    const onKey = (e: KeyboardEvent) => {
+   867→      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === "e") {
+   868→        e.preventDefault();
+   869→        setOpen(true);
+   870→      }
+   871→    };
+   872→    window.addEventListener("keydown", onKey);
+   873→    return () => window.removeEventListener("keydown", onKey);
+   874→  }, [setOpen]);
+   875→
+   876→  // Load the queue when the dialog opens.
+   877→  useEffect(() => {
+   878→    if (open && authed) void load();
+   879→  }, [open, authed, load]);
+   880→
+   881→  const cap = queue?.capacity;
+   882→  const chip = cap ? capacityChip(cap.today, cap.floor, cap.cap) : null;
+   883→  const claimCount = queue?.claims?.length ?? 0;
+   884→  const reviewCount = queue?.filteredReviews?.length ?? 0;
+   885→  const pendingCount = queue?.pending?.length ?? 0;
+   886→
+   887→  const TABS = [
+   888→    { id: "submissions", label: "SUBMISSIONS", count: pendingCount },
+   889→    { id: "claims", label: "CLAIMS", count: claimCount },
+   890→    { id: "reviews", label: "FILTERED REVIEWS", count: reviewCount },
+   891→  ] as const;
+   892→
+   893→  return (
+   894→    <Dialog open={open} onOpenChange={setOpen}>
+   895→      <DialogContent
+   896→        showCloseButton
+   897→        className="max-h-[92vh] gap-0 overflow-y-auto border-white/10 bg-coal p-0 text-white max-w-[calc(100vw-2rem)] sm:max-w-2xl"
+   898→      >
+   899→        <DialogTitle className="sr-only">Editor review queue</DialogTitle>
+   900→        <DialogDescription className="sr-only">
+   901→          Moderate pending tool submissions: approve to schedule for tomorrow,
+   902→          or reject citing failed listing standards.
+   903→        </DialogDescription>
+   904→
+   905→        {!authed ? (
+   906→          <Gate onUnlock={unlock} />
+   907→        ) : (
+   908→          <div className="px-5 pb-6 pt-5 sm:px-6">
+   909→            {/* header */}
+   910→            <div className="flex flex-wrap items-center justify-between gap-3">
+   911→              <div>
+   912→                <p className="font-mono text-[11px] tracking-[0.25em] text-ember">
+   913→                  EDITOR CONSOLE
+   914→                </p>
+   915→                <h2 className="mt-1 text-xl font-black tracking-tight text-white">
+   916→                  Review queue
+   917→                </h2>
+   918→              </div>
+   919→              {cap && chip && (
+   920→                <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+   921→                  <span
+   922→                    title={`Today: ${chip.label}`}
+   923→                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/70"
+   924→                  >
+   925→                    {chip.emoji} TODAY {cap.today}/{cap.cap}
+   926→                  </span>
+   927→                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/70">
+   928→                    TMRW {cap.tomorrow}/{cap.cap}
+   929→                  </span>
+   930→                  <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 text-ember">
+   931→                    PENDING {queue?.counts?.pending ?? 0}
+   932→                  </span>
+   933→                </div>
+   934→              )}
+   935→            </div>
+   936→
+   937→            {/* moderation desk tabs */}
+   938→            <div
+   939→              role="tablist"
+   940→              aria-label="Editor console sections"
+   941→              className="mt-4 flex flex-wrap gap-1.5 rounded-xl border border-white/10 bg-white/[0.02] p-1"
+   942→            >
+   943→              {TABS.map((t) => (
+   944→                <button
+   945→                  key={t.id}
+   946→                  type="button"
+   947→                  role="tab"
+   948→                  aria-selected={tab === t.id}
+   949→                  onClick={() => setTab(t.id)}
+   950→                  className={cn(
+   951→                    "flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-mono text-[11px] tracking-widest transition-colors",
+   952→                    tab === t.id
+   953→                      ? "bg-ember font-bold text-black"
+   954→                      : "text-white/55 hover:bg-white/5 hover:text-white"
+   955→                  )}
+   956→                >
+   957→                  {t.label}
+   958→                  {t.count > 0 && (
+   959→                    <span
+   960→                      className={cn(
+   961→                        "rounded-full px-1.5 py-px text-[9px]",
+   962→                        tab === t.id
+   963→                          ? "bg-black/20 text-black"
+   964→                          : "bg-ember/15 text-ember"
+   965→                      )}
+   966→                    >
+   967→                      {t.count}
+   968→                    </span>
+   969→                  )}
+   970→                </button>
+   971→              ))}
+   972→            </div>
+   973→
+   974→            {/* queue */}
+   975→            <div className="mt-4 space-y-3">
+   976→              {loading && !queue && (
+   977→                <div className="flex items-center justify-center py-12 text-white/40">
+   978→                  <Loader2 className="size-5 animate-spin" aria-hidden />
+   979→                </div>
+   980→              )}
+   981→
+   982→              {tab === "submissions" && (
+   983→                <>
+   984→                  {queue && pendingCount === 0 && (
+   985→                    <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
+   986→                      <CheckCircle2
+   987→                        className="mx-auto size-8 text-emerald-400"
+   988→                        aria-hidden
+   989→                      />
+   990→                      <p className="mt-3 font-mono text-sm text-white/60">
+   991→                        Queue clear — nothing waiting for review.
+   992→                      </p>
+   993→                      <p className="mt-1 text-xs text-white/35">
+   994→                        New submissions from the wizard land here oldest-first.
+   995→                      </p>
+   996→                    </div>
+   997→                  )}
+   998→
+   999→                  {queue?.pending?.map((s) => (
+  1000→                    <PendingCard
+  1001→                      key={s.id}
+  1002→                      sub={s}
+  1003→                      onApproved={() => {
+  1004→                        void load();
+  1005→                        window.dispatchEvent(new CustomEvent("prother:feed-refresh"));
+  1006→                      }}
+  1007→                      onRejected={() => void load()}
+  1008→                    />
+  1009→                  ))}
+  1010→                </>
+  1011→              )}
+  1012→
+  1013→              {tab === "claims" && (
+  1014→                <>
+  1015→                  {queue && claimCount === 0 && (
+  1016→                    <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
+  1017→                      <ShieldCheck
+  1018→                        className="mx-auto size-8 text-emerald-400"
+  1019→                        aria-hidden
+  1020→                      />
+  1021→                      <p className="mt-3 font-mono text-sm text-white/60">
+  1022→                        No claims awaiting arbitration.
+  1023→                      </p>
+  1024→                      <p className="mt-1 text-xs text-white/35">
+  1025→                        Failed or disputed ownership claims land here for a human
+  1026→                        decision (F-30).
+  1027→                      </p>
+  1028→                    </div>
+  1029→                  )}
+  1030→
+  1031→                  {queue?.claims?.map((c) => (
+  1032→                    <ClaimCard key={c.id} claim={c} onDone={() => void load()} />
+  1033→                  ))}
+  1034→                </>
+  1035→              )}
+  1036→
+  1037→              {tab === "reviews" && (
+  1038→                <>
+  1039→                  {queue && reviewCount === 0 && (
+  1040→                    <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
+  1041→                      <CheckCircle2
+  1042→                        className="mx-auto size-8 text-emerald-400"
+  1043→                        aria-hidden
+  1044→                      />
+  1045→                      <p className="mt-3 font-mono text-sm text-white/60">
+  1046→                        No reviews held in moderation.
+  1047→                      </p>
+  1048→                      <p className="mt-1 text-xs text-white/35">
+  1049→                        Reviews from accounts younger than 48h are held here —
+  1050→                        publish the legit ones, trash the spam (F-16).
+  1051→                      </p>
+  1052→                    </div>
+  1053→                  )}
+  1054→
+  1055→                  {queue?.filteredReviews?.map((r) => (
+  1056→                    <FilteredReviewCard
+  1057→                      key={r.id}
+  1058→                      review={r}
+  1059→                      onDone={() => void load()}
+  1060→                    />
+  1061→                  ))}
+  1062→                </>
+  1063→              )}
+  1064→            </div>
+  1065→
+  1066→            <p className="mt-5 font-mono text-[10px] leading-relaxed text-white/30">
+  1067→              APPROVED LISTINGS GO LIVE AT 00:00 UTC · REJECTIONS EMAIL THE MAKER
+  1068→              WITH CITED STANDARDS · CLAIM ARBITRATION TRANSFERS OWNERSHIP
+  1069→              IMMEDIATELY · DEMO AUTH — PHASE 2 ADDS NEXTAUTH ROLES
+  1070→            </p>
+  1071→          </div>
+  1072→        )}
+  1073→      </DialogContent>
+  1074→    </Dialog>
+  1075→  );
+  1076→}
+  1077→

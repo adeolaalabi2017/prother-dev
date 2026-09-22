@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Compass, SearchX, Triangle } from "lucide-react";
+import { Prisma } from "@prisma/client";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Compass, SearchX, Star } from "lucide-react";
 import { ToolsDirectory } from "@/components/prother/tools-directory";
 import { AdSlot } from "@/components/prother/ad-slot";
 import { db } from "@/lib/prother";
@@ -18,29 +19,29 @@ export const metadata: Metadata = {
     canonical: "/tools",
     types: { "application/rss+xml": "/api/rss" },
   },
-  title: "Browse thousands of AI tools — Prother",
+  title: "AI tools — search & compare | Prother",
   description:
-    "The open directory of AI tools: every launch, ranked by community votes and searchable by category, pricing, and tags. No gates — browse free.",
+    "The curated directory for AI tools — search, compare, and save your stack. Filter by category, pricing, and tags. No gates — browse free.",
   keywords: [
     "AI tools directory",
     "browse AI tools",
     "AI tool search",
-    "AI launches",
-    "AI tools ranked",
+    "search AI tools",
+    "compare AI tools",
   ],
   openGraph: {
-    title: "Browse thousands of AI tools — Prother",
+    title: "AI tools — search & compare | Prother",
     description:
-      "The open directory of AI tools: every launch, ranked by community votes and searchable by category, pricing, and tags. No gates — browse free.",
+      "The curated directory for AI tools — search, compare, and save your stack. Filter by category, pricing, and tags. No gates — browse free.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Browse thousands of AI tools — Prother",
+    title: "AI tools — search & compare | Prother",
     description:
-      "The open directory of AI tools: every launch, ranked by community votes and searchable by category, pricing, and tags.",
+      "The curated directory for AI tools — search, compare, and save your stack.",
     images: ["/api/og"],
   },
 };
@@ -65,66 +66,92 @@ function pricingLabel(model: string, price: string | null): string {
   }
 }
 
-function launchLabel(iso: string | null): string {
-  if (!iso) return "Listed";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
+/** True when the ISO listing date is within the last 14 days. */
+function isNewListing(iso: string): boolean {
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && Date.now() - t < 14 * 86_400_000;
 }
 
 /**
- * First page of live tools in the directory's default ordering (votes desc,
- * votes = launch.baseUpvotes + Vote count — see GET /api/tools, sort=votes).
+ * First page of live tools in the directory's default ordering (pinned →
+ * Editor's Picks → curated → newest — mirrors GET /api/tools, sort=featured).
  * Rendered into the HTML so /tools carries real crawlable content before any
  * client fetch, then handed to <ToolsDirectory /> as its initial state.
  */
 async function directoryInitialRows(): Promise<{ rows: DirectoryRow[]; total: number }> {
-  const tools = await db.tool.findMany({
-    where: { status: "live", launch: { is: { scheduled: false } } },
-    include: {
-      launch: { include: { _count: { select: { votes: true } } } },
-      category: { select: { slug: true, name: true, emoji: true } },
-    },
-  });
+  const [tools, total] = await Promise.all([
+    db.tool.findMany({
+      where: { status: "live" },
+      // Explicit select — a long-running dev server can hold a pre-generation
+      // PrismaClient whose full-row selects reference dropped columns.
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        tagline: true,
+        logoEmoji: true,
+        logoGradient: true,
+        pricingModel: true,
+        startingPrice: true,
+        pricingNote: true,
+        editorsPick: true,
+        curated: true,
+        claimed: true,
+        hasApi: true,
+        createdAt: true,
+        category: { select: { slug: true, name: true, emoji: true } },
+      },
+      orderBy: [
+        { pinned: "desc" },
+        { editorsPick: "desc" },
+        { curated: "desc" },
+        { createdAt: "desc" },
+      ],
+      take: DIRECTORY_PAGE_LIMIT,
+    }),
+    db.tool.count({ where: { status: "live" } }),
+  ]);
 
-  const scored = tools
-    .map((t) => ({
-      t,
-      votes: (t.launch?.baseUpvotes ?? 0) + (t.launch?._count.votes ?? 0),
-    }))
-    .sort((a, b) => b.votes - a.votes);
+  const commentCounts = await commentCountsByTool(tools.map((t) => t.id));
+  const reviewCounts = await publishedReviewCounts(tools.map((t) => t.id));
 
-  const total = scored.length;
-  const top = scored.slice(0, DIRECTORY_PAGE_LIMIT);
-  const commentCounts = await commentCountsByTool(top.map((s) => s.t.id));
-
-  const rows: DirectoryRow[] = top.map(({ t, votes }) => ({
-    slug: t.slug,
-    name: t.name,
-    tagline: t.tagline,
-    emoji: t.logoEmoji,
-    gradient: t.logoGradient,
-    votes,
-    comments: commentCounts.get(t.id) ?? 0,
-    maker: t.makerHandle,
-    track: t.track === "community" ? "community" : "editor_seed",
-    pricing: { model: t.pricingModel, price: t.startingPrice },
-    tags: t.tags.split("|").filter(Boolean),
-    badges: {
+  const rows: DirectoryRow[] = tools.map((t) => {
+    const commentCount = commentCounts.get(t.id) ?? 0;
+    return {
+      slug: t.slug,
+      name: t.name,
+      tagline: t.tagline,
+      emoji: t.logoEmoji,
+      gradient: t.logoGradient,
+      pricing: { model: t.pricingModel, price: t.startingPrice, note: t.pricingNote },
+      category: t.category,
       editorsPick: t.editorsPick,
       curated: t.curated,
-      relaunch: t.relaunch,
-      unclaimed: !t.claimed,
-      hasApi: t.hasApi,
-      openSource: t.pricingModel === "open_source",
-    },
-    launchDate: t.launch?.launchDate.toISOString() ?? null,
-    category: t.category,
-  }));
+      badges: {
+        editorsPick: t.editorsPick,
+        curated: t.curated,
+        unclaimed: !t.claimed,
+        hasApi: t.hasApi,
+        openSource: t.pricingModel === "open_source",
+      },
+      ...(commentCount > 0 ? { comments: commentCount } : {}),
+      listedAt: t.createdAt.toISOString(),
+      reviews: { count: reviewCounts.get(t.id) ?? 0 },
+    };
+  });
 
   return { rows, total };
+}
+
+/** Published review counts per tool id (Review is a post-boot model → raw). */
+async function publishedReviewCounts(toolIds: string[]): Promise<Map<string, number>> {
+  if (toolIds.length === 0) return new Map();
+  const rows = await db.$queryRaw<{ toolId: string; n: number }[]>`
+    SELECT toolId, COUNT(*) as n
+    FROM Review
+    WHERE status = 'published' AND toolId IN (${Prisma.join(toolIds)})
+    GROUP BY toolId`;
+  return new Map(rows.map((r) => [r.toolId, Number(r.n)]));
 }
 
 /** One scored SERP result card — name is the real anchor text; the stretched
@@ -142,9 +169,18 @@ function SerpResultCard({ row }: { row: SerpToolRow }) {
         >
           {row.emoji}
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
-          <Triangle className="size-2.5 fill-current" aria-hidden />
-          {row.votes}
+        <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          {row.editorsPick && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+              <Star className="size-2.5 fill-current" aria-hidden />
+              Editor&apos;s Pick
+            </span>
+          )}
+          {isNewListing(row.listedAt) && (
+            <span className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-mint uppercase">
+              New
+            </span>
+          )}
         </span>
       </div>
 
@@ -168,7 +204,11 @@ function SerpResultCard({ row }: { row: SerpToolRow }) {
           {pricingLabel(row.pricingModel, row.startingPrice)}
         </span>
         <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-white/35 uppercase">
-          {launchLabel(row.launchDate)}
+          Listed {new Date(row.listedAt).toLocaleDateString("en-US", {
+            month: "short",
+            year: "numeric",
+            timeZone: "UTC",
+          })}
           <ArrowUpRight
             className="size-3.5 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
             aria-hidden
@@ -378,7 +418,7 @@ export default async function ToolsPage({
     "@type": "ItemList",
     name: "AI tools on Prother",
     description:
-      "Every AI tool that ever launched on Prother — ranked by community votes.",
+      "The curated directory of AI tools — search, compare, and save your stack.",
     numberOfItems: initial.rows.length,
     itemListElement: initial.rows.map((t, i) => ({
       "@type": "ListItem",

@@ -7,9 +7,10 @@ import { useExplorer } from "./explorer-store";
 import { cn } from "@/lib/utils";
 
 /**
- * TrendingStrip — PRD F-06 UI surface. Velocity-ranked tools from
- * /api/trending (lib/trending.ts scoring), rendered as a compact ranked
- * grid with a week/month window toggle. Fails soft: renders null.
+ * TrendingStrip — discovery-era UI surface. Engagement-ranked tools from
+ * /api/trending (lib/trending.ts scoring: comments/reviews/saves + editorial
+ * bonus — no votes), rendered as a ranked grid with a week/month window
+ * toggle. Fails soft: renders null.
  */
 
 type TrendingWindow = "week" | "month";
@@ -20,9 +21,8 @@ type TrendingRow = {
   tagline: string;
   emoji: string;
   gradient: string;
-  votes: number;
   score: number;
-  signals: { votes: number; comments: number; reviews: number };
+  signals: { comments: number; reviews: number; saves: number };
   category: { slug: string; name: string; emoji: string };
 };
 
@@ -30,6 +30,22 @@ const WINDOWS: { value: TrendingWindow; label: string }[] = [
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
 ];
+
+/** Human reason line, e.g. "3 new reviews · 5 saves this week". */
+function reasonLine(
+  signals: TrendingRow["signals"],
+  window: TrendingWindow
+): string {
+  const span = window === "month" ? "this month" : "this week";
+  const parts: string[] = [];
+  if (signals.reviews > 0)
+    parts.push(`${signals.reviews} new review${signals.reviews === 1 ? "" : "s"}`);
+  if (signals.saves > 0)
+    parts.push(`${signals.saves} save${signals.saves === 1 ? "" : "s"} ${span}`);
+  if (signals.comments > 0)
+    parts.push(`${signals.comments} comment${signals.comments === 1 ? "" : "s"}`);
+  return parts.join(" · ");
+}
 
 export function TrendingStrip() {
   const openTool = useExplorer((s) => s.openTool);
@@ -77,14 +93,14 @@ export function TrendingStrip() {
           >
             <p className="inline-flex items-center font-mono text-[10px] tracking-[0.25em] text-white/40 uppercase">
               <Flame className="mr-1.5 size-3.5 text-ember" aria-hidden />
-              Trending
+              Trending this {window}
             </p>
             <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
-              On the rise.
+              What the community is <span className="text-ember">testing.</span>
             </h2>
             <p className="mt-4 max-w-xl text-lg text-white/60">
-              Velocity-ranked from live votes, discussion, and reviews —
-              recalculated continuously, not by editorial whim.
+              Ranked by real engagement — comments, reviews, and collection
+              saves — recalculated continuously, not by editorial whim.
             </p>
           </motion.div>
 
@@ -156,14 +172,14 @@ export function TrendingStrip() {
 
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <span
-                  title="Trending velocity score"
+                  title="Trending engagement score"
                   className="rounded-full border border-mint/30 bg-mint/10 px-2 py-0.5 font-mono text-[10px] text-mint"
                 >
                   +{row.score.toFixed(1)}
                 </span>
-                <span className="font-mono text-[10px] whitespace-nowrap text-white/40">
-                  ▲ {row.signals.votes} · 💬 {row.signals.comments} · ★{" "}
-                  {row.signals.reviews}
+                <span className="whitespace-nowrap font-mono text-[10px] text-white/40">
+                  {reasonLine(row.signals, window) ||
+                    `${row.category.emoji} ${row.category.name}`}
                 </span>
               </div>
             </motion.div>

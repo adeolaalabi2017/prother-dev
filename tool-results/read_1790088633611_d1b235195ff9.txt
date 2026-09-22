@@ -1,0 +1,702 @@
+   770→          />
+   771→        </Field>
+   772→        <Field label="Tags (pipe-separated, ≤5)">
+   773→          <Input
+   774→            value={f.tags}
+   775→            onChange={(e) => setF({ ...f, tags: e.target.value })}
+   776→            className={inputCx}
+   777→            placeholder="open-source|api-available"
+   778→          />
+   779→        </Field>
+   780→        <Field label="Pricing model">
+   781→          <Select value={f.pricingModel} onValueChange={(v) => setF({ ...f, pricingModel: v })}>
+   782→            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   783→            <SelectContent className="border-white/10 bg-coal text-white">
+   784→              {["free", "freemium", "paid", "open_source"].map((m) => (
+   785→                <SelectItem key={m} value={m}>{m}</SelectItem>
+   786→              ))}
+   787→            </SelectContent>
+   788→          </Select>
+   789→        </Field>
+   790→        <div className="grid grid-cols-2 gap-2">
+   791→          <Field label="Start price">
+   792→            <Input
+   793→              value={f.startingPrice}
+   794→              onChange={(e) => setF({ ...f, startingPrice: e.target.value })}
+   795→              className={inputCx}
+   796→              placeholder="$19/mo"
+   797→            />
+   798→          </Field>
+   799→          <Field label="Price note">
+   800→            <Input
+   801→              value={f.pricingNote}
+   802→              onChange={(e) => setF({ ...f, pricingNote: e.target.value })}
+   803→              className={inputCx}
+   804→            />
+   805→          </Field>
+   806→        </div>
+   807→        <Field label="Category">
+   808→          <Select value={f.categoryId} onValueChange={(v) => setF({ ...f, categoryId: v })}>
+   809→            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   810→            <SelectContent className="border-white/10 bg-coal text-white">
+   811→              {categories.map((c) => (
+   812→                <SelectItem key={c.id} value={c.id}>{c.emoji} {c.name}</SelectItem>
+   813→              ))}
+   814→            </SelectContent>
+   815→          </Select>
+   816→        </Field>
+   817→        <Field label="Maker handle">
+   818→          <Input
+   819→            value={f.makerHandle}
+   820→            onChange={(e) => setF({ ...f, makerHandle: e.target.value })}
+   821→            className={inputCx}
+   822→          />
+   823→        </Field>
+   824→        <Field label="GitHub URL">
+   825→          <Input value={f.githubUrl} onChange={(e) => setF({ ...f, githubUrl: e.target.value })} className={inputCx} />
+   826→        </Field>
+   827→        <Field label="Docs URL">
+   828→          <Input value={f.docsUrl} onChange={(e) => setF({ ...f, docsUrl: e.target.value })} className={inputCx} />
+   829→        </Field>
+   830→        <Field label="Status">
+   831→          <Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}>
+   832→            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   833→            <SelectContent className="border-white/10 bg-coal text-white">
+   834→              {["live", "draft", "pending_review", "approved", "removed"].map((s) => (
+   835→                <SelectItem key={s} value={s}>{s}</SelectItem>
+   836→              ))}
+   837→            </SelectContent>
+   838→          </Select>
+   839→        </Field>
+   840→        <Field label="Pin rank (0 = none, leads feed)">
+   841→          <Input
+   842→            type="number"
+   843→            min={0}
+   844→            max={3}
+   845→            value={f.pinned}
+   846→            onChange={(e) => setF({ ...f, pinned: Math.max(0, Math.min(3, Number(e.target.value) || 0)) })}
+   847→            className={inputCx}
+   848→          />
+   849→        </Field>
+   850→      </div>
+   851→
+   852→      <div className="flex flex-wrap gap-5">
+   853→        {(
+   854→          [
+   855→            ["editorsPick", "Editor's Pick", f.editorsPick],
+   856→            ["curated", "Curated badge", f.curated],
+   857→            ["claimed", "Claimed", f.claimed],
+   858→          ] as const
+   859→        ).map(([key, label, val]) => (
+   860→          <label key={key} className="flex items-center gap-2 text-xs text-white/70">
+   861→            <Switch checked={val} onCheckedChange={(v) => setF({ ...f, [key]: v })} />
+   862→            {label}
+   863→          </label>
+   864→        ))}
+   865→      </div>
+   866→
+   867→      <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3.5">
+   868→        <Button
+   869→          disabled={busy}
+   870→          onClick={() => void save()}
+   871→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   872→        >
+   873→          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+   874→          Save changes
+   875→        </Button>
+   876→        <Button
+   877→          variant="outline"
+   878→          disabled={busy}
+   879→          onClick={() => void verify()}
+   880→          className="rounded-lg border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300"
+   881→        >
+   882→          <ShieldCheck className="size-4" aria-hidden />
+   883→          Mark verified
+   884→        </Button>
+   885→        <Button
+   886→          variant="ghost"
+   887→          disabled={busy}
+   888→          onClick={() => void remove()}
+   889→          className="ml-auto rounded-lg text-red-400 hover:bg-red-400/10 hover:text-red-300"
+   890→        >
+   891→          <Trash2 className="size-4" aria-hidden />
+   892→          Remove listing
+   893→        </Button>
+   894→      </div>
+   895→    </div>
+   896→  );
+   897→}
+   898→
+   899→function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+   900→  const { toast } = useToast();
+   901→  const [tools, setTools] = useState<AdminTool[] | null>(null);
+   902→  const [cats, setCats] = useState<{ id: string; name: string; emoji: string }[]>([]);
+   903→  const [q, setQ] = useState("");
+   904→  const [status, setStatus] = useState("all");
+   905→  const [expanded, setExpanded] = useState<string | null>(null);
+   906→
+   907→  const load = useCallback(() => {
+   908→    adminFetch(apiKey, `/api/admin/tools?q=${encodeURIComponent(q)}&status=${status}`)
+   909→      .then((r) => r.json())
+   910→      .then((d: { tools: AdminTool[] }) => setTools(d.tools))
+   911→      .catch(() => toast({ title: "Listings unavailable", variant: "destructive" }));
+   912→  }, [apiKey, q, status, toast]);
+   913→
+   914→  useEffect(() => {
+   915→    const t = setTimeout(load, q ? 300 : 0);
+   916→    return () => clearTimeout(t);
+   917→  }, [load, q]);
+   918→
+   919→  useEffect(() => {
+   920→    adminFetch(apiKey, "/api/admin/categories")
+   921→      .then((r) => r.json())
+   922→      .then((d: { categories: { id: string; name: string; emoji: string }[] }) =>
+   923→        setCats(d.categories)
+   924→      )
+   925→      .catch(() => {});
+   926→  }, [apiKey]);
+   927→
+   928→  return (
+   929→    <div className="space-y-3">
+   930→      <div className="flex flex-wrap gap-2">
+   931→        <Input
+   932→          value={q}
+   933→          onChange={(e) => setQ(e.target.value)}
+   934→          placeholder="Search name / tagline / slug…"
+   935→          className={cn(inputCx, "max-w-xs flex-1")}
+   936→        />
+   937→        <Select value={status} onValueChange={setStatus}>
+   938→          <SelectTrigger className={cn(inputCx, "w-36")}><SelectValue /></SelectTrigger>
+   939→          <SelectContent className="border-white/10 bg-coal text-white">
+   940→            {["all", "live", "draft", "pending_review", "approved", "removed"].map((s) => (
+   941→              <SelectItem key={s} value={s}>{s}</SelectItem>
+   942→            ))}
+   943→          </SelectContent>
+   944→        </Select>
+   945→      </div>
+   946→
+   947→      {tools === null && <Spinner />}
+   948→      {tools?.length === 0 && (
+   949→        <p className="py-10 text-center text-sm text-white/30">No listings match.</p>
+   950→      )}
+   951→      <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+   952→        {tools?.map((t) => (
+   953→          <div key={t.id} className="rounded-xl border border-white/10 bg-white/[0.02]">
+   954→            <button
+   955→              type="button"
+   956→              aria-expanded={expanded === t.id}
+   957→              onClick={() => setExpanded(expanded === t.id ? null : t.id)}
+   958→              className="flex w-full items-center gap-3 p-3.5 text-left transition-colors hover:bg-white/[0.03]"
+   959→            >
+   960→              <span aria-hidden className="text-lg">{t.logoEmoji}</span>
+   961→              <div className="min-w-0 flex-1">
+   962→                <p className="flex items-center gap-1.5 truncate text-sm font-bold text-white">
+   963→                  {t.name}
+   964→                  {t.pinned > 0 && <Pin className="size-3 text-ember" aria-hidden />}
+   965→                  {t.editorsPick && <Star className="size-3 shrink-0 text-ember" aria-label="Editor's Pick" />}
+   966→                  {t.status !== "live" && (
+   967→                    <span className="rounded bg-white/10 px-1.5 py-px font-mono text-[9px] text-white/60">
+   968→                      {t.status}
+   969→                    </span>
+   970→                  )}
+   971→                </p>
+   972→                <p className="truncate text-xs text-white/50">{t.tagline}</p>
+   973→              </div>
+   974→              <span className="hidden shrink-0 font-mono text-[10px] text-white/40 md:block">
+   975→                {t.category.emoji} {t.category.name}
+   976→              </span>
+   977→              <span className="shrink-0 font-mono text-[11px] text-ember">▲{t.votes}</span>
+   978→              <ChevronDown
+   979→                className={cn("size-4 shrink-0 text-white/40 transition-transform", expanded === t.id && "rotate-180")}
+   980→                aria-hidden
+   981→              />
+   982→            </button>
+   983→            {expanded === t.id && (
+   984→              <ListingEditor
+   985→                apiKey={apiKey}
+   986→                tool={t}
+   987→                categories={cats}
+   988→                onSaved={() => {
+   989→                  load();
+   990→                  onChanged();
+   991→                }}
+   992→              />
+   993→            )}
+   994→          </div>
+   995→        ))}
+   996→      </div>
+   997→    </div>
+   998→  );
+   999→}
+  1000→
+  1001→// ── Section: Journal (blog CRUD) ─────────────────────────────────────────
+  1002→
+  1003→type PostDraft = {
+  1004→  id?: string;
+  1005→  title: string;
+  1006→  slug: string;
+  1007→  excerpt: string;
+  1008→  body: string;
+  1009→  category: string;
+  1010→  tags: string;
+  1011→  coverEmoji: string;
+  1012→  coverGradient: string;
+  1013→  author: string;
+  1014→  status: string;
+  1015→  seoTitle: string;
+  1016→  seoDescription: string;
+  1017→  keywords: string;
+  1018→};
+  1019→
+  1020→const EMPTY_POST: PostDraft = {
+  1021→  title: "",
+  1022→  slug: "",
+  1023→  excerpt: "",
+  1024→  body: "",
+  1025→  category: "Playbooks",
+  1026→  tags: "",
+  1027→  coverEmoji: "📝",
+  1028→  coverGradient: GRADIENTS[0],
+  1029→  author: "Prother Editorial",
+  1030→  status: "draft",
+  1031→  seoTitle: "",
+  1032→  seoDescription: "",
+  1033→  keywords: "",
+  1034→};
+  1035→
+  1036→function PostEditor({
+  1037→  apiKey,
+  1038→  draft,
+  1039→  onDone,
+  1040→}: {
+  1041→  apiKey: string;
+  1042→  draft: PostDraft;
+  1043→  onDone: (openSlug?: string) => void;
+  1044→}) {
+  1045→  const { toast } = useToast();
+  1046→  const [f, setF] = useState<PostDraft>(draft);
+  1047→  const [busy, setBusy] = useState(false);
+  1048→  const isNew = !f.id;
+  1049→
+  1050→  const save = async (publishOverride?: string) => {
+  1051→    setBusy(true);
+  1052→    try {
+  1053→      const payload = {
+  1054→        title: f.title,
+  1055→        slug: f.slug || undefined,
+  1056→        excerpt: f.excerpt,
+  1057→        // Only send the body when rewritten — a metadata-only edit of an
+  1058→        // existing post keeps the stored markdown server-side.
+  1059→        ...(f.body.trim().length >= 50 ? { body: f.body } : {}),
+  1060→        category: f.category,
+  1061→        tags: f.tags,
+  1062→        coverEmoji: f.coverEmoji,
+  1063→        coverGradient: f.coverGradient,
+  1064→        author: f.author,
+  1065→        status: publishOverride ?? f.status,
+  1066→        seoTitle: f.seoTitle || undefined,
+  1067→        seoDescription: f.seoDescription || undefined,
+  1068→        keywords: f.keywords || undefined,
+  1069→      };
+  1070→      const res = await adminFetch(
+  1071→        apiKey,
+  1072→        isNew ? "/api/admin/posts" : `/api/admin/posts/${f.id}`,
+  1073→        { method: isNew ? "POST" : "PATCH", body: JSON.stringify(payload) }
+  1074→      );
+  1075→      const d = (await res.json()) as { ok?: boolean; error?: string; slug?: string };
+  1076→      if (!res.ok || !d.ok) {
+  1077→        toast({ title: d.error ?? "Save failed", variant: "destructive" });
+  1078→        return;
+  1079→      }
+  1080→      toast({
+  1081→        title: publishOverride === "published" ? "Published" : "Saved",
+  1082→        description: d.slug ? `/journal/${d.slug}` : undefined,
+  1083→      });
+  1084→      onDone(publishOverride === "published" ? d.slug : undefined);
+  1085→    } catch {
+  1086→      toast({ title: "Network error", variant: "destructive" });
+  1087→    } finally {
+  1088→      setBusy(false);
+  1089→    }
+  1090→  };
+  1091→
+  1092→  const remove = async () => {
+  1093→    if (!f.id) return;
+  1094→    setBusy(true);
+  1095→    try {
+  1096→      const res = await adminFetch(apiKey, `/api/admin/posts/${f.id}`, { method: "DELETE" });
+  1097→      if (res.ok) {
+  1098→        toast({ title: "Post deleted" });
+  1099→        onDone();
+  1100→      }
+  1101→    } finally {
+  1102→      setBusy(false);
+  1103→    }
+  1104→  };
+  1105→
+  1106→  const seoTitle = f.seoTitle || f.title;
+  1107→  const seoDesc = f.seoDescription || f.excerpt;
+  1108→
+  1109→  return (
+  1110→    <div className="space-y-5">
+  1111→      <div className="grid gap-3 sm:grid-cols-2">
+  1112→        <Field label="Title (≤120)">
+  1113→          <Input value={f.title} maxLength={120} onChange={(e) => setF({ ...f, title: e.target.value })} className={inputCx} placeholder="How to launch an AI tool…" />
+  1114→        </Field>
+  1115→        <Field label="Slug (auto from title if blank)">
+  1116→          <Input value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value })} className={cn(inputCx, "font-mono")} placeholder="how-to-launch-an-ai-tool" />
+  1117→        </Field>
+  1118→      </div>
+  1119→
+  1120→      <Field label="Excerpt (20–200 · cards + meta description)">
+  1121→        <Textarea value={f.excerpt} rows={2} maxLength={200} onChange={(e) => setF({ ...f, excerpt: e.target.value })} className={inputCx} />
+  1122→        <p className="text-[10px] text-white/30">{f.excerpt.length}/200</p>
+  1123→      </Field>
+  1124→
+  1125→      <Field label="Body (markdown: ##, lists, **bold**, `code`, ``` blocks)">
+  1126→        <Textarea
+  1127→          value={f.body}
+  1128→          rows={10}
+  1129→          onChange={(e) => setF({ ...f, body: e.target.value })}
+  1130→          className={cn(inputCx, "font-mono text-xs leading-relaxed")}
+  1131→        />
+  1132→        <p className="text-[10px] text-white/30">
+  1133→          {f.body.split(/\s+/).filter(Boolean).length} words · ~
+  1134→          {Math.max(1, Math.round(f.body.split(/\s+/).filter(Boolean).length / 220))} min read
+  1135→        </p>
+  1136→      </Field>
+  1137→
+  1138→      <div className="grid gap-3 sm:grid-cols-3">
+  1139→        <Field label="Category">
+  1140→          <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
+  1141→            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+  1142→            <SelectContent className="border-white/10 bg-coal text-white">
+  1143→              {["Playbooks", "Engineering", "Growth", "Makers", "Ecosystem"].map((c) => (
+  1144→                <SelectItem key={c} value={c}>{c}</SelectItem>
+  1145→              ))}
+  1146→            </SelectContent>
+  1147→          </Select>
+  1148→        </Field>
+  1149→        <Field label="Cover emoji">
+  1150→          <Input value={f.coverEmoji} maxLength={4} onChange={(e) => setF({ ...f, coverEmoji: e.target.value })} className={inputCx} />
+  1151→        </Field>
+  1152→        <Field label="Tags (pipe-separated)">
+  1153→          <Input value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} className={inputCx} placeholder="seo|growth" />
+  1154→        </Field>
+  1155→      </div>
+  1156→
+  1157→      <div>
+  1158→        <p className={labelCx}>Cover gradient</p>
+  1159→        <div className="mt-2 flex flex-wrap gap-2">
+  1160→          {GRADIENTS.map((g) => (
+  1161→            <button
+  1162→              key={g}
+  1163→              type="button"
+  1164→              aria-label={`Gradient ${g}`}
+  1165→              onClick={() => setF({ ...f, coverGradient: g })}
+  1166→              className={cn(
+  1167→                "size-8 rounded-lg bg-gradient-to-br transition-transform active:scale-90",
+  1168→                g,
+  1169→                f.coverGradient === g ? "ring-2 ring-ember ring-offset-2 ring-offset-coal" : "opacity-60 hover:opacity-100"
+  1170→              )}
+  1171→            />
+  1172→          ))}
+  1173→        </div>
+  1174→      </div>
+  1175→
+  1176→      {/* SEO panel */}
+  1177→      <div className="rounded-xl border border-ember/25 bg-ember/[0.04] p-4">
+  1178→        <p className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.2em] text-ember uppercase">
+  1179→          <BarChart3 className="size-3.5" aria-hidden /> SEO panel
+  1180→        </p>
+  1181→        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+  1182→          <Field label="SEO title (≤60 — falls back to title)">
+  1183→            <Input value={f.seoTitle} maxLength={70} onChange={(e) => setF({ ...f, seoTitle: e.target.value })} className={inputCx} />
+  1184→            <p className={cn("text-[10px]", seoTitle.length > 60 ? "text-red-400" : "text-white/30")}>
+  1185→              {seoTitle.length}/60 {seoTitle.length > 60 && "— will truncate in SERP"}
+  1186→            </p>
+  1187→          </Field>
+  1188→          <Field label="Keywords (comma-separated)">
+  1189→            <Input value={f.keywords} onChange={(e) => setF({ ...f, keywords: e.target.value })} className={inputCx} placeholder="launch an ai tool, ai launch checklist" />
+  1190→          </Field>
+  1191→          <div className="sm:col-span-2">
+  1192→            <Field label="SEO description (≤160 — falls back to excerpt)">
+  1193→              <Textarea value={f.seoDescription} rows={2} maxLength={170} onChange={(e) => setF({ ...f, seoDescription: e.target.value })} className={inputCx} />
+  1194→              <p className={cn("text-[10px]", seoDesc.length > 160 ? "text-red-400" : "text-white/30")}>
+  1195→                {seoDesc.length}/160
+  1196→              </p>
+  1197→            </Field>
+  1198→          </div>
+  1199→        </div>
+  1200→
+  1201→        {/* SERP preview */}
+  1202→        <div className="mt-3 rounded-lg border border-white/10 bg-coal p-3.5">
+  1203→          <p className="font-mono text-[10px] tracking-widest text-white/30 uppercase">
+  1204→            SERP preview
+  1205→          </p>
+  1206→          <p className="mt-1.5 truncate text-[11px] text-emerald-400/90">
+  1207→            prother.dev › journal › {f.slug || "your-post-slug"}
+  1208→          </p>
+  1209→          <p className="mt-0.5 truncate text-base font-semibold text-white/90">
+  1210→            {seoTitle || "Untitled post"}
+  1211→          </p>
+  1212→          <p className="mt-0.5 line-clamp-2 text-xs text-white/50">
+  1213→            {seoDesc || "Write an excerpt that earns the click — it doubles as the meta description."}
+  1214→          </p>
+  1215→        </div>
+  1216→      </div>
+  1217→
+  1218→      <div className="flex flex-wrap items-center gap-2">
+  1219→        <Button
+  1220→          disabled={busy || !f.title || (isNew && f.body.trim().length < 50)}
+  1221→          onClick={() => void save()}
+  1222→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+  1223→        >
+  1224→          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+  1225→          Save {f.status === "published" && !isNew ? "(published)" : "draft"}
+  1226→        </Button>
+  1227→        {f.status !== "published" && (
+  1228→          <Button
+  1229→            disabled={busy || !f.title || (isNew && f.body.trim().length < 50)}
+  1230→            onClick={() => void save("published")}
+  1231→            variant="outline"
+  1232→            className="rounded-lg border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300"
+  1233→          >
+  1234→            <BadgeCheck className="size-4" aria-hidden />
+  1235→            Publish now
+  1236→          </Button>
+  1237→        )}
+  1238→        {f.status === "published" && !isNew && (
+  1239→          <Button
+  1240→            disabled={busy}
+  1241→            onClick={() => void save("draft")}
+  1242→            variant="outline"
+  1243→            className="rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+  1244→          >
+  1245→            <RotateCcw className="size-4" aria-hidden />
+  1246→            Unpublish
+  1247→          </Button>
+  1248→        )}
+  1249→        {!isNew && (
+  1250→          <Button
+  1251→            variant="ghost"
+  1252→            disabled={busy}
+  1253→            onClick={() => void remove()}
+  1254→            className="ml-auto rounded-lg text-red-400 hover:bg-red-400/10 hover:text-red-300"
+  1255→          >
+  1256→            <Trash2 className="size-4" aria-hidden />
+  1257→            Delete
+  1258→          </Button>
+  1259→        )}
+  1260→        <Button variant="ghost" onClick={() => onDone()} className="rounded-lg text-white/60 hover:text-white">
+  1261→          Cancel
+  1262→        </Button>
+  1263→      </div>
+  1264→    </div>
+  1265→  );
+  1266→}
+  1267→
+  1268→function BlogTab({
+  1269→  apiKey,
+  1270→  onChanged,
+  1271→  onPreview,
+  1272→}: {
+  1273→  apiKey: string;
+  1274→  onChanged: () => void;
+  1275→  onPreview: (slug: string) => void;
+  1276→}) {
+  1277→  const { toast } = useToast();
+  1278→  const [posts, setPosts] = useState<AdminPost[] | null>(null);
+  1279→  const [editing, setEditing] = useState<PostDraft | null>(null);
+  1280→
+  1281→  const load = useCallback(() => {
+  1282→    adminFetch(apiKey, "/api/admin/posts")
+  1283→      .then((r) => r.json())
+  1284→      .then((d: { posts: AdminPost[] }) => setPosts(d.posts))
+  1285→      .catch(() => toast({ title: "Posts unavailable", variant: "destructive" }));
+  1286→  }, [apiKey, toast]);
+  1287→
+  1288→  useEffect(load, [load]);
+  1289→
+  1290→  if (editing) {
+  1291→    return (
+  1292→      <div className="max-h-[60vh] overflow-y-auto pr-1">
+  1293→        <PostEditor
+  1294→          apiKey={apiKey}
+  1295→          draft={editing}
+  1296→          onDone={(openSlug) => {
+  1297→            setEditing(null);
+  1298→            load();
+  1299→            if (openSlug) onPreview(openSlug);
+  1300→          }}
+  1301→        />
+  1302→      </div>
+  1303→    );
+  1304→  }
+  1305→
+  1306→  return (
+  1307→    <div className="space-y-3">
+  1308→      <div className="flex items-center justify-between">
+  1309→        <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+  1310→          {posts?.length ?? "…"} posts · drafts never render publicly
+  1311→        </p>
+  1312→        <Button
+  1313→          size="sm"
+  1314→          onClick={() => setEditing({ ...EMPTY_POST })}
+  1315→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+  1316→        >
+  1317→          <Plus className="size-4" aria-hidden />
+  1318→          New post
+  1319→        </Button>
+  1320→      </div>
+  1321→
+  1322→      {posts === null && <Spinner />}
+  1323→      <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+  1324→        {posts?.map((p) => (
+  1325→          <div
+  1326→            key={p.id}
+  1327→            className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
+  1328→          >
+  1329→            <span aria-hidden className="text-lg">{p.coverEmoji}</span>
+  1330→            <div className="min-w-0 flex-1">
+  1331→              <p className="truncate text-sm font-bold text-white">{p.title}</p>
+  1332→              <p className="truncate font-mono text-[10px] text-white/40">
+  1333→                /journal/{p.slug} · {p.category} · {p.readingMinutes} min · {p.views} views
+  1334→                {p.seoTitle || p.seoDescription || p.keywords ? " · SEO ✓" : " · SEO —"}
+  1335→              </p>
+  1336→            </div>
+  1337→            <span
+  1338→              className={cn(
+  1339→                "rounded-full px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase",
+  1340→                p.status === "published"
+  1341→                  ? "border border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
+  1342→                  : "border border-white/15 bg-white/5 text-white/50"
+  1343→              )}
+  1344→            >
+  1345→              {p.status}
+  1346→            </span>
+  1347→            {p.status === "published" && (
+  1348→              <button
+  1349→                type="button"
+  1350→                onClick={() => onPreview(p.slug)}
+  1351→                className="rounded-lg p-2 text-white/40 transition-colors hover:text-ember"
+  1352→                aria-label={`Preview ${p.title}`}
+  1353→              >
+  1354→                <ExternalLink className="size-4" aria-hidden />
+  1355→              </button>
+  1356→            )}
+  1357→            <button
+  1358→              type="button"
+  1359→              onClick={() =>
+  1360→                setEditing({
+  1361→                  id: p.id,
+  1362→                  title: p.title,
+  1363→                  slug: p.slug,
+  1364→                  excerpt: p.excerpt,
+  1365→                  body: "",
+  1366→                  category: p.category,
+  1367→                  tags: p.tags,
+  1368→                  coverEmoji: p.coverEmoji,
+  1369→                  coverGradient: p.coverGradient,
+  1370→                  author: p.author,
+  1371→                  status: p.status,
+  1372→                  seoTitle: p.seoTitle ?? "",
+  1373→                  seoDescription: p.seoDescription ?? "",
+  1374→                  keywords: p.keywords ?? "",
+  1375→                })
+  1376→              }
+  1377→              className="rounded-lg p-2 text-white/40 transition-colors hover:text-ember"
+  1378→              aria-label={`Edit ${p.title}`}
+  1379→            >
+  1380→              <Pencil className="size-4" aria-hidden />
+  1381→            </button>
+  1382→          </div>
+  1383→        ))}
+  1384→      </div>
+  1385→      <p className="font-mono text-[10px] leading-relaxed text-white/25">
+  1386→        METADATA-ONLY EDITS KEEP THE STORED MARKDOWN — REWRITE THE BODY FIELD TO
+  1387→        REPLACE IT. READING TIME RECOMPUTES ON BODY SAVE.
+  1388→      </p>
+  1389→    </div>
+  1390→  );
+  1391→}
+  1392→
+  1393→// ── Section: Categories (taxonomy CRUD) ──────────────────────────────────
+  1394→
+  1395→function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+  1396→  const { toast } = useToast();
+  1397→  const [cats, setCats] = useState<
+  1398→    { id: string; slug: string; name: string; emoji: string; sortOrder: number; toolCount: number }[]
+  1399→  >([]);
+  1400→  const [draft, setDraft] = useState({ slug: "", name: "", emoji: "🧪" });
+  1401→
+  1402→  const load = useCallback(() => {
+  1403→    adminFetch(apiKey, "/api/admin/categories")
+  1404→      .then((r) => r.json())
+  1405→      .then((d: { categories: typeof cats }) => setCats(d.categories))
+  1406→      .catch(() => {});
+  1407→  }, [apiKey]);
+  1408→  useEffect(load, [load]);
+  1409→
+  1410→  const save = useCallback(
+  1411→    async (payload: { id?: string; slug: string; name: string; emoji: string }) => {
+  1412→      try {
+  1413→        const res = await adminFetch(apiKey, "/api/admin/categories", {
+  1414→          method: "POST",
+  1415→          body: JSON.stringify(payload),
+  1416→        });
+  1417→        const d = (await res.json()) as { ok?: boolean; error?: string };
+  1418→        if (!res.ok || !d.ok) {
+  1419→          toast({ title: d.error ?? "Save failed", variant: "destructive" });
+  1420→          return false;
+  1421→        }
+  1422→        toast({ title: "Taxonomy updated" });
+  1423→        load();
+  1424→        onChanged();
+  1425→        return true;
+  1426→      } catch {
+  1427→        toast({ title: "Network error", variant: "destructive" });
+  1428→        return false;
+  1429→      }
+  1430→    },
+  1431→    [apiKey, load, onChanged, toast]
+  1432→  );
+  1433→
+  1434→  const remove = useCallback(
+  1435→    async (id: string, name: string, toolCount: number) => {
+  1436→      if (toolCount > 0) {
+  1437→        toast({
+  1438→          title: "Can't delete",
+  1439→          description: `${toolCount} tool${toolCount === 1 ? "" : "s"} still use ${name}.`,
+  1440→          variant: "destructive",
+  1441→        });
+  1442→        return;
+  1443→      }
+  1444→      await adminFetch(apiKey, `/api/admin/categories?id=${id}`, { method: "DELETE" }).catch(
+  1445→        () => {}
+  1446→      );
+  1447→      toast({ title: `${name} deleted` });
+  1448→      load();
+  1449→      onChanged();
+  1450→    },
+  1451→    [apiKey, load, onChanged, toast]
+  1452→  );
+  1453→
+  1454→  return (
+  1455→    <div className="space-y-4">
+  1456→      <div className="max-h-[44vh] space-y-2 overflow-y-auto pr-1">
+  1457→        {cats.map((c) => (
+  1458→          <div
+  1459→            key={c.id}
+  1460→            className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3"
+  1461→          >
+  1462→            <Input
+  1463→              value={c.emoji}
+  1464→              maxLength={4}
+  1465→              aria-label="Emoji"
+  1466→              onChange={(e) =>
+  1467→                setCats((p) =>
+  1468→                  p.map((x) => (x.id === c.id ? { ...x, emoji: e.target.value } : x))
+  1469→                )
+
+[showing lines 770-1469 of 2714; use offset=1470 with limit to continue reading]

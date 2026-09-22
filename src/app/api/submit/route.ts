@@ -33,7 +33,7 @@ const payloadSchema = z.object({
     .max(500, "Description must be 500 characters or fewer"),
   categorySlug: z.string().refine(
     (slug) => CATEGORIES.some((c) => c.slug === slug),
-    "Pick one of the 10 categories"
+    "Pick one of the 7 categories"
   ),
   tags: z.array(z.enum(TAG_VOCAB)).max(5).default([]),
   pricingModel: z.enum(["free", "freemium", "paid", "open_source"]),
@@ -46,12 +46,16 @@ const payloadSchema = z.object({
   logoEmoji: z.string().trim().min(1).max(8).default("⬡"),
   logoGradient: z.string().trim().min(3).max(60).default("from-orange-500 to-amber-700"),
   isOwner: z.boolean().default(true),
-  confirmedLive: z.literal(true, {
-    errorMap: () => ({ message: "Confirm your tool is live and usable right now" }),
-  }),
-  agreedStandards: z.literal(true, {
-    errorMap: () => ({ message: "You must confirm you have read the Listing Standards" }),
-  }),
+  confirmedLive: z
+    .boolean()
+    .refine((v) => v === true, {
+      message: "Confirm your tool is live and usable right now",
+    }),
+  agreedStandards: z
+    .boolean()
+    .refine((v) => v === true, {
+      message: "You must confirm you have read the Listing Standards",
+    }),
 });
 
 function slugify(name: string): string {
@@ -98,19 +102,17 @@ export async function POST(req: NextRequest) {
 
   // Rate limit 1: one submission per domain (PRD §11).
   const tools = await db.tool.findMany({
-    where: { launch: { scheduled: false } },
-    select: { websiteUrl: true, name: true, makerHandle: true, launch: { select: { baseUpvotes: true } } },
+    select: { websiteUrl: true, name: true, slug: true, makerHandle: true },
   });
   const toolHit = tools.find((t) => domainOf(t.websiteUrl) === domain);
   if (toolHit) {
     return NextResponse.json(
       {
-        error: "This domain is already on Prother",
+        error: "A tool with this domain is already listed/pending review",
         duplicate: {
           kind: "tool",
           name: toolHit.name,
           slug: toolHit.slug,
-          votes: toolHit.launch?.baseUpvotes ?? 0,
           maker: toolHit.makerHandle,
         },
       },

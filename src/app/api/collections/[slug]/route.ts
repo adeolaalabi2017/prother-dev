@@ -42,8 +42,17 @@ export async function GET(
   const tools = toolIds.length
     ? await db.tool.findMany({
         where: { id: { in: toolIds } },
-        include: {
-          launch: { include: { _count: { select: { votes: true } } } },
+        // Explicit select — stale cached clients SELECT dropped columns on full-row reads.
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          tagline: true,
+          logoEmoji: true,
+          logoGradient: true,
+          pricingModel: true,
+          startingPrice: true,
+          editorsPick: true,
           category: { select: { slug: true, name: true, emoji: true } },
         },
       })
@@ -63,18 +72,9 @@ export async function GET(
           tagline: t.tagline,
           emoji: t.logoEmoji,
           gradient: t.logoGradient,
-          votes: (t.launch?.baseUpvotes ?? 0) + (t.launch?._count.votes ?? 0),
           pricing: { model: t.pricingModel, price: t.startingPrice },
           category: t.category,
-          maker: t.makerHandle,
-          badges: {
-            editorsPick: t.editorsPick,
-            curated: t.curated,
-            relaunch: t.relaunch,
-            unclaimed: !t.claimed,
-            hasApi: t.hasApi,
-            openSource: t.pricingModel === "open_source",
-          },
+          editorsPick: t.editorsPick,
         },
       },
     ];

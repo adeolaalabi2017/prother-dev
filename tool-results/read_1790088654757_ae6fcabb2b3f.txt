@@ -1,0 +1,644 @@
+     1→import type { Metadata } from "next";
+     2→import Link from "next/link";
+     3→import { notFound } from "next/navigation";
+     4→import {
+     5→  ArrowUpRight,
+     6→  Check,
+     7→  Clock,
+     8→  MessagesSquare,
+     9→  Star,
+    10→  Triangle,
+    11→} from "lucide-react";
+    12→import { db } from "@/lib/prother";
+    13→import { clamp } from "@/lib/og";
+    14→import { listPublishedReviews, reviewStats } from "@/lib/community";
+    15→import { cn } from "@/lib/utils";
+    16→import { Breadcrumbs } from "@/lib/breadcrumbs";
+    17→import { ToolDetailActions } from "@/components/prother/tool-detail-actions";
+    18→
+    19→/**
+    20→ * /tools/[slug] — the real, crawlable tool detail page (Task 25).
+    21→ *
+    22→ * Server-rendered from the ORM: header, badges, pricing/maker/launch meta,
+    23→ * description, tags, links, published reviews (with the shared reviewStats
+    24→ * aggregate), forum mentions, launch notes and related tools. The only
+    25→ * client island is <ToolDetailActions /> (vote / save / share / report) —
+    26→ * everything else is static HTML so search engines see the full listing.
+    27→ */
+    28→
+    29→export const dynamic = "force-dynamic";
+    30→
+    31→type Params = { params: Promise<{ slug: string }> };
+    32→
+    33→const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
+    34→
+    35→// ── Formatting helpers (server-only, deterministic UTC — hydration-safe) ─
+    36→
+    37→const MONTHS = [
+    38→  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    39→  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    40→] as const;
+    41→
+    42→function utcDateLabel(v: Date | string): string {
+    43→  const d = typeof v === "string" ? new Date(v) : v;
+    44→  if (Number.isNaN(d.getTime())) return "";
+    45→  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+    46→}
+    47→
+    48→const PRICING_LABEL: Record<string, string> = {
+    49→  free: "Free",
+    50→  freemium: "Freemium",
+    51→  paid: "Paid",
+    52→  open_source: "Open Source",
+    53→};
+    54→
+    55→function pricingLine(model: string, price: string | null): string {
+    56→  const label = PRICING_LABEL[model] ?? "Free";
+    57→  if ((model === "paid" || model === "freemium") && price) {
+    58→    return `${label} · from ${price}`;
+    59→  }
+    60→  return label;
+    61→}
+    62→
+    63→/** Mono chip shared by badges / tags / ratings. */
+    64→function chipCx(extra?: string): string {
+    65→  return cn(
+    66→    "inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase",
+    67→    extra
+    68→  );
+    69→}
+    70→
+    71→const SECTION_HEAD = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+    72→
+    73→// ── Metadata ──────────────────────────────────────────────────────────────
+    74→
+    75→export async function generateMetadata({ params }: Params): Promise<Metadata> {
+    76→  const { slug } = await params;
+    77→  const tool = await db.tool.findUnique({
+    78→    where: { slug },
+    79→    include: {
+    80→      launch: { include: { _count: { select: { votes: true } } } },
+    81→      category: { select: { name: true } },
+    82→    },
+    83→  });
+    84→  // Unknown slug or removed/unlisted tool → 404 covers the meta too.
+    85→  if (!tool || tool.status !== "live") notFound();
+    86→
+    87→  // Tomorrow teaser: keep the URL alive but out of the index (thin content).
+    88→  if (tool.launch?.scheduled) {
+    89→    return {
+    90→      title: `${tool.name} — launching soon | Prother`,
+    91→      robots: { index: false, follow: true },
+    92→    };
+    93→  }
+    94→
+    95→  const votes = (tool.launch?.baseUpvotes ?? 0) + (tool.launch?._count.votes ?? 0);
+    96→  const title = `${tool.name} — ${tool.tagline} | Prother`;
+    97→  const description = clamp(
+    98→    `Live on Prother · ${tool.category.name} · ▲ ${votes} votes. ${tool.description || tool.tagline}`,
+    99→    200,
+   100→  );
+   101→  const keywords = tool.tags
+   102→    .split("|")
+   103→    .map((t) => t.trim())
+   104→    .filter(Boolean);
+   105→
+   106→  return {
+   107→    title,
+   108→    description,
+   109→    keywords: keywords.length > 0 ? keywords : undefined,
+   110→    alternates: { canonical: `/tools/${slug}` },
+   111→    openGraph: {
+   112→      title,
+   113→      description,
+   114→      type: "article",
+   115→      siteName: "Prother",
+   116→      images: [
+   117→        { url: `/api/og?tool=${encodeURIComponent(slug)}`, width: 1200, height: 630 },
+   118→      ],
+   119→    },
+   120→    twitter: {
+   121→      card: "summary_large_image",
+   122→      title,
+   123→      description,
+   124→      images: [`/api/og?tool=${encodeURIComponent(slug)}`],
+   125→    },
+   126→  };
+   127→}
+   128→
+   129→// ── Page ──────────────────────────────────────────────────────────────────
+   130→
+   131→export default async function ToolPage({ params }: Params) {
+   132→  const { slug } = await params;
+   133→  const tool = await db.tool.findUnique({
+   134→    where: { slug },
+   135→    include: {
+   136→      launch: { include: { _count: { select: { votes: true } } } },
+   137→      category: { select: { slug: true, name: true, emoji: true } },
+   138→    },
+   139→  });
+   140→  if (!tool || tool.status !== "live") notFound();
+   141→
+   142→  const votes = (tool.launch?.baseUpvotes ?? 0) + (tool.launch?._count.votes ?? 0);
+   143→  const scheduled = tool.launch?.scheduled ?? false;
+   144→  const name = tool.name;
+   145→  const launchId = tool.launch?.id ?? null;
+   146→  const launchDate = tool.launch?.launchDate ?? null;
+   147→
+   148→  // ── Tomorrow teaser → minimal "Launching soon" panel, no full content ──
+   149→  if (scheduled) {
+   150→    return (
+   151→      <div className="bg-ink pb-16 md:pb-0">
+   152→        <div className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
+   153→          <Breadcrumbs
+   154→            trail={[
+   155→              { name: "Home", href: "/" },
+   156→              { name: "AI tools", href: "/tools" },
+   157→              { name },
+   158→            ]}
+   159→          />
+   160→          <div className="mt-10 flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-10 text-center">
+   161→            <span
+   162→              aria-hidden
+   163→              className={cn(
+   164→                "grid size-14 place-items-center rounded-2xl bg-gradient-to-br text-3xl shadow-xl",
+   165→                tool.logoGradient
+   166→              )}
+   167→            >
+   168→              {tool.logoEmoji}
+   169→            </span>
+   170→            <h1 className="text-2xl font-black tracking-tight text-white">{name}</h1>
+   171→            <p className="text-sm text-white/60">{tool.tagline}</p>
+   172→            <p className="mt-2 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.3em] text-ember">
+   173→              <Clock className="size-3.5" aria-hidden />
+   174→              Launching soon
+   175→            </p>
+   176→            <p className="max-w-sm text-sm text-white/55">
+   177→              This product goes live on the Prother feed tomorrow — come back on
+   178→              launch day to upvote it and read the first verdicts.
+   179→            </p>
+   180→            <Link
+   181→              href="/#feed"
+   182→              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-ember transition-colors hover:bg-ember/20"
+   183→            >
+   184→              Today&apos;s feed
+   185→            </Link>
+   186→          </div>
+   187→        </div>
+   188→      </div>
+   189→    );
+   190→  }
+   191→
+   192→  // ── Full live listing — everything below is server-rendered ────────────
+   193→  const [stats, reviews, comments, threads, relatedRows] = await Promise.all([
+   194→    reviewStats(tool.id),
+   195→    db.review.findMany({
+   196→      where: { toolId: tool.id, status: "published" },
+   197→      orderBy: { createdAt: "desc" },
+   198→      take: 10,
+   199→    }),
+   200→    db.comment.findMany({
+   201→      where: { toolId: tool.id },
+   202→      orderBy: { createdAt: "desc" },
+   203→      take: 10,
+   204→    }),
+   205→    db.forumThread.findMany({
+   206→      where: {
+   207→        hidden: false,
+   208→        OR: [{ title: { contains: name } }, { body: { contains: name } }],
+   209→      },
+   210→      orderBy: { createdAt: "desc" },
+   211→      take: 3,
+   212→      select: { slug: true, title: true, author: true, createdAt: true },
+   213→    }),
+   214→    // Mirror the API's "More like this" query (live tools, same category,
+   215→    // most upvoted first — scheduled teasers excluded).
+   216→    db.tool.findMany({
+   217→      where: {
+   218→        categoryId: tool.categoryId,
+   219→        slug: { not: tool.slug },
+   220→        status: "live",
+   221→        launch: { is: { scheduled: false } },
+   222→      },
+   223→      include: {
+   224→        launch: { select: { baseUpvotes: true, _count: { select: { votes: true } } } },
+   225→      },
+   226→      orderBy: { launch: { baseUpvotes: "desc" } },
+   227→      take: 3,
+   228→    }),
+   229→  ]);
+   230→
+   231→  const aggregate = stats.aggregate;
+   232→  const related = relatedRows.map((r) => ({
+   233→    slug: r.slug,
+   234→    name: r.name,
+   235→    emoji: r.logoEmoji,
+   236→    gradient: r.logoGradient,
+   237→    tagline: r.tagline,
+   238→    votes: (r.launch?.baseUpvotes ?? 0) + (r.launch?._count.votes ?? 0),
+   239→  }));
+   240→  const tags = tool.tags.split("|").map((t) => t.trim()).filter(Boolean);
+   241→
+   242→  // JSON-LD — SoftwareApplication. aggregateRating appears ONLY when the
+   243→  // real aggregate exists (≥3 published reviews); ratings are never faked.
+   244→  const priceMatch = (tool.startingPrice ?? "").match(/(\d+(?:\.\d+)?)/);
+   245→  const softwareAppJsonLd = {
+   246→    "@context": "https://schema.org",
+   247→    "@type": "SoftwareApplication",
+   248→    name,
+   249→    description: tool.description || tool.tagline,
+   250→    applicationCategory: tool.category.name,
+   251→    operatingSystem: "Web",
+   252→    url: `${SITE_BASE}/tools/${tool.slug}`,
+   253→    offers: {
+   254→      "@type": "Offer",
+   255→      // Paid pricing carries the parsed starting price; every other model
+   256→      // maps to "0" (free / freemium entry / open source).
+   257→      price: tool.pricingModel === "paid" && priceMatch ? priceMatch[1] : "0",
+   258→      priceCurrency: "USD",
+   259→    },
+   260→    author: { "@type": "Organization", name: "Prother" },
+   261→    publisher: { "@type": "Organization", name: "Prother" },
+   262→    ...(aggregate
+   263→      ? {
+   264→          aggregateRating: {
+   265→            "@type": "AggregateRating",
+   266→            ratingValue: aggregate.overall,
+   267→            ratingCount: aggregate.count,
+   268→            bestRating: 5,
+   269→            worstRating: 1,
+   270→          },
+   271→        }
+   272→      : {}),
+   273→  };
+   274→
+   275→  return (
+   276→    <div className="bg-ink pb-16 md:pb-0">
+   277→      <script
+   278→        type="application/ld+json"
+   279→        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
+   280→      />
+   281→
+   282→      <div className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
+   283→        <Breadcrumbs
+   284→          trail={[
+   285→            { name: "Home", href: "/" },
+   286→            { name: "AI tools", href: "/tools" },
+   287→            { name },
+   288→          ]}
+   289→        />
+   290→
+   291→        <article className="mt-8 space-y-12">
+   292→          {/* a. Header */}
+   293→          <header className="space-y-5">
+   294→            <div className="flex items-start gap-4 sm:gap-5">
+   295→              <span
+   296→                aria-hidden
+   297→                className={cn(
+   298→                  "grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
+   299→                  tool.logoGradient
+   300→                )}
+   301→              >
+   302→                {tool.logoEmoji}
+   303→              </span>
+   304→              <div className="min-w-0 flex-1">
+   305→                <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+   306→                  {name}
+   307→                </h1>
+   308→                <p className="mt-1 text-base text-white/65 sm:text-lg">{tool.tagline}</p>
+   309→              </div>
+   310→            </div>
+   311→
+   312→            {/* Badge chips — mirror tool-full-page.tsx */}
+   313→            <ul className="flex flex-wrap items-center gap-1.5" aria-label="Badges">
+   314→              {tool.editorsPick && (
+   315→                <li className={chipCx("border-ember/30 bg-ember/15 text-ember")}>
+   316→                  <Star className="size-3" aria-hidden /> Editors pick
+   317→                </li>
+   318→              )}
+   319→              {tool.curated && (
+   320→                <li className={chipCx("border-yellow-500/30 bg-yellow-500/10 text-yellow-500")}>
+   321→                  Curated
+   322→                </li>
+   323→              )}
+   324→              {tool.relaunch && (
+   325→                <li
+   326→                  title={tool.relaunchNote ?? undefined}
+   327→                  className={chipCx("border-mint/30 bg-mint/10 text-mint")}
+   328→                >
+   329→                  Re-launch
+   330→                </li>
+   331→              )}
+   332→              {!tool.claimed && <li className={chipCx("text-white/40")}>Unclaimed</li>}
+   333→              {tool.hasApi && <li className={chipCx("text-white/60")}>API ✓</li>}
+   334→              {tool.pricingModel === "open_source" && (
+   335→                <li className={chipCx("text-white/60")}>Open source</li>
+   336→              )}
+   337→              <li className={chipCx("text-white/60")}>
+   338→                {tool.track === "community" ? "Submitted" : "Seed"}
+   339→              </li>
+   340→            </ul>
+   341→
+   342→            {/* Mono meta line: pricing · maker · launch date (UTC, static) */}
+   343→            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-wider text-white/45">
+   344→              <span title={tool.pricingNote ?? undefined} className="text-ember">
+   345→                {pricingLine(tool.pricingModel, tool.startingPrice)}
+   346→              </span>
+   347→              <span aria-hidden className="text-white/25">
+   348→                ·
+   349→              </span>
+   350→              <span>{tool.makerHandle}</span>
+   351→              {launchDate && (
+   352→                <>
+   353→                  <span aria-hidden className="text-white/25">
+   354→                    ·
+   355→                  </span>
+   356→                  <span>Launched {utcDateLabel(launchDate)}</span>
+   357→                </>
+   358→              )}
+   359→            </p>
+   360→
+   361→            {/* Category chip — a real link to the crawlable category page */}
+   362→            <div className="flex flex-wrap items-center gap-2">
+   363→              <Link
+   364→                href={`/categories/${tool.category.slug}`}
+   365→                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
+   366→              >
+   367→                <span aria-hidden>{tool.category.emoji}</span>
+   368→                {tool.category.name}
+   369→              </Link>
+   370→              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+   371→                <Triangle className="size-2.5 fill-current" aria-hidden />
+   372→                {votes} votes
+   373→              </span>
+   374→            </div>
+   375→
+   376→            {/* Interactive actions (client island) */}
+   377→            <ToolDetailActions
+   378→              slug={tool.slug}
+   379→              name={name}
+   380→              launchId={launchId}
+   381→              initialVotes={votes}
+   382→            />
+   383→          </header>
+   384→
+   385→          {/* b. About */}
+   386→          {tool.description && (
+   387→            <section aria-label={`About ${name}`} className="space-y-3">
+   388→              <h2 className={SECTION_HEAD}>About {name}</h2>
+   389→              <p className="text-[15px] leading-relaxed whitespace-pre-line text-white/80 sm:text-base">
+   390→                {tool.description}
+   391→              </p>
+   392→            </section>
+   393→          )}
+   394→
+   395→          {/* c. Tags */}
+   396→          {tags.length > 0 && (
+   397→            <section aria-label="Tags" className="space-y-3">
+   398→              <h2 className={SECTION_HEAD}>Tags</h2>
+   399→              <ul className="flex flex-wrap items-center gap-1.5">
+   400→                {tags.map((t) => (
+   401→                  <li key={t} className={chipCx("text-white/50")}>
+   402→                    {t}
+   403→                  </li>
+   404→                ))}
+   405→              </ul>
+   406→            </section>
+   407→          )}
+   408→
+   409→          {/* d. Links */}
+   410→          <section aria-label="Links" className="space-y-3">
+   411→            <h2 className={SECTION_HEAD}>Links</h2>
+   412→            <div className="flex flex-wrap items-center gap-2">
+   413→              <a
+   414→                href={tool.websiteUrl}
+   415→                target="_blank"
+   416→                rel="noopener noreferrer nofollow"
+   417→                className="inline-flex items-center gap-2 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-ember transition-colors hover:bg-ember/20"
+   418→              >
+   419→                Visit website
+   420→                <ArrowUpRight className="size-3.5" aria-hidden />
+   421→              </a>
+   422→              {tool.githubUrl && (
+   423→                <a
+   424→                  href={tool.githubUrl}
+   425→                  target="_blank"
+   426→                  rel="noopener noreferrer nofollow"
+   427→                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
+   428→                >
+   429→                  GitHub
+   430→                  <ArrowUpRight className="size-3" aria-hidden />
+   431→                </a>
+   432→              )}
+   433→              {tool.docsUrl && (
+   434→                <a
+   435→                  href={tool.docsUrl}
+   436→                  target="_blank"
+   437→                  rel="noopener noreferrer nofollow"
+   438→                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
+   439→                >
+   440→                  Docs
+   441→                  <ArrowUpRight className="size-3" aria-hidden />
+   442→                </a>
+   443→              )}
+   444→              {tool.twitterUrl && (
+   445→                <a
+   446→                  href={tool.twitterUrl}
+   447→                  target="_blank"
+   448→                  rel="noopener noreferrer nofollow"
+   449→                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
+   450→                >
+   451→                  Twitter
+   452→                  <ArrowUpRight className="size-3" aria-hidden />
+   453→                </a>
+   454→              )}
+   455→            </div>
+   456→          </section>
+   457→
+   458→          {/* e. Reviews (F-16) — server-rendered; aggregate unlocks at ≥3 */}
+   459→          <section aria-label="Reviews" className="space-y-4">
+   460→            <h2 className={SECTION_HEAD}>Reviews</h2>
+   461→
+   462→            {aggregate && (
+   463→              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+   464→                <span className="text-2xl font-black tabular-nums text-ember">
+   465→                  {aggregate.overall}
+   466→                  <span className="text-sm text-white/35">/5</span>
+   467→                </span>
+   468→                <span className="font-mono text-[10px] tracking-wider text-white/40 uppercase">
+   469→                  {aggregate.count} verified reviews
+   470→                </span>
+   471→                <span className="flex flex-wrap items-center gap-1.5">
+   472→                  <span className={chipCx("text-white/60")}>Ease {aggregate.ease}/5</span>
+   473→                  <span className={chipCx("text-white/60")}>Power {aggregate.power}/5</span>
+   474→                  <span className={chipCx("text-white/60")}>Value {aggregate.value}/5</span>
+   475→                </span>
+   476→              </div>
+   477→            )}
+   478→
+   479→            {reviews.length === 0 ? (
+   480→              <p className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-sm text-white/50">
+   481→                No reviews yet — launch-day verdicts land here.
+   482→              </p>
+   483→            ) : (
+   484→              <ul className="space-y-3">
+   485→                {reviews.map((r) => (
+   486→                  <li
+   487→                    key={r.id}
+   488→                    className="space-y-2.5 rounded-xl border border-white/10 bg-white/[0.02] p-4"
+   489→                  >
+   490→                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+   491→                      <span className="font-mono text-xs font-semibold tracking-wider text-ember">
+   492→                        {r.author}
+   493→                      </span>
+   494→                      <span aria-hidden className="text-white/25">
+   495→                        ·
+   496→                      </span>
+   497→                      <span className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+   498→                        {utcDateLabel(r.createdAt)}
+   499→                      </span>
+   500→                      <span className="ml-auto flex items-center gap-1.5">
+   501→                        <span className={chipCx("text-white/55")}>Ease {r.ease}/5</span>
+   502→                        <span className={chipCx("text-white/55")}>Power {r.power}/5</span>
+   503→                        <span className={chipCx("text-white/55")}>Value {r.value}/5</span>
+   504→                      </span>
+   505→                    </div>
+   506→                    <p className="text-sm leading-relaxed whitespace-pre-line text-white/75">
+   507→                      {r.body}
+   508→                    </p>
+   509→                  </li>
+   510→                ))}
+   511→              </ul>
+   512→            )}
+   513→          </section>
+   514→
+   515→          {/* f. Discussion — forum threads mentioning this tool */}
+   516→          <section aria-label="Discussion" className="space-y-3">
+   517→            <h2 className={SECTION_HEAD}>Discussion</h2>
+   518→            {threads.length > 0 && (
+   519→              <ul className="space-y-2">
+   520→                {threads.map((t) => (
+   521→                  <li key={t.slug}>
+   522→                    <Link
+   523→                      href={`/forums/${t.slug}`}
+   524→                      className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
+   525→                    >
+   526→                      <MessagesSquare
+   527→                        className="size-4 shrink-0 text-white/35 transition-colors group-hover:text-ember"
+   528→                        aria-hidden
+   529→                      />
+   530→                      <span className="min-w-0 flex-1">
+   531→                        <span className="block truncate text-sm font-semibold text-white/85 transition-colors group-hover:text-ember">
+   532→                          {t.title}
+   533→                        </span>
+   534→                        <span className="mt-0.5 block font-mono text-[10px] tracking-wider text-white/35 uppercase">
+   535→                          {t.author} · {utcDateLabel(t.createdAt)}
+   536→                        </span>
+   537→                      </span>
+   538→                      <ArrowUpRight
+   539→                        className="size-4 shrink-0 text-white/25 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+   540→                        aria-hidden
+   541→                      />
+   542→                    </Link>
+   543→                  </li>
+   544→                ))}
+   545→              </ul>
+   546→            )}
+   547→            <Link
+   548→              href="/forums"
+   549→              className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-ember transition-colors hover:text-ember-hot"
+   550→            >
+   551→              Start a discussion
+   552→              <ArrowUpRight className="size-3.5" aria-hidden />
+   553→            </Link>
+   554→          </section>
+   555→
+   556→          {/* g. Launch notes — recent launch-day comments */}
+   557→          {comments.length > 0 && (
+   558→            <section aria-label="Launch notes" className="space-y-3">
+   559→              <h2 className={SECTION_HEAD}>Launch notes</h2>
+   560→              <ul className="space-y-2">
+   561→                {comments.map((c) => (
+   562→                  <li
+   563→                    key={c.id}
+   564→                    className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
+   565→                  >
+   566→                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+   567→                      <span className="font-mono text-xs font-semibold tracking-wider text-white/85">
+   568→                        {c.author}
+   569→                      </span>
+   570→                      {c.isMaker && (
+   571→                        <span className={chipCx("border-ember/30 bg-ember/10 text-ember")}>
+   572→                          Maker
+   573→                        </span>
+   574→                      )}
+   575→                      <span aria-hidden className="text-white/25">
+   576→                        ·
+   577→                      </span>
+   578→                      <span className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+   579→                        {utcDateLabel(c.createdAt)}
+   580→                      </span>
+   581→                    </p>
+   582→                    <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-white/70">
+   583→                      {c.body}
+   584→                    </p>
+   585→                  </li>
+   586→                ))}
+   587→              </ul>
+   588→            </section>
+   589→          )}
+   590→
+   591→          {/* h. More like this — real links to sibling listings */}
+   592→          {related.length > 0 && (
+   593→            <section aria-label="More like this" className="space-y-3">
+   594→              <h2 className={SECTION_HEAD}>More like this</h2>
+   595→              <div className="grid gap-3 sm:grid-cols-3">
+   596→                {related.map((r) => (
+   597→                  <Link
+   598→                    key={r.slug}
+   599→                    href={`/tools/${r.slug}`}
+   600→                    aria-label={`Open ${r.name} — ${r.tagline}`}
+   601→                    className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
+   602→                  >
+   603→                    <span
+   604→                      aria-hidden
+   605→                      className={cn(
+   606→                        "grid size-10 place-items-center rounded-lg bg-gradient-to-br text-lg",
+   607→                        r.gradient
+   608→                      )}
+   609→                    >
+   610→                      {r.emoji}
+   611→                    </span>
+   612→                    <span className="mt-2.5 flex items-center justify-between gap-2">
+   613→                      <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
+   614→                        {r.name}
+   615→                      </span>
+   616→                      <span className="shrink-0 font-mono text-xs tabular-nums text-ember">
+   617→                        ▲{r.votes}
+   618→                      </span>
+   619→                    </span>
+   620→                    <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/45">
+   621→                      {r.tagline}
+   622→                    </span>
+   623→                  </Link>
+   624→                ))}
+   625→              </div>
+   626→            </section>
+   627→          )}
+   628→        </article>
+   629→
+   630→        {/* Back to the directory — crawlable path Home → /tools → tool */}
+   631→        <p className="mt-14 border-t border-white/10 pt-6">
+   632→          <Link
+   633→            href="/tools"
+   634→            className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.2em] text-white/40 uppercase transition-colors hover:text-ember"
+   635→          >
+   636→            <Check className="size-3.5" aria-hidden />
+   637→            Browse all AI tools on Prother
+   638→          </Link>
+   639→        </p>
+   640→      </div>
+   641→    </div>
+   642→  );
+   643→}
+   644→

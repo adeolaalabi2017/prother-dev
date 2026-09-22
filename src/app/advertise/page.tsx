@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  BookOpen,
   EyeOff,
   Layers,
   LayoutGrid,
@@ -10,7 +11,6 @@ import {
   ShieldCheck,
   SquareStack,
   Tag,
-  Triangle,
 } from "lucide-react";
 import { db } from "@/lib/prother";
 import { CATEGORIES } from "@/components/prother/categories";
@@ -19,41 +19,39 @@ export const metadata: Metadata = {
   alternates: { canonical: "/advertise" },
   title: "Advertise on Prother",
   description:
-    "Put your product in front of the builders, founders, and early adopters who search, compare, and vote on AI tools every day. Clearly-labeled placements, one sponsor per slot.",
+    "Put your product in front of the builders, founders, and early adopters who search, compare, and save AI tools every day. Clearly-labeled placements, one sponsor per slot.",
 };
 
 async function getStats() {
   try {
-    const [tools, launchSum, votes, posts] = await Promise.all([
+    const [tools, reviews, posts] = await Promise.all([
       db.tool.count({ where: { status: "live" } }),
-      db.launch.aggregate({ _sum: { baseUpvotes: true } }),
-      db.vote.count(),
+      db.$queryRaw<{ n: number }[]>`
+        SELECT COUNT(*) as n FROM Review WHERE status = 'published'`,
       db.post.count({ where: { status: "published" } }),
     ]);
     return {
       tools,
-      // The vote total the audience actually sees on the feed:
-      // seeded editorial scores + live community votes.
-      votes: (launchSum._sum.baseUpvotes ?? 0) + votes,
+      reviews: Number(reviews[0]?.n ?? 0),
       posts,
       categories: CATEGORIES.length,
     };
   } catch {
-    return { tools: 0, votes: 0, posts: 0, categories: CATEGORIES.length };
+    return { tools: 0, reviews: 0, posts: 0, categories: CATEGORIES.length };
   }
 }
 
 const PLACEMENTS = [
   {
-    icon: Triangle,
+    icon: SquareStack,
     kicker: "PLACEMENT 01",
-    title: "Sponsored feed placement",
-    body: "Your product appears in the day's ranked feed, clearly labeled Promoted, beside the launches it competes with. One sponsored row per day — never more.",
-    // Mini feed-row mock, rendered in markup (no images to keep the page fast)
+    title: "Sponsored directory row",
+    body: "Your product appears as a labeled row inside the /tools directory, beside the listings it competes with. One sponsored row per page — never more.",
+    // Mini directory-row mock, rendered in markup (no images to keep the page fast)
     mock: "feed" as const,
   },
   {
-    icon: SquareStack,
+    icon: BookOpen,
     kicker: "PLACEMENT 02",
     title: "Journal sponsorship",
     body: "Sponsor an issue of the Journal — the weekly brief on what shipped and why it matters. Named at the top, one sponsor per issue, no interstitials.",
@@ -101,7 +99,7 @@ const PRINCIPLES = [
   {
     icon: EyeOff,
     title: "Readers first",
-    body: "No popups, no autoplay, no email gates. If a placement would annoy the feed, we don't sell it.",
+    body: "No popups, no autoplay, no email gates. If a placement would annoy the directory, we don't sell it.",
   },
 ];
 
@@ -119,8 +117,8 @@ export default async function AdvertisePage() {
   const stats = await getStats();
   const statCards = [
     { label: "TOOLS LISTED", value: stats.tools > 0 ? `${stats.tools}` : "—" },
-    { label: "VOTES CAST", value: stats.votes > 0 ? stats.votes.toLocaleString("en-US") : "—" },
     { label: "CATEGORIES", value: `${stats.categories}` },
+    { label: "REVIEWS READ", value: stats.reviews > 0 ? stats.reviews.toLocaleString("en-US") : "—" },
     { label: "JOURNAL POSTS", value: `${stats.posts}` },
   ];
 
@@ -150,8 +148,8 @@ export default async function AdvertisePage() {
             <span className="text-ember">hunting for AI tools.</span>
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-white/60">
-            Prother&apos;s audience arrives with intent — they search, compare, and vote on AI
-            products every day. Reach them at the moment they&apos;re deciding what to adopt.
+            Prother&apos;s audience arrives with intent — they search, compare, and save
+            AI tools every day. Reach them at the moment they&apos;re deciding what to adopt.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <a
@@ -206,25 +204,41 @@ export default async function AdvertisePage() {
               {/* mini visual mock per placement */}
               <div className="border-b border-white/10 bg-ink/60 p-4">
                 {p.mock === "feed" && (
-                  <div aria-hidden className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-orange-500/70 to-rose-600/70 text-base">
-                      ⌘
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold text-white/90">
-                        YourTool{" "}
-                        <span className="ml-1 rounded-full bg-ember/15 px-1.5 py-px font-mono text-[9px] text-ember">
-                          Promoted
-                        </span>
-                      </p>
-                      <p className="truncate text-[11px] text-white/45">
-                        Your tagline, in the daily ranked feed
-                      </p>
+                  <div aria-hidden className="space-y-1.5">
+                    {/* an organic directory row ... */}
+                    <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-400/60 to-teal-600/60 text-sm">
+                        🧠
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-white/85">
+                          OpenModel
+                        </p>
+                        <p className="truncate text-[11px] text-white/40">
+                          Run any model, anywhere · Freemium $19
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] text-white/40 uppercase">
+                        AI tool
+                      </span>
                     </div>
-                    <span className="flex flex-col items-center rounded-md border border-white/10 px-2 py-1 text-white/50">
-                      <Triangle className="size-3" />
-                      <span className="font-mono text-[10px]">▲</span>
-                    </span>
+                    {/* ... followed by your labeled sponsored row */}
+                    <div className="flex items-center gap-3 rounded-lg border border-ember/30 bg-ember/[0.06] p-2.5">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-orange-500/70 to-rose-600/70 text-sm">
+                        ⌘
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-white/90">
+                          YourTool{" "}
+                          <span className="ml-1 rounded-full bg-ember/15 px-1.5 py-px font-mono text-[9px] text-ember">
+                            Promoted
+                          </span>
+                        </p>
+                        <p className="truncate text-[11px] text-white/45">
+                          Your tagline, beside the directory results
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {p.mock === "journal" && (
@@ -310,7 +324,7 @@ export default async function AdvertisePage() {
             House rules
           </p>
           <h2 className="mt-3 text-3xl font-black tracking-tighter text-white sm:text-4xl">
-            Advertising that respects the feed
+            Advertising that respects the directory
           </h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {PRINCIPLES.map((pr) => (
@@ -327,7 +341,7 @@ export default async function AdvertisePage() {
       {/* ── Final CTA ────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6">
         <h2 className="text-3xl font-black tracking-tighter text-white sm:text-4xl">
-          Tell us your launch window.
+          Tell us about your campaign.
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/55">
           We&apos;ll reply with the media kit, current slot availability, and fixed pricing —

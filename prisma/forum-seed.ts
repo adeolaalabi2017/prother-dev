@@ -1,12 +1,14 @@
 /**
  * Prother forums seed (Task 22-b) — 8 threads across the 4 topics
  * (general / vibecoding / show / introduce) with 1–4 replies each.
+ * Discovery-era copy: evaluation, workflows, demos, introductions —
+ * no launch/upvote/feed framing.
  *
  * Idempotent: exits without writing when ForumThread already has rows.
  * Run: bun prisma/forum-seed.ts  (from the project root)
  *
  * Handles reuse the maker roster from prisma/seed.ts so the forums read
- * like the same community that launches on the feed.
+ * like the same community that browses and reviews the directory.
  */
 import { PrismaClient } from "@prisma/client";
 
@@ -41,51 +43,51 @@ const threads: SeedThread[] = [
     hoursAgo: 96,
     body: `Quick orientation so posts land in front of the right people:
 
-p/general — launching, timing, pricing, validation, distribution. If it is about running the business of a product, it goes here.
+p/general — tools, evaluation, pricing, workflows. If it is about picking the right AI for the job and getting your money's worth, it goes here.
 
 p/vibecoding — how you actually build: prompts, agents, workflows, what your stack looks like after three weeks of co-writing with a model.
 
-p/show — you shipped something. Demo it, share real numbers, answer stack questions. One thread per launch, link your tool page.
+p/show — demo what you built with AI tools. Share real numbers, answer stack questions. One thread per project, link your listing.
 
-p/introduce — say hi. What you worked on before, what you are building now. No pitch decks needed.
+p/introduce — say hi. What you worked on before, what you are working on now. No pitch decks needed.
 
-Moderation is light but real: show posts with fake metrics get unlisted, and cross-posting the same thread into three rooms gets the duplicates merged. Ask questions the way you would ask a friend who happens to have shipped eight products.`,
+Moderation is light but real: show posts with fabricated numbers get unlisted, and cross-posting the same thread into three rooms gets the duplicates merged. Ask questions the way you would ask a friend who happens to have evaluated more tools than they can count.`,
     replies: [
       {
         author: "@dana",
-        body: "Follow-up for the mods: if I hit a gnarly prompt-architecture problem while building my launch page, that is vibecoding, but if I want feedback on the page itself, that is show? Want to keep my threads out of the merge pile.",
+        body: "Follow-up for the mods: if I hit a gnarly prompt-architecture problem while building my tool, that is vibecoding, but if I want feedback on the listing itself, that is show? Want to keep my threads out of the merge pile.",
         hoursAfter: 3,
       },
     ],
   },
   {
-    slug: "launch-timing-0001-utc-vs-afternoon-8jk1",
+    slug: "stress-test-ai-tool-before-real-work-8jk1",
     topic: "general",
-    title: "Launch timing: does the 00:01 UTC slot actually beat an afternoon slot?",
+    title: "How do you stress-test an AI tool before trusting it with real work?",
     author: "@dana",
     baseUpvotes: 34,
     hoursAgo: 5,
-    body: `We took Promptly live at 14:00 UTC on a Tuesday, mostly by accident — the deploy finished early and we stopped waiting for a "better" moment.
+    body: `We put an answer engine on our compliance team's critical path last quarter and learned the hard way that "impressive in a demo" and "trustworthy at 4pm on a deadline" are different products.
 
-Comparing our curve to NectarSearch (which opened right at 00:01 UTC): they cleared 300 votes in five days, we are at 47 after half a day. Not comparable products, but the shape differs. Their votes came in two bursts — right at open and around 14:00 UTC when the US logged on. Ours ramped slowly all afternoon and held overnight.
+Now every candidate tool runs the same gauntlet before it touches real work. A three-task test on our own material — not the vendor's sample data — with output graded against what a careful human produced. An export drill: can I get everything out in a usable format on day one, or is my work product hostage from the first click? And a data-retention check: what is stored, for how long, is it used for training by default, and does the delete button actually delete?
 
-My working theory: the 00:01 slot buys you 14 extra hours of exposure to the early crowd, but the ranking decay means those early votes weigh less by the time most people see the feed. An afternoon slot front-loads your freshest hours into peak traffic.
+The pricing math matters too. Free-tier limits are usually where the real product lives or dies, so I simulate a busy week on the free plan before paying. Discovering the wall after procurement is the expensive way to learn it.
 
-Anyone launched the same product twice at different times? I would take one real data point over my spreadsheet of guesses.`,
+Curious what other people's gauntlets look like. Refund policies are my latest obsession — a tool that won't refund the month you didn't use is telling you something about how confident they are in retention.`,
     replies: [
       {
         author: "@leo",
-        body: "CodePilotX went live 13:00 UTC. What I can confirm from the feed: vote velocity in the first six hours decides whether you hold the top row when the EU evening crowd arrives. After hour six the decay is brutal — our score halved while votes still trickled in. I would pick the slot where YOUR audience is awake over any universal rule.",
+        body: "Eval habit that changed everything for us: the test set is real work the tool has never seen, and it gets graded by the person whose job it would assist — not the person championing the tool. Champions grade on enthusiasm. Owners grade on what breaks. Also check the changelog cadence before anything else; a tool shipping fixes weekly is telling you the failure you found is already on someone's list.",
         hoursAfter: 1,
       },
       {
         author: "@reid",
-        body: "QueryMuse launched 15:30 UTC and I spent the whole morning refreshing with nothing to show for it. Afternoon worked for us because both EU and US were online and the feed had stopped churning — less competition per hour. Also: a Tuesday beats a Friday by a lot, weekends are a ghost town here.",
+        body: "Refund policy data point: every tool that made our procurement shortlist this year had a no-questions refund window, and the one that didn't was the one that burned us — we paid a year up front for a transcription tool that degraded after a model swap and offered store credit. The refund policy is a signal about how a company handles mistakes, not just money.",
         hoursAfter: 2,
       },
       {
         author: "@mira",
-        body: "Counterpoint from the Guardrail launch: we got the editor pick badge a few hours in and the badge moved more votes than the slot ever could. Timing is a rounding error next to a strong first screenshot.",
+        body: "The data-retention check saved us once — turned out the meeting-notes tool we were about to standardize on trained on customer audio by default, and the opt-out was buried in an admin panel nobody had opened. Also: check what happens when the tool is down. An AI tool with no status page and no degraded mode is a liability dressed as a convenience.",
         hoursAfter: 4,
       },
     ],
@@ -97,9 +99,9 @@ Anyone launched the same product twice at different times? I would take one real
     author: "@nina",
     baseUpvotes: 21,
     hoursAgo: 26,
-    body: `Before DraftPunk I ran the classic play: fake landing page, "$5 if you sign up early", posted in four newsletters. 900 emails in ten days. I took that as a green light.
+    body: `For my last idea I ran the classic play: fake landing page, "$5 if you sign up early", posted in four newsletters. 900 emails in ten days. I took that as a green light.
 
-Reality: after launch, barely a third of those people ever pasted a single bullet list. The waitlist measured curiosity, not intent. Free email is the cheapest currency on the internet and I had priced my validation at zero.
+Reality: after shipping, barely a third of those people ever pasted a single bullet list. A signup form measures curiosity, not intent. Free email is the cheapest currency on the internet and I had priced my validation at zero.
 
 Round two I am trying something stricter: before writing any code for the next idea, I am doing the job manually for ten people, for money, and watching whether they come back a second time. Slower, but the signal survived contact with actual users.
 
@@ -107,12 +109,12 @@ What has actually predicted retention for you? Deposit pages, concierge onboardi
     replies: [
       {
         author: "@ivy",
-        body: "SheetSense started as me doing 40 spreadsheet cleanups by hand over six weeks. Painful, unscalable, and the only honest data I have ever collected. The pattern that mattered: nine of the forty came back within a month with a second spreadsheet. That 22% repeat rate told me more than 900 emails ever could.",
+        body: "Gridkeeper started as me doing 40 spreadsheet cleanups by hand over six weeks. Painful, unscalable, and the only honest data I have ever collected. The pattern that mattered: nine of the forty came back within a month with a second spreadsheet. That 22% repeat rate told me more than 900 emails ever could.",
         hoursAfter: 5,
       },
       {
         author: "@petal",
-        body: "We charged $20 for NectarSearch pre-orders while it was still a CLI with zero UI. 61 people paid. The conversion rate was tiny next to a waitlist, but every one of those people used the thing and complained loudly, which is what you actually need. A waitlist tells you what people wish they wanted. An invoice tells you what they want.",
+        body: "We charged $20 for Quarry pre-orders while it was still a CLI with zero UI. 61 people paid. The conversion rate was tiny next to a signup form, but every one of those people used the thing and complained loudly, which is what you actually need. A signup form tells you what people wish they wanted. An invoice tells you what they want.",
         hoursAfter: 9,
       },
     ],
@@ -124,7 +126,7 @@ What has actually predicted retention for you? Deposit pages, concierge onboardi
     author: "@leo",
     baseUpvotes: 42,
     hoursAgo: 8,
-    body: `CodePilotX is roughly 60% model-written at this point and the first two weeks nearly proved every skeptic right. What finally worked for us, in case it saves someone the same month:
+    body: `Our codebase is roughly 60% model-written at this point and the first two weeks nearly proved every skeptic right. What finally worked for us, in case it saves someone the same month:
 
 1. Rules file is law. Our .cursorrules is 90 lines: naming, folder boundaries, error handling, and a hard list of "never touch" files (auth, migrations, payments). Generated PRs stopped wandering after we wrote it down.
 
@@ -141,7 +143,7 @@ Curious what the long-haul people do differently — especially anyone past the 
       },
       {
         author: "@greg",
-        body: "StackSherpa is around 40% generated and the rule that saved us: every agent PR goes through the identical CI a human PR would — lint, types, e2e — and diffs stay under ~300 lines. Small diffs are the whole game. A 40-line generated change is usually fine. A 900-line one is how you spend a weekend.",
+        body: "Our on-call bot is around 40% generated and the rule that saved us: every agent PR goes through the identical CI a human PR would — lint, types, e2e — and diffs stay under ~300 lines. Small diffs are the whole game. A 40-line generated change is usually fine. A 900-line one is how you spend a weekend.",
         hoursAfter: 3,
       },
       {
@@ -179,17 +181,17 @@ Anyone else burned by this, or am I the only one who had to learn it twice?`,
     ],
   },
   {
-    slug: "launched-clipwhisper-today-stack-and-numbers-3hb8",
+    slug: "show-podcast-clipping-pipeline-3hb8",
     topic: "show",
-    title: "Launched ClipWhisper today — 3-hour podcast to 10 clips. Stack and first-day numbers",
+    title: "Show & tell: my podcast-clipping pipeline (open source)",
     author: "@kai",
     baseUpvotes: 26,
     hoursAgo: 3,
-    body: `ClipWhisper went live on the feed this morning. You upload a long episode, it finds the ten moments worth clipping and cuts them with proper framing.
+    body: `Open-sourced my podcast-clipping pipeline last month, so this is the demo post without a sales pitch: you upload a long episode, it finds the ten moments worth clipping and cuts them with proper framing.
 
-Stack, for those who asked in the pre-launch thread: Whisper large-v3 running locally for the transcript, ffmpeg for the actual cutting, and a small fine-tuned model that scores segments on hook strength — the scoring model is the secret sauce and it took four retraining rounds to stop picking intro music.
+Stack, for those who asked when I shared the first snippet: Whisper large-v3 running locally for the transcript, ffmpeg for the actual cutting, and a small fine-tuned model that scores segments on hook strength — the scoring model is the secret sauce and it took four retraining rounds to stop picking intro music.
 
-First-day numbers, honestly: 212 signups by noon, 38 went paid ($15 Creator tier). Biggest surprise — people run entire back-catalogs through it the first evening. One user processed 74 episodes of a history podcast overnight. That was NOT the persona we designed for, and now it might be the product.
+Monthly numbers, honestly: ~600 episodes processed, 14 active podcasters, two of them paying for the hosted version ($15 Creator tier). Biggest surprise — people run entire back-catalogs through it in one evening. One user processed 74 episodes of a history podcast overnight. That was NOT the persona we designed for, and now it might be the product.
 
 AMA about the pipeline. Especially happy to go deep on the segment scoring, because that is where every hour of the last three months went.`,
     replies: [
@@ -205,25 +207,25 @@ AMA about the pipeline. Especially happy to go deep on the segment scoring, beca
       },
       {
         author: "@dana",
-        body: "Congratulations on the launch — the 74-episode power user is the whole thread worth pulling on. One question from the Promptly side: do clips without captions retain worse? We see captions doubling watch time on our end and it might be a cheap win for you.",
+        body: "The 74-episode power user is the whole thread worth pulling on. One question from the captioning side: do clips without captions retain worse? We see captions doubling watch time on our end and it might be a cheap win for you.",
         hoursAfter: 4,
       },
     ],
   },
   {
-    slug: "nectarsearch-took-number-one-today-ama-6pz5",
+    slug: "ama-citation-first-answer-engine-on-open-models-6pz5",
     topic: "show",
-    title: "NectarSearch took #1 today. AMA about the citation engine",
+    title: "AMA: I built a citation-first answer engine on open models",
     author: "@petal",
     baseUpvotes: 55,
     hoursAgo: 30,
-    body: `We ended the day at 312 votes, which is a number I am going to be insufferable about for at least a week.
+    body: `Six months of nights-and-weekends, and the thing finally does in public what it did on my laptop: a citation-first answer engine built entirely on open models.
 
-Since the launch thread filled up with the same three questions, here is the honest version of how the cite-everything engine works: retrieval pulls candidate sources, a claim-extraction pass turns each sentence of our draft answer into checkable statements, and a verification pass attaches or removes a citation per claim. Anything that fails verification gets rewritten, not footnoted.
+Since the same three questions keep coming up, here is the honest version of how the cite-everything engine works: retrieval pulls candidate sources, a claim-extraction pass turns each sentence of our draft answer into checkable statements, and a verification pass attaches or removes a citation per claim. Anything that fails verification gets rewritten, not footnoted.
 
 Costs nobody asks about: that pipeline roughly triples our latency versus a normal answer engine and it is worth every millisecond, because trust is the product. We also kill answers entirely when verification confidence drops below threshold — roughly 4% of queries get "here is what I could not verify" instead of a confident guess, and users cite that refusal in reviews more than any feature.
 
-AMA — happy to talk retrieval, the verification thresholds, or what the first six months of nobody-caring looked like.`,
+AMA — happy to talk retrieval, the verification thresholds, or why betting on open models was the right call even when the closed ones were cheaper per token.`,
     replies: [
       {
         author: "@mira",
@@ -232,34 +234,34 @@ AMA — happy to talk retrieval, the verification thresholds, or what the first 
       },
       {
         author: "@harvey",
-        body: "Late to the party — legal uses this pattern constantly and the verification-threshold question is exactly where enterprise buyers get nervous. What did the false-citation rate look like at launch versus now, and how do you measure it at all? We resorted to paying paralegals to spot-check and I still do not trust our numbers.",
+        body: "Late to the party — legal uses this pattern constantly and the verification-threshold question is exactly where enterprise buyers get nervous. What did the false-citation rate look like in your first months versus now, and how do you measure it at all? We resorted to paying paralegals to spot-check and I still do not trust our numbers.",
         hoursAfter: 7,
       },
     ],
   },
   {
-    slug: "new-here-amara-ex-radio-building-voiceloom-7rw6",
+    slug: "new-here-amara-ex-radio-voice-tooling-7rw6",
     topic: "introduce",
-    title: "New here — Amara, ex-radio, building VoiceLoom",
+    title: "New here — Amara, ex-radio, now working on voice tooling",
     author: "@amara",
     baseUpvotes: 12,
     hoursAgo: 50,
     body: `Hello all. Twelve years in radio production before this — mostly documentary and voice work, which is a long way of saying I have heard what happens to a voice when technology mangles it, thousands of times.
 
-VoiceLoom is my answer: voice cloning that treats the source recording with respect. Forty languages, and the dubbing keeps the breath and pacing of the original instead of flattening everything into that beige audiobook read.
+These days I am working on voice tooling that treats the source recording with respect: dubbing that keeps the breath and pacing of the original instead of flattening everything into that beige audiobook read. Still early — consulting for studios by day, building by night.
 
-What drew me to this community is that everyone here argues about details like segment scoring and migration safety, which is exactly the level of conversation my old industry never had about voice tech. I launch soon and I am mostly here to learn how to not fumble the launch week.
+What drew me to this community is that everyone here argues about details like segment scoring and migration safety, which is exactly the level of conversation my old industry never had about voice tech. I am mostly here to learn from people who have already worked out how to evaluate this stuff properly.
 
 If you are doing anything with audio, I will happily trade notes on quality issues — bad dithering is a pet peeve and I will talk about it at length.`,
     replies: [
       {
         author: "@nova",
-        body: "Welcome — EchoGrain is music-side but half our users push voice tracks through it. The beige audiobook read is real and I have never heard anyone name it before. When you launch I want to test the breath preservation specifically, that is the tell in every clone I have auditioned.",
+        body: "Welcome — EchoGrain is music-side but half our users push voice tracks through it. The beige audiobook read is real and I have never heard anyone name it before. When your tool is far enough along I want to test the breath preservation specifically, that is the tell in every clone I have auditioned.",
         hoursAfter: 6,
       },
       {
         author: "@prother",
-        body: "Welcome, Amara. When launch day comes, post the demo in p/show with one before/after clip — voice products convert on hearing, not reading. The timing thread in p/general is where the launch-week veterans live if you want the unfiltered version.",
+        body: "Welcome, Amara. When you have something to demo, post it in p/show with one before/after clip — voice products convert on hearing, not reading. The stress-testing thread in p/general is where the tool-evaluation veterans live if you want the unfiltered version.",
         hoursAfter: 11,
       },
     ],

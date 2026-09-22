@@ -5,40 +5,40 @@ import { MoveRight } from "lucide-react";
 
 const STATS = [
   {
-    value: "≤5 min",
-    title: "Daily digest scan",
-    body: "One email. Today's launches, top climbers, one editor's pick. Skimmable before your coffee cools.",
+    value: "7",
+    title: "Curated categories",
+    body: "From chatbots to developer platforms — a taxonomy built for how AI actually ships, not a junk drawer.",
   },
   {
     value: "0",
     title: "Spam tools, ever",
-    body: "Every listing passes all six published standards before it can launch. Curation is never sold.",
+    body: "Every listing passes all six published standards before it can be listed. Curation is never sold.",
   },
   {
-    value: "10",
-    title: "AI-native categories",
-    body: "From chatbots to vertical AI — a taxonomy built for how AI actually ships, not a junk drawer.",
+    value: "$0",
+    title: "Forever",
+    body: "Searching, comparing, and saving are free. Listings are free. Sponsored slots are labeled — never blended in.",
   },
 ];
 
 const STEPS = [
   {
-    n: "01 · YOU SUBMIT",
-    title: "Your AI tool",
-    body: "Live URL required. No waitlists, no coming-soon pages, no vaporware.",
+    n: "01 · SEARCH",
+    title: "Query or browse",
+    body: "Search the whole directory, or browse the seven categories from chatbots to dev platforms.",
     highlight: false,
   },
   {
-    n: "02 · WE VERIFY",
-    title: "Standards S1–S6",
-    body: "A human editor checks every listing against the public quality bar.",
-    chips: ["LIVE CHECK", "AI-NATIVE", "HONEST PRICING"],
+    n: "02 · COMPARE",
+    title: "Side by side",
+    body: "Pricing, features, and reviews in one view — decide between two tools in minutes.",
+    chips: ["PRICING", "FEATURES", "REVIEWS"],
     highlight: true,
   },
   {
-    n: "03 · YOU LAUNCH",
-    title: "The daily feed",
-    body: "Community-ranked. Editor's pick. Reaches an audience that shows up for AI.",
+    n: "03 · SAVE",
+    title: "Build your stack",
+    body: "Collections, follows, and shareable stacks — keep the tools you rely on in one place.",
     highlight: false,
   },
 ];
@@ -59,14 +59,14 @@ export function HowItWorks() {
             {...fadeUp}
             className="text-5xl leading-[0.95] font-black tracking-tighter md:text-6xl"
           >
-            Your tool goes live.
+            One directory.
             <br />
-            The crowd shows up.
+            Every AI tool that matters.
           </motion.h2>
           <motion.p {...fadeUp} className="text-lg text-black/70">
-            A launch on Prother is a real event —{" "}
-            <span className="font-semibold text-[#C24A00]">one curated batch per day</span>, ranked
-            live by the community, reviewed against six published standards. No link dumps. No
+            Prother is one curated place to find AI tools —{" "}
+            <span className="font-semibold text-[#C24A00]">honest pricing, real reviews</span>, and
+            every listing checked against six published standards. No link dumps. No
             infinite scroll. No pay-to-win.
           </motion.p>
         </div>

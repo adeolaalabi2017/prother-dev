@@ -4,32 +4,34 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import GatewayFlow from "@/components/ui/gateway-flow";
 import { HeroSearch } from "./hero-search";
-import { useFeed } from "./use-feed";
+
+type SiteStats = { tools: number; categories: number; reviews: number; comments: number };
 
 export function Hero() {
-  const { feed } = useFeed();
-  const todayCount = feed ? String(feed.todayCount) : "12";
-
   // Admin-manageable site copy (/api/site ← Site settings KV). Falls back to
   // the locked defaults when the store is empty — the hero never breaks.
   const [copy, setCopy] = useState({
-    announcement: "Open now — today's launches are live on the feed",
-    headline: "Where AI products get discovered.",
+    announcement: "Curated daily — 46 tools indexed across 7 categories",
+    headline: "Find the right AI tool.",
     subline:
-      "Every day, a fresh batch of AI tools goes live on one page. Prother shows you what launched, what’s climbing, and what’s actually worth your time — before your feed does.",
+      "Prother is a curated search and discovery directory for AI products and tools. Compare pricing, read real reviews, and save your stack — no launch games, no pay-to-win ranking.",
   });
+  const [stats, setStats] = useState<SiteStats | null>(null);
 
   useEffect(() => {
     let alive = true;
     fetch("/api/site")
-      .then((r) => r.json() as Promise<{ settings: Record<string, string> }>)
+      .then((r) => r.json() as Promise<{ settings: Record<string, string>; stats?: SiteStats }>)
       .then((d) => {
-        if (!alive || !d.settings) return;
-        setCopy((prev) => ({
-          announcement: d.settings["hero.announcement"] || prev.announcement,
-          headline: d.settings["hero.headline"] || prev.headline,
-          subline: d.settings["hero.subline"] || prev.subline,
-        }));
+        if (!alive) return;
+        if (d.settings) {
+          setCopy((prev) => ({
+            announcement: d.settings["hero.announcement"] || prev.announcement,
+            headline: d.settings["hero.headline"] || prev.headline,
+            subline: d.settings["hero.subline"] || prev.subline,
+          }));
+        }
+        if (d.stats) setStats(d.stats);
       })
       .catch(() => {
         /* defaults hold */
@@ -39,7 +41,7 @@ export function Hero() {
     };
   }, []);
 
-  // Last word renders in ember — “Where AI products get discovered.” → discovered.
+  // Last word renders in ember — "Find the right AI tool." → tool.
   const headlineWords = copy.headline.split(" ");
   const headlineBody = headlineWords.slice(0, -1).join(" ");
   const headlineAccent = headlineWords.at(-1) ?? "";
@@ -95,17 +97,17 @@ export function Hero() {
             {copy.subline}
           </p>
 
-          {/* Discovery-first hero: comprehensive search replaces the email
-              capture. The feed is open — no gates. */}
+          {/* Discovery-first hero: comprehensive search over the whole
+              directory — tools, categories, and journal in one dropdown. */}
           <div className="mx-auto mt-8 w-full max-w-xl">
             <HeroSearch />
           </div>
 
           <ul className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2">
             {[
-              { label: `${todayCount} launches today` },
-              { label: "10 categories" },
-              { label: "6 standards" },
+              { label: `${stats ? stats.tools : 46} tools indexed` },
+              { label: `${stats ? stats.categories : 7} categories` },
+              { label: stats ? `${stats.reviews} reviews` : "real reviews" },
               { label: "$0 forever" },
             ].map((s) => (
               <li

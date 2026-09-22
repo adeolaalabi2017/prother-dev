@@ -1,49 +1,37 @@
 /**
- * Curated SEO intro copy per category slug (PRD F-02/03 — category browse
- * pages need unique, human-written intro paragraphs for search engines).
- * 2–3 sentences each; no superlatives that would violate the Listing
- * Standards tone. Client-safe: no database imports.
+ * Curated SEO intro copy per category slug — category browse pages need
+ * unique, human-written intro paragraphs for search engines.
+ * 2–3 sentences each; honest tone, no superlatives inflation.
+ * Client-safe: no database imports.
  */
 
 export const CATEGORY_BLURBS: Record<string, string> = {
-  "generative-ai-chatbots":
-    "Chatbots and generative assistants built on large language models — customer-facing support agents, research copilots, and citation-first answer engines. Every listing here is live, hands-on tested against the Listing Standards, and ranked by an independent community vote. Compare pricing tiers, API access, and hallucination controls side by side before you commit your workflow.",
+  "conversational-ai":
+    "Assistants and answer engines built on large language models — general-purpose chat, research copilots with inline citations, and customer-support agents that resolve tickets end to end. Every listing documents model access, context limits, API availability, and pricing so you can match the tool to the workload instead of the hype.",
 
-  "art-image-video":
-    "Generative image, video, and design tools — from sketch-to-system pipelines to photoreal product shots and podcast-to-clip repurposing. We verify that each tool ships a real free tier or honest trial so you can test output quality before paying. Community votes surface what actually renders on time and on brand.",
+  "generative-content":
+    "Tools that turn prompts into finished assets: photoreal imagery, produced music, studio-quality video, and lifelike voice. Listings note output quality caveats, licensing and consent posture for cloned voices, and whether a real free tier exists — the difference between a demo reel and a deliverable.",
 
-  "coding-tools":
-    "AI coding assistants, code reviewers, and developer copilots that plug into your editor, CI pipeline, or terminal. Expect honest notes on context-window limits, self-hosting options, and diff-review workflows. Open-source releases and API availability are flagged so teams can evaluate lock-in at a glance.",
+  "nlp-text":
+    "Software that reads and writes: document summarization, high-fidelity translation, live meeting transcription, grammar and tone feedback, and AI-content detection. Expect honest notes on language coverage, source fidelity, and what each tool does (or refuses to do) with your text.",
 
-  "writing-productivity":
-    "Writing assistants, inbox tools, and document copilots that turn bullet points into publishable prose. This category favors tools with strong editing controls — tone, structure, and source fidelity — over raw text generation. Every launch includes its pricing model and free-tier limits, verified at review time.",
+  "computer-vision":
+    "Programs that detect, classify, and interpret visual data — from pretrained labeling APIs you can call this afternoon to annotation and training platforms for custom models. Listings flag deployment targets (cloud, edge, on-prem), accuracy baselines, and data-privacy posture.",
 
-  "data-analysis":
-    "AI for spreadsheets, forecasting, churn prediction, and plain-English analytics. Listings document data-privacy posture and whether models train on your numbers — a hard requirement for finance and ops teams. Vote totals reflect how well each tool handles messy, real-world data rather than demo sets.",
+  "data-analytics":
+    "Platforms that turn raw data into decisions: automated forecasting, churn and risk models, CRM-native predictions, and plain-English BI copilots. Listings document how models handle messy real-world data, where they deploy (cloud or self-hosted), and what governance tooling exists for regulated teams.",
 
-  "infra-devtools":
-    "The plumbing layer: embedding inference, semantic search, GPU cost optimization, and self-hosted AI infrastructure. Performance claims (latency, p99, throughput) are checked against public benchmarks where they exist. Open-source projects dominate here, so repository health and license clarity are part of every review.",
+  "automation":
+    "Software that connects your apps and runs multi-step workflows — trigger-action builders, visual scenario canvases, self-hostable engines, and human-in-the-loop approvals. Listings document integration counts, failure handling, and whether your data ever leaves your infrastructure.",
 
-  "audio-voice-music":
-    "Voice cloning, dubbing, meeting interpretation, and AI music mastering tools. We highlight language coverage, cloning consent policies, and per-minute pricing so creators can budget honestly. Community reviews flag artifacts and latency issues that demo reels tend to hide.",
-
-  "agents-automation":
-    "Autonomous agents, workflow automation, and orchestration layers that retry, self-heal, and chain tools together. Listings document failure-handling behavior — the difference between a demo and a deployable agent. Self-hosted and API-first options are tagged for teams building unattended pipelines.",
-
-  "vertical-ai":
-    "AI built for a specific industry: legal contract review, clinical intake, finance ops, and other regulated workflows. Compliance posture, audit trails, and domain accuracy matter more than model size here. Makers must state who the tool is for and what it is not cleared to do.",
-
-  "safety-governance":
-    "Guardrails, policy engines, fact-checking pipelines, and evaluation tooling that keep AI outputs safe to ship. This category tracks red-team testing support, logging, and moderation APIs for teams with compliance obligations. If you must explain an AI decision to a regulator, start here.",
-
-  "other":
-    "AI products that defy tidy categorization — new interfaces, experimental formats, and cross-domain tools. Editors place a listing here only when none of the ten primary categories fit, and re-file it as the taxonomy evolves.",
+  "dev-platforms":
+    "The layer builders stand on: training frameworks, model hubs, agent orchestration, vector databases, and pay-per-second inference APIs. Repository health, license clarity, and self-hosting paths are part of every listing so teams can evaluate lock-in at a glance.",
 };
 
 /** Blurb for a category slug, falling back to generated copy using `name`. */
 export function blurbFor(slug: string, name: string): string {
   return (
     CATEGORY_BLURBS[slug] ??
-    `Browse ${name} — a community-voted directory of live AI products in this category. Every listing passes the Prother Listing Standards before launch day, with honest pricing and hands-on testing notes. Upvote what works, compare side by side, and follow the tools you rely on.`
+    `Browse ${name} — a curated directory of live AI products in this category. Every listing carries honest pricing, verified links, and hands-on notes. Compare side by side, save what works, and follow the tools you rely on.`
   );
 }

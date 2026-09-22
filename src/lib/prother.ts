@@ -1,5 +1,6 @@
 /**
- * Prother shared domain logic + types (PRD §9 Feed Mechanics, §16 schema decisions).
+ * Prother shared domain logic + types — search & discovery directory.
+ * (Launch/vote machinery removed in the directory repositioning.)
  */
 import { db } from "@/lib/db";
 import type { ForumTopic } from "@/lib/forum-topics";
@@ -8,47 +9,21 @@ import type { ForumTopic } from "@/lib/forum-topics";
 export type Badge = {
   editorsPick: boolean;
   curated: boolean;
-  relaunch: boolean;
   unclaimed: boolean;
   hasApi: boolean;
   openSource: boolean;
 };
 
-export type FeedRow = {
-  launchId: string;
+/** Compact row used by the ⌘K palette / hero dropdown / related lists. */
+export type ToolSummaryRow = {
   slug: string;
   name: string;
   tagline: string;
   emoji: string;
   gradient: string;
-  votes: number;
-  voted: boolean;
-  maker: string;
-  track: "editor_seed" | "community";
+  editorsPick: boolean;
   pricing: { model: string; price: string | null; note: string | null };
   category: { slug: string; name: string; emoji: string };
-  /** Discussion size — rendered as a 💬 badge on feed rows (omitted when 0). */
-  comments?: number;
-  badges: Badge;
-};
-
-export type Teaser = {
-  slug: string;
-  name: string;
-  tagline: string;
-  emoji: string;
-  gradient: string;
-  category: { slug: string; name: string; emoji: string };
-  goesLiveInH: number;
-};
-
-export type TopWeekRow = {
-  slug: string;
-  name: string;
-  emoji: string;
-  gradient: string;
-  votes: number;
-  categoryEmoji: string;
 };
 
 export type ToolDetailResponse = {
@@ -65,11 +40,6 @@ export type ToolDetailResponse = {
   track: "editor_seed" | "community";
   badges: Badge;
   links: { github: string | null; docs: string | null; twitter: string | null };
-  votes: number;
-  voted: boolean;
-  launchId: string | null;
-  launchDate: string | null;
-  scheduled: boolean;
   submittedAt: string;
   verified: boolean;
   standards: import("@/lib/standards").StandardCheck[];
@@ -84,50 +54,10 @@ export type RelatedToolRow = {
   emoji: string;
   gradient: string;
   tagline: string;
-  votes: number;
+  editorsPick: boolean;
 };
 
-export type FeedResponse = {
-  date: string;
-  dayLabel: string;
-  resetsInSec: number;
-  todayCount: number;
-  new: FeedRow[];
-  top: FeedRow[];
-  tomorrow: Teaser[];
-  /** Yesterday's final standings (voting closed), sorted by votes. */
-  yesterday: FeedRow[];
-  yesterdayLabel: string;
-  /** Past-6-day archive summary (oldest → newest, excludes today) —
-   *  powers the launch-week day strip in the Archive tab. */
-  weekDays: WeekDay[];
-  /** Today's launches per category slug — powers BROWSE chip counts. */
-  categoryCounts: Record<string, number>;
-  topWeek: TopWeekRow[];
-  editorsPick: FeedRow | null;
-};
-
-/** One past launch day in the archive day strip. */
-export type WeekDay = {
-  /** ISO day, e.g. "2026-09-18". */
-  date: string;
-  /** Human label, e.g. "Sep 18". */
-  label: string;
-  /** Short weekday, e.g. "Thu". */
-  weekday: string;
-  /** Number of tools that launched this day. */
-  count: number;
-};
-
-/** Response of GET /api/feed/day?date= — one past day's final standings. */
-export type DayArchiveResponse = {
-  date: string;
-  label: string;
-  count: number;
-  rows: FeedRow[];
-};
-
-// ── Submission wizard (PRD §11) — server-side helpers ───────────────────
+// ── Submission wizard — server-side helpers ─────────────────────────────
 // TAG_VOCAB / domainOf live in lib/submit.ts (client-safe, no Prisma import).
 //
 // NOTE: these use $queryRaw because a long-running `next dev` process can keep
@@ -208,9 +138,9 @@ export async function pendingQueuePosition(id: string): Promise<number> {
 }
 
 /**
- * Maker status tracking (PRD §11): list a maker's submissions with review
- * outcome. Approved rows are matched back to their Tool by normalized domain
- * (the decision route derives the Tool from the submission, no FK column).
+ * Maker status tracking: list a maker's submissions with review outcome.
+ * Approved rows are matched back to their Tool via the exact submissionId FK
+ * (set by the editor decision route), falling back to normalized domain.
  */
 export async function listSubmissionsByEmail(
   email: string
@@ -256,59 +186,27 @@ export async function listSubmissionsByEmail(
     SELECT id FROM Submission WHERE status = 'pending' ORDER BY createdAt ASC`;
   const positionOf = new Map(queue.map((q, i) => [q.id, i + 1]));
 
-  // Domain → launched Tool map (Tool.websiteUrl is stored as submitted).
-  // Approved rows now carry an exact Tool.submissionId FK (set by the editor
-  // decision route) — resolve via the FK first, fall back to domain matching
-  // for tools approved before the column existed.
-  // NOTE: $queryRaw (not ORM) — a long-running dev server's require cache
-  // binds the PRE-generation PrismaClient, which doesn't know submissionId.
+  // Domain → live Tool map. Approved rows carry an exact Tool.submissionId FK;
+  // fall back to domain matching for tools approved before the column existed.
   const toolRows = await db.$queryRaw<
-    {
-      slug: string;
-      websiteUrl: string;
-      submissionId: string | null;
-      launchDate: number | string | null;
-      scheduled: number | boolean | null;
-    }[]
+    { slug: string; websiteUrl: string; submissionId: string | null }[]
   >`
-    SELECT t.slug, t.websiteUrl, t.submissionId, l.launchDate, l.scheduled
-    FROM Tool t LEFT JOIN Launch l ON l.toolId = t.id`;
-  const toInfo = (r: (typeof toolRows)[number]) => ({
-    slug: r.slug,
-    launchDate:
-      r.launchDate == null
-        ? ""
-        : typeof r.launchDate === "number"
-          ? new Date(r.launchDate).toISOString()
-          : String(r.launchDate),
-    scheduled: Boolean(r.scheduled),
-  });
-  const byDomain = new Map<
-    string,
-    { slug: string; launchDate: string; scheduled: boolean }
-  >();
-  const bySubmissionId = new Map<
-    string,
-    { slug: string; launchDate: string; scheduled: boolean }
-  >();
+    SELECT slug, websiteUrl, submissionId FROM Tool`;
+  const byDomain = new Map<string, string>();
+  const bySubmissionId = new Map<string, string>();
   for (const t of toolRows) {
-    const info = toInfo(t);
     if (t.submissionId && !bySubmissionId.has(t.submissionId)) {
-      bySubmissionId.set(t.submissionId, info);
+      bySubmissionId.set(t.submissionId, t.slug);
     }
     const d = domainOf(t.websiteUrl);
-    if (d && !byDomain.has(d)) {
-      byDomain.set(d, info);
-    }
+    if (d && !byDomain.has(d)) byDomain.set(d, t.slug);
   }
 
   return subs.map((s) => {
-    const tool = bySubmissionId.get(s.id) ?? byDomain.get(s.domain);
-    const live =
-      s.status === "approved" &&
-      !!tool?.launchDate &&
-      new Date(tool.launchDate).getTime() <= Date.now();
-
+    const toolSlug =
+      s.status === "approved"
+        ? bySubmissionId.get(s.id) ?? byDomain.get(s.domain) ?? null
+        : null;
     const status = s.status as "pending" | "approved" | "rejected";
 
     // Rejected rows carry a prefill payload so the tracker can re-open the
@@ -353,16 +251,14 @@ export async function listSubmissionsByEmail(
       status,
       createdAt: s.createdAt,
       queuePosition: status === "pending" ? positionOf.get(s.id) ?? null : null,
-      toolSlug: status === "approved" ? tool?.slug ?? null : null,
-      launchDate: status === "approved" ? tool?.launchDate ?? null : null,
-      live,
+      toolSlug,
       reviewNote: s.reviewNote,
       resubmit,
     };
   });
 }
 
-// ── Editor review queue (PRD §12 adaptation — demo passcode gate) ───────
+// ── Editor review queue — server-side helpers ────────────────────────────
 
 /** Demo stand-in for real auth (NextAuth ships in the stack for Phase 2). */
 export const EDITOR_KEY = "ember-dev";
@@ -447,145 +343,19 @@ export async function uniqueToolSlug(base: string): Promise<string> {
 }
 
 /**
- * Attach per-tool discussion sizes to feed rows (mutates rows in place —
- * `top`/`new` share the same row objects). Lazy import avoids a cycle;
- * $queryRaw inside (stale-PrismaClient note in lib/discussion.ts).
+ * Time-decay score, now used ONLY by the forum "hot" sort
+ * (score = strength / hours^1.2). Kept here for continuity.
  */
-export async function attachCommentCounts(
-  rowSets: FeedRow[][],
-  slugToToolId: Map<string, string>
-): Promise<void> {
-  const { commentCountsByTool } = await import("@/lib/discussion");
-  const counts = await commentCountsByTool([...slugToToolId.values()]);
-  if (counts.size === 0) return;
-  for (const set of rowSets) {
-    for (const r of set) {
-      const toolId = slugToToolId.get(r.slug);
-      const n = toolId ? counts.get(toolId) ?? 0 : 0;
-      if (n > 0) r.comments = n;
-    }
-  }
-}
-
-// ── Ranking (PRD F-36): score = weighted_upvotes / hours^1.2 ────────────
 export function rankScore(votes: number, launchStart: Date, now = Date.now()): number {
   const hours = Math.max(0.5, (now - launchStart.getTime()) / 3_600_000);
   return votes / Math.pow(hours, 1.2);
 }
 
-export function secondsUntilUtcMidnight(now = new Date()): number {
-  const next = Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + 1,
-    0, 0, 0, 0
-  );
-  return Math.max(0, Math.floor((next - now.getTime()) / 1000));
-}
-
-// ── Demo day re-anchor ───────────────────────────────────────────────────
-// The seed pins its launch batch to the day it ran. On a long-lived demo
-// database the calendar moves on, "today" goes empty and the homepage reads
-// "0 launches today" with an empty feed. Once per server day — and only when
-// today genuinely has no live launches — shift the entire Launch timeline
-// forward by whole days so the newest live batch lands on today again.
-// Votes, comments, reviews and the week archive all ride along unchanged;
-// scheduled teasers keep their +1-day offset from the batch.
-let anchoredForDay: string | null = null;
-
-export async function ensureDemoDayAnchored(now = new Date()): Promise<boolean> {
-  const todayStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  );
-  const key = todayStart.toISOString().slice(0, 10);
-  // Fast path: already checked/shifted for this calendar day.
-  if (anchoredForDay === key) return false;
-
-  const dayMs = 86_400_000;
-  const todayLive = await db.launch.count({
-    where: {
-      scheduled: false,
-      launchDate: { gte: todayStart, lt: new Date(todayStart.getTime() + dayMs) },
-    },
-  });
-  if (todayLive > 0) {
-    anchoredForDay = key;
-    return false;
-  }
-
-  const latest = await db.launch.findFirst({
-    where: { scheduled: false },
-    orderBy: { launchDate: "desc" },
-    select: { launchDate: true },
-  });
-  if (!latest) {
-    anchoredForDay = key;
-    return false;
-  }
-
-  const d = latest.launchDate;
-  const latestDayStart = new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
-  );
-  const deltaMs = todayStart.getTime() - latestDayStart.getTime();
-  if (deltaMs <= 0) {
-    anchoredForDay = key;
-    return false;
-  }
-
-  // Shift the whole timeline forward. SQLite stores Prisma DateTimes as
-  // ms-since-epoch INTEGERs, so plain integer addition is exact. Tool
-  // .originalLaunchDate follows to keep re-launch histories coherent.
-  await db.$executeRaw`UPDATE Launch SET launchDate = launchDate + ${deltaMs}`;
-  await db.$executeRaw`UPDATE Tool SET originalLaunchDate = originalLaunchDate + ${deltaMs} WHERE originalLaunchDate IS NOT NULL`;
-  anchoredForDay = key;
-  return true;
-}
-
-// ── Serialization helpers ────────────────────────────────────────────────
-type ToolWithLaunch = Awaited<ReturnType<typeof db.tool.findMany>>[number] & {
-  launch: { baseUpvotes: number; launchDate: Date; id: string } | null;
-};
-type CatRow = { slug: string; name: string; emoji: string };
-
-function votesOf(t: ToolWithLaunch): number {
-  return t.launch?.baseUpvotes ?? 0;
-}
-
-export function toFeedRow(
-  t: ToolWithLaunch,
-  cat: CatRow,
-  votedSet: Set<string>
-): FeedRow {
-  return {
-    launchId: t.launch?.id ?? t.id,
-    slug: t.slug,
-    name: t.name,
-    tagline: t.tagline,
-    emoji: t.logoEmoji,
-    gradient: t.logoGradient,
-    votes: votesOf(t),
-    voted: t.launch ? votedSet.has(t.launch.id) : false,
-    maker: t.makerHandle,
-    track: t.track === "community" ? "community" : "editor_seed",
-    pricing: { model: t.pricingModel, price: t.startingPrice, note: t.pricingNote },
-    category: { slug: cat.slug, name: cat.name, emoji: cat.emoji },
-    badges: {
-      editorsPick: t.editorsPick,
-      curated: t.curated,
-      relaunch: t.relaunch,
-      unclaimed: !t.claimed,
-      hasApi: t.hasApi,
-      openSource: t.pricingModel === "open_source",
-    },
-  };
-}
-
-// ── Forums (Task 22-b) — shared types ────────────────────────────────────
+// ── Forums — shared types ────────────────────────────────────────────────
 // Constants (FORUM_TOPICS / labels) live in lib/forum-topics.ts — client-safe
 // (no Prisma imports). The query implementation lives in lib/forum.ts using
 // $queryRaw (stale-PrismaClient note there — a long-running `next dev` cannot
-// see the newly generated Forum* models, raw SQL is model-independent).
+// see newly generated models, raw SQL is model-independent).
 
 export type { ForumTopic, ForumSort } from "@/lib/forum-topics";
 

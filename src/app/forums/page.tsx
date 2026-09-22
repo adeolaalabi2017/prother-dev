@@ -11,27 +11,27 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Forums — discuss building AI products | Prother",
   description:
-    "Ask, share, and compare notes with the makers behind the launches: launch timing, pricing, vibecoding workflows, show-and-tell, and new-member intros.",
+    "Ask, share, and compare notes with the people building and buying AI tools: evaluating tools, pricing, vibecoding workflows, show-and-tell, and new-member intros.",
   keywords: [
     "AI product forum",
     "maker community",
-    "AI launch discussion",
+    "AI tool discussion",
     "vibecoding",
     "Prother forums",
   ],
   openGraph: {
-    title: "Prother Forums — compare notes with the launch crowd",
+    title: "Prother Forums — compare notes with the AI builder crowd",
     description:
-      "Ask, share, and compare notes with the makers behind the launches: timing, workflows, and what actually happened.",
+      "Ask, share, and compare notes with the people building and buying AI tools: workflows, pricing, and what actually happened.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Prother Forums — compare notes with the launch crowd",
+    title: "Prother Forums — compare notes with the AI builder crowd",
     description:
-      "Ask, share, and compare notes with the makers behind the launches.",
+      "Ask, share, and compare notes with the people building and buying AI tools.",
     images: ["/api/og"],
   },
 };

@@ -6,8 +6,8 @@ import { db } from "@/lib/prother";
  * Indexes: homepage, the dedicated routes (/tools, /forums, /journal, /about,
  * /submit, /advertise), live tool deep-links (/tools/[slug] — Task 25),
  * category pages (/categories/[slug]), published journal posts (real
- * /journal/[slug] routes + legacy ?post=slug), and forum threads. Daily
- * tools get honest lastmod dates from their launch day; posts from
+ * /journal/[slug] routes + legacy ?post=slug), and forum threads. Tools get
+ * honest lastmod dates from their listing date; posts from
  * publishedAt/updatedAt.
  */
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [tools, categories, posts] = await Promise.all([
     db.tool.findMany({
       where: { status: "live" },
-      select: { slug: true, createdAt: true, launch: { select: { launchDate: true } } },
+      select: { slug: true, createdAt: true },
       take: 5000,
     }),
     db.category.findMany({ select: { slug: true } }),
@@ -45,7 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // overlay serves homepage HTML and canonicalizes there.
   const toolUrls: MetadataRoute.Sitemap = tools.map((t) => ({
     url: `${base}/tools/${encodeURIComponent(t.slug)}`,
-    lastModified: t.launch?.launchDate ?? t.createdAt,
+    lastModified: t.createdAt,
     changeFrequency: "weekly",
     priority: 0.8,
   }));

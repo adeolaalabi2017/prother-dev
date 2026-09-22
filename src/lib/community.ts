@@ -1,14 +1,14 @@
 /**
  * Community engagement shared helpers (reviews / claims / follows /
- * collections / relaunch / compare) used across the community API routes.
+ * collections / compare) used across the community API routes.
  *
  * RAW-SQL NOTE: the community models (Review, Claim, Collection,
- * CollectionItem, Follow, RelaunchEvent, Comparison) were pushed to SQLite
- * AFTER the long-running dev server booted — its require-cached PrismaClient
- * predates them (same stale-client situation documented in lib/discussion.ts
- * and lib/prother.ts). Every query against those models therefore goes through
- * $queryRaw/$executeRaw (model-independent). Old models (Tool, Launch, Vote,
- * Category, User, AuditLog, Comment) keep using the ORM.
+ * CollectionItem, Follow, Comparison) were pushed to SQLite AFTER the
+ * long-running dev server booted — its require-cached PrismaClient predates
+ * them (same stale-client situation documented in lib/discussion.ts).
+ * Every query against those models therefore goes through $queryRaw
+ * (model-independent). Old models (Tool, Category, User, AuditLog, Comment)
+ * keep using the ORM.
  *
  * SQLite DateTime storage is INTEGER ms-epoch (verified) — raw inserts write
  * Date.now() integers so ORM reads and SQL comparisons stay consistent.
@@ -17,42 +17,30 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { domainOf } from "@/lib/submit";
 
-// ── Tool community columns (makerEmail / relaunch fields) ────────────────
-// These Tool columns were pushed AFTER the dev server booted, so they are
-// missing from its require-cached PrismaClient — they must also go through
-// $queryRaw (same reason as the community models above).
+// ── Tool community columns (makerEmail) ─────────────────────────
+// This Tool column was pushed AFTER the dev server booted, so it may be
+// missing from its require-cached PrismaClient — it goes through $queryRaw
+// (same reason as the community models above).
 
 export type ToolCommunityFields = {
   makerEmail: string | null;
-  relaunchCount: number;
-  relaunchNote: string | null;
-  /** ISO string or null (raw reads of the ms-epoch column). */
-  originalLaunchDate: string | null;
 };
 
-const TOOL_FIELDS = "makerEmail, relaunchCount, relaunchNote, originalLaunchDate";
+const TOOL_FIELDS = "makerEmail";
 
 type ToolFieldsRow = {
   slug: string;
   makerEmail: string | null;
-  relaunchCount: number;
-  relaunchNote: string | null;
-  originalLaunchDate: number | string | null;
 };
 
 function mapToolFields(r: ToolFieldsRow): ToolCommunityFields {
-  return {
-    makerEmail: r.makerEmail,
-    relaunchCount: Number(r.relaunchCount ?? 0),
-    relaunchNote: r.relaunchNote,
-    originalLaunchDate: r.originalLaunchDate == null ? null : toIso(r.originalLaunchDate),
-  };
+  return { makerEmail: r.makerEmail };
 }
 
 export async function toolCommunityFields(toolId: string): Promise<ToolCommunityFields> {
   const rows = await db.$queryRaw<ToolFieldsRow[]>`
     SELECT ${Prisma.raw(TOOL_FIELDS)} FROM Tool WHERE id = ${toolId} LIMIT 1`;
-  return mapToolFields(rows[0] ?? { slug: "", makerEmail: null, relaunchCount: 0, relaunchNote: null, originalLaunchDate: null });
+  return mapToolFields(rows[0] ?? { slug: "", makerEmail: null });
 }
 
 export async function toolCommunityFieldsBySlugs(
@@ -91,19 +79,9 @@ export function toIso(v: number | string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? new Date(0).toISOString() : d.toISOString();
 }
 
-/** UTC midnight of "today" — launch dates are always day-anchored. */
+/** UTC midnight of "today" — useful for day-anchored stats. */
 export function startOfUtcDay(d = new Date()): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
-}
-
-export async function anonVotesByLaunch(launchIds: string[]): Promise<Map<string, number>> {
-  if (launchIds.length === 0) return new Map();
-  const groups = await db.vote.groupBy({
-    by: ["launchId"],
-    _count: { _all: true },
-    where: { launchId: { in: launchIds } },
-  });
-  return new Map(groups.map((g) => [g.launchId, g._count._all]));
 }
 
 /** Canonical domain match helper (delegates to lib/submit). */
@@ -256,17 +234,7 @@ export function isReviewMaker(
   return (tool.claimed && tool.makerEmail === user.email) || sameDomain(user.email, tool.websiteUrl);
 }
 
-/** Re-launch maker rule (F-35): verified claim owner OR makerHandle match. */
-export function isRelaunchMaker(
-  tool: { claimed: boolean; makerEmail: string | null; makerHandle: string },
-  user: { email: string; handle: string }
-): boolean {
-  return (
-    (tool.claimed && tool.makerEmail === user.email) || tool.makerHandle === `@${user.handle}`
-  );
-}
-
-// ── Claims (F-30) ────────────────────────────────────────────────────────
+// ── Claims ────────────────────────────────────────────────────────────────
 
 export type ClaimRow = {
   id: string;
@@ -368,41 +336,7 @@ export async function approveClaimAndTransfer(
   ]);
 }
 
-// ── Re-launch cooldown (F-35 — 6 months per PRD) ─────────────────────────
-
-export const RELAUNCH_COOLDOWN_DAYS = 183;
-
-/**
- * Cooldown anchor: latest RelaunchEvent.createdAt, else the tool's original
- * launch date, else the current launch date (in that priority order).
- * `originalLaunchDateIso` comes from toolCommunityFields (raw — post-boot col).
- */
-export async function relaunchAnchor(
-  toolId: string,
-  tool: { originalLaunchDate: string | null; launch: { launchDate: Date } | null }
-): Promise<Date> {
-  const rows = await db.$queryRaw<{ createdAt: number | string }[]>`
-    SELECT createdAt FROM RelaunchEvent WHERE toolId = ${toolId}
-    ORDER BY createdAt DESC LIMIT 1`;
-  if (rows[0]) {
-    const v = rows[0].createdAt;
-    return new Date(typeof v === "number" ? v : new Date(v).getTime());
-  }
-  if (tool.originalLaunchDate) return new Date(tool.originalLaunchDate);
-  return tool.launch?.launchDate ?? new Date(0);
-}
-
-export function cooldownInfo(
-  anchor: Date,
-  now = Date.now()
-): { eligible: boolean; nextEligibleAt: string | null } {
-  const next = anchor.getTime() + RELAUNCH_COOLDOWN_DAYS * 86_400_000;
-  return next <= now
-    ? { eligible: true, nextEligibleAt: null }
-    : { eligible: false, nextEligibleAt: new Date(next).toISOString() };
-}
-
-// ── Follows (F-41) ───────────────────────────────────────────────────────
+// ── Follows ──────────────────────────────────────────────────────────────
 
 export type FollowRecord = {
   id: string;
@@ -460,7 +394,7 @@ export async function toggleFollow(
   return true;
 }
 
-// ── Collections (F-39/40) ────────────────────────────────────────────────
+// ── Collections ───────────────────────────────────────────────────────────
 
 export type CollectionRow = {
   id: string;
@@ -579,7 +513,7 @@ export async function listCollectionItems(collectionId: string): Promise<Collect
     LIMIT 200`;
 }
 
-// ── Comparison (F-08) ────────────────────────────────────────────────────
+// ── Comparison ───────────────────────────────────────────────────────────
 
 export async function bumpComparison(aSlug: string, bSlug: string): Promise<void> {
   await db.$executeRaw`

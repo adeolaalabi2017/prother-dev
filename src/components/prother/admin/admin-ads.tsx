@@ -40,7 +40,6 @@ import {
  */
 
 type Placement =
-  | "feed_row"
   | "journal_bar"
   | "category_spotlight"
   | "directory_banner"
@@ -89,21 +88,19 @@ type Measurement = {
 };
 
 const PLACEMENTS: { value: Placement; label: string }[] = [
-  { value: "feed_row", label: "Feed row" },
+  { value: "directory_banner", label: "Directory banner" },
   { value: "journal_bar", label: "Journal bar" },
   { value: "category_spotlight", label: "Category spotlight" },
-  { value: "directory_banner", label: "Directory banner" },
-  { value: "serp_footer", label: "Search results footer" },
+  { value: "serp_footer", label: "SERP footer" },
 ];
 
 const STATUSES: CampaignStatus[] = ["draft", "active", "paused", "ended"];
 
 const PLACEMENT_LABEL: Record<Placement, string> = {
-  feed_row: "Feed row",
+  directory_banner: "Directory banner",
   journal_bar: "Journal bar",
-  category_spotlight: "Spotlight",
-  directory_banner: "Directory",
-  serp_footer: "SERP",
+  category_spotlight: "Category spotlight",
+  serp_footer: "SERP footer",
 };
 
 function urlOk(value: string): boolean {
@@ -168,7 +165,7 @@ function formFromCampaign(c: AdCampaign | null): CampaignForm {
   return {
     name: c?.name ?? "",
     advertiser: c?.advertiser ?? "",
-    placement: c?.placement ?? "feed_row",
+    placement: c?.placement ?? "directory_banner",
     status: c?.status ?? "draft",
     headline: c?.headline ?? "",
     body: c?.body ?? "",
@@ -261,7 +258,8 @@ function CampaignDialog({
             {isNew ? "New campaign" : `Edit — ${campaign.name}`}
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm text-white/50">
-            Sponsored slots across the feed, journal and category pages.
+            Sponsored slots across the directory, journal, category and search
+            pages.
           </DialogDescription>
         </DialogHeader>
 
@@ -272,7 +270,7 @@ function CampaignDialog({
                 value={f.name}
                 maxLength={80}
                 onChange={(e) => setF({ ...f, name: e.target.value })}
-                placeholder="Launch Week sponsorship"
+                placeholder="Directory banner — spring campaign"
                 className={inputCx}
               />
             </Field>

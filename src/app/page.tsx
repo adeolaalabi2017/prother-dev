@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Hero } from "@/components/prother/hero";
 import { CategoryTicker } from "@/components/prother/category-ticker";
-import { LaunchFeed } from "@/components/prother/launch-feed";
 import { TrendingStrip } from "@/components/prother/trending-strip";
-import { FinalCta } from "@/components/prother/final-cta";
+import { SubmitOpenButton } from "@/components/prother/submit-open-button";
+import { CATEGORIES } from "@/components/prother/categories";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
 
 /**
- * The landing page — hero + today's feed. Discovery-first: everything else
- * lives on dedicated routes (/tools, /journal, /about, /submit).
+ * The landing page — search & discovery for the AI tools directory. Hero +
+ * categories + Editor's Picks + trending; everything else lives on dedicated
+ * routes (/tools, /categories, /journal, /about, /submit).
  *
  * The metadata plumbing below serves the single-route deep links (?tool=,
- * ?post=, ?category=, ?launches=, ?compare=, ?collection=) — post-sandbox
- * these become real routes one-to-one.
+ * ?post=, ?category=, ?compare=, ?collection=) — post-sandbox these become
+ * real routes one-to-one.
  */
 export async function generateMetadata({
   searchParams,
@@ -28,7 +30,6 @@ export async function generateMetadata({
   const toolSlug = first(params.tool);
   const postSlug = first(params.post);
   const categorySlug = first(params.category);
-  const launchesDate = first(params.launches);
   const collectionSlug = first(params.collection);
   const compareRaw = first(params.compare);
   const mineView = first(params.mine);
@@ -71,17 +72,21 @@ export async function generateMetadata({
   if (toolSlug) {
     const tool = await db.tool.findUnique({
       where: { slug: toolSlug },
-      include: {
-        launch: { include: { _count: { select: { votes: true } } } },
+      // Explicit select — full-row Tool reads break on a stale pre-v6 cached
+      // PrismaClient (it still SELECTs the dropped relaunch columns).
+      select: {
+        slug: true,
+        name: true,
+        tagline: true,
+        description: true,
+        pricingModel: true,
         category: { select: { name: true } },
       },
     });
     if (tool) {
-      const votes = (tool.launch?.baseUpvotes ?? 0) + (tool.launch?._count.votes ?? 0);
-      const scheduled = tool.launch?.scheduled ?? false;
       const title = `${tool.name} — ${tool.tagline} | Prother`;
       const description = clamp(
-        `${scheduled ? "Launching" : "Live"} on Prother · ${tool.category.name} · ▲ ${votes} votes. ${tool.description || tool.tagline}`,
+        `${tool.category.name} · ${tool.pricingModel}. ${tool.description || tool.tagline}`,
         200,
       );
       return {
@@ -120,7 +125,7 @@ export async function generateMetadata({
       if (a && b) {
         const title = `${a.name} vs ${b.name} — Compare AI tools | Prother`;
         const description = clamp(
-          `Side-by-side comparison: ${a.name} (${a.tagline}) vs ${b.name} (${b.tagline}) — votes, ratings, pricing, and more.`,
+          `Side-by-side comparison: ${a.name} (${a.tagline}) vs ${b.name} (${b.tagline}) — pricing, ratings, and features.`,
           200,
         );
         return { title, description, alternates: { canonical: `/?compare=${encodeURIComponent(compareRaw)}` } };
@@ -170,35 +175,6 @@ export async function generateMetadata({
     return {};
   }
 
-  // Launch archive deep link (?launches=YYYY-MM-DD) — daily indexable page.
-  if (launchesDate && /^\d{4}-\d{2}-\d{2}$/.test(launchesDate)) {
-    const start = new Date(`${launchesDate}T00:00:00.000Z`);
-    if (!Number.isNaN(start.getTime())) {
-      const end = new Date(start.getTime() + 86_400_000);
-      const count = await db.launch.count({
-        where: { scheduled: false, launchDate: { gte: start, lt: end } },
-      });
-      const label = start.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC",
-      });
-      return {
-        title: `AI launches on ${label} | Prother`,
-        description: clamp(
-          count > 0
-            ? `${count} AI ${count === 1 ? "tool" : "tools"} launched on ${label} — final standings, votes, and makers.`
-            : `The AI launch archive for ${label} on Prother — where AI products launch.`,
-          200,
-        ),
-        alternates: { canonical: `/?launches=${launchesDate}` },
-      };
-    }
-    return {};
-  }
-
   // Personal space (?mine=collections) — never indexed.
   if (mineView) {
     return {
@@ -220,11 +196,194 @@ export async function generateMetadata({
   };
 }
 
-/** pb-16 clears the feed's mobile sticky submit bar (fixed, md:hidden). */
-export default function Page() {
-  // Homepage entity graph: WebSite + Organization (brand identity for the
-  // knowledge panel). The SearchAction is honest since Task 25: /tools?q=…
-  // renders scored results server-side.
+// ── Server data for the two static sections ──────────────────────────────
+
+/** Live listing count per category slug (statuses other than live don't count). */
+async function liveCountByCategory(): Promise<Map<string, number>> {
+  try {
+    const [cats, live] = await Promise.all([
+      db.category.findMany({ select: { id: true, slug: true } }),
+      db.tool.findMany({ where: { status: "live" }, select: { categoryId: true } }),
+    ]);
+    const slugById = new Map(cats.map((c) => [c.id, c.slug]));
+    const out = new Map<string, number>();
+    for (const t of live) {
+      const slug = slugById.get(t.categoryId);
+      if (slug) out.set(slug, (out.get(slug) ?? 0) + 1);
+    }
+    return out;
+  } catch {
+    return new Map(); // grid renders with 0 counts rather than 500ing
+  }
+}
+
+/** Up to 6 Editor's Picks — pinned first, then newest. */
+async function getEditorsPicks() {
+  try {
+    return await db.tool.findMany({
+      where: { status: "live", editorsPick: true },
+      select: {
+        slug: true,
+        name: true,
+        tagline: true,
+        logoEmoji: true,
+        logoGradient: true,
+        pricingModel: true,
+        category: { select: { slug: true, name: true, emoji: true } },
+      },
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+      take: 6,
+    });
+  } catch {
+    return []; // section hides — the homepage never fails on a section query
+  }
+}
+
+/** First sentence of a category blurb — the one-line hook on the grid card. */
+function firstSentence(blurb: string): string {
+  const m = blurb.match(/^[^.!?]+[.!?]/);
+  return (m ? m[0] : blurb).trim();
+}
+
+// ── Sections (server-rendered) ───────────────────────────────────────────
+
+function CategoryGrid({ counts }: { counts: Map<string, number> }) {
+  return (
+    <section id="categories" className="bg-ink py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <p className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+          <span aria-hidden className="h-px w-6 bg-ember/70" />
+          Browse by category
+        </p>
+        <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
+          Find your <span className="text-ember">category.</span>
+        </h2>
+
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {CATEGORIES.map((c) => (
+            <Link
+              key={c.slug}
+              href={`/categories/${c.slug}`}
+              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-ember/50"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span
+                  aria-hidden
+                  className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-stone-600 to-orange-700 text-2xl shadow-inner"
+                >
+                  {c.emoji}
+                </span>
+                <span className="font-mono text-[11px] uppercase tracking-wider text-white/40 group-hover:text-ember">
+                  {counts.get(c.slug) ?? 0} tools
+                </span>
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-white transition-colors group-hover:text-ember">
+                {c.name}
+              </h3>
+              <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-white/50">
+                {firstSentence(CATEGORY_BLURBS[c.slug] ?? "")}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EditorsPicks({
+  picks,
+}: {
+  picks: {
+    slug: string;
+    name: string;
+    tagline: string;
+    logoEmoji: string;
+    logoGradient: string;
+    pricingModel: string;
+    category: { slug: string; name: string; emoji: string };
+  }[];
+}) {
+  if (picks.length === 0) return null;
+  return (
+    <section id="picks" className="bg-ink py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <p className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+          <span aria-hidden className="text-ember">★</span>
+          Editor&apos;s Picks
+        </p>
+        <h2 className="mt-3 max-w-2xl text-5xl font-black tracking-tighter text-white md:text-6xl">
+          Hand-tested by our <span className="text-ember">editors.</span>
+        </h2>
+
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {picks.map((p) => (
+            <Link
+              key={p.slug}
+              href={`/tools/${p.slug}`}
+              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-ember/50"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span
+                  aria-hidden
+                  className={`flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-2xl shadow-inner ${p.logoGradient}`}
+                >
+                  {p.logoEmoji}
+                </span>
+                <span className="rounded-full border border-ember/40 bg-ember/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-ember">
+                  Editor&apos;s Pick
+                </span>
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-white transition-colors group-hover:text-ember">
+                {p.name}
+              </h3>
+              <p className="mt-1 line-clamp-2 text-sm text-white/50">{p.tagline}</p>
+              <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-white/40">
+                {p.category.emoji} {p.category.name}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ClosingBand() {
+  return (
+    <section id="submit" className="relative overflow-hidden bg-ink py-28">
+      {/* Bottom ember glow */}
+      <div
+        aria-hidden
+        className="absolute bottom-0 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-ember/20 blur-[100px]"
+      />
+      <div className="relative mx-auto max-w-2xl px-4 text-center sm:px-6">
+        <h2 className="text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl">
+          Can&apos;t find the
+          <br />
+          <span className="text-ember">tool you need?</span>
+        </h2>
+        <p className="mt-4 text-white/60">
+          Listings are free and reviewed by humans.
+        </p>
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <SubmitOpenButton label="Submit a tool" className="h-12 px-6 text-base" />
+          <Link
+            href="/tools"
+            className="inline-flex h-12 items-center justify-center rounded-lg border border-ember/40 bg-transparent px-6 text-base font-semibold text-ember transition-colors hover:bg-ember/10 hover:text-ember-hot"
+          >
+            Browse the directory
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Homepage entity graph: WebSite + Organization (brand identity for the
+ *  knowledge panel). The SearchAction is honest since Task 25: /tools?q=…
+ *  renders scored results server-side. */
+export default async function Page() {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
   const jsonLd = {
     "@context": "https://schema.org",
@@ -235,7 +394,7 @@ export default function Page() {
         url: `${base}/`,
         name: "Prother",
         description:
-          "Discover every new AI tool the day it launches — a fresh batch of AI products daily, ranked by the community.",
+          "Search and discovery for AI products and tools — a curated directory with honest pricing, reviews, and side-by-side comparisons.",
         publisher: { "@id": `${base}/#organization` },
         inLanguage: "en",
         potentialAction: {
@@ -259,23 +418,25 @@ export default function Page() {
           height: 630,
         },
         description:
-          "Prother is where AI products get discovered — daily AI tool launches, community rankings, reviews and comparisons.",
+          "Prother is a curated search and discovery directory for AI products and tools.",
       },
     ],
   };
+
+  const [counts, picks] = await Promise.all([liveCountByCategory(), getEditorsPicks()]);
+
   return (
-    <div className="pb-16 md:pb-0">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Hero />
       <CategoryTicker />
-      <LaunchFeed />
+      <CategoryGrid counts={counts} />
+      <EditorsPicks picks={picks} />
       <TrendingStrip />
-      <FinalCta />
-    </div>
+      <ClosingBand />
+    </>
   );
 }
-
-// full-page router — PostReader dialog retired (see worklog Task 16)

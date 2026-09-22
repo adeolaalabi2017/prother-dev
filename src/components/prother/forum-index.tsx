@@ -68,7 +68,7 @@ const SORTS: { value: ForumSort; label: string }[] = [
 
 const TOPIC_HINTS: Record<TopicFilter, string> = {
   all: "Everything the community is talking about right now.",
-  general: "Launching, timing, pricing, validation, distribution.",
+  general: "Evaluating, pricing, and picking tools.",
   vibecoding: "How you build with models and agents — workflows, prompts, stack.",
   show: "You shipped something. Demo it, share numbers, answer questions.",
   introduce: "Say hi — what you worked on before, what you are building now.",
@@ -176,11 +176,11 @@ export function ForumIndex({
             <h1 className="mt-3 text-4xl font-black tracking-tighter text-white sm:text-5xl md:text-6xl">
               Compare notes with
               <br />
-              the launch crowd.
+              the AI builder crowd.
             </h1>
             <p className="mt-4 max-w-xl text-lg text-white/60">
-              Ask, share, and compare notes with the makers behind the
-              launches — timing, workflows, and what actually happened.
+              Ask, share, and compare notes with the people building and buying
+              AI tools — workflows, pricing, and what actually happened.
             </p>
           </div>
         </div>
@@ -190,8 +190,8 @@ export function ForumIndex({
           <aside className="flex flex-col gap-4">
             <div className="rounded-xl border border-white/10 bg-coal/70 p-4">
               <p className="text-sm leading-relaxed text-white/70">
-                Ask, share, and compare notes with the makers behind the
-                launches.
+                Ask, share, and compare notes with the people building and
+                buying AI tools.
               </p>
               <Button
                 type="button"

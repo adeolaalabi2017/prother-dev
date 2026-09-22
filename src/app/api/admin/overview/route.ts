@@ -8,14 +8,21 @@ const DAY_MS = 86_400_000;
 
 /**
  * GET /api/admin/overview — dashboard payload for the /admin route
- * (PRD F-49 admin dashboard). Backward-compatible superset of the old
- * Overview-tab shape, minus the dropped waitlist/Subscriber metrics:
- *   · kpis            — counters (votesToday/votesYesterday added for deltas)
- *   · launchesByDay   — real launch counts for the last 14 UTC days
- *   · votesByDay      — real vote counts for the last 14 UTC days
- *   · categoryMix     — live listings per category (name + count)
- *   · pricingMix      — live listings per pricingModel (model + count)
+ * (PRD F-49 admin dashboard). Directory-metrics shape (backward-compatible
+ * superset of the old Overview-tab structure, minus the dropped waitlist
+ * and all launch/vote metrics):
+ *   · kpis           — toolsLive, pendingSubs, postsPublished, comments,
+ *                      reviewsPublished, reportsOpen, adsActive,
+ *                      adImpressions, adClicks, pageviewsToday
+ *   · listingsByDay  — tools listed (createdAt) per UTC day, last 14 days
+ *   · reviewsByDay   — published reviews per UTC day, last 14 days
+ *   · categoryMix    — live listings per category (name + count)
+ *   · pricingMix     — live listings per pricingModel (model + count)
  *   · queueAgeH / oldestPending / audit — unchanged
+ *
+ * Raw SQL is used for the post-boot tables (Review, Report, AdCampaign,
+ * PageViewDaily) per the stale-PrismaClient rule; SQLite DateTime columns
+ * store INTEGER ms-epoch so `>= ms` comparisons are safe.
  */
 export async function GET(req: Request) {
   const denied = guard(req);
@@ -25,41 +32,32 @@ export async function GET(req: Request) {
   const todayStart = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
   );
-  const tomorrowStart = new Date(todayStart.getTime() + DAY_MS);
+  const todayKey = todayStart.toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
   // 14-day window: 13 days ago 00:00 UTC → today 00:00 UTC (inclusive).
   const windowStart = new Date(todayStart.getTime() - 13 * DAY_MS);
+  const windowStartMs = windowStart.getTime();
 
   const [
     toolsLive,
-    toolsDraft,
-    toolsRemoved,
-    launchesToday,
-    launchesTomorrow,
     pendingSubs,
-    votes,
     comments,
     postsPublished,
-    postsDrafts,
-    postViews,
     categories,
     audit,
     oldestPending,
-    launchRows,
-    voteRows,
     categoryRows,
     pricingRows,
+    reviewTotals,
+    reportTotals,
+    adTotals,
+    pageviewsToday,
+    toolDayRows,
+    reviewDayRows,
   ] = await Promise.all([
-    db.tool.count({ where: { status: { not: "removed" } } }),
-    db.tool.count({ where: { status: "draft" } }),
-    db.tool.count({ where: { status: "removed" } }),
-    db.launch.count({ where: { scheduled: false, launchDate: { gte: todayStart, lt: tomorrowStart } } }),
-    db.launch.count({ where: { scheduled: true, launchDate: { gte: tomorrowStart } } }),
+    db.tool.count({ where: { status: "live" } }),
     db.submission.count({ where: { status: "pending" } }),
-    db.vote.count(),
     db.comment.count(),
     db.post.count({ where: { status: "published" } }),
-    db.post.count({ where: { status: "draft" } }),
-    db.post.aggregate({ _sum: { views: true } }),
     db.category.count(),
     db.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 14 }),
     db.submission.findFirst({
@@ -67,40 +65,54 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "asc" },
       select: { name: true, createdAt: true },
     }),
-    // Chart data — bucketed into UTC days client-agnostic (server-side below).
-    db.launch.findMany({
-      where: { scheduled: false, launchDate: { gte: windowStart } },
-      select: { launchDate: true },
-    }),
-    db.vote.findMany({
-      where: { createdAt: { gte: windowStart } },
-      select: { createdAt: true },
-    }),
     db.category.findMany({
       select: {
         name: true,
-        _count: { select: { tools: { where: { status: { not: "removed" } } } } },
+        _count: { select: { tools: { where: { status: "live" } } } },
       },
     }),
     db.tool.groupBy({
       by: ["pricingModel"],
-      where: { status: { not: "removed" } },
+      where: { status: "live" },
       _count: { _all: true },
     }),
+    // Chart data + review totals — raw SQL (Review is a post-boot model).
+    db.$queryRaw<{ n: number }[]>`
+      SELECT COUNT(*) as n FROM Review WHERE status = 'published'`,
+    db.$queryRaw<{ n: number }[]>`
+      SELECT COUNT(*) as n FROM Report WHERE status = 'open'`,
+    db.$queryRaw<{ active: number; impressions: number; clicks: number }[]>`
+      SELECT SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+             COALESCE(SUM(impressions), 0) as impressions,
+             COALESCE(SUM(clicks), 0) as clicks
+      FROM AdCampaign`,
+    db.$queryRaw<{ n: number }[]>`
+      SELECT COALESCE(SUM(views), 0) as n
+      FROM PageViewDaily
+      WHERE day = ${todayKey}`,
+    // 14-day chart buckets — createdAt columns are INTEGER ms-epoch.
+    db.$queryRaw<{ createdAt: number }[]>`
+      SELECT createdAt FROM Tool
+      WHERE status = 'live' AND createdAt >= ${windowStartMs}`,
+    db.$queryRaw<{ createdAt: number }[]>`
+      SELECT createdAt FROM Review
+      WHERE status = 'published' AND createdAt >= ${windowStartMs}`,
   ]);
 
   /** Bucket rows into the 14-UTC-day window (index 13 = today). */
-  const bucketByDay = (dates: Date[]): number[] => {
+  const bucketByDay = (rows: { createdAt: number }[]): number[] => {
     const counts = new Array<number>(14).fill(0);
-    for (const d of dates) {
-      const idx = Math.floor((d.getTime() - windowStart.getTime()) / DAY_MS);
+    for (const r of rows) {
+      const idx = Math.floor(
+        (new Date(Number(r.createdAt)).getTime() - windowStartMs) / DAY_MS
+      );
       if (idx >= 0 && idx < 14) counts[idx]++;
     }
     return counts;
   };
 
-  const launchesByDay = bucketByDay(launchRows.map((r) => r.launchDate));
-  const votesByDay = bucketByDay(voteRows.map((r) => r.createdAt));
+  const listingsByDay = bucketByDay(toolDayRows);
+  const reviewsByDay = bucketByDay(reviewDayRows);
 
   const categoryMix = categoryRows
     .map((c) => ({ name: c.name, count: c._count.tools }))
@@ -120,22 +132,19 @@ export async function GET(req: Request) {
   return NextResponse.json({
     kpis: {
       toolsLive,
-      toolsDraft,
-      toolsRemoved,
-      launchesToday,
-      launchesTomorrow,
       pendingSubs,
-      votes,
-      votesToday: votesByDay[13],
-      votesYesterday: votesByDay[12],
-      comments,
       postsPublished,
-      postsDrafts,
-      postViews: postViews._sum.views ?? 0,
+      comments,
+      reviewsPublished: Number(reviewTotals[0]?.n ?? 0),
+      reportsOpen: Number(reportTotals[0]?.n ?? 0),
+      adsActive: Number(adTotals[0]?.active ?? 0),
+      adImpressions: Number(adTotals[0]?.impressions ?? 0),
+      adClicks: Number(adTotals[0]?.clicks ?? 0),
+      pageviewsToday: Number(pageviewsToday[0]?.n ?? 0),
       categories,
     },
-    launchesByDay,
-    votesByDay,
+    listingsByDay,
+    reviewsByDay,
     categoryMix,
     pricingMix,
     queueAgeH,

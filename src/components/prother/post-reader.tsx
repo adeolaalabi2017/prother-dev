@@ -46,7 +46,7 @@ type RelatedPost = {
 };
 
 const DEFAULT_TITLE =
-  typeof document !== "undefined" ? document.title : "Prother — Where AI products launch.";
+  typeof document !== "undefined" ? document.title : "Prother — Find the right AI tool.";
 
 function dateLabel(iso: string | null): string {
   if (!iso) return "Unpublished";
@@ -181,7 +181,7 @@ export function PostReader() {
       >
         <DialogTitle className="sr-only">Journal article</DialogTitle>
         <DialogDescription className="sr-only">
-          Read a Prother Journal article about launching and discovering AI products.
+          Read a Prother Journal article about discovering and choosing AI tools.
         </DialogDescription>
 
         {loading && (

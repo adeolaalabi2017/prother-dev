@@ -1,5 +1,5 @@
 /**
- * Prother seed — launch discussion starter comments.
+ * Prother seed — starter comments on tool listings.
  * Idempotent: no-ops when any comments already exist.
  * Run: bun prisma/seed-comments.ts
  */
@@ -11,46 +11,41 @@ type SeedComment = { tool: string; author: string; body: string; isMaker?: boole
 
 const comments: SeedComment[] = [
   {
-    tool: "promptly",
+    tool: "perplexity",
     author: "@dana",
     isMaker: true,
-    body: "Maker here — the citation engine now cross-checks every claim against two sources. AMA about how we cut hallucinations to near-zero.",
+    body: "Maker here — the citation engine now cross-checks every claim against two sources before an answer ships. AMA about how we cut hallucinations to near-zero.",
   },
   {
-    tool: "promptly",
+    tool: "perplexity",
     author: "Priya N.",
-    body: "Switched our support docs over last week. The inline citations are the killer detail — reviewers stopped asking for sources.",
+    body: "Switched our research workflow over last week. The inline citations are the killer detail — reviewers stopped asking for sources.",
   },
   {
-    tool: "promptly",
+    tool: "perplexity",
     author: "Tomas K.",
     body: "How does it handle non-English sources? Testing with German legal texts and accuracy looks promising so far.",
   },
   {
-    tool: "codepilotx",
+    tool: "claude",
     author: "Ravi M.",
     body: "The repo-wide refactor mode saved us a two-sprint migration. It caught rename collisions our own codemod missed.",
   },
   {
-    tool: "codepilotx",
+    tool: "claude",
     author: "@jonas",
     isMaker: true,
-    body: "Thanks @Ravi M.! v2.1 lands tomorrow with monorepo-aware diffing — the exact pain point you hit.",
+    body: "Thanks @Ravi M.! The latest release added monorepo-aware diffing — the exact pain point you hit.",
   },
   {
-    tool: "pixelforge",
+    tool: "midjourney",
     author: "Lena W.",
-    body: "Batch-generating 400 product shots took 6 minutes. The style-lock feature is what sets it apart from the generic ones.",
+    body: "Batch-generating 400 product shots took 6 minutes. The style-reference feature is what sets it apart from the generic ones.",
   },
   {
-    tool: "nectarsearch",
+    tool: "notion-ai",
     author: "Diego F.",
-    body: "Semantic search that actually ranks our internal wiki correctly on the first try. Impressed.",
-  },
-  {
-    tool: "driftboard",
-    author: "Marcus T.",
-    body: "Found this through the community queue — the realtime board sync is genuinely instant. Nice launch!",
+    body: "Workspace Q&A actually ranks our internal wiki correctly on the first try. Impressed.",
   },
 ];
 

@@ -1,15 +1,13 @@
 /**
- * Server-side tool search for the /tools?q= SERP (Task 25).
+ * Server-side tool search for the /tools?q= SERP.
  *
  * The scoring mirrors GET /api/search (name.startsWith > name.includes >
- * tagline > tags > description; tiebreak by votes desc) so the server-rendered
- * results page and the hero dropdown agree on relevance. The API route keeps
- * its own compact payload for the dropdown; this module returns the fuller
- * row the SERP cards render. Duplicating the small relevance function is
- * deliberate — refactoring the route would risk the live dropdown payload.
+ * tagline > tags > description; tiebreak by editorial signals) so the
+ * server-rendered results page and the hero dropdown agree on relevance.
+ * Duplicating the small relevance function is deliberate — refactoring the
+ * route would risk the live dropdown payload.
  *
- * Live tools only (status="live", launch.scheduled=false) — same visibility
- * rule as the public directory.
+ * Live tools only (status="live") — same visibility rule as the directory.
  */
 import { db } from "@/lib/db";
 
@@ -20,12 +18,12 @@ export type SerpToolRow = {
   tagline: string;
   emoji: string;
   gradient: string;
-  votes: number;
+  editorsPick: boolean;
   pricingModel: string;
   startingPrice: string | null;
   category: { slug: string; name: string; emoji: string };
-  /** ISO launch date, null when the launch row is missing. */
-  launchDate: string | null;
+  /** ISO date the tool was added to the directory. */
+  listedAt: string;
 };
 
 export type SerpResult = {
@@ -51,7 +49,7 @@ function relevance(ql: string, name: string, tagline: string, tags: string, desc
 /**
  * Scored, paginated tool search for the /tools?q= server-rendered results.
  * `q` is matched (case-sensitively, like the API on SQLite) across name,
- * tagline, tags and description; ordering is relevance-then-votes.
+ * tagline, tags and description; ordering is relevance-then-editorial.
  */
 export async function searchToolsForSerp(
   q: string,
@@ -63,7 +61,6 @@ export async function searchToolsForSerp(
   const candidates = await db.tool.findMany({
     where: {
       status: "live",
-      launch: { is: { scheduled: false } },
       OR: [
         { name: { contains: q } },
         { tagline: { contains: q } },
@@ -71,8 +68,22 @@ export async function searchToolsForSerp(
         { description: { contains: q } },
       ],
     },
-    include: {
-      launch: { include: { _count: { select: { votes: true } } } },
+    // Explicit select — full-row Tool reads break on a stale pre-v6 cached
+    // PrismaClient (it still SELECTs the dropped relaunch columns).
+    select: {
+      slug: true,
+      name: true,
+      tagline: true,
+      logoEmoji: true,
+      logoGradient: true,
+      pricingModel: true,
+      startingPrice: true,
+      tags: true,
+      description: true,
+      editorsPick: true,
+      curated: true,
+      pinned: true,
+      createdAt: true,
       category: { select: { slug: true, name: true, emoji: true } },
     },
     take: 500,
@@ -82,9 +93,9 @@ export async function searchToolsForSerp(
     .map((t) => ({
       t,
       score: relevance(ql, t.name, t.tagline, t.tags, t.description),
-      votes: (t.launch?.baseUpvotes ?? 0) + (t.launch?._count.votes ?? 0),
+      editorial: (t.editorsPick ? 3 : 0) + (t.curated ? 2 : 0) + (t.pinned ?? 0),
     }))
-    .sort((a, b) => b.score * 1000 + b.votes - (a.score * 1000 + a.votes));
+    .sort((a, b) => b.score * 1000 + b.editorial - (a.score * 1000 + a.editorial));
 
   const total = scored.length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -92,17 +103,17 @@ export async function searchToolsForSerp(
 
   const rows: SerpToolRow[] = scored
     .slice((safePage - 1) * pageSize, safePage * pageSize)
-    .map(({ t, votes }) => ({
+    .map(({ t }) => ({
       slug: t.slug,
       name: t.name,
       tagline: t.tagline,
       emoji: t.logoEmoji,
       gradient: t.logoGradient,
-      votes,
+      editorsPick: t.editorsPick,
       pricingModel: t.pricingModel,
       startingPrice: t.startingPrice,
       category: t.category,
-      launchDate: t.launch?.launchDate.toISOString() ?? null,
+      listedAt: t.createdAt.toISOString(),
     }));
 
   return { rows, total, page: safePage, pages };

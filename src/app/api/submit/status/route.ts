@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/submit/status?email=<email> — maker-facing submission tracking
  * (PRD §11 "status tracking"). Returns the maker's submissions with review
- * outcome: pending (queue position), approved (tool slug + launch date,
- * live flag), or rejected (cited standards in reviewNote).
+ * outcome: pending (queue position), approved (tool slug of the live
+ * listing), or rejected (cited standards in reviewNote).
  *
  * Scope note: email-only lookup is the auth-lite stand-in for the landing
  * scope — makers only ever see their own submissions' status, which they

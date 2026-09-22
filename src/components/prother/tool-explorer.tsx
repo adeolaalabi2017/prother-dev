@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowUpRight,
+  ArrowRight,
   Check,
   MailSearch,
   Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -20,29 +21,91 @@ import {
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
 import { useExplorer } from "./explorer-store";
-import { useFeed } from "./use-feed";
+import type { SearchToolHit } from "@/app/api/search/route";
+
+// ── Types ────────────────────────────────────────────────────────────────
+
+type TrendingRow = {
+  slug: string;
+  name: string;
+  tagline: string;
+  emoji: string;
+  gradient: string;
+  score: number;
+  signals: { comments: number; reviews: number; saves: number };
+  category: { slug: string; name: string; emoji: string };
+};
+
+/** Mono right-side chip for a tool row — honest pricing, no vote counters. */
+function pricingChip(model: string, price: string | null): string {
+  if (model === "paid" && price) return `FROM ${price}`;
+  return model.replace(/_/g, " ").toUpperCase();
+}
 
 // ── Command palette (⌘K) ────────────────────────────────────────────────
 function CommandPalette() {
   const router = useRouter();
-  const { feed } = useFeed();
   const searchOpen = useExplorer((s) => s.searchOpen);
   const setSearch = useExplorer((s) => s.setSearch);
   const openTool = useExplorer((s) => s.openTool);
-  const setCategoryFilter = useExplorer((s) => s.setCategoryFilter);
   const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
   const setTrackOpen = useExplorer((s) => s.setTrackOpen);
+
+  // Trending rows load once per open; typed queries hit /api/search (≥2 chars).
+  const [trending, setTrending] = useState<TrendingRow[]>([]);
+  const [results, setResults] = useState<{ q: string; tools: SearchToolHit[] } | null>(null);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    // Trending rows load once per open (async setState in the fetch callback).
+    // Input/results reset happens in the dialog's onOpenChange close handler —
+    // synchronous setState inside an effect body is a cascading-render hazard.
+    let alive = true;
+    fetch("/api/trending?window=week&limit=6")
+      .then((r) => r.json() as Promise<{ rows?: TrendingRow[] }>)
+      .then((d) => {
+        if (alive) setTrending(d.rows ?? []);
+      })
+      .catch(() => {
+        if (alive) setTrending([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [searchOpen]);
+
+  // ── Debounced live search (180ms, ≥2 chars) ───────────────────────────
+  // Results carry the query they answered, so stale rows self-invalidate via
+  // the `results.q === q` derivation below — no synchronous clearing needed.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    const ctrl = new AbortController();
+    const t = window.setTimeout(() => {
+      fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
+        .then((r) => r.json() as Promise<{ tools?: SearchToolHit[] }>)
+        .then((d) => setResults({ q, tools: d.tools ?? [] }))
+        .catch(() => {
+          if (!ctrl.signal.aborted) setResults({ q, tools: [] });
+        });
+    }, 180);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(t);
+    };
+  }, [query]);
 
   const pickTool = useCallback(
     (slug: string) => {
       setSearch(false);
-      // Let the command dialog finish closing before opening the detail modal.
+      // Let the command dialog finish closing before opening the detail page.
       window.setTimeout(() => openTool(slug), 80);
     },
     [setSearch, openTool],
   );
 
-  // The palette works on every route now — jump targets are real navigation.
+  // The palette works on every route — jump targets are real navigation.
   const goTo = useCallback(
     (href: string) => {
       setSearch(false);
@@ -51,41 +114,40 @@ function CommandPalette() {
     [setSearch, router],
   );
 
-  const filterCategory = useCallback(
-    (slug: string) => {
-      setCategoryFilter(slug);
-      goTo("/#feed");
-    },
-    [setCategoryFilter, goTo],
-  );
-
-  const seen = new Set<string>();
-  const todayTools = (feed?.top ?? []).filter((r) => {
-    if (seen.has(r.slug)) return false;
-    seen.add(r.slug);
-    return true;
-  });
+  const q = query.trim();
+  const shownResults = results && results.q === q ? results.tools : null;
 
   return (
     <CommandDialog
       open={searchOpen}
-      onOpenChange={setSearch}
+      onOpenChange={(o) => {
+        setSearch(o);
+        // Closing the palette starts a fresh session next time it opens.
+        if (!o) {
+          setQuery("");
+          setResults(null);
+        }
+      }}
       className="border-white/10 bg-coal text-white [&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-input]]:text-white [&_[cmdk-input]::placeholder]:text-white/30 [&_[cmdk-item]]:text-white/80 [&_[cmdk-item][data-selected=true]]:bg-ember/15 [&_[cmdk-item][data-selected=true]]:text-ember [&_[cmdk-separator]]:bg-white/10"
     >
-      <CommandInput placeholder="Search tools, categories, actions…" />
+      <CommandInput
+        placeholder="Search tools, categories, actions…"
+        onValueChange={setQuery}
+      />
       <CommandList className="max-h-[420px]">
         <CommandEmpty>
-          No results — try &quot;agents&quot; or &quot;voice&quot;.
+          No results — try &quot;chatbot&quot; or &quot;video&quot;.
         </CommandEmpty>
 
-        {todayTools.length > 0 && (
-          <CommandGroup heading="Today's launches">
-            {todayTools.map((r) => (
+        {q.length < 2 && trending.length > 0 && (
+          <CommandGroup heading="Trending now">
+            {trending.map((r) => (
               <CommandItem
                 key={r.slug}
                 value={`${r.name} ${r.tagline} ${r.category.name}`}
                 onSelect={() => pickTool(r.slug)}
               >
+                <TrendingUp aria-hidden className="text-ember/70" />
                 <span
                   aria-hidden
                   className={cn(
@@ -97,67 +159,44 @@ function CommandPalette() {
                 </span>
                 <span className="font-semibold">{r.name}</span>
                 <span className="truncate text-white/40">{r.tagline}</span>
-                <span className="ml-auto font-mono text-xs text-ember">
-                  ▲{r.votes}
+                <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-white/40">
+                  {r.category.name}
                 </span>
               </CommandItem>
             ))}
           </CommandGroup>
         )}
 
-        {(feed?.tomorrow.length ?? 0) > 0 && (
+        {shownResults && shownResults.length > 0 && (
           <>
-            <CommandSeparator />
-            <CommandGroup heading="Tomorrow">
-              {feed!.tomorrow.map((t) => (
+            {q.length < 2 && trending.length > 0 && <CommandSeparator />}
+            <CommandGroup heading="Results">
+              {shownResults.map((r) => (
                 <CommandItem
-                  key={t.slug}
-                  value={`${t.name} ${t.tagline} ${t.category.name} tomorrow`}
-                  onSelect={() => pickTool(t.slug)}
+                  key={r.slug}
+                  value={`${r.name} ${r.tagline} ${r.category.name}`}
+                  onSelect={() => pickTool(r.slug)}
                 >
                   <span
                     aria-hidden
                     className={cn(
                       "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
-                      t.gradient,
+                      r.gradient,
                     )}
                   >
-                    {t.emoji}
+                    {r.emoji}
                   </span>
-                  <span className="font-semibold">{t.name}</span>
-                  <span className="truncate text-white/40">{t.tagline}</span>
-                  <span className="ml-auto font-mono text-[10px] text-white/40">
-                    IN {t.goesLiveInH}H
-                  </span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </>
-        )}
-
-        {(feed?.topWeek.length ?? 0) > 0 && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading="Top this week">
-              {feed!.topWeek.map((t) => (
-                <CommandItem
-                  key={t.slug}
-                  value={`${t.name} top week`}
-                  onSelect={() => pickTool(t.slug)}
-                >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
-                      t.gradient,
-                    )}
-                  >
-                    {t.emoji}
-                  </span>
-                  <span className="font-semibold">{t.name}</span>
-                  <span className="ml-auto font-mono text-xs text-ember">
-                    ▲{t.votes}
-                  </span>
+                  <span className="font-semibold">{r.name}</span>
+                  <span className="truncate text-white/40">{r.tagline}</span>
+                  {r.editorsPick ? (
+                    <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-ember">
+                      ★ PICK
+                    </span>
+                  ) : (
+                    <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-white/40">
+                      {pricingChip(r.pricing.model, r.pricing.price)}
+                    </span>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -166,40 +205,32 @@ function CommandPalette() {
 
         <CommandSeparator />
         <CommandGroup heading="Categories">
-          {CATEGORIES.map((c) => {
-            const count = feed?.categoryCounts?.[c.slug] ?? 0;
-            return (
-              <CommandItem
-                key={c.slug}
-                value={`category ${c.slug} ${c.name}`}
-                onSelect={() => filterCategory(c.slug)}
-              >
-                <span aria-hidden>{c.emoji}</span>
-                <span>{c.name}</span>
-                {count > 0 && (
-                  <span className="rounded-full bg-white/10 px-1.5 font-mono text-[10px] tabular-nums text-white/50">
-                    {count} today
-                  </span>
-                )}
-                <span className="ml-auto font-mono text-[10px] text-white/30">
-                  FILTER
-                </span>
-              </CommandItem>
-            );
-          })}
+          {CATEGORIES.map((c) => (
+            <CommandItem
+              key={c.slug}
+              value={`category ${c.slug} ${c.name}`}
+              onSelect={() => goTo(`/categories/${c.slug}`)}
+            >
+              <span aria-hidden>{c.emoji}</span>
+              <span>{c.name}</span>
+              <span className="ml-auto font-mono text-[10px] text-white/30">
+                BROWSE
+              </span>
+            </CommandItem>
+          ))}
         </CommandGroup>
 
         <CommandSeparator />
         <CommandGroup heading="Actions">
           <CommandItem
-            value="submit your tool launch wizard"
+            value="submit a tool to the directory listing wizard"
             onSelect={() => {
               setSearch(false);
               window.setTimeout(() => setSubmitOpen(true), 80);
             }}
           >
             <Sparkles aria-hidden />
-            <span>Submit your tool</span>
+            <span>Submit a tool to the directory</span>
           </CommandItem>
           <CommandItem
             value="track my submission status makers"
@@ -219,11 +250,11 @@ function CommandPalette() {
             <span>Read the standards</span>
           </CommandItem>
           <CommandItem
-            value="get the daily feed newsletter"
-            onSelect={() => goTo("/#feed")}
+            value="browse the directory all tools"
+            onSelect={() => goTo("/tools")}
           >
-            <ArrowUpRight aria-hidden />
-            <span>Jump to the feed</span>
+            <ArrowRight aria-hidden />
+            <span>Browse the directory</span>
           </CommandItem>
         </CommandGroup>
       </CommandList>
@@ -236,7 +267,6 @@ function CommandPalette() {
 export function ToolExplorer() {
   const router = useRouter();
   const setSearch = useExplorer((s) => s.setSearch);
-  const openTool = useExplorer((s) => s.openTool);
 
   // ⌘K / ctrl+K opens the command palette.
   useEffect(() => {
@@ -266,21 +296,17 @@ export function ToolExplorer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
-  // Restore a shared/filtered category from the URL on load (?cat=<slug>)
-  // and jump straight to the feed — a shared ?cat= link is an intent to browse.
+  // Legacy shared links (?cat=<slug>) used to filter the retired homepage
+  // feed — they now land on the matching category page instead.
   useEffect(() => {
     const cat = new URLSearchParams(window.location.search).get("cat");
     if (cat && CATEGORIES.some((c) => c.slug === cat)) {
-      useExplorer.getState().setCategoryFilter(cat);
-      // Wait a beat for the feed to render before smooth-scrolling to it.
       const t = window.setTimeout(() => {
-        document
-          .querySelector("#feed")
-          ?.scrollIntoView({ behavior: "smooth" });
-      }, 500);
+        router.replace(`/categories/${cat}`);
+      }, 0);
       return () => window.clearTimeout(t);
     }
-  }, []);
+  }, [router]);
 
   return <CommandPalette />;
 }

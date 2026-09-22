@@ -22,7 +22,8 @@ type TrendRow = {
   tagline: string;
   emoji: string;
   gradient: string;
-  votes: number;
+  score: number;
+  signals: { comments: number; reviews: number; saves: number };
   category?: { slug: string; name: string; emoji: string };
 };
 
@@ -36,7 +37,8 @@ type Item =
       tagline: string;
       emoji: string;
       gradient: string;
-      votes: number;
+      editorsPick: boolean;
+      pricing: { model: string; price: string | null };
       category: { slug: string; name: string; emoji: string };
     }
   | { kind: "category"; slug: string; name: string; emoji: string; count: number }
@@ -55,6 +57,12 @@ type Group = { label: string; hint?: string; items: Item[]; start: number };
 
 const RECENTS_KEY = "prother:recent-tools";
 const LIST_ID = "hero-search-listbox";
+
+/** Mono right-side chip for a tool row — honest pricing, no vote counters. */
+function pricingChip(model: string, price: string | null): string {
+  if (model === "paid" && price) return `FROM ${price}`;
+  return model.replace(/_/g, " ").toUpperCase();
+}
 
 // ── HeroSearch ───────────────────────────────────────────────────────────
 
@@ -184,7 +192,7 @@ export function HeroSearch() {
         "↩"
       );
       push(
-        "Trending this week",
+        "Trending now",
         trending.map<Item>((t) => ({
           kind: "tool",
           slug: t.slug,
@@ -192,7 +200,8 @@ export function HeroSearch() {
           tagline: t.tagline,
           emoji: t.emoji,
           gradient: t.gradient,
-          votes: t.votes,
+          editorsPick: false,
+          pricing: { model: "", price: null },
           category: t.category ?? { slug: "", name: "", emoji: "" },
         })),
         "TOP 5"
@@ -220,7 +229,8 @@ export function HeroSearch() {
         tagline: t.tagline,
         emoji: t.emoji,
         gradient: t.gradient,
-        votes: t.votes,
+        editorsPick: t.editorsPick,
+        pricing: t.pricing,
         category: t.category,
       }))
     );
@@ -353,7 +363,11 @@ export function HeroSearch() {
             }}
             onFocus={() => openDropdown()}
             onKeyDown={onKeyDown}
-            placeholder="Search AI tools, categories, launches…"
+            placeholder={
+              indexCounts && indexCounts.tools > 0
+                ? `Search ${indexCounts.tools} AI tools — try “translate video”`
+                : "Search AI tools, categories, and tags…"
+            }
             autoComplete="off"
             spellCheck={false}
             className="h-full w-full bg-transparent text-base text-white outline-none placeholder:text-white/35"
@@ -401,7 +415,7 @@ export function HeroSearch() {
                     No matches for &ldquo;{q}&rdquo;
                   </p>
                   <p className="mt-2 text-sm text-white/40">
-                    Check the spelling or explore a category — everything launches somewhere.
+                    Check the spelling or explore a category — everything AI, one directory.
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                     {CATEGORIES.map((c) => (
@@ -424,7 +438,7 @@ export function HeroSearch() {
               {groups.map((group) => (
                 <div key={group.label} className={cn(groups.length > 1 && "border-b border-white/[0.06] last:border-b-0")}>
                   <p className="flex items-center gap-2 px-4 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
-                    {group.label === "Trending this week" && (
+                    {group.label === "Trending now" && (
                       <TrendingUp className="size-3 text-ember" aria-hidden />
                     )}
                     {group.label === "Recent" && <History className="size-3 text-ember" aria-hidden />}
@@ -434,7 +448,7 @@ export function HeroSearch() {
                   {group.items.map((item, li) => {
                     const idx = group.start + li;
                     const isActive = idx === activeIdx;
-                    const rank = group.label === "Trending this week" ? li + 1 : null;
+                    const rank = group.label === "Trending now" ? li + 1 : null;
                     return (
                       <button
                         key={`${item.kind}-${item.slug}`}
@@ -483,11 +497,16 @@ export function HeroSearch() {
                           )}
                         </span>
 
-                        {item.kind === "tool" && (
-                          <span className="ml-auto shrink-0 font-mono text-xs font-semibold text-ember">
-                            ▲{item.votes}
-                          </span>
-                        )}
+                        {item.kind === "tool" &&
+                          (item.editorsPick ? (
+                            <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-ember">
+                              ★ Editor&apos;s Pick
+                            </span>
+                          ) : item.pricing.model ? (
+                            <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-white/40">
+                              {pricingChip(item.pricing.model, item.pricing.price)}
+                            </span>
+                          ) : null)}
                         {item.kind === "category" && (
                           <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-white/40">
                             {item.count > 0 ? `${item.count} tools` : "Browse"}

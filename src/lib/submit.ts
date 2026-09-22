@@ -144,11 +144,7 @@ export type SubmissionStatusItem = {
   queuePosition: number | null;
   /** approved only — slug of the created Tool (opens the listing modal). */
   toolSlug: string | null;
-  /** approved only — ISO date the launch goes live. */
-  launchDate: string | null;
-  /** approved only — true once the launch is past its 00:00 UTC rollover. */
-  live: boolean;
-  /** rejected only — "Failed: S1, S4 — note" (PRD §7 cites standards). */
+  /** rejected only — "Failed: S1, S4 — note" (standards cited). */
   reviewNote: string | null;
   /** rejected only — form values to re-open the wizard pre-filled. */
   resubmit: SubmitPrefill | null;

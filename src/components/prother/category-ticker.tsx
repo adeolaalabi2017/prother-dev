@@ -19,7 +19,7 @@ function TickerContent({ hidden }: { hidden?: boolean }) {
 
 export function CategoryTicker() {
   return (
-    <section id="categories" className="relative overflow-hidden border-y border-white/10 bg-ink py-4">
+    <section className="relative overflow-hidden border-y border-white/10 bg-ink py-4">
       {/* edge fade masks so items dissolve instead of hard-clipping */}
       <div
         aria-hidden

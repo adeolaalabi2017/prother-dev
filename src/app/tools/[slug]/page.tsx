@@ -4,10 +4,8 @@ import { notFound } from "next/navigation";
 import {
   ArrowUpRight,
   Check,
-  Clock,
   MessagesSquare,
   Star,
-  Triangle,
 } from "lucide-react";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
@@ -19,11 +17,11 @@ import { ToolDetailActions } from "@/components/prother/tool-detail-actions";
 /**
  * /tools/[slug] — the real, crawlable tool detail page (Task 25).
  *
- * Server-rendered from the ORM: header, badges, pricing/maker/launch meta,
+ * Server-rendered from the ORM: header, badges, pricing/maker/listing meta,
  * description, tags, links, published reviews (with the shared reviewStats
- * aggregate), forum mentions, launch notes and related tools. The only
- * client island is <ToolDetailActions /> (vote / save / share / report) —
- * everything else is static HTML so search engines see the full listing.
+ * aggregate), forum mentions and related tools. The only client island is
+ * <ToolDetailActions /> (save / compare / share / report) — everything else
+ * is static HTML so search engines see the full listing.
  */
 
 export const dynamic = "force-dynamic";
@@ -43,6 +41,13 @@ function utcDateLabel(v: Date | string): string {
   const d = typeof v === "string" ? new Date(v) : v;
   if (Number.isNaN(d.getTime())) return "";
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+}
+
+/** "Mar 2026" — the Listed-date format. */
+function utcMonthYear(v: Date | string): string {
+  const d = typeof v === "string" ? new Date(v) : v;
+  if (Number.isNaN(d.getTime())) return "";
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 const PRICING_LABEL: Record<string, string> = {
@@ -76,26 +81,26 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const tool = await db.tool.findUnique({
     where: { slug },
-    include: {
-      launch: { include: { _count: { select: { votes: true } } } },
+    // Explicit select — a stale cached PrismaClient in a long-running dev
+    // server references dropped columns on full-row Tool selects.
+    select: {
+      slug: true,
+      status: true,
+      name: true,
+      tagline: true,
+      description: true,
+      pricingModel: true,
+      startingPrice: true,
+      tags: true,
       category: { select: { name: true } },
     },
   });
   // Unknown slug or removed/unlisted tool → 404 covers the meta too.
   if (!tool || tool.status !== "live") notFound();
 
-  // Tomorrow teaser: keep the URL alive but out of the index (thin content).
-  if (tool.launch?.scheduled) {
-    return {
-      title: `${tool.name} — launching soon | Prother`,
-      robots: { index: false, follow: true },
-    };
-  }
-
-  const votes = (tool.launch?.baseUpvotes ?? 0) + (tool.launch?._count.votes ?? 0);
   const title = `${tool.name} — ${tool.tagline} | Prother`;
   const description = clamp(
-    `Live on Prother · ${tool.category.name} · ▲ ${votes} votes. ${tool.description || tool.tagline}`,
+    `Listed on Prother · ${tool.category.name} · ${pricingLine(tool.pricingModel, tool.startingPrice)}. ${tool.description || tool.tagline}`,
     200,
   );
   const keywords = tool.tags
@@ -132,73 +137,45 @@ export default async function ToolPage({ params }: Params) {
   const { slug } = await params;
   const tool = await db.tool.findUnique({
     where: { slug },
-    include: {
-      launch: { include: { _count: { select: { votes: true } } } },
+    // Explicit select — a stale cached PrismaClient in a long-running dev
+    // server references dropped columns on full-row Tool selects.
+    select: {
+      id: true,
+      slug: true,
+      status: true,
+      name: true,
+      tagline: true,
+      description: true,
+      websiteUrl: true,
+      logoEmoji: true,
+      logoGradient: true,
+      pricingModel: true,
+      startingPrice: true,
+      pricingNote: true,
+      tags: true,
+      makerHandle: true,
+      track: true,
+      editorsPick: true,
+      curated: true,
+      claimed: true,
+      hasApi: true,
+      githubUrl: true,
+      docsUrl: true,
+      twitterUrl: true,
+      categoryId: true,
+      createdAt: true,
       category: { select: { slug: true, name: true, emoji: true } },
     },
   });
   if (!tool || tool.status !== "live") notFound();
 
-  const votes = (tool.launch?.baseUpvotes ?? 0) + (tool.launch?._count.votes ?? 0);
-  const scheduled = tool.launch?.scheduled ?? false;
   const name = tool.name;
-  const launchId = tool.launch?.id ?? null;
-  const launchDate = tool.launch?.launchDate ?? null;
-
-  // ── Tomorrow teaser → minimal "Launching soon" panel, no full content ──
-  if (scheduled) {
-    return (
-      <div className="bg-ink pb-16 md:pb-0">
-        <div className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
-          <Breadcrumbs
-            trail={[
-              { name: "Home", href: "/" },
-              { name: "AI tools", href: "/tools" },
-              { name },
-            ]}
-          />
-          <div className="mt-10 flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-10 text-center">
-            <span
-              aria-hidden
-              className={cn(
-                "grid size-14 place-items-center rounded-2xl bg-gradient-to-br text-3xl shadow-xl",
-                tool.logoGradient
-              )}
-            >
-              {tool.logoEmoji}
-            </span>
-            <h1 className="text-2xl font-black tracking-tight text-white">{name}</h1>
-            <p className="text-sm text-white/60">{tool.tagline}</p>
-            <p className="mt-2 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.3em] text-ember">
-              <Clock className="size-3.5" aria-hidden />
-              Launching soon
-            </p>
-            <p className="max-w-sm text-sm text-white/55">
-              This product goes live on the Prother feed tomorrow — come back on
-              launch day to upvote it and read the first verdicts.
-            </p>
-            <Link
-              href="/#feed"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-ember transition-colors hover:bg-ember/20"
-            >
-              Today&apos;s feed
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ── Full live listing — everything below is server-rendered ────────────
-  const [stats, reviews, comments, threads, relatedRows] = await Promise.all([
+  const [stats, reviews, threads, relatedRows] = await Promise.all([
     reviewStats(tool.id),
     db.review.findMany({
       where: { toolId: tool.id, status: "published" },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    }),
-    db.comment.findMany({
-      where: { toolId: tool.id },
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
@@ -212,19 +189,23 @@ export default async function ToolPage({ params }: Params) {
       select: { slug: true, title: true, author: true, createdAt: true },
     }),
     // Mirror the API's "More like this" query (live tools, same category,
-    // most upvoted first — scheduled teasers excluded).
+    // Editor's Picks first, then newest listings).
     db.tool.findMany({
       where: {
         categoryId: tool.categoryId,
         slug: { not: tool.slug },
         status: "live",
-        launch: { is: { scheduled: false } },
       },
-      include: {
-        launch: { select: { baseUpvotes: true, _count: { select: { votes: true } } } },
-      },
-      orderBy: { launch: { baseUpvotes: "desc" } },
+      orderBy: [{ editorsPick: "desc" }, { createdAt: "desc" }],
       take: 3,
+      select: {
+        slug: true,
+        name: true,
+        logoEmoji: true,
+        logoGradient: true,
+        tagline: true,
+        editorsPick: true,
+      },
     }),
   ]);
 
@@ -235,7 +216,7 @@ export default async function ToolPage({ params }: Params) {
     emoji: r.logoEmoji,
     gradient: r.logoGradient,
     tagline: r.tagline,
-    votes: (r.launch?.baseUpvotes ?? 0) + (r.launch?._count.votes ?? 0),
+    editorsPick: r.editorsPick,
   }));
   const tags = tool.tags.split("|").map((t) => t.trim()).filter(Boolean);
 
@@ -321,14 +302,6 @@ export default async function ToolPage({ params }: Params) {
                   Curated
                 </li>
               )}
-              {tool.relaunch && (
-                <li
-                  title={tool.relaunchNote ?? undefined}
-                  className={chipCx("border-mint/30 bg-mint/10 text-mint")}
-                >
-                  Re-launch
-                </li>
-              )}
               {!tool.claimed && <li className={chipCx("text-white/40")}>Unclaimed</li>}
               {tool.hasApi && <li className={chipCx("text-white/60")}>API ✓</li>}
               {tool.pricingModel === "open_source" && (
@@ -339,7 +312,7 @@ export default async function ToolPage({ params }: Params) {
               </li>
             </ul>
 
-            {/* Mono meta line: pricing · maker · launch date (UTC, static) */}
+            {/* Mono meta line: pricing · maker · listed date (UTC, static) */}
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-wider text-white/45">
               <span title={tool.pricingNote ?? undefined} className="text-ember">
                 {pricingLine(tool.pricingModel, tool.startingPrice)}
@@ -348,17 +321,13 @@ export default async function ToolPage({ params }: Params) {
                 ·
               </span>
               <span>{tool.makerHandle}</span>
-              {launchDate && (
-                <>
-                  <span aria-hidden className="text-white/25">
-                    ·
-                  </span>
-                  <span>Launched {utcDateLabel(launchDate)}</span>
-                </>
-              )}
+              <span aria-hidden className="text-white/25">
+                ·
+              </span>
+              <span>Listed {utcMonthYear(tool.createdAt)}</span>
             </p>
 
-            {/* Category chip — a real link to the crawlable category page */}
+            {/* Category chip + rating — a real link to the crawlable category page */}
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={`/categories/${tool.category.slug}`}
@@ -367,18 +336,23 @@ export default async function ToolPage({ params }: Params) {
                 <span aria-hidden>{tool.category.emoji}</span>
                 {tool.category.name}
               </Link>
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
-                <Triangle className="size-2.5 fill-current" aria-hidden />
-                {votes} votes
-              </span>
+              {aggregate ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                  <Star className="size-2.5 fill-current" aria-hidden />
+                  {aggregate.overall}/5 · {aggregate.count} reviews
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/50 uppercase">
+                  {stats.count} reviews
+                </span>
+              )}
             </div>
 
             {/* Interactive actions (client island) */}
             <ToolDetailActions
               slug={tool.slug}
               name={name}
-              launchId={launchId}
-              initialVotes={votes}
+              websiteUrl={tool.websiteUrl}
             />
           </header>
 
@@ -478,7 +452,7 @@ export default async function ToolPage({ params }: Params) {
 
             {reviews.length === 0 ? (
               <p className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-sm text-white/50">
-                No reviews yet — launch-day verdicts land here.
+                No reviews yet — be the first after you&apos;ve tried it.
               </p>
             ) : (
               <ul className="space-y-3">
@@ -553,42 +527,7 @@ export default async function ToolPage({ params }: Params) {
             </Link>
           </section>
 
-          {/* g. Launch notes — recent launch-day comments */}
-          {comments.length > 0 && (
-            <section aria-label="Launch notes" className="space-y-3">
-              <h2 className={SECTION_HEAD}>Launch notes</h2>
-              <ul className="space-y-2">
-                {comments.map((c) => (
-                  <li
-                    key={c.id}
-                    className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
-                  >
-                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="font-mono text-xs font-semibold tracking-wider text-white/85">
-                        {c.author}
-                      </span>
-                      {c.isMaker && (
-                        <span className={chipCx("border-ember/30 bg-ember/10 text-ember")}>
-                          Maker
-                        </span>
-                      )}
-                      <span aria-hidden className="text-white/25">
-                        ·
-                      </span>
-                      <span className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
-                        {utcDateLabel(c.createdAt)}
-                      </span>
-                    </p>
-                    <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-white/70">
-                      {c.body}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {/* h. More like this — real links to sibling listings */}
+          {/* g. More like this — real links to sibling listings */}
           {related.length > 0 && (
             <section aria-label="More like this" className="space-y-3">
               <h2 className={SECTION_HEAD}>More like this</h2>
@@ -613,9 +552,15 @@ export default async function ToolPage({ params }: Params) {
                       <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
                         {r.name}
                       </span>
-                      <span className="shrink-0 font-mono text-xs tabular-nums text-ember">
-                        ▲{r.votes}
-                      </span>
+                      {r.editorsPick && (
+                        <span
+                          aria-label="Editor's Pick"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[10px] tracking-wider text-ember uppercase"
+                        >
+                          <Star className="size-2.5 fill-current" aria-hidden />
+                          Pick
+                        </span>
+                      )}
                     </span>
                     <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/45">
                       {r.tagline}

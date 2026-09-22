@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  * Full-page view shells — the proper replacement for the floating dialogs.
  * A FullPageShell is a fixed overlay page (own scroll, locked body scroll,
  * Escape-to-close, breadcrumb top bar, share + close buttons). Deep-link
- * pages (journal post, category, launch archive, tool) render inside one.
+ * pages (journal post, category, tool, compare) render inside one.
  *
  * Stacking: pages may mount on top of each other (e.g. a tool page opened
  * from the category page). shellStack keeps a mount-ordered token list so
