@@ -74,6 +74,8 @@ export function HeroSearch() {
   const [recents, setRecents] = useState<Recent[]>([]);
   const [indexCounts, setIndexCounts] = useState<{ tools: number; posts: number } | null>(null);
   const [active, setActive] = useState<{ q: string; i: number } | null>(null);
+  /** Listbox max-height fitted to the space actually left below the input. */
+  const [maxListH, setMaxListH] = useState(440);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -93,10 +95,31 @@ export function HeroSearch() {
     }
   }, []);
 
+  // Fit the dropdown into the viewport: listbox height = space below the
+  // input minus the dropdown's top gap (12) and footer bar (~30), clamped
+  // to [220, 440] so tiny/short viewports still scroll internally instead
+  // of clipping the box.
+  const computeMaxH = useCallback(() => {
+    const el = inputRef.current;
+    if (!el || typeof window === "undefined") return;
+    const room = window.innerHeight - el.getBoundingClientRect().bottom;
+    const fitted = room - 12 - 30 - 10;
+    setMaxListH(Math.max(220, Math.min(440, fitted)));
+  }, []);
+
   const openDropdown = useCallback(() => {
     loadRecents();
+    const el = inputRef.current;
+    // Auto-center when there isn't room for a useful dropdown below the
+    // bar (e.g. clicking it near the fold) — the native focus scroll only
+    // does a minimal nearest-scroll and would clip the floating box.
+    if (el && typeof window !== "undefined") {
+      const room = window.innerHeight - el.getBoundingClientRect().bottom;
+      if (room < 320) el.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+    computeMaxH();
     setOpen(true);
-  }, [loadRecents]);
+  }, [loadRecents, computeMaxH]);
 
   useEffect(() => {
     let alive = true;
@@ -146,6 +169,14 @@ export function HeroSearch() {
       window.clearTimeout(t);
     };
   }, [query]);
+
+  // Keep the fit correct if the window is resized while the dropdown is
+  // open (scroll is locked, so only genuine resizes can move the input).
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("resize", computeMaxH);
+    return () => window.removeEventListener("resize", computeMaxH);
+  }, [open, computeMaxH]);
 
   // ── Click-outside closes the dropdown ─────────────────────────────────
   useEffect(() => {
@@ -439,7 +470,8 @@ export function HeroSearch() {
               id={LIST_ID}
               role="listbox"
               aria-label="Search results"
-              className="max-h-[min(58vh,440px)] overflow-y-auto overscroll-contain"
+              style={{ maxHeight: maxListH }}
+              className="overflow-y-auto overscroll-contain"
             >
               {noMatches && (
                 <div className="border-b border-white/10 px-5 py-6 text-center">

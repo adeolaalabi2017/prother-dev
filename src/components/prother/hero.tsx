@@ -47,11 +47,14 @@ export function Hero() {
   const headlineAccent = headlineWords.at(-1) ?? "";
 
   return (
-    <section id="top" className="relative overflow-hidden pt-16 pb-20 md:pt-20">
+    <section id="top" className="relative pt-16 pb-20 md:pt-20">
       {/* Gateway Flow background — dashed bezier streams converge on the hero
           center with ember particles riding the curves; clicking the hero fires
-          a shockwave that bends the flow. Replaces the rings/rays backdrop. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0">
+          a shockwave that bends the flow. Replaces the rings/rays backdrop.
+          Clipping lives HERE on the decorative layer, not on the section:
+          the section must not clip the hero search dropdown, which floats
+          below the fold when open. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
           className="absolute inset-0"
           style={{

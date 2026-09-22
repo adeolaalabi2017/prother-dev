@@ -1034,3 +1034,18 @@ Stage Summary:
 - Main search bar is now a spotlight: open it and the page recedes into blur while bar + results float. Suggested example queries actually work (multi-word AND matching, case-insensitive, light stemming) across hero dropdown, ⌘K palette, and SERP.
 - NOTE for future agents: FullPageShell still locks only body overflow (fine for its fixed-overlay use, but if you ever need a hard lock, lock documentElement too). agent-browser `scroll` is JS-based and bypasses CSS locks — don't use it to verify scroll locks; assert computed styles + spec behavior instead.
 - NEXT: carry Task 27 list (tool screenshots/media, compare-tray QA, review seeding, analytics, EthicalAds wiring).
+
+---
+Task ID: 30
+Agent: main orchestrator (Z.ai Code)
+Task: User report — "Make the floating window open up so the box and content is visible not hidden" (search dropdown was clipped).
+
+Work Log:
+- ROOT CAUSE 1: hero <section> had overflow-hidden (there to contain the GatewayFlow decorative background) — it clipped the floating dropdown at the section's bottom edge (~3 rows max, footer never visible; matches user's screenshots). Fix: moved overflow-hidden onto the decorative background wrapper div (pointer-events-none absolute inset-0) and removed it from the section — visual output identical, dropdown now escapes the section. layout.tsx overflow-x-clip is horizontal-only, verified harmless.
+- ROOT CAUSE 2: fixed max-h-[min(58vh,440px)] ignored where the input actually sits, so even unclipped the box could overrun the viewport (footer below the fold on 800px viewports). Fix: dynamic maxListH state — computed from input.getBoundingClientRect().bottom against window.innerHeight minus dropdown gap (12) + footer (~30) + safety (10), clamped [220, 440]; applied as inline style on the listbox; recomputed on open and on window resize while open.
+- Auto-center: openDropdown now scrollIntoView({block:"center", behavior:"instant"}) when room below the input < 320px — clicking the bar near the fold or pressing "/" mid-page centers the widget so the full box always fits. (Kept a single source of truth in openDropdown; the "/" handler keeps focus() + openDropdown().)
+- QA: desktop 1280×800 from scrollY=0 ("/" pressed) → widget auto-centered, 4.5 rows visible + footer bar rendered; mobile 390×844 click path → full box incl. footer; no-matches state + category chips also fit; internal listbox scroll handles overflow rows; lint + tsc clean; dev.log zero errors.
+
+Stage Summary:
+- The floating search box now always renders FULLY: unclipped from the hero, height-fitted to the remaining viewport, footer hints always visible, auto-centered when opened near the fold. Combined with Task 29's blur backdrop, the search experience is a true spotlight.
+- NEXT: carry Task 27 list (tool screenshots/media, compare-tray QA, review seeding, analytics, EthicalAds wiring).
