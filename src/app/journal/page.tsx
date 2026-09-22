@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { JournalIndex } from "@/components/prother/journal-index";
+import { AdSlot } from "@/components/prother/ad-slot";
 import { db } from "@/lib/prother";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
+import { placementEnabled } from "@/lib/ad-config";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +87,8 @@ export default async function JournalPage() {
     })),
   };
 
+  const journalBarOn = await placementEnabled("journal_bar");
+
   return (
     <div className="pb-16 md:pb-0">
       <script
@@ -93,7 +97,14 @@ export default async function JournalPage() {
       />
       <JournalIndex
         initialPosts={cards}
-        breadcrumbs={<Breadcrumbs trail={[{ name: "Home", href: "/" }, { name: "Journal" }]} />}
+        breadcrumbs={
+          <>
+            <Breadcrumbs trail={[{ name: "Home", href: "/" }, { name: "Journal" }]} />
+            {journalBarOn && (
+              <AdSlot placement="journal_bar" variant="bar" className="mt-6" />
+            )}
+          </>
+        }
       />
     </div>
   );

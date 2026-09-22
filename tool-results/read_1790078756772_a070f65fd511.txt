@@ -1,0 +1,723 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useRef, useState } from "react";
+     4→import { Megaphone, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
+     5→import { Button } from "@/components/ui/button";
+     6→import {
+     7→  Dialog,
+     8→  DialogContent,
+     9→  DialogDescription,
+    10→  DialogHeader,
+    11→  DialogTitle,
+    12→} from "@/components/ui/dialog";
+    13→import { Input } from "@/components/ui/input";
+    14→import {
+    15→  Select,
+    16→  SelectContent,
+    17→  SelectItem,
+    18→  SelectTrigger,
+    19→  SelectValue,
+    20→} from "@/components/ui/select";
+    21→import { Skeleton } from "@/components/ui/skeleton";
+    22→import { Textarea } from "@/components/ui/textarea";
+    23→import { useToast } from "@/hooks/use-toast";
+    24→import { cn } from "@/lib/utils";
+    25→import {
+    26→  adminFetch,
+    27→  Field,
+    28→  inputCx,
+    29→  LoadError,
+    30→  MiniStat,
+    31→} from "./admin-shared";
+    32→
+    33→/**
+    34→ * Admin — Advertising module (Task 23-b).
+    35→ * Sponsored campaigns: stats strip, flight/budget/performance columns,
+    36→ * status management (select + quick activate/pause), create & edit dialog
+    37→ * and a two-step delete. POST validates clickUrl with new URL(); the API
+    38→ * re-validates and 400s are surfaced verbatim.
+    39→ */
+    40→
+    41→type Placement = "feed_row" | "journal_bar" | "category_spotlight";
+    42→type CampaignStatus = "draft" | "active" | "paused" | "ended";
+    43→type WindowState = "scheduled" | "running" | "finished" | "none";
+    44→
+    45→type AdCampaign = {
+    46→  id: string;
+    47→  name: string;
+    48→  advertiser: string;
+    49→  placement: Placement;
+    50→  status: CampaignStatus;
+    51→  headline: string;
+    52→  body: string | null;
+    53→  clickUrl: string;
+    54→  emoji: string | null;
+    55→  gradient: string | null;
+    56→  targetCategory: string | null;
+    57→  weight: number;
+    58→  startsAt: string | null;
+    59→  endsAt: string | null;
+    60→  totalBudgetCents: number | null;
+    61→  dailyBudgetCents: number | null;
+    62→  impressions: number;
+    63→  clicks: number;
+    64→  ctr: number;
+    65→  windowState: WindowState;
+    66→};
+    67→
+    68→type AdsStats = { total: number; active: number; impressions: number; clicks: number; ctr: number };
+    69→
+    70→const PLACEMENTS: { value: Placement; label: string }[] = [
+    71→  { value: "feed_row", label: "Feed row" },
+    72→  { value: "journal_bar", label: "Journal bar" },
+    73→  { value: "category_spotlight", label: "Category spotlight" },
+    74→];
+    75→
+    76→const STATUSES: CampaignStatus[] = ["draft", "active", "paused", "ended"];
+    77→
+    78→const PLACEMENT_LABEL: Record<Placement, string> = {
+    79→  feed_row: "Feed row",
+    80→  journal_bar: "Journal bar",
+    81→  category_spotlight: "Spotlight",
+    82→};
+    83→
+    84→function urlOk(value: string): boolean {
+    85→  try {
+    86→    const u = new URL(value.trim());
+    87→    return u.protocol === "http:" || u.protocol === "https:";
+    88→  } catch {
+    89→    return false;
+    90→  }
+    91→}
+    92→
+    93→const fmtCtr = (ctr: number) => `${ctr.toFixed(1)}%`;
+    94→
+    95→function fmtMoney(cents: number | null | undefined): string {
+    96→  if (!cents || cents <= 0) return "no cap";
+    97→  const dollars = cents / 100;
+    98→  return `$${dollars % 1 === 0 ? dollars.toLocaleString("en-US") : dollars.toFixed(2)} cap`;
+    99→}
+   100→
+   101→function fmtWindow(c: AdCampaign): string {
+   102→  const s = c.startsAt ? c.startsAt.slice(0, 10) : "—";
+   103→  const e = c.endsAt ? c.endsAt.slice(0, 10) : "—";
+   104→  return `${s} → ${e}`;
+   105→}
+   106→
+   107→const WINDOW_CX: Record<WindowState, string> = {
+   108→  running: "border-emerald-400/30 bg-emerald-400/10 text-emerald-400",
+   109→  scheduled: "border-white/15 bg-white/5 text-white/50",
+   110→  finished: "border-white/10 bg-white/[0.03] text-white/30",
+   111→  none: "border-white/10 bg-white/[0.03] text-white/30",
+   112→};
+   113→
+   114→function CampaignsSkeleton() {
+   115→  return (
+   116→    <div className="space-y-2">
+   117→      {Array.from({ length: 4 }).map((_, i) => (
+   118→        <Skeleton key={i} className="h-[86px] rounded-xl bg-white/[0.04]" />
+   119→      ))}
+   120→    </div>
+   121→  );
+   122→}
+   123→
+   124→// ── Create / edit dialog ─────────────────────────────────────────────────
+   125→
+   126→type CampaignForm = {
+   127→  name: string;
+   128→  advertiser: string;
+   129→  placement: Placement;
+   130→  status: CampaignStatus;
+   131→  headline: string;
+   132→  body: string;
+   133→  clickUrl: string;
+   134→  emoji: string;
+   135→  weight: string;
+   136→  startsAt: string;
+   137→  endsAt: string;
+   138→  totalBudgetCents: string;
+   139→  dailyBudgetCents: string;
+   140→};
+   141→
+   142→function formFromCampaign(c: AdCampaign | null): CampaignForm {
+   143→  return {
+   144→    name: c?.name ?? "",
+   145→    advertiser: c?.advertiser ?? "",
+   146→    placement: c?.placement ?? "feed_row",
+   147→    status: c?.status ?? "draft",
+   148→    headline: c?.headline ?? "",
+   149→    body: c?.body ?? "",
+   150→    clickUrl: c?.clickUrl ?? "",
+   151→    emoji: c?.emoji ?? "",
+   152→    weight: String(c?.weight ?? 5),
+   153→    startsAt: c?.startsAt ? c.startsAt.slice(0, 10) : "",
+   154→    endsAt: c?.endsAt ? c.endsAt.slice(0, 10) : "",
+   155→    totalBudgetCents: c?.totalBudgetCents ? String(c.totalBudgetCents) : "",
+   156→    dailyBudgetCents: c?.dailyBudgetCents ? String(c.dailyBudgetCents) : "",
+   157→  };
+   158→}
+   159→
+   160→function CampaignDialog({
+   161→  apiKey,
+   162→  campaign,
+   163→  onDone,
+   164→}: {
+   165→  apiKey: string;
+   166→  campaign: AdCampaign | null;
+   167→  onDone: () => void;
+   168→}) {
+   169→  const { toast } = useToast();
+   170→  const [f, setF] = useState<CampaignForm>(() => formFromCampaign(campaign));
+   171→  const [busy, setBusy] = useState(false);
+   172→  const isNew = !campaign;
+   173→
+   174→  const weightNum = Math.round(Number(f.weight));
+   175→  const valid =
+   176→    f.name.trim().length > 0 &&
+   177→    f.advertiser.trim().length > 0 &&
+   178→    f.headline.trim().length > 0 &&
+   179→    urlOk(f.clickUrl) &&
+   180→    weightNum >= 1 &&
+   181→    weightNum <= 10;
+   182→
+   183→  const submit = async () => {
+   184→    if (!valid || busy) return;
+   185→    setBusy(true);
+   186→    try {
+   187→      const payload = {
+   188→        name: f.name.trim(),
+   189→        advertiser: f.advertiser.trim(),
+   190→        placement: f.placement,
+   191→        status: f.status,
+   192→        headline: f.headline.trim(),
+   193→        body: f.body.trim() || undefined,
+   194→        clickUrl: f.clickUrl.trim(),
+   195→        emoji: f.emoji.trim() || undefined,
+   196→        weight: weightNum,
+   197→        startsAt: f.startsAt ? new Date(`${f.startsAt}T00:00:00.000Z`).toISOString() : undefined,
+   198→        endsAt: f.endsAt ? new Date(`${f.endsAt}T00:00:00.000Z`).toISOString() : undefined,
+   199→        totalBudgetCents: f.totalBudgetCents.trim()
+   200→          ? Math.max(0, Math.round(Number(f.totalBudgetCents)))
+   201→          : undefined,
+   202→        dailyBudgetCents: f.dailyBudgetCents.trim()
+   203→          ? Math.max(0, Math.round(Number(f.dailyBudgetCents)))
+   204→          : undefined,
+   205→      };
+   206→      const res = await adminFetch(
+   207→        apiKey,
+   208→        isNew ? "/api/admin/ads" : `/api/admin/ads/${campaign.id}`,
+   209→        { method: isNew ? "POST" : "PATCH", body: JSON.stringify(payload) }
+   210→      );
+   211→      const d = (await res.json()) as { ok?: boolean; error?: string };
+   212→      if (!res.ok || !d.ok) {
+   213→        toast({ title: d.error ?? "Save failed", variant: "destructive" });
+   214→        return;
+   215→      }
+   216→      toast({
+   217→        title: isNew ? "Campaign created" : "Campaign saved",
+   218→        description: `${f.name.trim()} · ${f.status}`,
+   219→      });
+   220→      onDone();
+   221→    } catch {
+   222→      toast({ title: "Network error", variant: "destructive" });
+   223→    } finally {
+   224→      setBusy(false);
+   225→    }
+   226→  };
+   227→
+   228→  return (
+   229→    <Dialog open onOpenChange={(open) => !open && onDone()}>
+   230→      <DialogContent
+   231→        className="max-h-[92vh] gap-0 overflow-y-auto border-white/10 bg-coal p-0 text-white sm:max-w-xl"
+   232→        aria-describedby={undefined}
+   233→      >
+   234→        <DialogHeader className="border-b border-white/10 p-5 text-left">
+   235→          <DialogTitle className="text-lg font-black tracking-tight">
+   236→            {isNew ? "New campaign" : `Edit — ${campaign.name}`}
+   237→          </DialogTitle>
+   238→          <DialogDescription className="mt-1 text-sm text-white/50">
+   239→            Sponsored slots across the feed, journal and category pages.
+   240→          </DialogDescription>
+   241→        </DialogHeader>
+   242→
+   243→        <div className="space-y-4 p-5">
+   244→          <div className="grid gap-3 sm:grid-cols-2">
+   245→            <Field label="Campaign name">
+   246→              <Input
+   247→                value={f.name}
+   248→                maxLength={80}
+   249→                onChange={(e) => setF({ ...f, name: e.target.value })}
+   250→                placeholder="Launch Week sponsorship"
+   251→                className={inputCx}
+   252→              />
+   253→            </Field>
+   254→            <Field label="Advertiser">
+   255→              <Input
+   256→                value={f.advertiser}
+   257→                maxLength={60}
+   258→                onChange={(e) => setF({ ...f, advertiser: e.target.value })}
+   259→                placeholder="IndieShip"
+   260→                className={inputCx}
+   261→              />
+   262→            </Field>
+   263→            <Field label="Placement">
+   264→              <Select
+   265→                value={f.placement}
+   266→                onValueChange={(v) => setF({ ...f, placement: v as Placement })}
+   267→              >
+   268→                <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   269→                <SelectContent className="border-white/10 bg-coal text-white">
+   270→                  {PLACEMENTS.map((p) => (
+   271→                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+   272→                  ))}
+   273→                </SelectContent>
+   274→              </Select>
+   275→            </Field>
+   276→            <Field label="Status">
+   277→              <Select
+   278→                value={f.status}
+   279→                onValueChange={(v) => setF({ ...f, status: v as CampaignStatus })}
+   280→              >
+   281→                <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+   282→                <SelectContent className="border-white/10 bg-coal text-white">
+   283→                  {STATUSES.map((s) => (
+   284→                    <SelectItem key={s} value={s}>{s}</SelectItem>
+   285→                  ))}
+   286→                </SelectContent>
+   287→              </Select>
+   288→            </Field>
+   289→          </div>
+   290→
+   291→          <Field label="Headline (shown on the placement)">
+   292→            <Input
+   293→              value={f.headline}
+   294→              maxLength={90}
+   295→              onChange={(e) => setF({ ...f, headline: e.target.value })}
+   296→              placeholder="Ship AI features without the plumbing"
+   297→              className={inputCx}
+   298→            />
+   299→          </Field>
+   300→          <Field label="Body (secondary line)">
+   301→            <Textarea
+   302→              value={f.body}
+   303→              rows={2}
+   304→              maxLength={140}
+   305→              onChange={(e) => setF({ ...f, body: e.target.value })}
+   306→              placeholder="One supporting sentence — optional."
+   307→              className={inputCx}
+   308→            />
+   309→          </Field>
+   310→
+   311→          <div className="grid gap-3 sm:grid-cols-2">
+   312→            <Field label="Click URL">
+   313→              <Input
+   314→                value={f.clickUrl}
+   315→                type="url"
+   316→                onChange={(e) => setF({ ...f, clickUrl: e.target.value })}
+   317→                placeholder="https://example.com/?utm_source=prother"
+   318→                className={cn(inputCx, "font-mono text-xs")}
+   319→              />
+   320→              {f.clickUrl.trim() && !urlOk(f.clickUrl) && (
+   321→                <p className="text-[10px] text-red-400">Not a valid http(s) URL</p>
+   322→              )}
+   323→            </Field>
+   324→            <Field label="Emoji">
+   325→              <Input
+   326→                value={f.emoji}
+   327→                maxLength={4}
+   328→                onChange={(e) => setF({ ...f, emoji: e.target.value })}
+   329→                placeholder="🧭"
+   330→                className={inputCx}
+   331→              />
+   332→            </Field>
+   333→          </div>
+   334→
+   335→          <div className="grid gap-3 sm:grid-cols-3">
+   336→            <Field label="Weight (1–10)">
+   337→              <Input
+   338→                value={f.weight}
+   339→                type="number"
+   340→                min={1}
+   341→                max={10}
+   342→                onChange={(e) => setF({ ...f, weight: e.target.value })}
+   343→                className={inputCx}
+   344→              />
+   345→              {!Number.isNaN(weightNum) && (weightNum < 1 || weightNum > 10) && (
+   346→                <p className="text-[10px] text-red-400">Pick 1–10 — higher wins the slot</p>
+   347→              )}
+   348→            </Field>
+   349→            <Field label="Starts (UTC)">
+   350→              <Input
+   351→                value={f.startsAt}
+   352→                type="date"
+   353→                onChange={(e) => setF({ ...f, startsAt: e.target.value })}
+   354→                className={cn(inputCx, "[color-scheme:dark]")}
+   355→              />
+   356→            </Field>
+   357→            <Field label="Ends (UTC)">
+   358→              <Input
+   359→                value={f.endsAt}
+   360→                type="date"
+   361→                onChange={(e) => setF({ ...f, endsAt: e.target.value })}
+   362→                className={cn(inputCx, "[color-scheme:dark]")}
+   363→              />
+   364→            </Field>
+   365→          </div>
+   366→
+   367→          <div className="grid gap-3 sm:grid-cols-2">
+   368→            <Field label="Total budget (cents)" hint="Blank = no cap">
+   369→              <Input
+   370→                value={f.totalBudgetCents}
+   371→                type="number"
+   372→                min={0}
+   373→                onChange={(e) => setF({ ...f, totalBudgetCents: e.target.value })}
+   374→                placeholder="50000"
+   375→                className={inputCx}
+   376→              />
+   377→            </Field>
+   378→            <Field label="Daily budget (cents)" hint="Blank = no cap">
+   379→              <Input
+   380→                value={f.dailyBudgetCents}
+   381→                type="number"
+   382→                min={0}
+   383→                onChange={(e) => setF({ ...f, dailyBudgetCents: e.target.value })}
+   384→                placeholder="5000"
+   385→                className={inputCx}
+   386→              />
+   387→            </Field>
+   388→          </div>
+   389→
+   390→          <div className="flex items-center gap-2 border-t border-white/10 pt-4">
+   391→            <Button
+   392→              disabled={!valid || busy}
+   393→              onClick={() => void submit()}
+   394→              className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   395→            >
+   396→              <Plus className="size-4" aria-hidden />
+   397→              {isNew ? "Create campaign" : "Save changes"}
+   398→            </Button>
+   399→            <Button
+   400→              variant="ghost"
+   401→              disabled={busy}
+   402→              onClick={() => onDone()}
+   403→              className="rounded-lg text-white/60 hover:text-white"
+   404→            >
+   405→              Cancel
+   406→            </Button>
+   407→            {!valid && (
+   408→              <p className="hidden font-mono text-[10px] text-white/30 sm:block">
+   409→                NAME · ADVERTISER · HEADLINE · VALID URL · WEIGHT 1–10 REQUIRED
+   410→              </p>
+   411→            )}
+   412→          </div>
+   413→        </div>
+   414→      </DialogContent>
+   415→    </Dialog>
+   416→  );
+   417→}
+   418→
+   419→// ── Ads tab ──────────────────────────────────────────────────────────────
+   420→
+   421→export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+   422→  const { toast } = useToast();
+   423→  const [campaigns, setCampaigns] = useState<AdCampaign[] | null>(null);
+   424→  const [stats, setStats] = useState<AdsStats | null>(null);
+   425→  const [error, setError] = useState(false);
+   426→  const [busy, setBusy] = useState<string | null>(null);
+   427→  const [dialog, setDialog] = useState<{ open: boolean; campaign: AdCampaign | null }>({
+   428→    open: false,
+   429→    campaign: null,
+   430→  });
+   431→  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+   432→  const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+   433→
+   434→  const load = useCallback(() => {
+   435→    adminFetch(apiKey, "/api/admin/ads")
+   436→      .then((r) => {
+   437→        if (!r.ok) throw new Error(String(r.status));
+   438→        return r.json() as Promise<{ campaigns: AdCampaign[]; stats: AdsStats }>;
+   439→      })
+   440→      .then((d) => {
+   441→        setCampaigns(d.campaigns);
+   442→        setStats(d.stats);
+   443→        setError(false);
+   444→      })
+   445→      .catch(() => setError(true));
+   446→  }, [apiKey]);
+   447→
+   448→  useEffect(load, [load]);
+   449→
+   450→  const retry = useCallback(() => {
+   451→    setCampaigns(null);
+   452→    setError(false);
+   453→    load();
+   454→  }, [load]);
+   455→
+   456→  const patchStatus = useCallback(
+   457→    async (c: AdCampaign, nextStatus: CampaignStatus, note?: string) => {
+   458→      const snapshot = campaigns;
+   459→      setCampaigns((cur) =>
+   460→        cur?.map((x) => (x.id === c.id ? { ...x, status: nextStatus } : x)) ?? cur
+   461→      );
+   462→      setBusy(c.id);
+   463→      try {
+   464→        const res = await adminFetch(apiKey, `/api/admin/ads/${c.id}`, {
+   465→          method: "PATCH",
+   466→          body: JSON.stringify({ status: nextStatus }),
+   467→        });
+   468→        const d = (await res.json()) as { ok?: boolean; error?: string };
+   469→        if (!res.ok || !d.ok) throw new Error(d.error ?? "Status update failed");
+   470→        toast({ title: `${c.name} → ${nextStatus}`, description: note });
+   471→        onChanged();
+   472→      } catch (err) {
+   473→        setCampaigns(snapshot);
+   474→        toast({
+   475→          title: err instanceof Error ? err.message : "Network error",
+   476→          variant: "destructive",
+   477→        });
+   478→      } finally {
+   479→        setBusy(null);
+   480→      }
+   481→    },
+   482→    [apiKey, campaigns, toast, onChanged]
+   483→  );
+   484→
+   485→  const doDelete = useCallback(
+   486→    async (c: AdCampaign) => {
+   487→      setBusy(c.id);
+   488→      try {
+   489→        const res = await adminFetch(apiKey, `/api/admin/ads/${c.id}`, { method: "DELETE" });
+   490→        const d = (await res.json()) as { ok?: boolean; error?: string };
+   491→        if (!res.ok || !d.ok) throw new Error(d.error ?? "Delete failed");
+   492→        toast({ title: `${c.name} deleted` });
+   493→        setCampaigns((cur) => cur?.filter((x) => x.id !== c.id) ?? cur);
+   494→        onChanged();
+   495→      } catch (err) {
+   496→        toast({
+   497→          title: err instanceof Error ? err.message : "Network error",
+   498→          variant: "destructive",
+   499→        });
+   500→      } finally {
+   501→        setBusy(null);
+   502→      }
+   503→    },
+   504→    [apiKey, toast, onChanged]
+   505→  );
+   506→
+   507→  const onDeleteClick = useCallback(
+   508→    (c: AdCampaign) => {
+   509→      if (confirmDelete === c.id) {
+   510→        if (deleteTimer.current) clearTimeout(deleteTimer.current);
+   511→        setConfirmDelete(null);
+   512→        void doDelete(c);
+   513→      } else {
+   514→        setConfirmDelete(c.id);
+   515→        if (deleteTimer.current) clearTimeout(deleteTimer.current);
+   516→        deleteTimer.current = setTimeout(() => setConfirmDelete(null), 3000);
+   517→      }
+   518→    },
+   519→    [confirmDelete, doDelete]
+   520→  );
+   521→
+   522→  return (
+   523→    <div className="space-y-3">
+   524→      {/* stats strip */}
+   525→      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+   526→        <MiniStat label="Active campaigns" value={stats ? `${stats.active}/${stats.total}` : "…"} />
+   527→        <MiniStat label="Impressions" value={stats?.impressions ?? "…"} />
+   528→        <MiniStat label="Clicks" value={stats?.clicks ?? "…"} />
+   529→        <MiniStat label="Avg CTR" value={stats ? fmtCtr(stats.ctr) : "…"} accent />
+   530→      </div>
+   531→
+   532→      <div className="flex items-center justify-between">
+   533→        <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+   534→          {campaigns ? `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"}` : "…"} ·
+   535→          weight picks the slot winner
+   536→        </p>
+   537→        <Button
+   538→          size="sm"
+   539→          onClick={() => setDialog({ open: true, campaign: null })}
+   540→          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   541→        >
+   542→          <Plus className="size-4" aria-hidden />
+   543→          New campaign
+   544→        </Button>
+   545→      </div>
+   546→
+   547→      {error ? (
+   548→        <LoadError label="Campaigns" onRetry={retry} />
+   549→      ) : campaigns === null ? (
+   550→        <CampaignsSkeleton />
+   551→      ) : campaigns.length === 0 ? (
+   552→        <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
+   553→          <Megaphone className="mx-auto size-8 text-white/25" aria-hidden />
+   554→          <p className="mt-3 font-mono text-sm text-white/60">
+   555→            No campaigns yet — create the first one
+   556→          </p>
+   557→          <Button
+   558→            onClick={() => setDialog({ open: true, campaign: null })}
+   559→            className="mt-4 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+   560→          >
+   561→            <Plus className="size-4" aria-hidden />
+   562→            New campaign
+   563→          </Button>
+   564→        </div>
+   565→      ) : (
+   566→        <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+   567→          {campaigns.map((c) => (
+   568→            <div
+   569→              key={c.id}
+   570→              className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
+   571→            >
+   572→              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+   573→                <span aria-hidden className="text-lg">
+   574→                  {c.emoji || "📢"}
+   575→                </span>
+   576→                <div className="min-w-44 flex-1">
+   577→                  <p className="truncate text-sm font-bold text-white">{c.name}</p>
+   578→                  <p className="truncate text-xs text-white/45">{c.headline}</p>
+   579→                </div>
+   580→
+   581→                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+   582→                  <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[9px] tracking-wider text-white/60 uppercase">
+   583→                    {PLACEMENT_LABEL[c.placement]}
+   584→                  </span>
+   585→                  {c.windowState !== "none" && (
+   586→                    <span
+   587→                      className={cn(
+   588→                        "rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wider uppercase",
+   589→                        WINDOW_CX[c.windowState]
+   590→                      )}
+   591→                    >
+   592→                      {c.windowState}
+   593→                    </span>
+   594→                  )}
+   595→                  {c.targetCategory && (
+   596→                    <span
+   597→                      title={`Category spotlight: ${c.targetCategory}`}
+   598→                      className="rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-ember"
+   599→                    >
+   600→                      → {c.targetCategory}
+   601→                    </span>
+   602→                  )}
+   603→                </div>
+   604→
+   605→                <div className="hidden shrink-0 text-right font-mono text-[10px] leading-relaxed text-white/40 lg:block">
+   606→                  <p>{fmtWindow(c)}</p>
+   607→                  <p>
+   608→                    {fmtMoney(c.totalBudgetCents)}
+   609→                    {c.dailyBudgetCents && c.dailyBudgetCents > 0
+   610→                      ? ` · $${(c.dailyBudgetCents / 100).toLocaleString("en-US")}/day`
+   611→                      : ""}
+   612→                  </p>
+   613→                </div>
+   614→
+   615→                <div className="hidden shrink-0 text-right font-mono text-[10px] leading-relaxed text-white/50 sm:block">
+   616→                  <p>{c.impressions.toLocaleString("en-US")} imp</p>
+   617→                  <p>
+   618→                    {c.clicks.toLocaleString("en-US")} clk ·{" "}
+   619→                    <span className="text-ember">{fmtCtr(c.ctr)}</span>
+   620→                  </p>
+   621→                </div>
+   622→
+   623→                <Select
+   624→                  value={c.status}
+   625→                  onValueChange={(v) => void patchStatus(c, v as CampaignStatus)}
+   626→                  disabled={busy === c.id}
+   627→                >
+   628→                  <SelectTrigger
+   629→                    aria-label={`Status for ${c.name}`}
+   630→                    className={cn(inputCx, "h-8 w-28 shrink-0 text-xs")}
+   631→                  >
+   632→                    <SelectValue />
+   633→                  </SelectTrigger>
+   634→                  <SelectContent className="border-white/10 bg-coal text-white">
+   635→                    {STATUSES.map((s) => (
+   636→                      <SelectItem key={s} value={s}>{s}</SelectItem>
+   637→                    ))}
+   638→                  </SelectContent>
+   639→                </Select>
+   640→
+   641→                <div className="flex shrink-0 items-center gap-1">
+   642→                  {c.status === "active" ? (
+   643→                    <Button
+   644→                      size="icon"
+   645→                      variant="outline"
+   646→                      disabled={busy === c.id}
+   647→                      onClick={() => void patchStatus(c, "paused")}
+   648→                      aria-label={`Pause ${c.name}`}
+   649→                      title="Pause"
+   650→                      className="size-8 rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+   651→                    >
+   652→                      <Pause className="size-3.5" aria-hidden />
+   653→                    </Button>
+   654→                  ) : (
+   655→                    <Button
+   656→                      size="icon"
+   657→                      variant="outline"
+   658→                      disabled={busy === c.id}
+   659→                      onClick={() =>
+   660→                        void patchStatus(c, "active", "Serves only inside the flight window.")
+   661→                      }
+   662→                      aria-label={`Activate ${c.name}`}
+   663→                      title="Activate"
+   664→                      className="size-8 rounded-lg border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300"
+   665→                    >
+   666→                      <Play className="size-3.5" aria-hidden />
+   667→                    </Button>
+   668→                  )}
+   669→                  <Button
+   670→                    size="icon"
+   671→                    variant="ghost"
+   672→                    disabled={busy === c.id}
+   673→                    onClick={() => setDialog({ open: true, campaign: c })}
+   674→                    aria-label={`Edit ${c.name}`}
+   675→                    className="size-8 rounded-lg text-white/40 hover:text-ember"
+   676→                  >
+   677→                    <Pencil className="size-3.5" aria-hidden />
+   678→                  </Button>
+   679→                  <Button
+   680→                    size="sm"
+   681→                    variant="ghost"
+   682→                    disabled={busy === c.id}
+   683→                    onClick={() => onDeleteClick(c)}
+   684→                    aria-label={
+   685→                      confirmDelete === c.id ? `Confirm delete ${c.name}` : `Delete ${c.name}`
+   686→                    }
+   687→                    className={cn(
+   688→                      "h-8 rounded-lg font-mono text-[10px] tracking-wider uppercase",
+   689→                      confirmDelete === c.id
+   690→                        ? "bg-red-500/15 text-red-300 hover:bg-red-500/25"
+   691→                        : "text-red-400/70 hover:bg-red-400/10 hover:text-red-300"
+   692→                    )}
+   693→                  >
+   694→                    <Trash2 className="size-3.5" aria-hidden />
+   695→                    {confirmDelete === c.id ? "Sure?" : ""}
+   696→                  </Button>
+   697→                </div>
+   698→              </div>
+   699→            </div>
+   700→          ))}
+   701→        </div>
+   702→      )}
+   703→
+   704→      <p className="font-mono text-[10px] leading-relaxed text-white/25">
+   705→        IMPRESSIONS &amp; CLICKS COUNT THROUGH THE PUBLIC /API/ADS ENDPOINTS ·
+   706→        DELETE IS TWO-CLICK CONFIRM (CLICK AGAIN WITHIN 3S) · FLIGHT DATES ARE UTC
+   707→      </p>
+   708→
+   709→      {dialog.open && (
+   710→        <CampaignDialog
+   711→          apiKey={apiKey}
+   712→          campaign={dialog.campaign}
+   713→          onDone={() => {
+   714→            setDialog({ open: false, campaign: null });
+   715→            load();
+   716→            onChanged();
+   717→          }}
+   718→        />
+   719→      )}
+   720→    </div>
+   721→  );
+   722→}
+   723→

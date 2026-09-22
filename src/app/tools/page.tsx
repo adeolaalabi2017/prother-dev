@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight, ChevronLeft, ChevronRight, Compass, SearchX, Triangle } from "lucide-react";
 import { ToolsDirectory } from "@/components/prother/tools-directory";
+import { AdSlot } from "@/components/prother/ad-slot";
 import { db } from "@/lib/prother";
 import { searchToolsForSerp } from "@/lib/search";
 import type { SerpToolRow } from "@/lib/search";
 import { commentCountsByTool } from "@/lib/discussion";
 import type { DirectoryRow } from "@/app/api/tools/route";
+import { placementEnabled } from "@/lib/ad-config";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -272,6 +274,10 @@ export default async function ToolsPage({
   const q = first(params.q).slice(0, 64);
   const pageRaw = Number.parseInt(first(params.page), 10);
   const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
+  // Ad slots are gated server-side — a disabled placement mounts no client
+  // island at all (zero ad JS when off; kill switch lives in the KV).
+  const serpFooterOn = await placementEnabled("serp_footer");
+  const directoryBannerOn = await placementEnabled("directory_banner");
 
   // ── SERP: ?q= is present — render scored results server-side ──────────
   if (q) {
@@ -343,6 +349,17 @@ export default async function ToolsPage({
                 <SerpPagination q={q} page={serp.page} pages={serp.pages} />
               </>
             )}
+
+            {/* SERP footer — after the results (never between rows 1–3),
+                category context passed for targeted campaigns. */}
+            {serpFooterOn && (
+              <AdSlot
+                placement="serp_footer"
+                category={q}
+                variant="bar"
+                className="mt-10"
+              />
+            )}
           </div>
         </section>
 
@@ -377,7 +394,15 @@ export default async function ToolsPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
       />
-      <ToolsDirectory initialRows={initial.rows} initialTotal={initial.total} />
+      <ToolsDirectory
+        initialRows={initial.rows}
+        initialTotal={initial.total}
+        sponsorSlot={
+          directoryBannerOn ? (
+            <AdSlot placement="directory_banner" variant="bar" />
+          ) : undefined
+        }
+      />
     </div>
   );
 }

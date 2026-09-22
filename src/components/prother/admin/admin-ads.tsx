@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Megaphone, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { Megaphone, Pause, Pencil, Play, Plus, Power, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,12 @@ import {
  * re-validates and 400s are surfaced verbatim.
  */
 
-type Placement = "feed_row" | "journal_bar" | "category_spotlight";
+type Placement =
+  | "feed_row"
+  | "journal_bar"
+  | "category_spotlight"
+  | "directory_banner"
+  | "serp_footer";
 type CampaignStatus = "draft" | "active" | "paused" | "ended";
 type WindowState = "scheduled" | "running" | "finished" | "none";
 
@@ -71,6 +77,8 @@ const PLACEMENTS: { value: Placement; label: string }[] = [
   { value: "feed_row", label: "Feed row" },
   { value: "journal_bar", label: "Journal bar" },
   { value: "category_spotlight", label: "Category spotlight" },
+  { value: "directory_banner", label: "Directory banner" },
+  { value: "serp_footer", label: "Search results footer" },
 ];
 
 const STATUSES: CampaignStatus[] = ["draft", "active", "paused", "ended"];
@@ -79,6 +87,8 @@ const PLACEMENT_LABEL: Record<Placement, string> = {
   feed_row: "Feed row",
   journal_bar: "Journal bar",
   category_spotlight: "Spotlight",
+  directory_banner: "Directory",
+  serp_footer: "SERP",
 };
 
 function urlOk(value: string): boolean {
@@ -416,6 +426,148 @@ function CampaignDialog({
   );
 }
 
+// ── Serving controls (Task 27) ─────────────────────────────────────────
+
+const SERVING_MASTER_KEY = "ads.master";
+const servingPlacementKey = (p: Placement) => `ads.placement.${p}`;
+
+/**
+ * Live kill switches, backed by the SiteSetting KV via /api/admin/settings —
+ * the same keys /api/ads/serve reads before counting an impression. Flipping
+ * one takes effect on the next slot request, no deploy. When a placement is
+ * off, pages don't even mount the client island (zero ad JS).
+ */
+function ServingControls({ apiKey }: { apiKey: string }) {
+  const { toast } = useToast();
+  const [config, setConfig] = useState<{
+    master: boolean;
+    placements: Record<Placement, boolean>;
+  } | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    adminFetch(apiKey, "/api/admin/settings")
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<{ settings?: Record<string, string> }>;
+      })
+      .then((d) => {
+        if (!alive) return;
+        const s = d.settings ?? {};
+        setConfig({
+          master: s[SERVING_MASTER_KEY] !== "0",
+          placements: Object.fromEntries(
+            PLACEMENTS.map((p) => [p.value, s[servingPlacementKey(p.value)] !== "0"])
+          ) as Record<Placement, boolean>,
+        });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setConfig({
+          master: true,
+          placements: Object.fromEntries(
+            PLACEMENTS.map((p) => [p.value, true])
+          ) as Record<Placement, boolean>,
+        });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiKey]);
+
+  const put = useCallback(
+    async (key: string, on: boolean, label: string) => {
+      setBusyKey(key);
+      try {
+        const res = await adminFetch(apiKey, "/api/admin/settings", {
+          method: "PUT",
+          body: JSON.stringify({ key, value: on ? "1" : "0" }),
+        });
+        const d = (await res.json()) as { ok?: boolean; error?: string };
+        if (!res.ok || !d.ok) throw new Error(d.error ?? "Save failed");
+        setConfig((cur) =>
+          !cur
+            ? cur
+            : key === SERVING_MASTER_KEY
+              ? { ...cur, master: on }
+              : {
+                  ...cur,
+                  placements: {
+                    ...cur.placements,
+                    [key.slice("ads.placement.".length) as Placement]: on,
+                  },
+                }
+        );
+        toast({
+          title: `${label} ${on ? "enabled" : "disabled"}`,
+          description: on ? undefined : "Slots render nothing while off.",
+        });
+      } catch (err) {
+        toast({
+          title: err instanceof Error ? err.message : "Network error",
+          variant: "destructive",
+        });
+      } finally {
+        setBusyKey(null);
+      }
+    },
+    [apiKey, toast]
+  );
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-white">Serving controls</p>
+          <p className="text-xs text-white/45">
+            Live kill switches — no deploy. Off slots render nothing and spend no
+            impressions.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Power
+            className={cn("size-4", config?.master ? "text-ember" : "text-white/30")}
+            aria-hidden
+          />
+          <Switch
+            checked={config?.master ?? false}
+            disabled={!config || busyKey === SERVING_MASTER_KEY}
+            onCheckedChange={(v) => void put(SERVING_MASTER_KEY, v, "All ad serving")}
+            aria-label="Master ad serving switch"
+          />
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-1.5 border-t border-white/10 pt-3 sm:grid-cols-2">
+        {PLACEMENTS.map((p) => (
+          <div
+            key={p.value}
+            className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
+          >
+            <span className="min-w-0">
+              <span className="block truncate font-mono text-[11px] tracking-wider text-white/70 uppercase">
+                {p.label}
+              </span>
+              <span className="block truncate font-mono text-[9px] text-white/30">
+                {p.value}
+              </span>
+            </span>
+            <Switch
+              checked={config?.placements[p.value] ?? false}
+              disabled={!config || busyKey === servingPlacementKey(p.value)}
+              onCheckedChange={(v) =>
+                void put(servingPlacementKey(p.value), v, p.label)
+              }
+              aria-label={`Serve ${p.label} placement`}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Ads tab ──────────────────────────────────────────────────────────────
 
 export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
@@ -528,6 +680,9 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
         <MiniStat label="Clicks" value={stats?.clicks ?? "…"} />
         <MiniStat label="Avg CTR" value={stats ? fmtCtr(stats.ctr) : "…"} accent />
       </div>
+
+      {/* serving controls — master + per-placement kill switches (Task 27) */}
+      <ServingControls apiKey={apiKey} />
 
       <div className="flex items-center justify-between">
         <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">

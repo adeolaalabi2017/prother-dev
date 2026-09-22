@@ -7,6 +7,8 @@ import { clamp } from "@/lib/og";
 import { blurbFor } from "@/lib/category-blurbs";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
+import { AdSlot } from "@/components/prother/ad-slot";
+import { placementEnabled } from "@/lib/ad-config";
 
 /**
  * /categories/[slug] — the real, crawlable category page (Task 25).
@@ -118,6 +120,7 @@ export default async function CategoryPage({ params }: Params) {
     .sort((a, b) => b.votes - a.votes);
 
   const blurb = blurbFor(category.slug, category.name);
+  const spotlightOn = await placementEnabled("category_spotlight");
 
   const itemListJsonLd = {
     "@context": "https://schema.org",
@@ -165,6 +168,17 @@ export default async function CategoryPage({ params }: Params) {
             votes
           </p>
         </header>
+
+        {/* Category Spotlight — the top slot sold on /advertise. Category-
+            targeted campaigns win here (targetCategory = slug or null). */}
+        {spotlightOn && (
+          <AdSlot
+            placement="category_spotlight"
+            category={category.slug}
+            variant="spotlight"
+            className="mt-8"
+          />
+        )}
 
         {/* Ranked grid — real links to the SSR tool pages */}
         <div className="pb-24 pt-8">

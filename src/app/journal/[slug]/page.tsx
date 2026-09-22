@@ -8,6 +8,8 @@ import { renderMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { PostViewPing } from "@/components/prother/post-view-ping";
+import { AdSlot } from "@/components/prother/ad-slot";
+import { placementEnabled } from "@/lib/ad-config";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +72,7 @@ export default async function JournalArticlePage({ params }: Params) {
 
   const html = renderMarkdown(post.body);
   const tags = post.tags ? post.tags.split("|").filter(Boolean) : [];
+  const journalBarOn = await placementEnabled("journal_bar");
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -152,6 +155,12 @@ export default async function JournalArticlePage({ params }: Params) {
             </span>
           </div>
         </header>
+
+        {/* Journal sponsorship — named at the top of the issue (one sponsor
+            per slot; house creative fills it when unsold). */}
+        {journalBarOn && (
+          <AdSlot placement="journal_bar" variant="bar" className="mt-10" />
+        )}
 
         {/* body */}
         <div

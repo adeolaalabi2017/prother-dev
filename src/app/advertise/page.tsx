@@ -4,7 +4,9 @@ import {
   ArrowUpRight,
   EyeOff,
   Layers,
+  LayoutGrid,
   Mail,
+  Search,
   ShieldCheck,
   SquareStack,
   Tag,
@@ -63,6 +65,20 @@ const PLACEMENTS = [
     title: "Category spotlight",
     body: "Hold the top slot of a category in the directory for a day, a week, or a month. You pick the aisle; we keep the shelves honest.",
     mock: "category" as const,
+  },
+  {
+    icon: LayoutGrid,
+    kicker: "PLACEMENT 04",
+    title: "Directory banner",
+    body: "A full-width sponsored card inside the open /tools directory, after the first row of results. Buyers browsing the whole shelf see it — nobody scrolling past it is interrupted.",
+    mock: "banner" as const,
+  },
+  {
+    icon: Search,
+    kicker: "PLACEMENT 05",
+    title: "Search results footer",
+    body: "Own the bottom of the search page for a query family. Shown after the organic results, never between them — intent without the ambush.",
+    mock: "search" as const,
   },
 ];
 
@@ -174,7 +190,7 @@ export default async function AdvertisePage() {
           Find your audience
         </p>
         <h2 className="mt-3 text-3xl font-black tracking-tighter text-white sm:text-4xl">
-          Three placements. No clutter.
+          Five placements. No clutter.
         </h2>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/55">
           Each slot is fixed-price and capped at one sponsor. You buy the audience&apos;s
@@ -236,6 +252,37 @@ export default async function AdvertisePage() {
                     <div className="mt-2 space-y-1.5">
                       <span className="block h-2 w-2/3 rounded bg-white/10" />
                       <span className="block h-2 w-5/6 rounded bg-white/5" />
+                    </div>
+                  </div>
+                )}
+                {p.mock === "banner" && (
+                  <div aria-hidden className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-14 rounded bg-white/10" />
+                      <span className="h-2 w-9 rounded bg-white/5" />
+                      <span className="ml-auto h-2 w-9 rounded bg-white/5" />
+                    </div>
+                    <div className="mt-2 flex items-center gap-3 rounded-md border border-dashed border-ember/30 bg-ember/5 px-2.5 py-2">
+                      <span className="rounded-full bg-ember/15 px-1.5 py-px font-mono text-[9px] text-ember">
+                        SPONSORED
+                      </span>
+                      <span className="font-mono text-[10px] text-white/70">
+                        YourTool — one full-width card
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {p.mock === "search" && (
+                  <div aria-hidden className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] text-white/40">RESULTS FOR “AGENTS”</span>
+                      <span className="ml-auto font-mono text-[9px] text-white/25">ORGANIC ↑</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                      <span className="font-mono text-[10px] text-ember">
+                        SPONSORED — YourTool
+                      </span>
+                      <span className="font-mono text-[9px] text-white/40">AFTER RESULTS</span>
                     </div>
                   </div>
                 )}

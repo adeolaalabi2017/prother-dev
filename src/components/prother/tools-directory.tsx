@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Compass, Search, SearchX, Triangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,9 @@ export type ToolsDirectoryProps = {
   hideHeader?: boolean;
   /** Query the page already rendered results for (mirrored into the input). */
   initialQuery?: string;
+  /** Server-gated ad island (Task 27) — rendered as a full-width cell after
+   *  the first row of tool cards. undefined when ad serving is off. */
+  sponsorSlot?: ReactNode;
 };
 
 function pricingLabel(row: DirectoryRow): string {
@@ -64,6 +67,7 @@ export function ToolsDirectory({
   initialTotal,
   hideHeader = false,
   initialQuery,
+  sponsorSlot,
 }: ToolsDirectoryProps) {
   // Hydration-safe: the server rendered the same value via the initialQuery
   // prop when a query is in the URL; the window fallback covers mounts
@@ -340,52 +344,58 @@ export function ToolsDirectory({
 
         {!loading && !failed && count > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {rows!.map((row) => (
-              <Link
-                key={row.slug}
-                href={`/tools/${row.slug}`}
-                aria-label={`${row.name} — ${row.tagline}. Open full listing.`}
-                className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div
-                    aria-hidden
-                    className={cn(
-                      "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
-                      row.gradient
-                    )}
-                  >
-                    {row.emoji}
-                  </div>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
-                    <Triangle className="size-2.5 fill-current" aria-hidden />
-                    {row.votes}
-                  </span>
-                </div>
-
-                <h2 className="mt-4 text-lg leading-snug font-bold text-white transition-colors group-hover:text-ember">
-                  {row.name}
-                </h2>
-                <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-white/55">
-                  {row.tagline}
-                </p>
-
-                <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
-                    {row.category.emoji} {row.category.name}
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
-                    {pricingLabel(row)}
-                  </span>
-                  <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-white/35 uppercase">
-                    {launchLabel(row)}
-                    <ArrowUpRight
-                      className="size-3.5 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+            {rows!.map((row, i) => (
+              <Fragment key={row.slug}>
+                <Link
+                  href={`/tools/${row.slug}`}
+                  aria-label={`${row.name} — ${row.tagline}. Open full listing.`}
+                  className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div
                       aria-hidden
-                    />
-                  </span>
-                </div>
-              </Link>
+                      className={cn(
+                        "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
+                        row.gradient
+                      )}
+                    >
+                      {row.emoji}
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                      <Triangle className="size-2.5 fill-current" aria-hidden />
+                      {row.votes}
+                    </span>
+                  </div>
+
+                  <h2 className="mt-4 text-lg leading-snug font-bold text-white transition-colors group-hover:text-ember">
+                    {row.name}
+                  </h2>
+                  <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-white/55">
+                    {row.tagline}
+                  </p>
+
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
+                      {row.category.emoji} {row.category.name}
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
+                      {pricingLabel(row)}
+                    </span>
+                    <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                      {launchLabel(row)}
+                      <ArrowUpRight
+                        className="size-3.5 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+                        aria-hidden
+                      />
+                    </span>
+                  </div>
+                </Link>
+                {/* Directory banner — one full-width sponsored cell after the
+                    first row (server-gated; house creative when unsold). */}
+                {sponsorSlot && i === 2 && (
+                  <div className="sm:col-span-2 lg:col-span-3">{sponsorSlot}</div>
+                )}
+              </Fragment>
             ))}
           </div>
         )}

@@ -13,7 +13,13 @@
  */
 import { db } from "@/lib/db";
 
-export const AD_PLACEMENTS = ["feed_row", "journal_bar", "category_spotlight"] as const;
+export const AD_PLACEMENTS = [
+  "feed_row",
+  "journal_bar",
+  "category_spotlight",
+  "directory_banner",
+  "serp_footer",
+] as const;
 export type AdPlacement = (typeof AD_PLACEMENTS)[number];
 
 export const AD_STATUSES = ["draft", "active", "paused", "ended"] as const;

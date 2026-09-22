@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -77,10 +77,14 @@ const TOPIC_HINTS: Record<TopicFilter, string> = {
 export function ForumIndex({
   initial,
   breadcrumbs,
+  sponsorSlot,
 }: {
   initial: ForumListResponse;
   /** Server-rendered slot (Breadcrumbs) — mounted inside the container, above the H1. */
   breadcrumbs?: ReactNode;
+  /** Server-gated ad island (Task 27) — rendered after the 3rd thread row.
+   *  undefined when ad serving is off. */
+  sponsorSlot?: ReactNode;
 }) {
   const [topic, setTopic] = useState<TopicFilter>("all");
   const [sort, setSort] = useState<ForumSort>("hot");
@@ -293,8 +297,14 @@ export function ForumIndex({
                 )}
                 aria-busy={loading}
               >
-                {data.threads.map((t) => (
-                  <ThreadRow key={t.id} thread={t} onVote={() => void toggleVote(t)} />
+                {data.threads.map((t, i) => (
+                  <Fragment key={t.id}>
+                    <ThreadRow thread={t} onVote={() => void toggleVote(t)} />
+                    {/* Sponsored row — after the 3rd thread (server-gated). */}
+                    {sponsorSlot && i === 2 && (
+                      <li className="list-none">{sponsorSlot}</li>
+                    )}
+                  </Fragment>
                 ))}
                 {data.threads.length === 0 && !error && (
                   <li className="rounded-xl border border-dashed border-white/15 p-10 text-center">

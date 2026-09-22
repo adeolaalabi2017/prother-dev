@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { ForumIndex } from "@/components/prother/forum-index";
+import { AdSlot } from "@/components/prother/ad-slot";
 import { forumListPayload } from "@/lib/forum";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { siteUrl } from "@/lib/site-url";
+import { placementEnabled } from "@/lib/ad-config";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,7 @@ export default async function ForumsPage() {
   // ItemList over the SSR'd hot threads — gives crawlers thread discovery
   // straight from the index page (thread pages carry DiscussionForumPosting).
   const base = siteUrl();
+  const forumsBannerOn = await placementEnabled("directory_banner");
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -64,6 +67,11 @@ export default async function ForumsPage() {
       <ForumIndex
         initial={initial}
         breadcrumbs={<Breadcrumbs trail={[{ name: "Home", href: "/" }, { name: "Forums" }]} />}
+        sponsorSlot={
+          forumsBannerOn ? (
+            <AdSlot placement="directory_banner" variant="bar" />
+          ) : undefined
+        }
       />
     </div>
   );

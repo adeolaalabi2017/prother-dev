@@ -2,8 +2,10 @@
  * Community seed (Task 23) — accounts for forum authors, ad campaigns, and
  * demo reports so the Admin Console's new modules are populated.
  *
- * Idempotent: users upsert by handle, campaigns/reports skip when present,
- * authorId backfill is a no-op once applied. Run: bun prisma/community-seed.ts
+ * Idempotent: users upsert by handle, campaigns are per-placement guarded
+ * (Task 27: a placement only seeds when that placement has no row),
+ * reports skip when present, authorId backfill is a no-op once applied.
+ * Run: bun prisma/community-seed.ts
  *
  * Raw SQL throughout (same stale-client rationale as lib/forum.ts — though a
  * fresh `bun` process would have a current client anyway).
@@ -62,12 +64,8 @@ async function seedUsers(): Promise<void> {
 }
 
 async function seedCampaigns(): Promise<void> {
-  const count = await db.$queryRaw<{ n: number }[]>`
-    SELECT COUNT(*) AS n FROM AdCampaign`;
-  if (Number(count[0]?.n ?? 0) > 0) {
-    console.log("[community-seed] campaigns already present — skipping");
-    return;
-  }
+  // Per-placement guard (Task 27) — each placement seeds exactly one demo
+  // campaign the first time it appears; re-runs skip rows that already exist.
   const campaigns: {
     name: string; advertiser: string; placement: string; status: string;
     headline: string; body: string; clickUrl: string; emoji: string;
@@ -117,23 +115,65 @@ async function seedCampaigns(): Promise<void> {
       name: "PromptForge Pro — agents spotlight",
       advertiser: "PromptForge",
       placement: "category_spotlight",
-      status: "draft",
+      status: "active",
       headline: "PromptForge Pro: versioning for production prompts",
       body: "Diff, eval and roll back prompts like code.",
       clickUrl: "https://promptforge.example.com/pro?utm_source=prother",
       emoji: "⚒️",
       gradient: "from-amber-500 to-orange-800",
-      targetCategory: "ai-agents",
+      targetCategory: "agents-automation",
       weight: 4,
-      startsAt: daysAhead(3),
+      startsAt: daysAgo(1),
       endsAt: daysAhead(30),
       totalBudgetCents: 0,
       dailyBudgetCents: 0,
       impressions: 0,
       clicks: 0,
     },
+    {
+      name: "Loomline directory banner",
+      advertiser: "Loomline",
+      placement: "directory_banner",
+      status: "active",
+      headline: "Watch your agents think — trace every run",
+      body: "Loomline records, replays and diffs agent sessions so you can fix what went wrong.",
+      clickUrl: "https://loomline.example.com/?utm_source=prother",
+      emoji: "🛰️",
+      gradient: "from-emerald-600 to-orange-700",
+      targetCategory: null,
+      weight: 4,
+      startsAt: daysAgo(1),
+      endsAt: daysAhead(21),
+      totalBudgetCents: 30_000,
+      dailyBudgetCents: 0,
+      impressions: 986,
+      clicks: 33,
+    },
+    {
+      name: "QueryFox SERP footer",
+      advertiser: "QueryFox",
+      placement: "serp_footer",
+      status: "active",
+      headline: "Analytics for AI search — see how tools rank",
+      body: "QueryFox tracks AI-search visibility across engines, weekly.",
+      clickUrl: "https://queryfox.example.com/?utm_source=prother",
+      emoji: "🦊",
+      gradient: "from-orange-600 to-red-800",
+      targetCategory: null,
+      weight: 3,
+      startsAt: daysAgo(1),
+      endsAt: daysAhead(21),
+      totalBudgetCents: 15_000,
+      dailyBudgetCents: 0,
+      impressions: 412,
+      clicks: 11,
+    },
   ];
+  let inserted = 0;
   for (const c of campaigns) {
+    const present = await db.$queryRaw<{ n: number }[]>`
+      SELECT COUNT(*) AS n FROM AdCampaign WHERE placement = ${c.placement}`;
+    if (Number(present[0]?.n ?? 0) > 0) continue;
     await db.$executeRaw`
       INSERT INTO AdCampaign (
         id, name, advertiser, placement, status, headline, body, clickUrl,
@@ -146,8 +186,15 @@ async function seedCampaigns(): Promise<void> {
         ${c.endsAt}, ${c.totalBudgetCents}, ${c.dailyBudgetCents},
         ${c.impressions}, ${c.clicks}, ${daysAgo(6)}, ${daysAgo(1)}
       )`;
+    inserted += 1;
   }
-  console.log(`[community-seed] campaigns inserted (${campaigns.length})`);
+  // Legacy demo row (Task 23) shipped as draft+scheduled — flip it live so
+  // the category spotlight slot demonstrates a real creative.
+  await db.$executeRaw`
+    UPDATE AdCampaign
+    SET status = 'active', startsAt = ${daysAgo(1)}, updatedAt = ${new Date().toISOString()}
+    WHERE name = 'PromptForge Pro — agents spotlight' AND status = 'draft'`;
+  console.log(`[community-seed] campaigns ensured (${inserted} inserted, ${campaigns.length} placements covered)`);
 }
 
 async function seedReports(): Promise<void> {
