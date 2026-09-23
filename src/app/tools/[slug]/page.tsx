@@ -4,12 +4,16 @@ import { notFound } from "next/navigation";
 import {
   ArrowUpRight,
   Check,
+  CheckCircle2,
   MessagesSquare,
   Star,
+  X,
 } from "lucide-react";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { toolMediaByIds } from "@/lib/media";
+import { blurbFor } from "@/lib/category-blurbs";
+import { editorialByToolIds, resolveAlternatives } from "@/lib/tool-editorial";
 import { listPublishedReviews, reviewStats } from "@/lib/community";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
@@ -24,6 +28,11 @@ import { AboutClamp } from "@/components/prother/about-clamp";
  * aggregate), forum mentions and related tools. The only client island is
  * <ToolDetailActions /> (save / compare / share / report) — everything else
  * is static HTML so search engines see the full listing.
+ *
+ * Task 35-c editorial enrichment: long about copy, pricing facts panel,
+ * use cases, pros/cons, alternatives, category context and the pricing
+ * fact-check badge all render progressively. A section exists only when its
+ * content does, so listings without editorial data look exactly as before.
  */
 
 export const dynamic = "force-dynamic";
@@ -174,7 +183,8 @@ export default async function ToolPage({ params }: Params) {
   const name = tool.name;
 
   // ── Full live listing — everything below is server-rendered ────────────
-  const [stats, reviews, threads, relatedRows, mediaMap] = await Promise.all([
+  const [stats, reviews, threads, relatedRows, mediaMap, editorialMap, categoryToolCount] =
+    await Promise.all([
     reviewStats(tool.id),
     db.review.findMany({
       where: { toolId: tool.id, status: "published" },
@@ -212,10 +222,36 @@ export default async function ToolPage({ params }: Params) {
     // POST-boot media columns → raw SQL (stale-PrismaClient rule; never
     // select logoUrl/screenshotUrls via the ORM).
     toolMediaByIds([tool.id]),
+    // Task 35-c editorial fields (post-boot columns → raw SQL helper) and
+    // the live listing count for the category context panel.
+    editorialByToolIds([tool.id]),
+    db.tool.count({ where: { categoryId: tool.categoryId, status: "live" } }),
   ]);
 
   const logoUrl = mediaMap.get(tool.id)?.logoUrl ?? null;
   const screenshots = mediaMap.get(tool.id)?.screenshotUrls ?? [];
+
+  // Editorial enrichment (Task 35-c). editorialByToolIds always maps every
+  // requested id, so this only falls back defensively.
+  const editorial =
+    editorialMap.get(tool.id) ?? {
+      longDescription: null,
+      useCases: [],
+      pros: [],
+      cons: [],
+      alternativeSlugs: [],
+      pricingCheckedAt: null,
+      contentUpdatedAt: null,
+    };
+  // One extra query only when the editors actually listed alternatives.
+  const alternatives = editorial.alternativeSlugs.length
+    ? await resolveAlternatives(editorial.alternativeSlugs, tool.slug)
+    : [];
+
+  const longParagraphs = (editorial.longDescription ?? "")
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   const aggregate = stats.aggregate;
   const related = relatedRows.map((r) => ({
@@ -246,6 +282,9 @@ export default async function ToolPage({ params }: Params) {
       price: tool.pricingModel === "paid" && priceMatch ? priceMatch[1] : "0",
       priceCurrency: "USD",
     },
+    ...(editorial.contentUpdatedAt
+      ? { dateModified: editorial.contentUpdatedAt.toISOString() }
+      : {}),
     author: { "@type": "Organization", name: "Prother" },
     publisher: { "@type": "Organization", name: "Prother" },
     ...(aggregate
@@ -333,6 +372,15 @@ export default async function ToolPage({ params }: Params) {
               <span title={tool.pricingNote ?? undefined} className="text-ember">
                 {pricingLine(tool.pricingModel, tool.startingPrice)}
               </span>
+              {editorial.pricingCheckedAt && (
+                <span
+                  title="Pricing verified by the editors on this date"
+                  className="inline-flex items-center gap-1 text-mint"
+                >
+                  <CheckCircle2 className="size-3" aria-hidden />
+                  Pricing checked {utcMonthYear(editorial.pricingCheckedAt)}
+                </span>
+              )}
               <span aria-hidden className="text-white/55">
                 ·
               </span>
@@ -341,6 +389,10 @@ export default async function ToolPage({ params }: Params) {
                 ·
               </span>
               <span>Listed {utcMonthYear(tool.createdAt)}</span>
+              <span aria-hidden className="text-white/55">
+                ·
+              </span>
+              <span>Updated {utcDateLabel(editorial.contentUpdatedAt ?? tool.createdAt)}</span>
             </p>
 
             {/* Category chip + rating — a real link to the crawlable category page */}
@@ -372,29 +424,155 @@ export default async function ToolPage({ params }: Params) {
             />
           </header>
 
-          {/* b. About */}
-          {tool.description && (
+          {/* b. About — the editors' long description wins when present,
+              split into real paragraphs for crawlers; the short listing copy
+              (with its Read more clamp) remains the fallback. */}
+          {(longParagraphs.length > 0 || tool.description) && (
             <section aria-label={`About ${name}`} className="space-y-3">
               <h2 className={SECTION_HEAD}>About {name}</h2>
-              <AboutClamp text={tool.description} />
+              {longParagraphs.length > 0 ? (
+                <div className="space-y-4">
+                  {longParagraphs.map((para, i) => (
+                    <p
+                      key={i}
+                      className="text-[15px] leading-relaxed whitespace-pre-line text-white/80 sm:text-base"
+                    >
+                      {para}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <AboutClamp text={tool.description ?? ""} />
+              )}
             </section>
           )}
 
-          {/* b2. Screenshots (Task 34) — uploaded gallery strip; only when the
-              listing has media. Mirrors tool-full-page.tsx placement. */}
+          {/* b1. Pricing (Task 35-c) — compact facts panel; renders whenever
+              the listing carries a model, a price or an editor note. */}
+          {(tool.pricingModel || tool.startingPrice || tool.pricingNote) && (
+            <section aria-label={`Pricing for ${name}`} className="space-y-3">
+              <h2 className={SECTION_HEAD}>Pricing</h2>
+              <div className="space-y-2.5 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="font-mono text-sm font-semibold uppercase tracking-wider text-white/85">
+                    {PRICING_LABEL[tool.pricingModel] ?? "Free"}
+                  </span>
+                  {tool.startingPrice && (
+                    <span className="text-2xl font-black tracking-tight text-white">
+                      {tool.startingPrice}
+                    </span>
+                  )}
+                </div>
+                {tool.pricingNote && (
+                  <p className="text-sm leading-relaxed text-white/60">{tool.pricingNote}</p>
+                )}
+                {editorial.pricingCheckedAt && (
+                  <p
+                    title="Pricing verified by the editors on this date"
+                    className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-mint"
+                  >
+                    <CheckCircle2 className="size-3.5" aria-hidden />
+                    Pricing checked {utcMonthYear(editorial.pricingCheckedAt)}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* b2. Screenshots (Task 35-c layout) — crawlable link grid; each
+              shot opens full size in a new tab. */}
           {screenshots.length > 0 && (
             <section aria-label={`Screenshots of ${name}`} className="space-y-3">
               <h2 className={SECTION_HEAD}>Screenshots</h2>
-              <div className="flex gap-3 overflow-x-auto pb-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {screenshots.map((src, i) => (
-                  <img
+                  <a
                     key={`${src}-${i}`}
-                    src={src}
-                    alt={`${name} screenshot ${i + 1}`}
-                    loading="lazy"
-                    className="h-40 w-auto shrink-0 rounded-xl border border-white/10 object-cover sm:h-52"
-                  />
+                    href={src}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Open screenshot in a new tab"
+                    className="group block"
+                  >
+                    <img
+                      src={src}
+                      alt={`${name} screenshot ${i + 1}`}
+                      loading="lazy"
+                      className="aspect-video w-full rounded-lg border border-white/10 object-cover transition-colors group-hover:border-ember/40"
+                    />
+                  </a>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {/* b3. Use cases (Task 35-c) — editor-written, mono-indexed rows. */}
+          {editorial.useCases.length > 0 && (
+            <section aria-label={`Use cases for ${name}`} className="space-y-3">
+              <h2 className={SECTION_HEAD}>Use cases</h2>
+              <ol className="space-y-3">
+                {editorial.useCases.map((u, i) => (
+                  <li
+                    key={`${u.title}-${i}`}
+                    className="flex gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4"
+                  >
+                    <span
+                      aria-hidden
+                      className="pt-0.5 font-mono text-xs font-semibold tracking-wider text-ember"
+                    >
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-medium text-white/90">{u.title}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-white/60">{u.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {/* b4. Pros and cons (Task 35-c) — side-by-side verdict panels. */}
+          {(editorial.pros.length > 0 || editorial.cons.length > 0) && (
+            <section aria-label={`Pros and cons of ${name}`} className="space-y-3">
+              <h2 className={SECTION_HEAD}>Pros and cons</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                {editorial.pros.length > 0 && (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-mint">
+                      Pros
+                    </h3>
+                    <ul className="mt-3 space-y-2.5">
+                      {editorial.pros.map((pro, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2.5 text-sm leading-relaxed text-white/75"
+                        >
+                          <Check className="mt-0.5 size-3.5 shrink-0 text-mint" aria-hidden />
+                          <span>{pro}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {editorial.cons.length > 0 && (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-ember">
+                      Cons
+                    </h3>
+                    <ul className="mt-3 space-y-2.5">
+                      {editorial.cons.map((con, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2.5 text-sm leading-relaxed text-white/75"
+                        >
+                          <X className="mt-0.5 size-3.5 shrink-0 text-ember" aria-hidden />
+                          <span>{con}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </section>
           )}
@@ -560,32 +738,41 @@ export default async function ToolPage({ params }: Params) {
             </Link>
           </section>
 
-          {/* g. More like this — real links to sibling listings */}
-          {related.length > 0 && (
-            <section aria-label="More like this" className="space-y-3">
-              <h2 className={SECTION_HEAD}>More like this</h2>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {related.map((r) => (
+          {/* g2. Alternatives (Task 35-c) — editor-picked rivals resolved to
+              live listings only (unknown slugs are skipped by the helper). */}
+          {alternatives.length > 0 && (
+            <section aria-label={`Alternatives to ${name}`} className="space-y-3">
+              <h2 className={SECTION_HEAD}>Alternatives</h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {alternatives.map((a) => (
                   <Link
-                    key={r.slug}
-                    href={`/tools/${r.slug}`}
-                    aria-label={`Open ${r.name}: ${r.tagline}`}
+                    key={a.slug}
+                    href={`/tools/${a.slug}`}
+                    aria-label={`Open ${a.name}: ${a.tagline}`}
                     className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                   >
                     <span
-                      aria-hidden
+                      aria-hidden={!a.logoUrl}
                       className={cn(
-                        "grid size-10 place-items-center rounded-lg bg-gradient-to-br text-lg",
-                        r.gradient
+                        "grid size-10 place-items-center overflow-hidden rounded-lg bg-gradient-to-br text-lg",
+                        a.logoGradient
                       )}
                     >
-                      {r.emoji}
+                      {a.logoUrl ? (
+                        <img
+                          src={a.logoUrl}
+                          alt={`${a.name} logo`}
+                          className="size-full object-contain"
+                        />
+                      ) : (
+                        <span aria-hidden>{a.logoEmoji}</span>
+                      )}
                     </span>
                     <span className="mt-2.5 flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
-                        {r.name}
+                        {a.name}
                       </span>
-                      {r.editorsPick && (
+                      {a.editorsPick && (
                         <span
                           aria-label="Editor's Pick"
                           className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase"
@@ -596,13 +783,82 @@ export default async function ToolPage({ params }: Params) {
                       )}
                     </span>
                     <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
-                      {r.tagline}
+                      {a.tagline}
+                    </span>
+                    <span className="mt-2.5 block">
+                      <span className={chipCx("text-white/55")}>
+                        {PRICING_LABEL[a.pricingModel] ?? a.pricingModel}
+                      </span>
                     </span>
                   </Link>
                 ))}
               </div>
             </section>
           )}
+
+          {/* g. Category context (Task 35-c panel) + More like this — the
+              panel carries the crawlable category intro and live listing
+              count; the sibling grid below stays the one "more in" surface,
+              so no duplicate chip list of the same tools is rendered. */}
+          <section aria-label={`More in ${tool.category.name}`} className="space-y-4">
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/categories/${tool.category.slug}`}
+                  className="inline-flex items-center gap-1.5 font-mono text-sm tracking-wider text-white/85 uppercase transition-colors hover:text-ember"
+                >
+                  <span aria-hidden>{tool.category.emoji}</span>
+                  {tool.category.name}
+                </Link>
+                <span className={chipCx("text-white/55")}>{categoryToolCount} tools</span>
+              </div>
+              <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-white/60">
+                {blurbFor(tool.category.slug, tool.category.name)}
+              </p>
+            </div>
+            {related.length > 0 && (
+              <div className="space-y-3">
+                <h2 className={SECTION_HEAD}>More like this</h2>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {related.map((r) => (
+                    <Link
+                      key={r.slug}
+                      href={`/tools/${r.slug}`}
+                      aria-label={`Open ${r.name}: ${r.tagline}`}
+                      className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
+                    >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "grid size-10 place-items-center rounded-lg bg-gradient-to-br text-lg",
+                          r.gradient
+                        )}
+                      >
+                        {r.emoji}
+                      </span>
+                      <span className="mt-2.5 flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
+                          {r.name}
+                        </span>
+                        {r.editorsPick && (
+                          <span
+                            aria-label="Editor's Pick"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase"
+                          >
+                            <Star className="size-2.5 fill-current" aria-hidden />
+                            Pick
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
+                        {r.tagline}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
         </article>
 
         {/* Back to the directory — crawlable path Home → /tools → tool */}

@@ -4,6 +4,7 @@
  */
 import { db } from "@/lib/db";
 import type { ForumTopic } from "@/lib/forum-topics";
+import type { AlternativeRow, ToolUseCase } from "@/lib/tool-editorial";
 
 // ── Types ────────────────────────────────────────────────────────────────
 export type Badge = {
@@ -39,7 +40,8 @@ export type ToolDetailResponse = {
   /** Uploaded screenshots, newest first; empty when none (Task 34). */
   screenshots?: string[];
   pricing: { model: string; price: string | null; note: string | null };
-  category: { slug: string; name: string; emoji: string };
+  /** toolCount: live listings in the category (Task 35, detail route only). */
+  category: { slug: string; name: string; emoji: string; toolCount?: number };
   maker: string;
   track: "editor_seed" | "community";
   badges: Badge;
@@ -49,6 +51,21 @@ export type ToolDetailResponse = {
   standards: import("@/lib/standards").StandardCheck[];
   /** Up to 3 live tools in the same category (excludes this tool). */
   related?: RelatedToolRow[];
+  /** ── Editorial enrichment (Task 35) ───────────────────────────────── */
+  /** Rich editorial description, paragraphs separated by blank lines. */
+  longDescription?: string | null;
+  /** Editorial use cases ({title, body}). */
+  useCases?: ToolUseCase[];
+  /** Editorial strengths. */
+  pros?: string[];
+  /** Editorial limitations. */
+  cons?: string[];
+  /** Alternative listings resolved from the editorial slug list, order preserved. */
+  alternatives?: AlternativeRow[];
+  /** Pricing fact-checked stamp (ISO string), null when never checked. */
+  pricingCheckedAt?: string | null;
+  /** Editorial content last update (ISO string), null when never edited. */
+  contentUpdatedAt?: string | null;
 };
 
 /** Mini row for the detail modal's "More like this" section. */

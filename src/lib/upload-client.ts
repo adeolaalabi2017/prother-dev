@@ -1,5 +1,7 @@
 import imageCompression from "browser-image-compression";
 import {
+  FAVICON_ACCEPT,
+  FAVICON_MAX_BYTES,
   IMAGE_ACCEPT,
   IMAGE_MAX_BYTES,
   IMAGE_SOURCE_MAX_BYTES,
@@ -7,22 +9,33 @@ import {
   VIDEO_MAX_BYTES,
   formatBytes,
   isAllowedMime,
+  isFaviconMime,
   kindForMime,
 } from "@/lib/media-limits";
 
 /**
- * Browser-side media preparation + upload (Task 34).
+ * Browser-side media preparation + upload (Task 34; favicon support Task 35).
  *
  * Client-side compression BEFORE upload, per the brief: browser-image-
  * compression runs in the visitor's browser and shrinks JPEG/PNG/WebP images
  * to 2MB max, so the server never stores or processes oversized originals.
- * Videos are capped at 5MB and rejected before any bytes are sent.
+ * Videos are capped at 5MB and rejected before any bytes are sent. ICO
+ * favicons pass through untouched (recompression would corrupt the
+ * multi-resolution container) with a hard 512KB pre-check.
  *
  * This module is browser-only by construction (it is imported by client
  * components); the server re-validates every limit in lib/media-upload.ts.
  */
 
-export { IMAGE_ACCEPT, IMAGE_MAX_BYTES, VIDEO_ACCEPT, VIDEO_MAX_BYTES, formatBytes };
+export {
+  FAVICON_ACCEPT,
+  FAVICON_MAX_BYTES,
+  IMAGE_ACCEPT,
+  IMAGE_MAX_BYTES,
+  VIDEO_ACCEPT,
+  VIDEO_MAX_BYTES,
+  formatBytes,
+};
 
 export type PreparedMedia = {
   file: File;
@@ -56,10 +69,15 @@ const COMPRESSION_TARGET_MB = (IMAGE_MAX_BYTES - 48 * 1024) / (1024 * 1024); // 
  * Throws Error with a user-facing message when the file can never fit.
  */
 export async function prepareMedia(file: File): Promise<PreparedMedia> {
-  const mime = (file.type || "").toLowerCase();
+  // Some OSes hand over .ico files with an empty file.type; infer the mime
+  // from the extension so the favicon path still works.
+  const rawType = (file.type || "").toLowerCase();
+  const mime =
+    rawType ||
+    (file.name.toLowerCase().endsWith(".ico") ? "image/x-icon" : "");
   if (!isAllowedMime(mime)) {
     throw new Error(
-      "Unsupported file type. Use JPEG, PNG, WebP or GIF images, or MP4, WebM, MOV videos."
+      "Unsupported file type. Use JPEG, PNG, WebP, GIF or ICO images, or MP4, WebM, MOV videos."
     );
   }
   const kind = kindForMime(mime);
@@ -83,6 +101,24 @@ export async function prepareMedia(file: File): Promise<PreparedMedia> {
   }
 
   // ── Image path ────────────────────────────────────────────────────────
+  // Favicons (ICO): stored byte-exact, so no compression — just the 512KB
+  // pre-check (mirrors the server cap for the same mime).
+  if (isFaviconMime(mime)) {
+    if (file.size > FAVICON_MAX_BYTES) {
+      throw new Error(
+        `Favicons are limited to ${formatBytes(FAVICON_MAX_BYTES)}. This one is ${formatBytes(file.size)}. Pick a smaller file.`
+      );
+    }
+    return {
+      file,
+      kind: "image",
+      width: null,
+      height: null,
+      compressed: false,
+      originalSize: file.size,
+    };
+  }
+
   if (file.size > IMAGE_SOURCE_MAX_BYTES) {
     throw new Error(
       `Pick an image under ${formatBytes(IMAGE_SOURCE_MAX_BYTES)}. This one is ${formatBytes(file.size)}.`

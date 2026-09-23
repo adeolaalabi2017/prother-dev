@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client'
  * models/fields. Editing this file also triggers a Turbopack module reload,
  * which re-evaluates the check and swaps in a fresh client.
  */
-const SCHEMA_VERSION = 8 // v8: Task 34 media library (Media/Integration tables, Tool.logoUrl, Post.coverUrl)
+const SCHEMA_VERSION = 9 // v9: Task 35 editorial columns (Tool.longDescription/useCases/pros/cons/alternatives/pricingCheckedAt/contentUpdatedAt)
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

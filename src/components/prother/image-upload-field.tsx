@@ -5,6 +5,8 @@ import { Film, ImagePlus, Loader2, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  FAVICON_ACCEPT,
+  FAVICON_MAX_BYTES,
   IMAGE_ACCEPT,
   VIDEO_ACCEPT,
   formatBytes,
@@ -15,13 +17,17 @@ import {
 } from "@/lib/upload-client";
 
 /**
- * Shared upload field for the media library (Task 34).
+ * Shared upload field for the media library (Task 34; favicon mode Task 35).
  *
  * Drop zone + picker that compresses images client-side (browser-image-
  * compression, 2MB cap) and rejects videos over 5MB BEFORE uploading, then
  * POSTs to /api/admin/upload (endpoint="admin", x-editor-key) or
  * /api/upload (endpoint="user", session auth). The stored value is the
  * stable media URL (/api/media/{id}), themed/origin independent.
+ *
+ * faviconMode switches the picker to PNG/WebP/ICO for site branding: ICO
+ * files are never recompressed (byte-exact passthrough) and everything
+ * picked in this mode is pre-checked against the 512KB favicon cap.
  *
  * Styled with brand tokens only, so it tracks both the dark and light
  * themes (Task 33).
@@ -31,14 +37,17 @@ export type ImageUploadFieldProps = {
   /** Current media URL (/api/media/{id}) or null. */
   value: string | null;
   onChange: (url: string | null, result: UploadResult | null) => void;
-  /** Library purpose tag: tool-logo | tool-screenshot | post-cover | avatar | gallery. */
+  /** Library purpose tag: tool-logo | tool-screenshot | post-cover | avatar | gallery | branding. */
   purpose: string;
   endpoint: UploadEndpoints;
   /** Required for endpoint="admin". */
   editorKey?: string;
   kind?: "image" | "video";
   label?: string;
+  /** Extra helper line, rendered under the format/limit copy. */
   hint?: string;
+  /** Branding picker: PNG/WebP/ICO, square, 512KB cap, no recompression. */
+  faviconMode?: boolean;
   /** Render preview as a square tile (logos/avatars) instead of a wide thumb. */
   square?: boolean;
   className?: string;
@@ -54,6 +63,7 @@ export function ImageUploadField({
   kind = "image",
   label,
   hint,
+  faviconMode = false,
   square = false,
   className,
   disabled = false,
@@ -65,9 +75,14 @@ export function ImageUploadField({
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  const accept = kind === "video" ? VIDEO_ACCEPT : IMAGE_ACCEPT;
-  const limitHint =
-    kind === "video"
+  const accept = faviconMode
+    ? FAVICON_ACCEPT
+    : kind === "video"
+      ? VIDEO_ACCEPT
+      : IMAGE_ACCEPT;
+  const limitHint = faviconMode
+    ? "PNG, WebP or ICO. Square, 512KB max."
+    : kind === "video"
       ? "MP4, WebM or MOV · 5MB max"
       : "JPEG, PNG, WebP or GIF · compressed to 2MB in your browser";
 
@@ -75,6 +90,14 @@ export function ImageUploadField({
     async (file: File) => {
       if (disabled || busy) return;
       setError(null);
+      // Favicon pre-check: reject anything over the 512KB cap on select,
+      // before any bytes are sent (mirrors the server + prepareMedia cap).
+      if (faviconMode && file.size > FAVICON_MAX_BYTES) {
+        setError(
+          `Favicons are limited to ${formatBytes(FAVICON_MAX_BYTES)}. This one is ${formatBytes(file.size)}. Pick a smaller file.`
+        );
+        return;
+      }
       setBusy(true);
       try {
         const result = await uploadMedia(file, {
@@ -93,7 +116,7 @@ export function ImageUploadField({
         setStage(null);
       }
     },
-    [busy, disabled, editorKey, endpoint, onChange, purpose]
+    [busy, disabled, editorKey, endpoint, faviconMode, onChange, purpose]
   );
 
   const onPick = (files: FileList | null) => {
@@ -235,8 +258,9 @@ export function ImageUploadField({
       )}
 
       <p id={`${inputId}-hint`} className="text-xs text-white/55">
-        {hint ?? limitHint}
+        {limitHint}
       </p>
+      {hint && <p className="text-xs text-white/55">{hint}</p>}
 
       {error && (
         <p role="alert" className="text-xs font-medium text-red-300">

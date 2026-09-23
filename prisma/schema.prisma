@@ -37,6 +37,22 @@ model Tool {
   /** Uploaded screenshots, pipe-separated /api/media/{id}/file URLs.
    *  POST-boot column: raw SQL only (lib/media.ts). */
   screenshotUrls String   @default("")
+  // ── Editorial enrichment (Task 35) — POST-boot columns: raw SQL only
+  // (lib/tool-editorial.ts, same stale-PrismaClient rule as logoUrl above).
+  /** Rich editorial description, paragraphs separated by a blank line. */
+  longDescription String?
+  /** JSON array of {title, body} use cases. */
+  useCases       String   @default("")
+  /** JSON array of strength strings. */
+  pros           String   @default("")
+  /** JSON array of limitation strings. */
+  cons           String   @default("")
+  /** Pipe-separated directory slugs of alternative tools. */
+  alternatives   String   @default("")
+  /** Pricing fact-checked stamp (editor action). */
+  pricingCheckedAt DateTime?
+  /** Editorial content last update (stamped on every editorial save). */
+  contentUpdatedAt DateTime?
   pricingModel  String // free | freemium | paid | open_source
   startingPrice String?
   pricingNote   String?

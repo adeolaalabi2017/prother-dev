@@ -6,6 +6,10 @@ import { getAuthUser } from "@/lib/auth";
 import { commentCountsByTool } from "@/lib/discussion";
 import { toolMediaByIds } from "@/lib/media";
 import {
+  editorialByToolIds,
+  resolveAlternatives,
+} from "@/lib/tool-editorial";
+import {
   isFollowing,
   latestClaimFor,
   reviewByUser,
@@ -86,14 +90,24 @@ export async function GET(
   // ── Community layer (F-16 / F-35 / F-30 / F-39 / F-41) ─────────────────
   // NOTE: toolCommunityFields goes through $queryRaw — makerEmail is a
   // post-boot column the cached PrismaClient doesn't know.
-  const [stats, fields, commentCounts, user, mediaMap] = await Promise.all([
+  const [stats, fields, commentCounts, user, mediaMap, editorialMap, toolCount] = await Promise.all([
     reviewStats(tool.id),
     toolCommunityFields(tool.id),
     commentCountsByTool([tool.id]),
     getAuthUser(),
     // POST-boot media columns → raw SQL (stale-PrismaClient rule).
     toolMediaByIds([tool.id]),
+    // POST-boot editorial columns → raw SQL (lib/tool-editorial.ts).
+    editorialByToolIds([tool.id]),
+    // Live listings in the category (drives the "N tools" meta line).
+    db.tool.count({ where: { categoryId: tool.categoryId, status: "live" } }),
   ]);
+  // Editorial "alternatives" resolved to live directory rows, order kept
+  // (depends on the editorial map above, so it runs after the batch).
+  const editorial = editorialMap.get(tool.id);
+  const alternatives = editorial
+    ? await resolveAlternatives(editorial.alternativeSlugs, tool.slug)
+    : [];
 
   let viewer: ViewerState | null = null;
   if (user) {
@@ -142,12 +156,24 @@ export async function GET(
     // falls back to the emoji tile when null; screenshots power the gallery.
     logoUrl: mediaMap.get(tool.id)?.logoUrl ?? null,
     screenshots: mediaMap.get(tool.id)?.screenshotUrls ?? [],
+    // Editorial enrichment (POST-boot columns → raw SQL, lib/tool-editorial).
+    longDescription: editorial?.longDescription ?? null,
+    useCases: editorial?.useCases ?? [],
+    pros: editorial?.pros ?? [],
+    cons: editorial?.cons ?? [],
+    alternatives,
+    pricingCheckedAt: editorial?.pricingCheckedAt
+      ? editorial.pricingCheckedAt.toISOString()
+      : null,
+    contentUpdatedAt: editorial?.contentUpdatedAt
+      ? editorial.contentUpdatedAt.toISOString()
+      : null,
     pricing: {
       model: tool.pricingModel,
       price: tool.startingPrice,
       note: tool.pricingNote,
     },
-    category: tool.category,
+    category: { ...tool.category, toolCount },
     maker: tool.makerHandle,
     track: tool.track === "community" ? "community" : "editor_seed",
     badges: {

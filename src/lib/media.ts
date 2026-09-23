@@ -41,8 +41,9 @@ export {
 export const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
 /** Stored filenames are server-generated: <ms>-<uuid>.<ext>. Reject anything
- *  else so the file reader can never be walked out of uploads/. */
-const STORED_NAME_RE = /^[0-9]+-[0-9a-f-]{36}\.(jpg|png|webp|gif|mp4|webm|mov)$/;
+ *  else so the file reader can never be walked out of uploads/.
+ *  ico joins the allowlist with the Task 35 favicon support (lib/media-limits). */
+const STORED_NAME_RE = /^[0-9]+-[0-9a-f-]{36}\.(jpg|png|webp|gif|ico|mp4|webm|mov)$/;
 
 export function isValidStoredName(name: string): boolean {
   return STORED_NAME_RE.test(name);

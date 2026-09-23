@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight,
+  BadgeCheck,
   Bookmark,
   BookmarkCheck,
   Check,
@@ -21,8 +23,10 @@ import {
   Send,
   ShieldCheck,
   Star,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,6 +40,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { ToolDetailResponse } from "@/lib/prother";
+import { blurbFor } from "@/lib/category-blurbs";
 import type { CommentRow } from "@/lib/discussion";
 import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
 import { useExplorer } from "./explorer-store";
@@ -68,10 +73,40 @@ type ToolViewer = {
   savedIn: { slug: string; name: string }[];
 };
 
-type ToolFullDetail = ToolDetailResponse & {
-  reviews?: { count: number; aggregate: ReviewsAggregate | null };
-  viewer?: ToolViewer | null;
+// Editorial enrichment fields on GET /api/tools/[slug] (Task 35). Declared
+// optional here so the overlay still renders pre-enrichment payloads: every
+// section built from them hides itself when its data is empty. When the
+// shared ToolDetailResponse gains these fields the intersection stays valid.
+type ToolUseCase = { title: string; body: string };
+
+type ToolAlternativeRow = {
+  slug: string;
+  name: string;
+  tagline: string;
+  logoEmoji: string;
+  logoGradient: string;
+  logoUrl: string | null;
+  pricingModel: string;
+  startingPrice: string | null;
+  editorsPick: boolean;
 };
+
+type ToolDetailEditorial = {
+  longDescription?: string | null;
+  useCases?: ToolUseCase[];
+  pros?: string[];
+  cons?: string[];
+  alternatives?: ToolAlternativeRow[];
+  pricingCheckedAt?: string | null;
+  contentUpdatedAt?: string | null;
+};
+
+type ToolFullDetail = ToolDetailResponse &
+  ToolDetailEditorial & {
+    reviews?: { count: number; aggregate: ReviewsAggregate | null };
+    viewer?: ToolViewer | null;
+    category?: ToolDetailResponse["category"] & { toolCount?: number };
+  };
 
 type ReviewRow = {
   id: string;
@@ -122,6 +157,27 @@ function fmtDay(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** "Feb 4, 2026" — fmtDay plus the year, for the header Updated stamp. */
+function fmtDayFull(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** "Feb 2026" — month-year stamp for pricing freshness marks. */
+function fmtMonthYear(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
     timeZone: "UTC",
   });
 }
@@ -239,6 +295,14 @@ function FactsRail({ detail }: { detail: ToolFullDetail }) {
             </span>
           )}
         </Fact>
+        {detail.pricingCheckedAt && (
+          <Fact label="Pricing checked">
+            <span className="inline-flex items-center gap-1.5 text-mint">
+              <BadgeCheck className="size-3.5 shrink-0" aria-hidden />
+              {fmtMonthYear(detail.pricingCheckedAt)}
+            </span>
+          </Fact>
+        )}
         <Fact label="Category">
           <button
             type="button"
@@ -1361,6 +1425,8 @@ export function ToolFullPage() {
   const [savedLocal, setSavedLocal] = useState<{ slug: string; name: string }[] | null>(null);
   const [copied, setCopied] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  // Screenshot lightbox: index into detail.screenshots, null = closed.
+  const [shotIndex, setShotIndex] = useState<number | null>(null);
 
   // Bookmark (Task 23) — personal saved list, anon visitorKey or session scope.
   const {
@@ -1394,6 +1460,7 @@ export function ToolFullPage() {
 
   useEffect(() => {
     setDetail(null);
+    setShotIndex(null);
     void load();
   }, [load]);
 
@@ -1453,6 +1520,19 @@ export function ToolFullPage() {
     if (inCompare) removeCompare(slug);
     else if (!compareFull) addCompare(slug);
   }, [slug, inCompare, compareFull, addCompare, removeCompare]);
+
+  // Real-route links (alternatives, category) leave the overlay: close it so
+  // the navigated page shows. ToolFullPage mounts in the root layout, so the
+  // store must drop the slug or the overlay would cover the target page.
+  // Modifier-clicks (open in new tab) keep the overlay untouched.
+  const onRealLinkClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        return;
+      closeTool({ sync: false });
+    },
+    [closeTool]
+  );
 
   const claim: StartedClaim | null = detail?.viewer?.claim
     ? {
@@ -1532,6 +1612,17 @@ export function ToolFullPage() {
   }
 
   const name = detail.name;
+  const screenshots = detail.screenshots ?? [];
+  const shotSrc =
+    shotIndex !== null ? (screenshots[shotIndex] ?? null) : null;
+  const useCases = detail.useCases ?? [];
+  const pros = detail.pros ?? [];
+  const cons = detail.cons ?? [];
+  const alternatives = detail.alternatives ?? [];
+  const pricing = detail.pricing;
+  const showPricing = Boolean(
+    pricing.model || pricing.price || pricing.note || detail.pricingCheckedAt
+  );
 
   return (
     <FullPageShell
@@ -1568,6 +1659,9 @@ export function ToolFullPage() {
                 {name}
               </h1>
               <p className="mt-1 text-base text-white/65 sm:text-lg">{detail.tagline}</p>
+              <p className={cn(MONO, "mt-2")}>
+                Updated {fmtDayFull(detail.contentUpdatedAt ?? detail.submittedAt)}
+              </p>
             </div>
           </div>
 
@@ -1788,33 +1882,182 @@ export function ToolFullPage() {
           targetLabel={name}
         />
 
+        {/* Screenshot lightbox (Task 35) — single full-bleed image. z-[70]
+            rides above the z-[60] full-page shell, same pattern as the
+            auth-menu popovers. */}
+        <Dialog
+          open={shotIndex !== null}
+          onOpenChange={(open) => {
+            if (!open) setShotIndex(null);
+          }}
+        >
+          <DialogContent
+            aria-describedby={undefined}
+            className="z-[70] overflow-hidden border-white/10 bg-coal p-2 text-white sm:max-w-4xl sm:rounded-2xl sm:p-3"
+          >
+            <DialogTitle className="sr-only">
+              {shotSrc ? `${name} screenshot` : "Screenshot"}
+            </DialogTitle>
+            {shotSrc && (
+              <img
+                src={shotSrc}
+                alt={`${name} screenshot${shotIndex !== null ? ` ${shotIndex + 1} of ${screenshots.length}` : ""} full size`}
+                className="max-h-[80vh] w-full object-contain"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* b–i: main column + facts rail */}
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-10">
           <div className="min-w-0 space-y-10">
-            {/* c. About */}
-            {detail.description && (
+            {/* c. About — editorial long description when enriched, else the
+                submitted description. Blank-line paragraphs in the copy render
+                via AboutClamp's whitespace-pre-line; clamp behavior unchanged. */}
+            {(detail.longDescription || detail.description) && (
               <section aria-label="About" className="space-y-3">
                 <SectionHead>About</SectionHead>
-                <AboutClamp text={detail.description} />
+                <AboutClamp text={detail.longDescription ?? detail.description ?? ""} />
               </section>
             )}
 
-            {/* c2. Screenshots (Task 34) — uploaded gallery strip; hidden when
-                the listing has none. Sits between About/Standards and the
-                discussion so media reads before community content. */}
-            {detail.screenshots && detail.screenshots.length > 0 && (
+            {/* c1. Pricing — editorial pricing block (Task 35 enrichment);
+                hidden when the listing carries no pricing data at all. */}
+            {showPricing && (
+              <section aria-label="Pricing" className="space-y-3">
+                <SectionHead>Pricing</SectionHead>
+                <div className={cn(PANEL, "p-5")}>
+                  <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                    <p className={MONO}>
+                      {PRICING_LABEL[pricing.model] ?? pricing.model}
+                    </p>
+                    {detail.pricingCheckedAt && (
+                      <p className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider text-white/55">
+                        <BadgeCheck className="size-3.5 text-mint" aria-hidden />
+                        Checked {fmtMonthYear(detail.pricingCheckedAt)}
+                      </p>
+                    )}
+                  </div>
+                  {pricing.price && (
+                    <p className="mt-2 text-3xl font-black tracking-tight text-white">
+                      {pricing.price}
+                    </p>
+                  )}
+                  {pricing.note && (
+                    <p
+                      className={cn(
+                        "text-sm text-white/60",
+                        pricing.price ? "mt-1" : "mt-2"
+                      )}
+                    >
+                      {pricing.note}
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* c2. Screenshots (Task 34 media, Task 35 grid + lightbox) —
+                hidden when the listing has none. Each shot opens a Dialog
+                lightbox with the full-bleed image. */}
+            {screenshots.length > 0 && (
               <section aria-label="Screenshots" className="space-y-3">
                 <SectionHead>Screenshots</SectionHead>
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {detail.screenshots.map((src, i) => (
-                    <img
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {screenshots.map((src, i) => (
+                    <button
                       key={`${src}-${i}`}
-                      src={src}
-                      alt={`${name} screenshot ${i + 1}`}
-                      loading="lazy"
-                      className="h-40 w-auto shrink-0 rounded-xl border border-white/10 object-cover sm:h-52"
-                    />
+                      type="button"
+                      onClick={() => setShotIndex(i)}
+                      aria-label={`Open screenshot ${i + 1} of ${screenshots.length} full size`}
+                      className="group overflow-hidden rounded-lg border border-white/10 transition-colors hover:border-ember/40"
+                    >
+                      <img
+                        src={src}
+                        alt={`${name} screenshot ${i + 1}`}
+                        loading="lazy"
+                        className="aspect-video w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      />
+                    </button>
                   ))}
+                </div>
+              </section>
+            )}
+
+            {/* c3. Use cases (Task 35 enrichment) — numbered editorial rows */}
+            {useCases.length > 0 && (
+              <section aria-label="Use cases" className="space-y-3">
+                <SectionHead>Use cases</SectionHead>
+                <ol className="space-y-2.5">
+                  {useCases.map((uc, i) => (
+                    <li
+                      key={`${uc.title}-${i}`}
+                      className={cn(PANEL, "flex gap-4 p-4 sm:p-5")}
+                    >
+                      <span
+                        aria-hidden
+                        className="mt-0.5 shrink-0 font-mono text-sm font-bold text-ember"
+                      >
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-white/90">
+                          {uc.title}
+                        </h3>
+                        <p className="mt-1 text-sm leading-relaxed text-white/60">
+                          {uc.body}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+
+            {/* c4. Pros and cons (Task 35 enrichment) — hidden unless either
+                side has rows */}
+            {(pros.length > 0 || cons.length > 0) && (
+              <section aria-label="Pros and cons" className="space-y-3">
+                <SectionHead>Pros and cons</SectionHead>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {pros.length > 0 && (
+                    <div className={cn(PANEL, "p-5")}>
+                      <p className={MONO}>Pros</p>
+                      <ul className="mt-3 space-y-2.5">
+                        {pros.map((p, i) => (
+                          <li
+                            key={`${p}-${i}`}
+                            className="flex items-start gap-2.5 text-sm leading-snug text-white/75"
+                          >
+                            <Check
+                              className="mt-0.5 size-4 shrink-0 text-mint"
+                              aria-hidden
+                            />
+                            <span className="min-w-0">{p}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {cons.length > 0 && (
+                    <div className={cn(PANEL, "p-5")}>
+                      <p className={MONO}>Cons</p>
+                      <ul className="mt-3 space-y-2.5">
+                        {cons.map((c, i) => (
+                          <li
+                            key={`${c}-${i}`}
+                            className="flex items-start gap-2.5 text-sm leading-snug text-white/75"
+                          >
+                            <X
+                              className="mt-0.5 size-4 shrink-0 text-ember"
+                              aria-hidden
+                            />
+                            <span className="min-w-0">{c}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </section>
             )}
@@ -1859,6 +2102,105 @@ export function ToolFullPage() {
 
             {/* f. Discussion */}
             <Discussion slug={detail.slug} makerHandle={detail.maker} />
+
+            {/* g1. Alternatives (Task 35 enrichment) — real links to each
+                sibling's /tools/{slug} page; navigating away closes the
+                overlay, mirroring the SSR page's related-link pattern. */}
+            {alternatives.length > 0 && (
+              <section aria-label="Alternatives" className="space-y-3">
+                <SectionHead>Alternatives</SectionHead>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {alternatives.map((alt) => (
+                    <Link
+                      key={alt.slug}
+                      href={`/tools/${alt.slug}`}
+                      onClick={onRealLinkClick}
+                      className={cn(
+                        PANEL,
+                        "group flex flex-col p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "grid size-10 place-items-center overflow-hidden rounded-lg bg-gradient-to-br text-lg",
+                          alt.logoGradient
+                        )}
+                      >
+                        {alt.logoUrl ? (
+                          <img
+                            src={alt.logoUrl}
+                            alt=""
+                            loading="lazy"
+                            className="size-full object-contain"
+                          />
+                        ) : (
+                          alt.logoEmoji
+                        )}
+                      </span>
+                      <span className="mt-2.5 flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
+                          {alt.name}
+                        </span>
+                        {alt.editorsPick && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase">
+                            <Star className="size-2.5 fill-current" aria-hidden />
+                            Pick
+                          </span>
+                        )}
+                      </span>
+                      <span className="mb-3 mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
+                        {alt.tagline}
+                      </span>
+                      <span className="mt-auto self-start">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-xs tracking-wider text-white/70">
+                          {PRICING_LABEL[alt.pricingModel] ?? alt.pricingModel}
+                          {alt.startingPrice && (
+                            <span className="text-ember">{alt.startingPrice}</span>
+                          )}
+                        </span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* g2. Category context (Task 35) — adjacent to the existing
+                "More like this" section without duplicating its related
+                grid; the toolCount chip renders once the API ships it. */}
+            <section aria-label="Category context" className="space-y-3">
+              <SectionHead>Category</SectionHead>
+              <div className={cn(PANEL, "p-5")}>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <Link
+                    href={`/categories/${detail.category.slug}`}
+                    onClick={onRealLinkClick}
+                    className="group inline-flex min-h-11 min-w-0 items-center gap-2.5 text-base font-bold text-white transition-colors hover:text-ember"
+                  >
+                    <span
+                      aria-hidden
+                      className="grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-lg"
+                    >
+                      {detail.category.emoji}
+                    </span>
+                    <span className="truncate">{detail.category.name}</span>
+                    <ArrowUpRight
+                      className="size-3.5 shrink-0 text-white/40 transition-colors group-hover:text-ember"
+                      aria-hidden
+                    />
+                  </Link>
+                  {typeof detail.category.toolCount === "number" && (
+                    <span className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
+                      {detail.category.toolCount} tools
+                    </span>
+                  )}
+                </div>
+                <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-white/60">
+                  {blurbFor(detail.category.slug, detail.category.name)}
+                </p>
+              </div>
+            </section>
 
             {/* g. Related */}
             {detail.related && detail.related.length > 0 && (

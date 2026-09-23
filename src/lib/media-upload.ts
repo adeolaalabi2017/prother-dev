@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import {
-  IMAGE_MAX_BYTES,
-  VIDEO_MAX_BYTES,
   createMediaRow,
   isAllowedMime,
   kindForMime,
@@ -9,15 +7,23 @@ import {
   mediaUrl,
   saveUploadFile,
 } from "@/lib/media";
+import {
+  FAVICON_MAX_BYTES,
+  IMAGE_MAX_BYTES,
+  VIDEO_MAX_BYTES,
+  formatBytes,
+  isFaviconMime,
+} from "@/lib/media-limits";
 
 /**
  * Shared multipart upload handler for POST /api/admin/upload and
- * POST /api/upload (Task 34).
+ * POST /api/upload (Task 34; favicon support Task 35).
  *
  * Limits (mirrored client-side in lib/upload-client.ts):
  * - images: ≤2MB AFTER client-side compression (server re-enforces; the
  *   original file may be larger, the browser shrinks it before sending)
  * - videos: hard 5MB cap
+ * - favicons (ICO): hard 512KB cap, stored as-is (never recompressed)
  * The client passes width/height for images so the gallery can lay out
  * without decoding every file.
  */
@@ -54,25 +60,37 @@ export async function handleMediaUpload(
   }
   if (file.size === 0) return fail(400, "The selected file is empty.");
 
-  const mime = (file.type || "").toLowerCase();
+  // Mirror lib/upload-client.ts: .ico files with an empty reported type are
+  // still favicons (mime inferred from the extension).
+  const rawType = (file.type || "").toLowerCase();
+  const mime =
+    rawType ||
+    (file.name.toLowerCase().endsWith(".ico") ? "image/x-icon" : "");
   if (!isAllowedMime(mime)) {
     return fail(
       415,
-      "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF images and MP4, WebM, MOV videos."
+      "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF or ICO images and MP4, WebM, MOV videos."
     );
   }
 
   const kind = kindForMime(mime);
   if (!kind) return fail(415, "Unsupported file type.");
 
-  const cap = kind === "video" ? VIDEO_MAX_BYTES : IMAGE_MAX_BYTES;
+  // Per-type cap: 512KB favicons, 5MB videos, 2MB images (maxBytesForMime
+  // resolves all three, so the error below can quote the exact limit).
+  const cap = maxBytesForMime(mime);
   if (file.size > cap) {
-    const capMb = Math.round(maxBytesForMime(mime) / (1024 * 1024));
+    if (isFaviconMime(mime)) {
+      return fail(
+        413,
+        `Favicons are limited to ${formatBytes(FAVICON_MAX_BYTES)}. Pick a smaller file.`
+      );
+    }
     return fail(
       413,
       kind === "video"
-        ? `Videos are limited to ${capMb}MB. Trim or compress the clip, then try again.`
-        : `Images are limited to ${capMb}MB after compression. Pick a smaller file.`
+        ? `Videos are limited to ${formatBytes(VIDEO_MAX_BYTES)}. Trim or compress the clip, then try again.`
+        : `Images are limited to ${formatBytes(IMAGE_MAX_BYTES)} after compression. Pick a smaller file.`
     );
   }
 

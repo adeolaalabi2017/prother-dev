@@ -39,15 +39,29 @@ export async function generateMetadata(): Promise<Metadata> {
   let title = "Prother · Find the right AI tool";
   let description =
     "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.";
+  let faviconUrl = "";
   try {
     const { db } = await import("@/lib/prother");
     const rows = await db.siteSetting.findMany({
-      where: { key: { in: ["seo.defaultTitle", "seo.defaultDescription"] } },
+      where: {
+        key: {
+          in: [
+            "seo.defaultTitle",
+            "seo.defaultDescription",
+            // Branding uploads (Task 35): the favicon feeds metadata.icons
+            // here; the logo is consumed client-side by the site header via
+            // /api/site (useSiteSettings).
+            "branding.logoUrl",
+            "branding.faviconUrl",
+          ],
+        },
+      },
       select: { key: true, value: true },
     });
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     if (map["seo.defaultTitle"]) title = map["seo.defaultTitle"];
     if (map["seo.defaultDescription"]) description = map["seo.defaultDescription"];
+    faviconUrl = map["branding.faviconUrl"] ?? "";
   } catch {
     // Locked defaults hold — metadata must never 500 the shell.
   }
@@ -85,6 +99,10 @@ export async function generateMetadata(): Promise<Metadata> {
     alternates: {
       types: { "application/rss+xml": "/api/rss" },
     },
+    // Uploaded favicon (Task 35 branding) — replaces the default icon set
+    // when the editor has configured one; no src/app/favicon.ico exists, so
+    // unset keeps the previous no-icon behavior.
+    ...(faviconUrl ? { icons: [{ url: faviconUrl }] } : {}),
   };
 }
 

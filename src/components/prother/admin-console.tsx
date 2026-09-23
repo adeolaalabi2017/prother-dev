@@ -220,6 +220,15 @@ type AdminTool = {
   /** Uploaded media (Task 34): POST-boot columns read via raw SQL server-side. */
   logoUrl: string | null;
   screenshotUrls: string[];
+  /** Editorial content (Task 35): rich listing copy, merged server-side via
+   *  lib/tool-editorial.ts (raw SQL per the stale-PrismaClient rule). */
+  longDescription: string | null;
+  useCases: { title: string; body: string }[];
+  pros: string[];
+  cons: string[];
+  alternatives: string[];
+  pricingCheckedAt: string | null;
+  contentUpdatedAt: string | null;
   category: { id: string; name: string; emoji: string; slug: string };
   comments: number;
   reviews: number;
@@ -831,6 +840,15 @@ function FeaturesEditor({
   );
 }
 
+/** "Mar 5, 2025" — editorial stamp dates (renders client-side only). */
+function fmtDayDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function ListingEditor({
   apiKey,
   tool,
@@ -871,6 +889,59 @@ function ListingEditor({
     logoUrl: tool.logoUrl,
     screenshots: tool.screenshotUrls,
   });
+  // Editorial content (Task 35): long description, use cases, pros/cons,
+  // alternative slugs and the pricing fact-check. Initial values are
+  // captured here so the shared Save only sends keys that actually changed
+  // (same contract as initialMedia above) — untouched saves never wipe or
+  // re-stamp editorial fields.
+  const [longDescription, setLongDescription] = useState(tool.longDescription ?? "");
+  const [useCases, setUseCases] = useState<{ title: string; body: string }[]>(
+    tool.useCases ?? []
+  );
+  const [pros, setPros] = useState<string[]>(tool.pros ?? []);
+  const [cons, setCons] = useState<string[]>(tool.cons ?? []);
+  const [alternatives, setAlternatives] = useState<string[]>(tool.alternatives ?? []);
+  const [pricingChecked, setPricingChecked] = useState(tool.pricingCheckedAt != null);
+  const initialEditorial = useRef({
+    longDescription: tool.longDescription ?? "",
+    useCases: tool.useCases ?? [],
+    pros: tool.pros ?? [],
+    cons: tool.cons ?? [],
+    alternatives: tool.alternatives ?? [],
+    pricingChecked: tool.pricingCheckedAt != null,
+  });
+
+  // Alternatives picker source: the full directory row list (slug + name),
+  // fetched once when the editor expands. setState runs in the promise
+  // callback — the repo lint bans synchronous setState inside effects.
+  const [allRows, setAllRows] = useState<
+    { slug: string; name: string }[] | null
+  >(null);
+  const [altPick, setAltPick] = useState("");
+  useEffect(() => {
+    let alive = true;
+    adminFetch(apiKey, "/api/admin/tools")
+      .then((r) => r.json())
+      .then((d: { tools?: { slug: string; name: string }[] }) => {
+        if (alive) setAllRows(Array.isArray(d.tools) ? d.tools : []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [apiKey]);
+  const altOptions = (allRows ?? []).filter(
+    (t) => t.slug !== tool.slug && !alternatives.includes(t.slug)
+  );
+
+  const addUseCase = () =>
+    setUseCases((p) => (p.length >= 6 ? p : [...p, { title: "", body: "" }]));
+  const setUseCase = (
+    i: number,
+    patch: Partial<{ title: string; body: string }>
+  ) => setUseCases((p) => p.map((u, j) => (j === i ? { ...u, ...patch } : u)));
+  const removeUseCase = (i: number) =>
+    setUseCases((p) => p.filter((_, j) => j !== i));
 
   const save = async () => {
     setBusy(true);
@@ -904,13 +975,49 @@ function ListingEditor({
       ) {
         payload.screenshotUrls = screenshots;
       }
+      // Editorial content (Task 35): each key is sent only when it differs
+      // from the mount-time snapshot, so untouched saves are harmless.
+      if (longDescription !== initialEditorial.current.longDescription) {
+        const t = longDescription.trim();
+        payload.longDescription = t.length > 0 ? t : null;
+      }
+      if (
+        JSON.stringify(useCases) !==
+        JSON.stringify(initialEditorial.current.useCases)
+      ) {
+        payload.useCases = useCases;
+      }
+      if (JSON.stringify(pros) !== JSON.stringify(initialEditorial.current.pros)) {
+        payload.pros = pros;
+      }
+      if (JSON.stringify(cons) !== JSON.stringify(initialEditorial.current.cons)) {
+        payload.cons = cons;
+      }
+      if (
+        JSON.stringify(alternatives) !==
+        JSON.stringify(initialEditorial.current.alternatives)
+      ) {
+        payload.alternatives = alternatives;
+      }
+      if (pricingChecked !== initialEditorial.current.pricingChecked) {
+        payload.pricingChecked = pricingChecked;
+      }
       const res = await adminFetch(apiKey, "/api/admin/tools", {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
-      const d = (await res.json()) as { ok?: boolean; error?: string };
+      const d = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        errors?: string[];
+      };
       if (!res.ok || !d.ok) {
-        toast({ title: d.error ?? "Save failed", variant: "destructive" });
+        const errs = Array.isArray(d.errors) ? d.errors : [];
+        toast({
+          title: errs.length > 0 ? "Save failed" : (d.error ?? "Save failed"),
+          description: errs.length > 0 ? errs.join(" ") : undefined,
+          variant: "destructive",
+        });
         return;
       }
       toast({ title: `${tool.name} saved` });
@@ -1153,6 +1260,249 @@ function ListingEditor({
                 Screenshot cap reached (12). Remove one to add another.
               </p>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Editorial content (Task 35): deep listing copy the public page
+          renders. Mount-time values live in initialEditorial so the shared
+          Save only sends what changed. */}
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="flex items-center gap-1.5 font-mono text-xs tracking-[0.2em] text-ember uppercase">
+            <FileText className="size-3.5" aria-hidden />
+            Editorial content
+          </p>
+          {tool.contentUpdatedAt && (
+            <span className="font-mono text-xs text-white/55">
+              Updated {fmtDayDate(tool.contentUpdatedAt)}
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-white/55">
+          Deep listing copy for the public page. Applied on “Save changes”.
+        </p>
+
+        <div className="mt-4 space-y-5">
+          {/* Long description */}
+          <div className="space-y-1.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <Label className={labelCx}>Long description</Label>
+              <span className="font-mono text-xs tabular-nums text-white/55">
+                {longDescription.length}/5000
+              </span>
+            </div>
+            <Textarea
+              value={longDescription}
+              onChange={(e) => setLongDescription(e.target.value)}
+              rows={6}
+              maxLength={5000}
+              placeholder="What the tool actually does, who it is for, and how it works."
+              aria-label="Long description"
+              className={inputCx}
+            />
+            <p className="text-xs text-white/55">
+              2 to 3 paragraphs, separated by blank lines. This is the real,
+              factual description shown on the public page.
+            </p>
+          </div>
+
+          {/* Use cases */}
+          <div className="space-y-2">
+            <Label className={labelCx}>Use cases ({useCases.length}/6)</Label>
+            <p className="text-xs text-white/55">
+              Titled blocks on the public page: what the tool is actually used for.
+            </p>
+            {useCases.map((uc, i) => (
+              <div
+                key={i}
+                className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={uc.title}
+                    maxLength={80}
+                    placeholder={`Use case ${i + 1} title, e.g. Automate lead routing`}
+                    aria-label={`Use case ${i + 1} title`}
+                    onChange={(e) => setUseCase(i, { title: e.target.value })}
+                    className={cn(inputCx, "flex-1")}
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove use case ${i + 1}`}
+                    onClick={() => removeUseCase(i)}
+                    className="rounded-lg p-2 text-white/60 transition-colors hover:text-red-400"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden />
+                  </button>
+                </div>
+                <Textarea
+                  value={uc.body}
+                  rows={2}
+                  maxLength={400}
+                  placeholder="What it does and why it works, in two or three sentences."
+                  aria-label={`Use case ${i + 1} description`}
+                  onChange={(e) => setUseCase(i, { body: e.target.value })}
+                  className={inputCx}
+                />
+              </div>
+            ))}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={useCases.length >= 6}
+              onClick={addUseCase}
+              className="rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+            >
+              <Plus className="size-3.5" aria-hidden />
+              Add use case
+            </Button>
+          </div>
+
+          {/* Pros + cons */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {([
+              {
+                label: "Pros",
+                noun: "pro",
+                list: pros,
+                setList: setPros,
+                helper: "Genuine strengths, one per row. Specific beats generic.",
+                placeholder: "Specific strength, e.g. Sets up in two minutes",
+              },
+              {
+                label: "Cons",
+                noun: "con",
+                list: cons,
+                setList: setCons,
+                helper: "Honest limitations, one per row. Real downsides build trust.",
+                placeholder: "Real limitation, e.g. No offline mode",
+              },
+            ]).map(({ label, noun, list, setList, helper, placeholder }) => (
+              <div key={label} className="space-y-2">
+                <Label className={labelCx}>
+                  {label} ({list.length}/6)
+                </Label>
+                <p className="text-xs text-white/55">{helper}</p>
+                {list.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      value={item}
+                      maxLength={160}
+                      placeholder={placeholder}
+                      aria-label={`${label} item ${i + 1}`}
+                      onChange={(e) =>
+                        setList((p) =>
+                          p.map((v, j) => (j === i ? e.target.value : v))
+                        )
+                      }
+                      className={cn(inputCx, "flex-1")}
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Remove ${noun} ${i + 1}`}
+                      onClick={() => setList((p) => p.filter((_, j) => j !== i))}
+                      className="rounded-lg p-2 text-white/60 transition-colors hover:text-red-400"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={list.length >= 6}
+                  onClick={() => setList((p) => [...p, ""])}
+                  className="rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+                >
+                  <Plus className="size-3.5" aria-hidden />
+                  Add {noun}
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Alternatives */}
+          <div className="space-y-2">
+            <Label className={labelCx}>Alternatives ({alternatives.length}/6)</Label>
+            <p className="text-xs text-white/55">
+              Shown as “Alternatives to {tool.name}” on the public page. Pick
+              other directory listings.
+            </p>
+            {alternatives.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {alternatives.map((slug) => (
+                  <span
+                    key={slug}
+                    className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 py-1 pl-2.5 pr-1 font-mono text-xs text-white/80"
+                  >
+                    {slug}
+                    <button
+                      type="button"
+                      aria-label={`Remove alternative ${slug}`}
+                      onClick={() =>
+                        setAlternatives((p) => p.filter((s) => s !== slug))
+                      }
+                      className="rounded-full p-1.5 text-white/60 transition-colors hover:text-red-300"
+                    >
+                      <X className="size-3" aria-hidden />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {alternatives.length >= 6 ? (
+              <p className="text-xs text-white/55">
+                Cap reached (6). Remove one to add another.
+              </p>
+            ) : allRows === null ? (
+              <Select disabled value="">
+                <SelectTrigger
+                  className={cn(inputCx, "sm:max-w-sm")}
+                  aria-label="Add alternative"
+                >
+                  <SelectValue placeholder="Loading listings…" />
+                </SelectTrigger>
+              </Select>
+            ) : altOptions.length === 0 ? (
+              <p className="text-xs text-white/55">No other listings to link yet.</p>
+            ) : (
+              <Select
+                value={altPick}
+                onValueChange={(slug) => {
+                  setAlternatives((p) => (p.includes(slug) ? p : [...p, slug]));
+                  setAltPick("");
+                }}
+              >
+                <SelectTrigger
+                  className={cn(inputCx, "sm:max-w-sm")}
+                  aria-label="Add alternative"
+                >
+                  <SelectValue placeholder="Add alternative" />
+                </SelectTrigger>
+                <SelectContent className="border-white/10 bg-coal text-white">
+                  {altOptions.map((t) => (
+                    <SelectItem key={t.slug} value={t.slug}>
+                      {t.name} <span className="font-mono text-xs text-white/50">/{t.slug}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Pricing fact-check */}
+          <div className="space-y-1.5">
+            <Label className={labelCx}>Pricing fact-check</Label>
+            <label className="flex min-h-11 w-fit items-center gap-2 text-xs text-white/70">
+              <Switch checked={pricingChecked} onCheckedChange={setPricingChecked} />
+              Pricing checked
+            </label>
+            <p className="text-xs text-white/55">
+              {tool.pricingCheckedAt
+                ? `Last checked ${fmtDayDate(tool.pricingCheckedAt)}.`
+                : "Not fact-checked yet. Tick this once you have verified the price on the vendor site."}
+            </p>
           </div>
         </div>
       </div>
@@ -2068,6 +2418,91 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   return (
     <div className="space-y-4">
       <div className="space-y-4">
+        {/* Branding (Task 35): site logo + favicon, stored as site-copy KV
+            keys so the normal Save below persists them with everything else. */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <p className="flex items-center gap-1.5 font-mono text-xs tracking-[0.2em] text-ember uppercase">
+            <Hexagon className="size-3.5" aria-hidden />
+            Branding
+          </p>
+          <p className="mt-1 text-xs text-white/55">
+            The logo replaces the mark in the site header. The favicon replaces
+            the browser tab icon. Changes apply site wide after save.
+          </p>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className={labelCx}>Site logo</Label>
+              <ImageUploadField
+                value={values["branding.logoUrl"] || null}
+                onChange={(url) =>
+                  setValues({ ...values, "branding.logoUrl": url ?? "" })
+                }
+                purpose="branding"
+                endpoint="admin"
+                editorKey={apiKey}
+                square
+                hint="Square PNG or WebP, 512 by 512 or larger. Auto-compressed to 2MB max."
+              />
+              <div className="flex items-center gap-2">
+                <span
+                  className="min-w-0 flex-1 truncate font-mono text-xs text-white/55"
+                  title={values["branding.logoUrl"] || "No logo stored"}
+                >
+                  {values["branding.logoUrl"] || "No logo stored"}
+                </span>
+                {values["branding.logoUrl"] && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setValues({ ...values, "branding.logoUrl": "" })}
+                    className="h-9 shrink-0 rounded-lg border-white/15 bg-white/5 text-sm text-white/70 hover:bg-white/10"
+                  >
+                    <X className="size-3.5" aria-hidden />
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className={labelCx}>Favicon</Label>
+              <ImageUploadField
+                value={values["branding.faviconUrl"] || null}
+                onChange={(url) =>
+                  setValues({ ...values, "branding.faviconUrl": url ?? "" })
+                }
+                purpose="branding"
+                endpoint="admin"
+                editorKey={apiKey}
+                faviconMode
+                hint="PNG, WebP or ICO. Square, 512KB max. Rendered at 16 to 32 pixels."
+              />
+              <div className="flex items-center gap-2">
+                <span
+                  className="min-w-0 flex-1 truncate font-mono text-xs text-white/55"
+                  title={values["branding.faviconUrl"] || "No favicon stored"}
+                >
+                  {values["branding.faviconUrl"] || "No favicon stored"}
+                </span>
+                {values["branding.faviconUrl"] && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setValues({ ...values, "branding.faviconUrl": "" })
+                    }
+                    className="h-9 shrink-0 rounded-lg border-white/15 bg-white/5 text-sm text-white/70 hover:bg-white/10"
+                  >
+                    <X className="size-3.5" aria-hidden />
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {SETTING_GROUPS.map((group) => (
           <div key={group.title} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
             <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">

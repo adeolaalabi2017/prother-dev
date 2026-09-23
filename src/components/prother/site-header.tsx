@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
+import { useSiteSettings } from "./use-site-settings";
 import { AuthMenu } from "./auth-menu";
 import { ThemeToggle, ThemeToggleRow } from "./theme-toggle";
 
@@ -39,6 +40,11 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const setSearch = useExplorer((s) => s.setSearch);
+  // Branding upload (Task 35): when the editor sets a logo URL it replaces
+  // the hexagon glyph mark. object-contain keeps transparent PNGs/ICOs
+  // theme-safe; absent/empty falls back to the glyph.
+  const settings = useSiteSettings();
+  const brandingLogoUrl = settings["branding.logoUrl"] ?? "";
 
   const isActive = (id: string) => {
     const link = NAV_LINKS.find((l) => l.id === id);
@@ -62,7 +68,15 @@ export function SiteHeader() {
           className="flex items-center gap-2"
           aria-label="Prother home"
         >
-          <Hexagon className="size-6 fill-ember text-ember" aria-hidden />
+          {brandingLogoUrl ? (
+            <img
+              src={brandingLogoUrl}
+              alt="Prother logo"
+              className="size-7 rounded-md object-contain"
+            />
+          ) : (
+            <Hexagon className="size-6 fill-ember text-ember" aria-hidden />
+          )}
           <span className="text-lg font-black tracking-tight text-white">Prother</span>
         </Link>
 
