@@ -1,0 +1,702 @@
+  1201→  );
+  1202→}
+  1203→
+  1204→// ── Section: Categories (taxonomy CRUD) ──────────────────────────────────
+  1205→
+  1206→function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+  1207→  const { toast } = useToast();
+  1208→  const [cats, setCats] = useState<
+  1209→    { id: string; slug: string; name: string; emoji: string; sortOrder: number; toolCount: number }[]
+  1210→  >([]);
+  1211→  const [draft, setDraft] = useState({ slug: "", name: "", emoji: "🧪" });
+  1212→
+  1213→  const load = useCallback(() => {
+  1214→    adminFetch(apiKey, "/api/admin/categories")
+  1215→      .then((r) => r.json())
+  1216→      .then((d: { categories: typeof cats }) => setCats(d.categories))
+  1217→      .catch(() => {});
+  1218→  }, [apiKey]);
+  1219→  useEffect(load, [load]);
+  1220→
+  1221→  const save = useCallback(
+  1222→    async (payload: { id?: string; slug: string; name: string; emoji: string }) => {
+  1223→      try {
+  1224→        const res = await adminFetch(apiKey, "/api/admin/categories", {
+  1225→          method: "POST",
+  1226→          body: JSON.stringify(payload),
+  1227→        });
+  1228→        const d = (await res.json()) as { ok?: boolean; error?: string };
+  1229→        if (!res.ok || !d.ok) {
+  1230→          toast({ title: d.error ?? "Save failed", variant: "destructive" });
+  1231→          return false;
+  1232→        }
+  1233→        toast({ title: "Taxonomy updated" });
+  1234→        load();
+  1235→        onChanged();
+  1236→        return true;
+  1237→      } catch {
+  1238→        toast({ title: "Network error", variant: "destructive" });
+  1239→        return false;
+  1240→      }
+  1241→    },
+  1242→    [apiKey, load, onChanged, toast]
+  1243→  );
+  1244→
+  1245→  const remove = useCallback(
+  1246→    async (id: string, name: string, toolCount: number) => {
+  1247→      if (toolCount > 0) {
+  1248→        toast({
+  1249→          title: "Can't delete",
+  1250→          description: `${toolCount} tool${toolCount === 1 ? "" : "s"} still use ${name}.`,
+  1251→          variant: "destructive",
+  1252→        });
+  1253→        return;
+  1254→      }
+  1255→      await adminFetch(apiKey, `/api/admin/categories?id=${id}`, { method: "DELETE" }).catch(
+  1256→        () => {}
+  1257→      );
+  1258→      toast({ title: `${name} deleted` });
+  1259→      load();
+  1260→      onChanged();
+  1261→    },
+  1262→    [apiKey, load, onChanged, toast]
+  1263→  );
+  1264→
+  1265→  return (
+  1266→    <div className="space-y-4">
+  1267→      <div className="max-h-[44vh] space-y-2 overflow-y-auto pr-1">
+  1268→        {cats.map((c) => (
+  1269→          <div
+  1270→            key={c.id}
+  1271→            className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3"
+  1272→          >
+  1273→            <Input
+  1274→              value={c.emoji}
+  1275→              maxLength={4}
+  1276→              aria-label="Emoji"
+  1277→              onChange={(e) =>
+  1278→                setCats((p) =>
+  1279→                  p.map((x) => (x.id === c.id ? { ...x, emoji: e.target.value } : x))
+  1280→                )
+  1281→              }
+  1282→              className="h-9 w-14 border border-white/10 bg-white/10 text-center text-base text-white"
+  1283→            />
+  1284→            <Input
+  1285→              value={c.name}
+  1286→              aria-label="Name"
+  1287→              onChange={(e) =>
+  1288→                setCats((p) =>
+  1289→                  p.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x))
+  1290→                )
+  1291→              }
+  1292→              className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white"
+  1293→            />
+  1294→            <span className="font-mono text-xs text-white/55">{c.slug}</span>
+  1295→            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-white/60">
+  1296→              {c.toolCount} tools
+  1297→            </span>
+  1298→            <Button
+  1299→              size="sm"
+  1300→              variant="outline"
+  1301→              onClick={() => void save({ id: c.id, slug: c.slug, name: c.name, emoji: c.emoji })}
+  1302→              className="h-8 rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+  1303→            >
+  1304→              <Save className="size-3.5" aria-hidden />
+  1305→            </Button>
+  1306→            <Button
+  1307→              size="sm"
+  1308→              variant="ghost"
+  1309→              onClick={() => void remove(c.id, c.name, c.toolCount)}
+  1310→              className="h-8 rounded-lg text-red-400 hover:bg-red-400/10"
+  1311→              aria-label={`Delete ${c.name}`}
+  1312→            >
+  1313→              <Trash2 className="size-3.5" aria-hidden />
+  1314→            </Button>
+  1315→          </div>
+  1316→        ))}
+  1317→      </div>
+  1318→
+  1319→      <div className="rounded-xl border border-dashed border-white/15 p-4">
+  1320→        <p className={labelCx}>New category</p>
+  1321→        <div className="mt-2 flex flex-wrap gap-2">
+  1322→          <Input
+  1323→            value={draft.emoji}
+  1324→            maxLength={4}
+  1325→            onChange={(e) => setDraft({ ...draft, emoji: e.target.value })}
+  1326→            aria-label="New category emoji"
+  1327→            className="h-9 w-14 border border-white/10 bg-white/10 text-center text-base text-white"
+  1328→          />
+  1329→          <Input
+  1330→            value={draft.name}
+  1331→            onChange={(e) =>
+  1332→              setDraft({
+  1333→                ...draft,
+  1334→                name: e.target.value,
+  1335→                slug: e.target.value
+  1336→                  .toLowerCase()
+  1337→                  .replace(/[^a-z0-9]+/g, "-")
+  1338→                  .replace(/^-+|-+$/g, ""),
+  1339→              })
+  1340→            }
+  1341→            placeholder="Name"
+  1342→            className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+  1343→          />
+  1344→          <Input
+  1345→            value={draft.slug}
+  1346→            onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
+  1347→            placeholder="slug"
+  1348→            className="w-40 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
+  1349→          />
+  1350→          <Button
+  1351→            disabled={!draft.name || draft.name.length < 2}
+  1352→            onClick={() => {
+  1353→              void save(draft).then((ok) => {
+  1354→                if (ok) setDraft({ slug: "", name: "", emoji: "🧪" });
+  1355→              });
+  1356→            }}
+  1357→            className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
+  1358→          >
+  1359→            <Plus className="size-4" aria-hidden />
+  1360→            Add
+  1361→          </Button>
+  1362→        </div>
+  1363→      </div>
+  1364→    </div>
+  1365→  );
+  1366→}
+  1367→
+  1368→// ── Section: Settings (site copy KV) ─────────────────────────────────────
+  1369→
+  1370→const SETTING_FIELDS: { key: string; label: string; multiline?: boolean; hint?: string }[] = [
+  1371→  { key: "hero.headline", label: "Hero headline", hint: "Last word renders in ember." },
+  1372→  { key: "hero.subline", label: "Hero subline", multiline: true },
+  1373→  { key: "hero.announcement", label: "Announcement pill" },
+  1374→  { key: "footer.note", label: "Footer note" },
+  1375→  { key: "seo.defaultTitle", label: "Default SEO title (≤60)" },
+  1376→  { key: "seo.defaultDescription", label: "Default SEO description (≤160)", multiline: true },
+  1377→];
+  1378→
+  1379→function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
+  1380→  const { toast } = useToast();
+  1381→  const [values, setValues] = useState<Record<string, string>>({});
+  1382→  const [extra, setExtra] = useState({ key: "", value: "" });
+  1383→  const [busy, setBusy] = useState(false);
+  1384→
+  1385→  const load = useCallback(() => {
+  1386→    adminFetch(apiKey, "/api/admin/settings")
+  1387→      .then((r) => r.json())
+  1388→      .then((d: { settings: Record<string, string> }) => setValues(d.settings))
+  1389→      .catch(() => toast({ title: "Settings unavailable", variant: "destructive" }));
+  1390→  }, [apiKey, toast]);
+  1391→  useEffect(load, [load]);
+  1392→
+  1393→  const save = async () => {
+  1394→    setBusy(true);
+  1395→    try {
+  1396→      const payload: Record<string, string> = { ...values };
+  1397→      if (extra.key && extra.value) payload[extra.key] = extra.value;
+  1398→      const res = await adminFetch(apiKey, "/api/admin/settings", {
+  1399→        method: "PUT",
+  1400→        body: JSON.stringify({ settings: payload }),
+  1401→      });
+  1402→      const d = (await res.json()) as { ok?: boolean; updated?: number };
+  1403→      if (res.ok && d.ok) {
+  1404→        toast({ title: "Site copy saved", description: `${d.updated} keys written. Refresh to see it live.` });
+  1405→        setExtra({ key: "", value: "" });
+  1406→        load();
+  1407→        onChanged();
+  1408→      }
+  1409→    } catch {
+  1410→      toast({ title: "Network error", variant: "destructive" });
+  1411→    } finally {
+  1412→      setBusy(false);
+  1413→    }
+  1414→  };
+  1415→
+  1416→  return (
+  1417→    <div className="space-y-4">
+  1418→      <div className="grid gap-3 sm:grid-cols-2">
+  1419→        {SETTING_FIELDS.map((sf) => (
+  1420→          <div key={sf.key} className={sf.multiline ? "sm:col-span-2" : ""}>
+  1421→            <Field label={sf.label} hint={`${sf.key}${sf.hint ? ` · ${sf.hint}` : ""}`}>
+  1422→              {sf.multiline ? (
+  1423→                <Textarea
+  1424→                  value={values[sf.key] ?? ""}
+  1425→                  rows={2}
+  1426→                  onChange={(e) => setValues({ ...values, [sf.key]: e.target.value })}
+  1427→                  className={inputCx}
+  1428→                />
+  1429→              ) : (
+  1430→                <Input
+  1431→                  value={values[sf.key] ?? ""}
+  1432→                  onChange={(e) => setValues({ ...values, [sf.key]: e.target.value })}
+  1433→                  className={inputCx}
+  1434→                />
+  1435→              )}
+  1436→            </Field>
+  1437→          </div>
+  1438→        ))}
+  1439→      </div>
+  1440→
+  1441→      <div className="rounded-xl border border-dashed border-white/15 p-4">
+  1442→        <p className={labelCx}>Custom key / value</p>
+  1443→        <div className="mt-2 flex flex-wrap gap-2">
+  1444→          <Input
+  1445→            value={extra.key}
+  1446→            onChange={(e) => setExtra({ ...extra, key: e.target.value })}
+  1447→            placeholder="e.g. og.imageNote"
+  1448→            className="w-48 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
+  1449→          />
+  1450→          <Input
+  1451→            value={extra.value}
+  1452→            onChange={(e) => setExtra({ ...extra, value: e.target.value })}
+  1453→            placeholder="value"
+  1454→            className="flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+  1455→          />
+  1456→        </div>
+  1457→      </div>
+  1458→
+  1459→      <Button
+  1460→        disabled={busy}
+  1461→        onClick={() => void save()}
+  1462→        className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
+  1463→      >
+  1464→        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+  1465→        Save site copy
+  1466→      </Button>
+  1467→    </div>
+  1468→  );
+  1469→}
+  1470→
+  1471→// ── Overview: stat cards (delta pills + mini sparkline) ──────────────────
+  1472→
+  1473→type Delta = { text: string; dir: "up" | "down" | "flat"; title: string };
+  1474→
+  1475→/** Honest delta vs yesterday — no fabrication when the base is zero. */
+  1476→function computeDelta(cur: number, prev: number): Delta {
+  1477→  if (prev === 0 && cur === 0)
+  1478→    return { text: "±0", dir: "flat", title: "No change vs yesterday" };
+  1479→  if (prev === 0)
+  1480→    return { text: "↑ new", dir: "up", title: `${cur} today · none yesterday` };
+  1481→  const pct = Math.round(((cur - prev) / prev) * 100);
+  1482→  if (pct === 0)
+  1483→    return { text: "±0%", dir: "flat", title: `${cur} today vs ${prev} yesterday` };
+  1484→  return pct > 0
+  1485→    ? { text: `↑ ${pct}%`, dir: "up", title: `${cur} today vs ${prev} yesterday` }
+  1486→    : { text: `↓ ${Math.abs(pct)}%`, dir: "down", title: `${cur} today vs ${prev} yesterday` };
+  1487→}
+  1488→
+  1489→const DELTA_CX: Record<Delta["dir"], string> = {
+  1490→  up: "bg-emerald-400/10 text-emerald-400/80",
+  1491→  down: "bg-red-400/10 text-red-400/80",
+  1492→  flat: "bg-white/5 text-white/60",
+  1493→};
+  1494→
+  1495→function DeltaPill({ delta }: { delta: Delta }) {
+  1496→  return (
+  1497→    <span
+  1498→      title={delta.title}
+  1499→      className={cn(
+  1500→        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs",
+  1501→        DELTA_CX[delta.dir]
+  1502→      )}
+  1503→    >
+  1504→      {delta.text}
+  1505→    </span>
+  1506→  );
+  1507→}
+  1508→
+  1509→function MiniSpark({ data, className }: { data: number[]; className?: string }) {
+  1510→  const max = Math.max(...data, 1);
+  1511→  return (
+  1512→    <div className={cn("flex h-8 items-end gap-[3px]", className)} aria-hidden>
+  1513→      {data.map((v, i) => (
+  1514→        <span
+  1515→          key={i}
+  1516→          className={cn(
+  1517→            "min-w-[3px] flex-1 rounded-sm",
+  1518→            i === data.length - 1 ? "bg-ember" : "bg-white/15"
+  1519→          )}
+  1520→          style={{ height: `${Math.max(8, Math.round((v / max) * 100))}%` }}
+  1521→        />
+  1522→      ))}
+  1523→    </div>
+  1524→  );
+  1525→}
+  1526→
+  1527→function StatCard({
+  1528→  label,
+  1529→  value,
+  1530→  delta,
+  1531→  caption,
+  1532→  spark,
+  1533→  accent,
+  1534→}: {
+  1535→  label: string;
+  1536→  value: string | number;
+  1537→  delta?: Delta;
+  1538→  caption?: string;
+  1539→  spark?: number[];
+  1540→  accent?: boolean;
+  1541→}) {
+  1542→  return (
+  1543→    <div
+  1544→      className={cn(
+  1545→        "rounded-2xl border p-4 sm:p-5",
+  1546→        accent ? "border-ember/40 bg-ember/[0.06]" : "border-white/10 bg-white/[0.02]"
+  1547→      )}
+  1548→    >
+  1549→      <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
+  1550→        {label}
+  1551→      </p>
+  1552→      <p className="mt-1.5 text-3xl font-black tracking-tight text-white">
+  1553→        {typeof value === "number" ? value.toLocaleString() : value}
+  1554→      </p>
+  1555→      {spark && <MiniSpark data={spark} className="mt-3" />}
+  1556→      {(delta || caption) && (
+  1557→        <div className="mt-2.5 flex min-h-5 flex-wrap items-center gap-2">
+  1558→          {delta && <DeltaPill delta={delta} />}
+  1559→          {caption && (
+  1560→            <span className="min-w-0 truncate font-mono text-xs text-white/55">
+  1561→              {caption}
+  1562→            </span>
+  1563→          )}
+  1564→        </div>
+  1565→      )}
+  1566→    </div>
+  1567→  );
+  1568→}
+  1569→
+  1570→// ── Overview: charts row ─────────────────────────────────────────────────
+  1571→
+  1572→function dayLabel(utcDayIndex: number): string {
+  1573→  // Index 13 = today (UTC). Labels are display-only.
+  1574→  const d = new Date(Date.now() - (13 - utcDayIndex) * 86_400_000);
+  1575→  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  1576→}
+  1577→
+  1578→function TrendChartCard({
+  1579→  label,
+  1580→  noun,
+  1581→  byDay,
+  1582→}: {
+  1583→  label: string;
+  1584→  noun: string;
+  1585→  byDay: number[];
+  1586→}) {
+  1587→  const max = Math.max(...byDay, 1);
+  1588→  const total = byDay.reduce((a, b) => a + b, 0);
+  1589→  return (
+  1590→    <Panel>
+  1591→      <div className="flex items-center justify-between gap-2">
+  1592→        <p className={labelCx}>{label} · last 14 days</p>
+  1593→        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-white/60">
+  1594→          {total} total
+  1595→        </span>
+  1596→      </div>
+  1597→      <div
+  1598→        role="img"
+  1599→        aria-label={`${noun}s per day over the last 14 days, ${total} total`}
+  1600→        className="mt-5 flex h-40 items-end gap-1.5 border-b border-white/10 pb-px"
+  1601→      >
+  1602→        {byDay.map((v, i) => (
+  1603→          <div
+  1604→            key={i}
+  1605→            title={`${dayLabel(i)} · ${v} ${noun}${v === 1 ? "" : "s"}`}
+  1606→            className="group flex h-full flex-1 items-end"
+  1607→          >
+  1608→            <span
+  1609→              className={cn(
+  1610→                "w-full rounded-t-[3px] transition-colors",
+  1611→                i === 13 ? "bg-ember" : "bg-white/15 group-hover:bg-white/30"
+  1612→              )}
+  1613→              style={{ height: `${Math.max(3, Math.round((v / max) * 100))}%` }}
+  1614→            />
+  1615→          </div>
+  1616→        ))}
+  1617→      </div>
+  1618→      <div className="mt-1.5 flex gap-1.5" aria-hidden>
+  1619→        {byDay.map((_, i) =>
+  1620→          i % 3 === 0 || i === 13 ? (
+  1621→            <span
+  1622→              key={i}
+  1623→              className={cn(
+  1624→                "flex-1 text-center font-mono text-xs",
+  1625→                i === 13 ? "text-ember" : "text-white/55"
+  1626→              )}
+  1627→            >
+  1628→              {dayLabel(i)}
+  1629→            </span>
+  1630→          ) : (
+  1631→            <span key={i} className="flex-1" />
+  1632→          )
+  1633→        )}
+  1634→      </div>
+  1635→    </Panel>
+  1636→  );
+  1637→}
+  1638→
+  1639→/* Monochrome-plus-ember dot palette (brand tones only — no rainbow). */
+  1640→const MIX_COLORS = [
+  1641→  "#FF6A00",
+  1642→  "#FFB877",
+  1643→  "#F1EDE4",
+  1644→  "rgba(255,255,255,0.55)",
+  1645→  "rgba(255,255,255,0.32)",
+  1646→  "rgba(255,255,255,0.16)",
+  1647→];
+  1648→
+  1649→function CategoryMixCard({ mix }: { mix: { name: string; count: number }[] }) {
+  1650→  const top = mix.slice(0, 6);
+  1651→  const rest = mix.slice(6).reduce((a, b) => a + b.count, 0);
+  1652→  const rows = rest > 0 ? [...top, { name: "Other", count: rest }] : top;
+  1653→  const total = mix.reduce((a, b) => a + b.count, 0);
+  1654→  return (
+  1655→    <Panel>
+  1656→      <div className="flex items-center justify-between gap-2">
+  1657→        <p className={labelCx}>Category mix</p>
+  1658→        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-white/60">
+  1659→          {total} live
+  1660→        </span>
+  1661→      </div>
+  1662→      <div className="mt-4 space-y-3.5">
+  1663→        {rows.map((r, i) => (
+  1664→          <div key={r.name}>
+  1665→            <div className="flex items-center gap-2">
+  1666→              <span
+  1667→                aria-hidden
+  1668→                className="size-2 shrink-0 rounded-full"
+  1669→                style={{ backgroundColor: MIX_COLORS[i % MIX_COLORS.length] }}
+  1670→              />
+  1671→              <span className="min-w-0 flex-1 truncate text-sm text-white/70">{r.name}</span>
+  1672→              <span className="font-mono text-xs text-white/60">{r.count}</span>
+  1673→            </div>
+  1674→            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+  1675→              <div
+  1676→                className="h-full rounded-full"
+  1677→                style={{
+  1678→                  width: `${total ? Math.max(2, Math.round((r.count / total) * 100)) : 0}%`,
+  1679→                  backgroundColor: MIX_COLORS[i % MIX_COLORS.length],
+  1680→                }}
+  1681→              />
+  1682→            </div>
+  1683→          </div>
+  1684→        ))}
+  1685→        {rows.length === 0 && (
+  1686→          <p className="py-10 text-center text-sm text-white/55">No live listings yet.</p>
+  1687→        )}
+  1688→      </div>
+  1689→    </Panel>
+  1690→  );
+  1691→}
+  1692→
+  1693→const PRICING_ORDER = ["free", "freemium", "paid", "open_source"] as const;
+  1694→const PRICING_COLORS: Record<string, string> = {
+  1695→  free: "#FF6A00",
+  1696→  freemium: "#FFB877",
+  1697→  paid: "#F1EDE4",
+  1698→  open_source: "rgba(255,255,255,0.45)",
+  1699→};
+  1700→
+  1701→function PricingDonutCard({ mix }: { mix: { model: string; count: number }[] }) {
+  1702→  const rows = PRICING_ORDER.map((m) => ({
+  1703→    model: m,
+  1704→    count: mix.find((x) => x.model === m)?.count ?? 0,
+  1705→  })).filter((r) => r.count > 0);
+  1706→  const total = rows.reduce((a, b) => a + b.count, 0);
+  1707→  let acc = 0;
+  1708→  const stops = rows.map((r) => {
+  1709→    const start = (acc / total) * 100;
+  1710→    acc += r.count;
+  1711→    const end = (acc / total) * 100;
+  1712→    return `${PRICING_COLORS[r.model] ?? "rgba(255,255,255,0.4)"} ${start}% ${end}%`;
+  1713→  });
+  1714→  return (
+  1715→    <Panel>
+  1716→      <p className={labelCx}>Pricing mix</p>
+  1717→      <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row">
+  1718→        <div
+  1719→          role="img"
+  1720→          aria-label={`Pricing mix across ${total} live tools`}
+  1721→          className="relative size-36 shrink-0 rounded-full ring-1 ring-white/10"
+  1722→          style={{ background: total > 0 ? `conic-gradient(${stops.join(",")})` : "rgba(255,255,255,0.05)" }}
+  1723→        >
+  1724→          <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-ink">
+  1725→            <span className="text-2xl font-black tracking-tight text-white">
+  1726→              {total.toLocaleString()}
+  1727→            </span>
+  1728→            <span className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
+  1729→              tools
+  1730→            </span>
+  1731→          </div>
+  1732→        </div>
+  1733→        <div className="w-full space-y-2">
+  1734→          {rows.map((r) => (
+  1735→            <div key={r.model} className="flex items-center gap-2 font-mono text-xs">
+  1736→              <span
+  1737→                aria-hidden
+  1738→                className="size-2 shrink-0 rounded-full"
+  1739→                style={{ backgroundColor: PRICING_COLORS[r.model] }}
+  1740→              />
+  1741→              <span className="flex-1 text-white/60">{r.model.replace("_", " ")}</span>
+  1742→              <span className="text-white/60">{r.count}</span>
+  1743→            </div>
+  1744→          ))}
+  1745→          {total === 0 && (
+  1746→            <p className="text-sm text-white/55">No live listings yet.</p>
+  1747→          )}
+  1748→        </div>
+  1749→      </div>
+  1750→    </Panel>
+  1751→  );
+  1752→}
+  1753→
+  1754→// ── Overview: activity table + queue aging ───────────────────────────────
+  1755→
+  1756→function ActivityCard({
+  1757→  audit,
+  1758→  className,
+  1759→}: {
+  1760→  audit: Overview["audit"];
+  1761→  className?: string;
+  1762→}) {
+  1763→  return (
+  1764→    <Panel className={cn("flex min-w-0 flex-col", className)}>
+  1765→      <div className="flex items-center justify-between gap-2">
+  1766→        <p className={labelCx}>Recent activity</p>
+  1767→        <span className="font-mono text-xs text-white/55">audit trail</span>
+  1768→      </div>
+  1769→      <div className="mt-3 max-h-80 overflow-y-auto">
+  1770→        <Table>
+  1771→          <TableHeader>
+  1772→            <TableRow className="border-white/10 hover:bg-transparent">
+  1773→              <TableHead className="h-8 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
+  1774→                Time
+  1775→              </TableHead>
+  1776→              <TableHead className="h-8 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
+  1777→                Action
+  1778→              </TableHead>
+  1779→              <TableHead className="hidden h-8 font-mono text-xs tracking-[0.2em] text-white/55 uppercase md:table-cell">
+  1780→                Target
+  1781→              </TableHead>
+  1782→              <TableHead className="h-8 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
+  1783→                Meta
+  1784→              </TableHead>
+  1785→            </TableRow>
+  1786→          </TableHeader>
+  1787→          <TableBody>
+  1788→            {audit.map((a) => {
+  1789→              const d = new Date(a.at);
+  1790→              return (
+  1791→                <TableRow key={a.id} className="border-white/[0.06]">
+  1792→                  <TableCell className="py-2.5">
+  1793→                    <div className="flex items-center gap-2.5">
+  1794→                      <span
+  1795→                        aria-hidden
+  1796→                        className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-ember/20 bg-ember/10 font-mono text-xs font-bold text-ember uppercase"
+  1797→                      >
+  1798→                        {(a.entity || a.action).slice(0, 1)}
+  1799→                      </span>
+  1800→                      <span className="whitespace-nowrap font-mono text-xs text-white/60">
+  1801→                        {d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+  1802→                        {" · "}
+  1803→                        {d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}
+  1804→                      </span>
+  1805→                    </div>
+  1806→                  </TableCell>
+  1807→                  <TableCell className="py-2.5">
+  1808→                    <span className="whitespace-nowrap rounded bg-ember/10 px-1.5 py-0.5 font-mono text-xs text-ember">
+  1809→                      {a.action}
+  1810→                    </span>
+  1811→                  </TableCell>
+  1812→                  <TableCell className="hidden py-2.5 font-mono text-xs text-white/50 md:table-cell">
+  1813→                    {a.entity}
+  1814→                    {a.entityId ? `…${a.entityId.slice(-4)}` : ""}
+  1815→                  </TableCell>
+  1816→                  <TableCell className="max-w-[180px] truncate py-2.5 text-xs text-white/60">
+  1817→                    {a.meta || "—"}
+  1818→                  </TableCell>
+  1819→                </TableRow>
+  1820→              );
+  1821→            })}
+  1822→            {audit.length === 0 && (
+  1823→              <TableRow>
+  1824→                <TableCell colSpan={4} className="py-10 text-center text-sm text-white/55">
+  1825→                  No admin actions recorded yet.
+  1826→                </TableCell>
+  1827→              </TableRow>
+  1828→            )}
+  1829→          </TableBody>
+  1830→        </Table>
+  1831→      </div>
+  1832→    </Panel>
+  1833→  );
+  1834→}
+  1835→
+  1836→const QUEUE_SLA_H = 14;
+  1837→
+  1838→function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number }) {
+  1839→  const pct = Math.min(100, Math.round((ageH / QUEUE_SLA_H) * 100));
+  1840→  return (
+  1841→    <Panel>
+  1842→      <div className="flex items-center justify-between gap-2">
+  1843→        <p className={labelCx}>Queue aging</p>
+  1844→        {oldest && ageH > QUEUE_SLA_H && (
+  1845→          <span className="rounded-full bg-red-400/10 px-2 py-0.5 font-mono text-xs tracking-wider text-red-400/80 uppercase">
+  1846→            past SLA
+  1847→          </span>
+  1848→        )}
+  1849→      </div>
+  1850→      {oldest ? (
+  1851→        <>
+  1852→          <p className="mt-3 text-3xl font-black tracking-tight text-white">
+  1853→            {ageH}
+  1854→            <span className="ml-1 text-base font-bold text-white/60">h</span>
+  1855→          </p>
+  1856→          <p className="mt-1 truncate text-xs text-white/50">
+  1857→            oldest pending · <span className="text-white/80">{oldest}</span>
+  1858→          </p>
+  1859→          <Progress
+  1860→            value={pct}
+  1861→            aria-label={`Oldest pending submission: ${ageH} hours of the ${QUEUE_SLA_H} hour SLA`}
+  1862→            className="mt-4 h-1.5 bg-white/10 [&_[data-slot=progress-indicator]]:bg-ember"
+  1863→          />
+  1864→          <p className="mt-2 font-mono text-xs text-white/55">
+  1865→            SLA {QUEUE_SLA_H}h · {pct}% elapsed
+  1866→          </p>
+  1867→        </>
+  1868→      ) : (
+  1869→        <div className="flex flex-col items-center py-8 text-center">
+  1870→          <CheckCircle2 className="size-8 text-emerald-400" aria-hidden />
+  1871→          <p className="mt-2.5 font-mono text-sm text-white/60">Queue clear</p>
+  1872→          <p className="mt-1 text-xs text-white/55">Nothing waiting on review.</p>
+  1873→        </div>
+  1874→      )}
+  1875→    </Panel>
+  1876→  );
+  1877→}
+  1878→
+  1879→function OverviewSkeleton() {
+  1880→  return (
+  1881→    <div className="space-y-4 sm:space-y-5">
+  1882→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  1883→        {Array.from({ length: 8 }).map((_, i) => (
+  1884→          <Skeleton key={i} className="h-[118px] rounded-2xl bg-white/[0.04]" />
+  1885→        ))}
+  1886→      </div>
+  1887→      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+  1888→        {Array.from({ length: 4 }).map((_, i) => (
+  1889→          <Skeleton key={i} className="h-64 rounded-2xl bg-white/[0.04]" />
+  1890→        ))}
+  1891→      </div>
+  1892→      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
+  1893→        <Skeleton className="h-72 rounded-2xl bg-white/[0.04] lg:col-span-2" />
+  1894→        <Skeleton className="h-72 rounded-2xl bg-white/[0.04]" />
+  1895→      </div>
+  1896→    </div>
+  1897→  );
+  1898→}
+  1899→
+  1900→function OverviewView({ data, apiKey }: { data: Overview; apiKey: string }) {
+
+[showing lines 1201-1900 of 2537; use offset=1901 with limit to continue reading]

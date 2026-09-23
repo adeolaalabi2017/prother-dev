@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Hexagon } from "lucide-react";
 import { useExplorer } from "./explorer-store";
+import { useSiteSettings } from "./use-site-settings";
 
 type FooterLink = {
   label: string;
@@ -18,6 +19,7 @@ const COLS: { title: string; links: FooterLink[] }[] = [
     title: "Directory",
     links: [
       { label: "All tools", href: "/tools" },
+      { label: "Compare tools", href: "/compare" },
       { label: "Conversational AI", href: "/categories/conversational-ai" },
       { label: "Generative Content", href: "/categories/generative-content" },
       { label: "Automation", href: "/categories/automation" },
@@ -69,6 +71,12 @@ function FooterAnchor({ link }: { link: FooterLink }) {
 export function SiteFooter() {
   const setEditorOpen = useExplorer((s) => s.setEditorOpen);
   const setTrackOpen = useExplorer((s) => s.setTrackOpen);
+  // CMS-managed copy (Task 32) — blanks keep the locked defaults.
+  const settings = useSiteSettings();
+  const tagline =
+    settings["footer.tagline"] ||
+    "The curated directory for AI tools. Search, compare, and save your stack.";
+  const note = settings["footer.note"] || "Curation is never sold.";
   return (
     <footer className="mt-auto border-t border-white/10 bg-ink">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
@@ -79,7 +87,7 @@ export function SiteFooter() {
               <span className="text-lg font-black tracking-tight text-white">Prother</span>
             </div>
             <p className="mt-3 max-w-xs text-sm text-white/50">
-              The curated directory for AI tools. Search, compare, and save your stack.
+              {tagline}
             </p>
             <p className="mt-4 font-mono text-xs text-white/55">@PROTHER_DEV · PROTHER.DEV</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -123,7 +131,7 @@ export function SiteFooter() {
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col justify-between gap-3 px-4 py-6 sm:px-6 md:flex-row md:items-center">
           <p className="font-mono text-xs text-white/60">
-           © 2026 Prother. Curation is never sold.
+           © 2026 Prother. {note}
           </p>
           <div className="flex items-center gap-2 font-mono text-xs text-white/60">
             <span>STANDARDS · PRIVACY · STATUS</span>

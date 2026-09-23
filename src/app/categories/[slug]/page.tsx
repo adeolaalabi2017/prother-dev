@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowUpRight, Compass, Star } from "lucide-react";
+import { ArrowUpRight, Compass, Scale, Star } from "lucide-react";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { blurbFor } from "@/lib/category-blurbs";
@@ -175,6 +175,15 @@ export default async function CategoryPage({ params }: Params) {
             {tools.length} {tools.length === 1 ? "tool" : "tools"} listed · curated
             daily
           </p>
+          <div className="mt-5">
+            <Link
+              href={`/compare?category=${category.slug}`}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ember/40 px-5 text-sm font-semibold text-ember transition-colors hover:bg-ember/10"
+            >
+              <Scale className="size-4" aria-hidden />
+              Compare tools
+            </Link>
+          </div>
         </header>
 
         {/* Category Spotlight — the top slot sold on /advertise. Category-

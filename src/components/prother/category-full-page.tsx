@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Star } from "lucide-react";
+import Link from "next/link";
+import { Bell, Scale, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
@@ -226,6 +227,13 @@ export function CategoryFullPage() {
                     <Bell className="size-3.5" aria-hidden />
                     {isFollowing ? "Following" : "Follow"}
                   </button>
+                  <Link
+                    href={`/compare?category=${meta.slug}`}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ember/40 px-3 py-1.5 font-mono text-sm tracking-[0.2em] text-ember uppercase transition-colors hover:bg-ember/10"
+                  >
+                    <Scale className="size-3.5" aria-hidden />
+                    Compare tools
+                  </Link>
                 </div>
               </div>
             </div>

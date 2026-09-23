@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ExternalLink, FileText, Github, Search, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ExternalLink, FileText, Github, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -497,6 +498,19 @@ export function CompareFullPage() {
             {verdict && (
               <p className="text-center font-mono text-xs uppercase tracking-[0.25em] text-white/50" aria-live="polite">
                 {verdict}
+              </p>
+            )}
+
+            {/* Same-category pairs get the full feature matrix on /compare */}
+            {rowA.category.slug === rowB.category.slug && (
+              <p className="text-center">
+                <Link
+                  href={`/compare?category=${encodeURIComponent(rowA.category.slug)}&tools=${encodeURIComponent(`${rowA.slug},${rowB.slug}`)}`}
+                  className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ember hover:underline"
+                >
+                  Open the full feature comparison
+                  <ArrowRight className="size-4" aria-hidden />
+                </Link>
               </p>
             )}
 

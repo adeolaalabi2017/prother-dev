@@ -307,6 +307,14 @@ const SETTINGS: Record<string, string> = {
   "seo.defaultTitle": "Prother. AI tool discovery",
   "seo.defaultDescription":
     "A curated search & discovery directory for AI products and tools. Compare pricing, read reviews, and find the right AI for the job.",
+  // Task 32 — CMS-managed frontend elements (server-rendered sections).
+  "home.categoriesKicker": "Browse by category",
+  "home.categoriesHeading": "Find your category.",
+  "home.picksKicker": "Editor's Picks",
+  "home.picksHeading": "Hand-tested by our editors.",
+  "home.closingHeadline": "Can't find the\ntool you need?",
+  "home.closingSub": "Listings are free and reviewed by humans.",
+  "footer.tagline": "The curated directory for AI tools. Search, compare, and save your stack.",
 };
 
 async function main() {

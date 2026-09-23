@@ -1,0 +1,681 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useMemo, useState } from "react";
+     4→import { ExternalLink, FileText, Github, Search, X } from "lucide-react";
+     5→import { Button } from "@/components/ui/button";
+     6→import { Input } from "@/components/ui/input";
+     7→import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+     8→import { cn } from "@/lib/utils";
+     9→import { FullPageShell, PageSkeleton } from "./page-shell";
+    10→import { useExplorer } from "./explorer-store";
+    11→
+    12→// ── Types (per the compare API contract) ──────────────────────────────────
+    13→
+    14→type CompareRow = {
+    15→  slug: string;
+    16→  name: string;
+    17→  tagline: string;
+    18→  emoji: string;
+    19→  gradient: string;
+    20→  description: string | null;
+    21→  websiteUrl: string;
+    22→  pricing: { model: string; price: string | null; note: string | null };
+    23→  category: { slug: string; name: string; emoji: string };
+    24→  tags: string[];
+    25→  links: { github: string | null; docs: string | null; twitter: string | null };
+    26→  /** Aggregate object (unlocks at ≥3 published reviews) — see /api/compare. */
+    27→  rating: { count: number; ease: number; power: number; value: number; overall: number } | null;
+    28→  reviewCount: number;
+    29→  comments: number;
+    30→  verified: boolean;
+    31→  claimed: boolean;
+    32→  hasApi: boolean;
+    33→  track: string;
+    34→  maker: string;
+    35→};
+    36→
+    37→type PopularPair = {
+    38→  aSlug: string;
+    39→  bSlug: string;
+    40→  views: number;
+    41→  aName: string;
+    42→  aEmoji: string;
+    43→  bName: string;
+    44→  bEmoji: string;
+    45→};
+    46→
+    47→type CompareResponse = {
+    48→  a: CompareRow;
+    49→  b: CompareRow;
+    50→  popular?: PopularPair[];
+    51→};
+    52→
+    53→type DirectoryRow = {
+    54→  slug: string;
+    55→  name: string;
+    56→  tagline: string;
+    57→  emoji: string;
+    58→  gradient: string;
+    59→  editorsPick?: boolean;
+    60→};
+    61→
+    62→const MONO = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
+    63→const PRICING_LABEL: Record<string, string> = {
+    64→  free: "Free",
+    65→  freemium: "Freemium",
+    66→  paid: "Paid",
+    67→  open_source: "Open Source",
+    68→};
+    69→
+    70→// ── Tool picker combobox ──────────────────────────────────────────────────
+    71→
+    72→function ToolPicker({
+    73→  label,
+    74→  current,
+    75→  excludeSlug,
+    76→  rows,
+    77→  onPick,
+    78→  onClear,
+    79→}: {
+    80→  label: string;
+    81→  current: DirectoryRow | null;
+    82→  excludeSlug: string | null;
+    83→  rows: DirectoryRow[];
+    84→  onPick: (slug: string) => void;
+    85→  onClear: () => void;
+    86→}) {
+    87→  const [open, setOpen] = useState(false);
+    88→  const [q, setQ] = useState("");
+    89→
+    90→  const filtered = useMemo(() => {
+    91→    const needle = q.trim().toLowerCase();
+    92→    return rows
+    93→      .filter((r) => r.slug !== excludeSlug)
+    94→      .filter(
+    95→        (r) =>
+    96→          needle === "" ||
+    97→          r.name.toLowerCase().includes(needle) ||
+    98→          r.slug.includes(needle) ||
+    99→          r.tagline.toLowerCase().includes(needle)
+   100→      )
+   101→      .slice(0, 40);
+   102→  }, [rows, excludeSlug, q]);
+   103→
+   104→  return (
+   105→    <div className="flex min-w-0 items-center gap-3">
+   106→      <span className={cn(MONO, "w-14 shrink-0")}>{label}</span>
+   107→      <Popover
+   108→        open={open}
+   109→        onOpenChange={(next) => {
+   110→          setOpen(next);
+   111→          if (next) setQ("");
+   112→        }}
+   113→      >
+   114→        <PopoverTrigger asChild>
+   115→          <button
+   116→            type="button"
+   117→            aria-label={current ? `Change tool ${label}` : `Pick tool for ${label}`}
+   118→            className={cn(
+   119→              "flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl border px-3 text-left transition-colors",
+   120→              current
+   121→                ? "border-white/10 bg-white/[0.02] hover:border-ember/40"
+   122→                : "border-dashed border-white/20 text-white/60 hover:border-ember/40 hover:text-white/70"
+   123→            )}
+   124→          >
+   125→            {current ? (
+   126→              <>
+   127→                <span
+   128→                  aria-hidden
+   129→                  className={cn(
+   130→                    "grid size-7 shrink-0 place-items-center rounded-md bg-gradient-to-br text-sm",
+   131→                    current.gradient
+   132→                  )}
+   133→                >
+   134→                  {current.emoji}
+   135→                </span>
+   136→                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white/90">
+   137→                  {current.name}
+   138→                </span>
+   139→              </>
+   140→            ) : (
+   141→              <span className="flex items-center gap-2 text-sm">
+   142→                <Search className="size-4" aria-hidden /> Pick a tool…
+   143→              </span>
+   144→            )}
+   145→          </button>
+   146→        </PopoverTrigger>
+   147→        <PopoverContent
+   148→          align="start"
+   149→          sideOffset={8}
+   150→          className="w-80 border-white/10 bg-coal p-0 text-white"
+   151→          aria-label={`Choose ${label}`}
+   152→        >
+   153→          <div className="border-b border-white/10 p-2">
+   154→            <Input
+   155→              value={q}
+   156→              onChange={(e) => setQ(e.target.value.slice(0, 60))}
+   157→              placeholder="Filter tools…"
+   158→              aria-label={`Filter tools for ${label}`}
+   159→              className="h-9 border-white/10 bg-transparent text-sm focus-visible:border-ember/50 focus-visible:ring-0"
+   160→            />
+   161→          </div>
+   162→          <div className="max-h-64 overflow-y-auto p-1.5">
+   163→            {filtered.map((r) => (
+   164→              <button
+   165→                key={r.slug}
+   166→                type="button"
+   167→                onClick={() => {
+   168→                  onPick(r.slug);
+   169→                  setOpen(false);
+   170→                }}
+   171→                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-ember/10"
+   172→              >
+   173→                <span
+   174→                  aria-hidden
+   175→                  className={cn(
+   176→                    "grid size-7 shrink-0 place-items-center rounded-md bg-gradient-to-br text-sm",
+   177→                    r.gradient
+   178→                  )}
+   179→                >
+   180→                  {r.emoji}
+   181→                </span>
+   182→                <span className="min-w-0 flex-1">
+   183→                  <span className="block truncate text-sm font-semibold text-white/90">{r.name}</span>
+   184→                  <span className="block truncate text-xs text-white/60">{r.tagline}</span>
+   185→                </span>
+   186→              </button>
+   187→            ))}
+   188→            {filtered.length === 0 && (
+   189→              <p className="px-3 py-6 text-center text-xs text-white/60">
+   190→                No tools match “{q}”.
+   191→              </p>
+   192→            )}
+   193→          </div>
+   194→        </PopoverContent>
+   195→      </Popover>
+   196→      {current && (
+   197→        <Button
+   198→          type="button"
+   199→          variant="outline"
+   200→          size="icon"
+   201→          aria-label={`Clear ${label}`}
+   202→          onClick={onClear}
+   203→          className="bg-white/[0.03] hover:bg-white/[0.08] size-11 shrink-0 border-white/10 text-white/50 hover:border-ember/40 hover:text-white"
+   204→        >
+   205→          <X className="size-4" aria-hidden />
+   206→        </Button>
+   207→      )}
+   208→    </div>
+   209→  );
+   210→}
+   211→
+   212→// ── Metric row ────────────────────────────────────────────────────────────
+   213→
+   214→function MetricRow({
+   215→  label,
+   216→  a,
+   217→  b,
+   218→}: {
+   219→  label: string;
+   220→  a: React.ReactNode;
+   221→  b: React.ReactNode;
+   222→}) {
+   223→  return (
+   224→    <div className="grid gap-2 border-b border-white/[0.06] py-3 last:border-0 lg:grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)] lg:gap-4">
+   225→      <div className={cn(MONO, "lg:pt-0.5")}>{label}</div>
+   226→      <div className="flex min-w-0 items-center gap-2 text-sm text-white/85">
+   227→        <span className="shrink-0 font-mono text-xs text-white/55 lg:hidden">A</span>
+   228→        <span className="min-w-0">{a}</span>
+   229→      </div>
+   230→      <div className="flex min-w-0 items-center gap-2 text-sm text-white/85">
+   231→        <span className="shrink-0 font-mono text-xs text-white/55 lg:hidden">B</span>
+   232→        <span className="min-w-0">{b}</span>
+   233→      </div>
+   234→    </div>
+   235→  );
+   236→}
+   237→
+   238→function MiniBar({ value }: { value: number }) {
+   239→  return (
+   240→    <span className="inline-flex min-w-0 flex-1 items-center gap-2">
+   241→      <span className="h-1.5 min-w-16 max-w-40 flex-1 overflow-hidden rounded-full bg-white/10">
+   242→        <span
+   243→          className="block h-full rounded-full bg-ember"
+   244→          style={{ width: `${Math.max(4, Math.min(100, (value / 5) * 100))}%` }}
+   245→        />
+   246→      </span>
+   247→      <span className="font-mono text-xs tabular-nums text-white/60">
+   248→        {value.toFixed(1)}
+   249→      </span>
+   250→    </span>
+   251→  );
+   252→}
+   253→
+   254→function YesNo({ yes, yesLabel = "YES" }: { yes: boolean; yesLabel?: string }) {
+   255→  return yes ? (
+   256→    <span className="text-mint">✓ {yesLabel}</span>
+   257→  ) : (
+   258→    <span className="text-white/55">✗</span>
+   259→  );
+   260→}
+   261→
+   262→// ── Main page ─────────────────────────────────────────────────────────────
+   263→
+   264→export function CompareFullPage() {
+   265→  const compareOpen = useExplorer((s) => s.compareOpen);
+   266→  const compare = useExplorer((s) => s.compare);
+   267→  const closeCompare = useExplorer((s) => s.closeCompare);
+   268→  const openCompare = useExplorer((s) => s.openCompare);
+   269→  const addCompare = useExplorer((s) => s.addCompare);
+   270→  const removeCompare = useExplorer((s) => s.removeCompare);
+   271→  const openCategory = useExplorer((s) => s.openCategory);
+   272→
+   273→  const [rows, setRows] = useState<DirectoryRow[]>([]);
+   274→  const [directoryLoaded, setDirectoryLoaded] = useState(false);
+   275→  const [data, setData] = useState<CompareResponse | null>(null);
+   276→  /** Slug pair the stored head-to-head data was fetched for — guards staleness. */
+   277→  const [dataPair, setDataPair] = useState<string[]>([]);
+   278→  const [popular, setPopular] = useState<PopularPair[]>([]);
+   279→  const [loading, setLoading] = useState(false);
+   280→  const [loadErr, setLoadErr] = useState(false);
+   281→
+   282→  const a = compare[0] ?? null;
+   283→  const b = compare[1] ?? null;
+   284→
+   285→  // Directory list powers both pickers (client-side filtering).
+   286→  useEffect(() => {
+   287→    if (!compareOpen || directoryLoaded) return;
+   288→    let alive = true;
+   289→    fetch("/api/tools?pageSize=60")
+   290→      .then(async (res) => {
+   291→        if (!res.ok) throw new Error("failed");
+   292→        return (await res.json()) as { rows: DirectoryRow[] };
+   293→      })
+   294→      .then((json) => {
+   295→        if (!alive) return;
+   296→        setRows(json.rows ?? []);
+   297→        setDirectoryLoaded(true);
+   298→      })
+   299→      .catch(() => {
+   300→        /* pickers stay empty; the page still renders chips/slugs */
+   301→        if (alive) setDirectoryLoaded(true);
+   302→      });
+   303→    return () => {
+   304→      alive = false;
+   305→    };
+   306→  }, [compareOpen, directoryLoaded]);
+   307→
+   308→  // Head-to-head data (only when both slugs are chosen).
+   309→  const loadPair = useCallback(async (aSlug: string, bSlug: string) => {
+   310→    setLoading(true);
+   311→    setLoadErr(false);
+   312→    try {
+   313→      const res = await fetch(
+   314→        `/api/compare?a=${encodeURIComponent(aSlug)}&b=${encodeURIComponent(bSlug)}`
+   315→      );
+   316→      if (!res.ok) throw new Error("failed");
+   317→      const json = (await res.json()) as CompareResponse;
+   318→      setData(json);
+   319→      setDataPair([aSlug, bSlug]);
+   320→      setPopular(json.popular ?? []);
+   321→    } catch {
+   322→      setLoadErr(true);
+   323→      setData(null);
+   324→      setDataPair([]);
+   325→    } finally {
+   326→      setLoading(false);
+   327→    }
+   328→  }, []);
+   329→
+   330→  useEffect(() => {
+   331→    if (!compareOpen || !a || !b) return;
+   332→    // Stale responses are harmless: rendering is guarded by dataPair.
+   333→    void loadPair(a, b);
+   334→  }, [compareOpen, a, b, loadPair]);
+   335→
+   336→  // Popular strip for the picker view (when no head-to-head yet).
+   337→  useEffect(() => {
+   338→    if (!compareOpen || (a && b)) return;
+   339→    let alive = true;
+   340→    fetch("/api/compare?popular=1")
+   341→      .then(async (res) => {
+   342→        if (!res.ok) throw new Error("failed");
+   343→        return (await res.json()) as { popular: PopularPair[] };
+   344→      })
+   345→      .then((json) => {
+   346→        if (alive) setPopular(json.popular ?? []);
+   347→      })
+   348→      .catch(() => {
+   349→        /* strip is optional */
+   350→      });
+   351→    return () => {
+   352→      alive = false;
+   353→    };
+   354→  }, [compareOpen, a, b]);
+   355→
+   356→  const rowOf = useCallback(
+   357→    (slug: string | null) => rows.find((r) => r.slug === slug) ?? null,
+   358→    [rows]
+   359→  );
+   360→
+   361→  /** Head-to-head data matches the currently selected pair. */
+   362→  const dataValid =
+   363→    !!data && dataPair.length === 2 && dataPair[0] === a && dataPair[1] === b;
+   364→
+   365→  const pickA = useCallback(
+   366→    (slug: string) => {
+   367→      if (b) openCompare(slug, b);
+   368→      else {
+   369→        if (a) removeCompare(a);
+   370→        addCompare(slug);
+   371→      }
+   372→    },
+   373→    [a, b, openCompare, removeCompare, addCompare]
+   374→  );
+   375→
+   376→  const pickB = useCallback(
+   377→    (slug: string) => {
+   378→      if (a) openCompare(a, slug);
+   379→      else addCompare(slug);
+   380→    },
+   381→    [a, openCompare, addCompare]
+   382→  );
+   383→
+   384→  const shareUrl =
+   385→    typeof window !== "undefined"
+   386→      ? `${window.location.origin}/?compare=${encodeURIComponent(a ?? "")},${encodeURIComponent(b ?? "")}`
+   387→      : `/?compare=${encodeURIComponent(a ?? "")},${encodeURIComponent(b ?? "")}`;
+   388→
+   389→  const verdict = useMemo(() => {
+   390→    if (!dataValid) return null;
+   391→    const a = data!.a.rating;
+   392→    const b = data!.b.rating;
+   393→    // No vote winner — the honest verdict is the review aggregate (when both
+   394→    // tools have one). Otherwise no banner; the table below does the talking.
+   395→    if (!a || !b) return null;
+   396→    const diff = Math.round((a.overall - b.overall) * 10) / 10;
+   397→    if (diff === 0) return "EVEN ON REVIEW RATING";
+   398→    const winner = diff > 0 ? data!.a.name : data!.b.name;
+   399→    return `${winner.toUpperCase()} LEADS · BY REVIEW RATING (+${Math.abs(diff).toFixed(1)})`;
+   400→  }, [data, dataValid]);
+   401→
+   402→  if (!compareOpen) return null;
+   403→
+   404→  const rowA = dataValid ? data!.a : null;
+   405→  const rowB = dataValid ? data!.b : null;
+   406→  const hasPair = !!a && !!b;
+   407→
+   408→  return (
+   409→    <FullPageShell
+   410→      kicker="Side-by-side"
+   411→      breadcrumb={[{ label: "Home" }, { label: "Compare" }]}
+   412→      onClose={closeCompare}
+   413→      shareUrl={hasPair ? shareUrl : undefined}
+   414→      wide
+   415→      ariaLabel="Compare tools side by side"
+   416→    >
+   417→      <div className="space-y-8">
+   418→        {/* Pickers */}
+   419→        <section aria-label="Choose tools to compare" className="space-y-3">
+   420→          <div className="grid gap-3 sm:grid-cols-2">
+   421→            <ToolPicker
+   422→              label="TOOL A"
+   423→              current={rowOf(a)}
+   424→              excludeSlug={b}
+   425→              rows={rows}
+   426→              onPick={pickA}
+   427→              onClear={() => a && removeCompare(a)}
+   428→            />
+   429→            <ToolPicker
+   430→              label="TOOL B"
+   431→              current={rowOf(b)}
+   432→              excludeSlug={a}
+   433→              rows={rows}
+   434→              onPick={pickB}
+   435→              onClear={() => b && removeCompare(b)}
+   436→            />
+   437→          </div>
+   438→          {!hasPair && (
+   439→            <p className="font-mono text-xs uppercase tracking-[0.2em] text-white/60">
+   440→              {a || b
+   441→                ? "Pick the second tool to unlock the side-by-side."
+   442→                : "Pick two tools to compare, or start from a popular matchup below."}
+   443→            </p>
+   444→          )}
+   445→        </section>
+   446→
+   447→        {/* Loading */}
+   448→        {hasPair && loading && <PageSkeleton />}
+   449→
+   450→        {/* Load failure — pickers stay usable */}
+   451→        {hasPair && !loading && (loadErr || !rowA || !rowB) && (
+   452→          <p className="rounded-xl border border-red-500/25 bg-red-500/[0.04] p-4 text-sm text-red-300">
+   453→            Couldn&apos;t load the comparison for this pair. Try different tools.
+   454→          </p>
+   455→        )}
+   456→
+   457→        {/* Comparison grid */}
+   458→        {hasPair && !loading && rowA && rowB && (
+   459→          <section aria-label="Comparison" className="space-y-6">
+   460→            {/* Header cards */}
+   461→            <div className="grid gap-4 sm:grid-cols-2">
+   462→              {[rowA, rowB].map((r, i) => (
+   463→                <div
+   464→                  key={r.slug}
+   465→                  className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40"
+   466→                >
+   467→                  <span
+   468→                    aria-hidden
+   469→                    className={cn(
+   470→                      "grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-3xl",
+   471→                      r.gradient
+   472→                    )}
+   473→                  >
+   474→                    {r.emoji}
+   475→                  </span>
+   476→                  <div className="min-w-0 flex-1">
+   477→                    <div className="flex items-center gap-2">
+   478→                      <h2 className="truncate text-xl font-black text-white">{r.name}</h2>
+   479→                      <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px font-mono text-xs tracking-wider text-white/50">
+   480→                        {i === 0 ? "TOOL A" : "TOOL B"}
+   481→                      </span>
+   482→                    </div>
+   483→                    <p className="mt-0.5 truncate text-sm text-white/55">{r.tagline}</p>
+   484→                  </div>
+   485→                  <span className="shrink-0 rounded-full bg-ember/10 px-3 py-1.5 font-mono text-sm font-black tabular-nums text-ember">
+   486→                    {r.rating != null ? (
+   487→                      <>★ {r.rating.overall.toFixed(1)}/5</>
+   488→                    ) : (
+   489→                      <>{r.reviewCount} reviews</>
+   490→                    )}
+   491→                  </span>
+   492→                </div>
+   493→              ))}
+   494→            </div>
+   495→
+   496→            {/* Auto-verdict */}
+   497→            {verdict && (
+   498→              <p className="text-center font-mono text-xs uppercase tracking-[0.25em] text-white/50" aria-live="polite">
+   499→                {verdict}
+   500→              </p>
+   501→            )}
+   502→
+   503→            {/* Metric table */}
+   504→            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-1 sm:px-5">
+   505→              <MetricRow
+   506→                label="Rating"
+   507→                a={
+   508→                  rowA.rating != null ? (
+   509→                    <span className="tabular-nums">
+   510→                      {rowA.rating.overall.toFixed(1)}{" "}
+   511→                      <span className="font-mono text-xs text-white/60">({rowA.rating.count})</span>
+   512→                    </span>
+   513→                  ) : (
+   514→                    <span className="font-mono text-xs text-white/60">
+   515→                      UNRATED · {rowA.reviewCount} reviews
+   516→                    </span>
+   517→                  )
+   518→                }
+   519→                b={
+   520→                  rowB.rating != null ? (
+   521→                    <span className="tabular-nums">
+   522→                      {rowB.rating.overall.toFixed(1)}{" "}
+   523→                      <span className="font-mono text-xs text-white/60">({rowB.rating.count})</span>
+   524→                    </span>
+   525→                  ) : (
+   526→                    <span className="font-mono text-xs text-white/60">
+   527→                      UNRATED · {rowB.reviewCount} reviews
+   528→                    </span>
+   529→                  )
+   530→                }
+   531→              />
+   532→              {rowA.rating?.ease != null && rowB.rating?.ease != null && (
+   533→                <MetricRow label="Ease" a={<MiniBar value={rowA.rating.ease} />} b={<MiniBar value={rowB.rating.ease} />} />
+   534→              )}
+   535→              {rowA.rating?.power != null && rowB.rating?.power != null && (
+   536→                <MetricRow label="Power" a={<MiniBar value={rowA.rating.power} />} b={<MiniBar value={rowB.rating.power} />} />
+   537→              )}
+   538→              {rowA.rating?.value != null && rowB.rating?.value != null && (
+   539→                <MetricRow label="Value" a={<MiniBar value={rowA.rating.value} />} b={<MiniBar value={rowB.rating.value} />} />
+   540→              )}
+   541→              <MetricRow
+   542→                label="Pricing"
+   543→                a={
+   544→                  <span>
+   545→                    <span className="font-semibold text-white">
+   546→                      {PRICING_LABEL[rowA.pricing.model] ?? "Free"}
+   547→                    </span>
+   548→                    {rowA.pricing.price && (
+   549→                      <span className="ml-1.5 font-mono text-xs text-ember">{rowA.pricing.price}</span>
+   550→                    )}
+   551→                  </span>
+   552→                }
+   553→                b={
+   554→                  <span>
+   555→                    <span className="font-semibold text-white">
+   556→                      {PRICING_LABEL[rowB.pricing.model] ?? "Free"}
+   557→                    </span>
+   558→                    {rowB.pricing.price && (
+   559→                      <span className="ml-1.5 font-mono text-xs text-ember">{rowB.pricing.price}</span>
+   560→                    )}
+   561→                  </span>
+   562→                }
+   563→              />
+   564→              <MetricRow label="API" a={<YesNo yes={rowA.hasApi} yesLabel="AVAILABLE" />} b={<YesNo yes={rowB.hasApi} yesLabel="AVAILABLE" />} />
+   565→              <MetricRow label="Open source" a={<YesNo yes={rowA.pricing.model === "open_source"} />} b={<YesNo yes={rowB.pricing.model === "open_source"} />} />
+   566→              <MetricRow
+   567→                label="Category"
+   568→                a={
+   569→                  <button
+   570→                    type="button"
+   571→                    onClick={() => openCategory(rowA.category.slug)}
+   572→                    aria-label={`Browse the ${rowA.category.name} category`}
+   573→                    className="text-left transition-colors hover:text-ember"
+   574→                  >
+   575→                    {rowA.category.emoji} {rowA.category.name}
+   576→                  </button>
+   577→                }
+   578→                b={
+   579→                  <button
+   580→                    type="button"
+   581→                    onClick={() => openCategory(rowB.category.slug)}
+   582→                    aria-label={`Browse the ${rowB.category.name} category`}
+   583→                    className="text-left transition-colors hover:text-ember"
+   584→                  >
+   585→                    {rowB.category.emoji} {rowB.category.name}
+   586→                  </button>
+   587→                }
+   588→              />
+   589→              <MetricRow label="Comments" a={<span className="tabular-nums">{rowA.comments}</span>} b={<span className="tabular-nums">{rowB.comments}</span>} />
+   590→              <MetricRow
+   591→                label="Maker"
+   592→                a={<span className="text-ember">{rowA.maker}</span>}
+   593→                b={<span className="text-ember">{rowB.maker}</span>}
+   594→              />
+   595→              <MetricRow
+   596→                label="Links"
+   597→                a={
+   598→                  <span className="flex items-center gap-1.5">
+   599→                    <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   600→                      <a href={rowA.websiteUrl} target="_blank" rel="noopener noreferrer" aria-label={`${rowA.name} website`}>
+   601→                        <ExternalLink className="size-3.5" aria-hidden />
+   602→                      </a>
+   603→                    </Button>
+   604→                    {rowA.links.github && (
+   605→                      <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   606→                        <a href={rowA.links.github} target="_blank" rel="noopener noreferrer" aria-label={`${rowA.name} on GitHub`}>
+   607→                          <Github className="size-3.5" aria-hidden />
+   608→                        </a>
+   609→                      </Button>
+   610→                    )}
+   611→                    {rowA.links.docs && (
+   612→                      <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   613→                        <a href={rowA.links.docs} target="_blank" rel="noopener noreferrer" aria-label={`${rowA.name} documentation`}>
+   614→                          <FileText className="size-3.5" aria-hidden />
+   615→                        </a>
+   616→                      </Button>
+   617→                    )}
+   618→                  </span>
+   619→                }
+   620→                b={
+   621→                  <span className="flex items-center gap-1.5">
+   622→                    <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   623→                      <a href={rowB.websiteUrl} target="_blank" rel="noopener noreferrer" aria-label={`${rowB.name} website`}>
+   624→                        <ExternalLink className="size-3.5" aria-hidden />
+   625→                      </a>
+   626→                    </Button>
+   627→                    {rowB.links.github && (
+   628→                      <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   629→                        <a href={rowB.links.github} target="_blank" rel="noopener noreferrer" aria-label={`${rowB.name} on GitHub`}>
+   630→                          <Github className="size-3.5" aria-hidden />
+   631→                        </a>
+   632→                      </Button>
+   633→                    )}
+   634→                    {rowB.links.docs && (
+   635→                      <Button asChild variant="outline" size="icon" className="bg-white/[0.03] hover:bg-white/[0.08] size-9 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember">
+   636→                        <a href={rowB.links.docs} target="_blank" rel="noopener noreferrer" aria-label={`${rowB.name} documentation`}>
+   637→                          <FileText className="size-3.5" aria-hidden />
+   638→                        </a>
+   639→                      </Button>
+   640→                    )}
+   641→                  </span>
+   642→                }
+   643→              />
+   644→              <MetricRow
+   645→                label="About"
+   646→                a={<span className="line-clamp-3 text-xs leading-relaxed text-white/55">{rowA.description ?? "—"}</span>}
+   647→                b={<span className="line-clamp-3 text-xs leading-relaxed text-white/55">{rowB.description ?? "—"}</span>}
+   648→              />
+   649→            </div>
+   650→          </section>
+   651→        )}
+   652→
+   653→        {/* Popular matchups */}
+   654→        {popular.length > 0 && (
+   655→          <section aria-label="Popular comparisons" className="space-y-3">
+   656→            <h2 className={MONO}>Popular matchups</h2>
+   657→            <div className="flex flex-wrap gap-2">
+   658→              {popular.map((p) => (
+   659→                <button
+   660→                  key={`${p.aSlug}-${p.bSlug}`}
+   661→                  type="button"
+   662→                  onClick={() => openCompare(p.aSlug, p.bSlug)}
+   663→                  aria-label={`Compare ${p.aName} vs ${p.bName}, viewed ${p.views} times`}
+   664→                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3.5 py-2 text-sm text-white/80 transition-colors hover:border-ember/40 hover:bg-ember/[0.05]"
+   665→                >
+   666→                  <span aria-hidden>{p.aEmoji}</span>
+   667→                  <span className="font-semibold">{p.aName}</span>
+   668→                  <span className="font-mono text-xs text-ember">VS</span>
+   669→                  <span aria-hidden>{p.bEmoji}</span>
+   670→                  <span className="font-semibold">{p.bName}</span>
+   671→                  <span className="font-mono text-xs tabular-nums text-white/55">· {p.views}</span>
+   672→                </button>
+   673→              ))}
+   674→            </div>
+   675→          </section>
+   676→        )}
+   677→      </div>
+   678→    </FullPageShell>
+   679→  );
+   680→}
+   681→

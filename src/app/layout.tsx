@@ -33,43 +33,63 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(
-    // Same fallback as robots.ts/sitemap.ts — a mismatched default would put
-    // localhost into every og:image/canonical URL in production.
-    siteUrl()
-  ),
-  title: "Prother · Find the right AI tool",
-  description:
-    "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.",
-  keywords: [
-    "Prother",
-    "AI tools",
-    "AI tools directory",
-    "AI tools search",
-    "best AI tools",
-    "AI products",
-    "find AI tools",
-  ],
-  openGraph: {
-    title: "Prother · Find the right AI tool",
-    description:
-      "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.",
-    siteName: "Prother",
-    type: "website",
-    images: [{ url: "/api/og", width: 1200, height: 630 }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Prother · Find the right AI tool",
-    description:
-      "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.",
-    images: ["/api/og"],
-  },
-  alternates: {
-    types: { "application/rss+xml": "/api/rss" },
-  },
-};
+/**
+ * Root metadata reads the CMS-managed SEO defaults (SiteSetting KV, Task 32)
+ * with the locked copy as fallback, so the Admin Console can retune the site's
+ * default unfurl without a deploy. Page-level generateMetadata overrides.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  let title = "Prother · Find the right AI tool";
+  let description =
+    "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.";
+  try {
+    const { db } = await import("@/lib/prother");
+    const rows = await db.siteSetting.findMany({
+      where: { key: { in: ["seo.defaultTitle", "seo.defaultDescription"] } },
+      select: { key: true, value: true },
+    });
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    if (map["seo.defaultTitle"]) title = map["seo.defaultTitle"];
+    if (map["seo.defaultDescription"]) description = map["seo.defaultDescription"];
+  } catch {
+    // Locked defaults hold — metadata must never 500 the shell.
+  }
+
+  return {
+    metadataBase: new URL(
+      // Same fallback as robots.ts/sitemap.ts — a mismatched default would put
+      // localhost into every og:image/canonical URL in production.
+      siteUrl()
+    ),
+    title,
+    description,
+    keywords: [
+      "Prother",
+      "AI tools",
+      "AI tools directory",
+      "AI tools search",
+      "best AI tools",
+      "AI products",
+      "find AI tools",
+    ],
+    openGraph: {
+      title,
+      description,
+      siteName: "Prother",
+      type: "website",
+      images: [{ url: "/api/og", width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/api/og"],
+    },
+    alternates: {
+      types: { "application/rss+xml": "/api/rss" },
+    },
+  };
+}
 
 /**
  * Shared chrome — header, footer, overlays, and the full-page deep-link

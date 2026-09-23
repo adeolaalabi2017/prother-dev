@@ -17,7 +17,12 @@ import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
  * The metadata plumbing below serves the single-route deep links (?tool=,
  * ?post=, ?category=, ?compare=, ?collection=) — post-sandbox these become
  * real routes one-to-one.
+ *
+ * force-dynamic: the server-rendered sections read the CMS-managed site copy
+ * (SiteSetting KV, Task 32), so editor saves must appear on the next request.
  */
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   searchParams,
 }: {
@@ -247,17 +252,61 @@ function firstSentence(blurb: string): string {
 
 // ── Sections (server-rendered) ───────────────────────────────────────────
 
-function CategoryGrid({ counts }: { counts: Map<string, number> }) {
+/** Site copy KV (CMS-managed frontend elements) — blanks fall back in-code. */
+async function getSiteCopy(): Promise<Record<string, string>> {
+  try {
+    const rows = await db.siteSetting.findMany({ select: { key: true, value: true } });
+    return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  } catch {
+    return {}; // the page never fails on a settings read
+  }
+}
+
+/** Black display heading with the last word of each line in ember. */
+function AccentHeading({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  return (
+    <h2 className={className}>
+      {lines.map((line, li) => {
+        const words = line.split(" ");
+        const body = words.slice(0, -1).join(" ");
+        const accent = words.at(-1) ?? "";
+        return (
+          <span key={li}>
+            {li > 0 && <br />}
+            {body ? `${body} ` : ""}
+            <span className="text-ember">{accent}</span>
+          </span>
+        );
+      })}
+    </h2>
+  );
+}
+
+function CategoryGrid({
+  counts,
+  copy,
+}: {
+  counts: Map<string, number>;
+  copy: Record<string, string>;
+}) {
   return (
     <section id="categories" className="bg-ink py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <p className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
           <span aria-hidden className="h-px w-6 bg-ember/70" />
-          Browse by category
+          {copy["home.categoriesKicker"] || "Browse by category"}
         </p>
-        <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
-          Find your <span className="text-ember">category.</span>
-        </h2>
+        <AccentHeading
+          text={copy["home.categoriesHeading"] || "Find your category."}
+          className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl"
+        />
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORIES.map((c) => (
@@ -293,6 +342,7 @@ function CategoryGrid({ counts }: { counts: Map<string, number> }) {
 
 function EditorsPicks({
   picks,
+  copy,
 }: {
   picks: {
     slug: string;
@@ -303,6 +353,7 @@ function EditorsPicks({
     pricingModel: string;
     category: { slug: string; name: string; emoji: string };
   }[];
+  copy: Record<string, string>;
 }) {
   if (picks.length === 0) return null;
   return (
@@ -310,11 +361,12 @@ function EditorsPicks({
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <p className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
           <span aria-hidden className="text-ember">★</span>
-          Editor&apos;s Picks
+          {copy["home.picksKicker"] || "Editor's Picks"}
         </p>
-        <h2 className="mt-3 max-w-2xl text-5xl font-black tracking-tighter text-white md:text-6xl">
-          Hand-tested by our <span className="text-ember">editors.</span>
-        </h2>
+        <AccentHeading
+          text={copy["home.picksHeading"] || "Hand-tested by our editors."}
+          className="mt-3 max-w-2xl text-5xl font-black tracking-tighter text-white md:text-6xl"
+        />
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {picks.map((p) => (
@@ -349,7 +401,7 @@ function EditorsPicks({
   );
 }
 
-function ClosingBand() {
+function ClosingBand({ copy }: { copy: Record<string, string> }) {
   return (
     <section id="submit" className="relative overflow-hidden bg-ink py-28">
       {/* Bottom ember glow */}
@@ -358,13 +410,12 @@ function ClosingBand() {
         className="absolute bottom-0 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-ember/20 blur-[100px]"
       />
       <div className="relative mx-auto max-w-2xl px-4 text-center sm:px-6">
-        <h2 className="text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl">
-          Can&apos;t find the
-          <br />
-          <span className="text-ember">tool you need?</span>
-        </h2>
+        <AccentHeading
+          text={copy["home.closingHeadline"] || "Can't find the\ntool you need?"}
+          className="text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl"
+        />
         <p className="mt-4 text-white/60">
-          Listings are free and reviewed by humans.
+          {copy["home.closingSub"] || "Listings are free and reviewed by humans."}
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <SubmitOpenButton label="Submit a tool" className="h-12 px-6 text-base" />
@@ -423,7 +474,7 @@ export default async function Page() {
     ],
   };
 
-  const [counts, picks] = await Promise.all([liveCountByCategory(), getEditorsPicks()]);
+  const [counts, picks, copy] = await Promise.all([liveCountByCategory(), getEditorsPicks(), getSiteCopy()]);
 
   return (
     <>
@@ -433,10 +484,10 @@ export default async function Page() {
       />
       <Hero />
       <CategoryTicker />
-      <CategoryGrid counts={counts} />
-      <EditorsPicks picks={picks} />
+      <CategoryGrid counts={counts} copy={copy} />
+      <EditorsPicks picks={picks} copy={copy} />
       <TrendingStrip />
-      <ClosingBand />
+      <ClosingBand copy={copy} />
     </>
   );
 }

@@ -14,6 +14,9 @@ model Category {
   name      String
   emoji     String
   sortOrder Int
+  /** Comparison axes for the /compare feature matrix, pipe-separated
+   *  ("Context window|Voice input|…"). CMS-managed per category. */
+  features  String @default("")
   tools     Tool[]
 }
 
@@ -35,6 +38,10 @@ model Tool {
   docsUrl       String?
   twitterUrl    String?
   tags          String    @default("") // pipe-separated, ≤5 (controlled vocab §13)
+  /** Feature matrix values for the /compare tool: JSON object mapping the
+   *  category's feature axes to short values ("{\"Context window\":\"200k\"}").
+   *  CMS-managed; missing keys render as em-dash cells. */
+  features      String    @default("{}")
   /** Claim owner's account email (set when a claim is verified — F-30). */
   makerEmail    String?
   track         String    @default("editor_seed") // editor_seed | community

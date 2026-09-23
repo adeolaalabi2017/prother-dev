@@ -23,6 +23,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Scale,
   Search,
   Settings as SettingsIcon,
   ShieldCheck,
@@ -209,6 +210,8 @@ type AdminTool = {
   claimed: boolean;
   makerHandle: string;
   verifiedAt: string | null;
+  /** Comparison-matrix values (Task 32): {"Context window":"128k tokens"}. */
+  features: Record<string, string>;
   category: { id: string; name: string; emoji: string; slug: string };
   comments: number;
   reviews: number;
@@ -429,6 +432,395 @@ const GRADIENTS = [
   "from-orange-600 to-red-700",
 ];
 
+type AdminCat = { id: string; name: string; emoji: string; features: string };
+
+/**
+ * Create-listing form (Task 32 CMS): POST /api/admin/tools. Slugs auto-derive
+ * from the name server-side; the preview line shows what will happen.
+ */
+function ListingCreateForm({
+  apiKey,
+  categories,
+  onDone,
+}: {
+  apiKey: string;
+  categories: AdminCat[];
+  onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const [f, setF] = useState({
+    name: "",
+    slug: "",
+    tagline: "",
+    description: "",
+    websiteUrl: "",
+    categoryId: "",
+    pricingModel: "freemium",
+    startingPrice: "",
+    tags: "",
+    logoEmoji: "⬡",
+    logoGradient: GRADIENTS[0],
+    hasApi: false,
+    status: "live",
+  });
+
+  const autoSlug =
+    f.slug ||
+    f.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+  const create = async () => {
+    setBusy(true);
+    try {
+      const res = await adminFetch(apiKey, "/api/admin/tools", {
+        method: "POST",
+        body: JSON.stringify({
+          name: f.name,
+          slug: f.slug || undefined,
+          tagline: f.tagline,
+          description: f.description || undefined,
+          websiteUrl: f.websiteUrl,
+          categoryId: f.categoryId,
+          pricingModel: f.pricingModel,
+          startingPrice: f.startingPrice || undefined,
+          tags: f.tags,
+          logoEmoji: f.logoEmoji || undefined,
+          logoGradient: f.logoGradient,
+          hasApi: f.hasApi,
+          status: f.status,
+        }),
+      });
+      const d = (await res.json()) as { ok?: boolean; error?: string; slug?: string };
+      if (!res.ok || !d.ok) {
+        toast({ title: d.error ?? "Create failed", variant: "destructive" });
+        return;
+      }
+      toast({ title: `${f.name} created`, description: `/tools/${d.slug}` });
+      onDone();
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const valid =
+    f.name.trim().length >= 2 &&
+    f.tagline.trim().length >= 5 &&
+    /^https?:\/\/.+/.test(f.websiteUrl.trim()) &&
+    f.categoryId !== "";
+
+  return (
+    <div className="space-y-4 rounded-xl border border-ember/25 bg-ember/[0.04] p-4">
+      <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">
+        New listing
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Name (2 to 60 chars)">
+          <Input
+            value={f.name}
+            maxLength={60}
+            onChange={(e) => setF({ ...f, name: e.target.value })}
+            className={inputCx}
+            placeholder="Acme Writer"
+          />
+        </Field>
+        <Field label="Slug (auto from name)">
+          <Input
+            value={f.slug}
+            onChange={(e) => setF({ ...f, slug: e.target.value })}
+            className={cn(inputCx, "font-mono")}
+            placeholder="auto"
+          />
+          <p className="font-mono text-xs text-white/55">/tools/{autoSlug || "your-tool"}</p>
+        </Field>
+        <Field label="Tagline (5 to 60 chars)">
+          <Input
+            value={f.tagline}
+            maxLength={60}
+            onChange={(e) => setF({ ...f, tagline: e.target.value })}
+            className={inputCx}
+          />
+          <p className="text-xs text-white/55">{f.tagline.length}/60</p>
+        </Field>
+        <Field label="Website URL">
+          <Input
+            value={f.websiteUrl}
+            onChange={(e) => setF({ ...f, websiteUrl: e.target.value })}
+            className={inputCx}
+            placeholder="https://example.com"
+          />
+        </Field>
+        <Field label="Category">
+          <Select value={f.categoryId} onValueChange={(v) => setF({ ...f, categoryId: v })}>
+            <SelectTrigger className={inputCx}><SelectValue placeholder="Pick a category" /></SelectTrigger>
+            <SelectContent className="border-white/10 bg-coal text-white">
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.emoji} {c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Pricing model">
+          <Select value={f.pricingModel} onValueChange={(v) => setF({ ...f, pricingModel: v })}>
+            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+            <SelectContent className="border-white/10 bg-coal text-white">
+              {["free", "freemium", "paid", "open_source"].map((m) => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Starting price">
+          <Input
+            value={f.startingPrice}
+            onChange={(e) => setF({ ...f, startingPrice: e.target.value })}
+            className={inputCx}
+            placeholder="$19/mo"
+          />
+        </Field>
+        <Field label="Tags (pipe-separated, max 5)">
+          <Input
+            value={f.tags}
+            onChange={(e) => setF({ ...f, tags: e.target.value })}
+            className={inputCx}
+            placeholder="open-source|api-available"
+          />
+        </Field>
+        <Field label="Logo emoji">
+          <Input
+            value={f.logoEmoji}
+            maxLength={8}
+            onChange={(e) => setF({ ...f, logoEmoji: e.target.value })}
+            className={cn(inputCx, "w-20 text-center text-base")}
+          />
+        </Field>
+        <Field label="Status">
+          <Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}>
+            <SelectTrigger className={inputCx}><SelectValue /></SelectTrigger>
+            <SelectContent className="border-white/10 bg-coal text-white">
+              <SelectItem value="live">live</SelectItem>
+              <SelectItem value="draft">draft</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <div className="sm:col-span-2">
+          <Field label="Description">
+            <Textarea
+              value={f.description}
+              rows={3}
+              onChange={(e) => setF({ ...f, description: e.target.value })}
+              className={inputCx}
+            />
+          </Field>
+        </div>
+      </div>
+
+      <div>
+        <p className={labelCx}>Gradient</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {GRADIENTS.map((g) => (
+            <button
+              key={g}
+              type="button"
+              aria-label={`Gradient ${g}`}
+              onClick={() => setF({ ...f, logoGradient: g })}
+              className={cn(
+                "size-8 rounded-lg bg-gradient-to-br transition-transform active:scale-90",
+                g,
+                f.logoGradient === g ? "ring-2 ring-ember ring-offset-2 ring-offset-coal" : "opacity-60 hover:opacity-100"
+              )}
+            />
+          ))}
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm text-white/70">
+        <Switch checked={f.hasApi} onCheckedChange={(v) => setF({ ...f, hasApi: v })} />
+        Has a public API
+      </label>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3.5">
+        <Button
+          disabled={busy || !valid}
+          onClick={() => void create()}
+          className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />}
+          Create listing
+        </Button>
+        <Button variant="ghost" onClick={onDone} className="rounded-lg text-white/60 hover:text-white">
+          Cancel
+        </Button>
+        <span className="font-mono text-xs text-white/55">
+          LIVE LISTINGS APPEAR IN THE DIRECTORY IMMEDIATELY · DRAFTS STAY HIDDEN
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Per-tool comparison-features editor (Task 32): PATCH /api/admin/tools with
+ * a whole-object `features` replace. Remounts on category change via key=
+ * {categoryId} in ListingEditor, so rows always re-seed from that category's
+ * axes without render-adjust gymnastics.
+ */
+function FeaturesEditor({
+  apiKey,
+  tool,
+  axes,
+  categoryName,
+  onSaved,
+}: {
+  apiKey: string;
+  tool: AdminTool;
+  axes: string[];
+  categoryName: string;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const [vals, setVals] = useState<Record<string, string>>(() => {
+    const base: Record<string, string> = {};
+    for (const k of axes) base[k] = tool.features[k] ?? "";
+    // Preserve custom keys already stored on the tool.
+    for (const [k, v] of Object.entries(tool.features)) {
+      if (!axes.includes(k)) base[k] = v;
+    }
+    return base;
+  });
+  const [customs, setCustoms] = useState<string[]>(() =>
+    Object.keys(tool.features).filter((k) => !axes.includes(k))
+  );
+  const [newKey, setNewKey] = useState("");
+
+  const addCustom = () => {
+    const k = newKey.trim().slice(0, 60);
+    if (!k || axes.includes(k) || customs.includes(k)) return;
+    setCustoms((p) => [...p, k]);
+    setVals((p) => (p[k] === undefined ? { ...p, [k]: "" } : p));
+    setNewKey("");
+  };
+
+  const removeCustom = (k: string) => {
+    setCustoms((p) => p.filter((x) => x !== k));
+    setVals((p) => {
+      const next = { ...p };
+      delete next[k];
+      return next;
+    });
+  };
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const features: Record<string, string> = {};
+      for (const [k, v] of Object.entries(vals)) {
+        const t = v.trim();
+        if (t) features[k.trim()] = t;
+      }
+      const res = await adminFetch(apiKey, "/api/admin/tools", {
+        method: "PATCH",
+        body: JSON.stringify({ id: tool.id, features }),
+      });
+      const d = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !d.ok) {
+        toast({ title: d.error ?? "Save failed", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Features saved", description: `Live on /compare for ${categoryName}.` });
+      onSaved();
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+      <p className="flex items-center gap-1.5 font-mono text-xs tracking-[0.2em] text-ember uppercase">
+        <Scale className="size-3.5" aria-hidden />
+        Comparison features
+      </p>
+      <p className="mt-1 text-xs text-white/55">
+        Matrix rows on /compare for {categoryName}. Values stay short (max 120 chars).
+      </p>
+      <div className="mt-3 space-y-2">
+        {[...axes, ...customs].map((k) => (
+          <div key={k} className="flex items-center gap-2">
+            <span className="w-36 shrink-0 truncate text-sm text-white/80" title={k}>
+              {k}
+            </span>
+            <Input
+              value={vals[k] ?? ""}
+              maxLength={120}
+              aria-label={`Value for ${k}`}
+              placeholder="Short value, e.g. 128k tokens"
+              onChange={(e) => setVals((p) => ({ ...p, [k]: e.target.value }))}
+              className={inputCx}
+            />
+            {!axes.includes(k) && (
+              <button
+                type="button"
+                aria-label={`Remove custom row ${k}`}
+                onClick={() => removeCustom(k)}
+                className="rounded-lg p-2 text-white/60 transition-colors hover:text-red-400"
+              >
+                <Trash2 className="size-3.5" aria-hidden />
+              </button>
+            )}
+          </div>
+        ))}
+        {axes.length === 0 && customs.length === 0 && (
+          <p className="text-xs text-white/55">
+            No axes for this category yet. Add comparison axes in the Taxonomy tab.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Input
+          value={newKey}
+          onChange={(e) => setNewKey(e.target.value)}
+          placeholder="Custom row name"
+          aria-label="Custom feature name"
+          maxLength={60}
+          className="w-44 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={addCustom}
+          disabled={!newKey.trim()}
+          className="rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+        >
+          <Plus className="size-3.5" aria-hidden />
+          Add row
+        </Button>
+        <span className="text-xs text-white/55">Axes are managed per category in the Taxonomy tab.</span>
+      </div>
+
+      <div className="mt-3 border-t border-white/10 pt-3">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => void save()}
+          className="rounded-lg border-ember/40 text-ember hover:bg-ember/10 hover:text-ember-hot"
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+          Save features
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ListingEditor({
   apiKey,
   tool,
@@ -437,7 +829,7 @@ function ListingEditor({
 }: {
   apiKey: string;
   tool: AdminTool;
-  categories: { id: string; name: string; emoji: string }[];
+  categories: AdminCat[];
   onSaved: () => void;
 }) {
   const { toast } = useToast();
@@ -661,6 +1053,22 @@ function ListingEditor({
         ))}
       </div>
 
+      {/* Task 32: per-tool comparison matrix values. key= remounts when the
+          category changes so rows re-seed from that category's axes. */}
+      <FeaturesEditor
+        key={f.categoryId}
+        apiKey={apiKey}
+        tool={tool}
+        axes={(categories.find((c) => c.id === f.categoryId)?.features ?? "")
+          .split("|")
+          .map((s) => s.trim())
+          .filter(Boolean)}
+        categoryName={
+          categories.find((c) => c.id === f.categoryId)?.name ?? tool.category.name
+        }
+        onSaved={onSaved}
+      />
+
       <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3.5">
         <Button
           disabled={busy}
@@ -696,10 +1104,11 @@ function ListingEditor({
 function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
   const { toast } = useToast();
   const [tools, setTools] = useState<AdminTool[] | null>(null);
-  const [cats, setCats] = useState<{ id: string; name: string; emoji: string }[]>([]);
+  const [cats, setCats] = useState<AdminCat[]>([]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(() => {
     adminFetch(apiKey, `/api/admin/tools?q=${encodeURIComponent(q)}&status=${status}`)
@@ -716,9 +1125,7 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   useEffect(() => {
     adminFetch(apiKey, "/api/admin/categories")
       .then((r) => r.json())
-      .then((d: { categories: { id: string; name: string; emoji: string }[] }) =>
-        setCats(d.categories)
-      )
+      .then((d: { categories: AdminCat[] }) => setCats(d.categories))
       .catch(() => {});
   }, [apiKey]);
 
@@ -739,7 +1146,28 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
             ))}
           </SelectContent>
         </Select>
+        <Button
+          size="sm"
+          onClick={() => setCreating((v) => !v)}
+          aria-expanded={creating}
+          className="ml-auto rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
+        >
+          <Plus className="size-4" aria-hidden />
+          Add listing
+        </Button>
       </div>
+
+      {creating && (
+        <ListingCreateForm
+          apiKey={apiKey}
+          categories={cats}
+          onDone={() => {
+            setCreating(false);
+            load();
+            onChanged();
+          }}
+        />
+      )}
 
       {tools === null && <Spinner />}
       {tools?.length === 0 && (
@@ -1206,9 +1634,9 @@ function BlogTab({
 function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
   const { toast } = useToast();
   const [cats, setCats] = useState<
-    { id: string; slug: string; name: string; emoji: string; sortOrder: number; toolCount: number }[]
+    { id: string; slug: string; name: string; emoji: string; sortOrder: number; toolCount: number; features: string }[]
   >([]);
-  const [draft, setDraft] = useState({ slug: "", name: "", emoji: "🧪" });
+  const [draft, setDraft] = useState({ slug: "", name: "", emoji: "🧪", features: "" });
 
   const load = useCallback(() => {
     adminFetch(apiKey, "/api/admin/categories")
@@ -1219,7 +1647,7 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   useEffect(load, [load]);
 
   const save = useCallback(
-    async (payload: { id?: string; slug: string; name: string; emoji: string }) => {
+    async (payload: { id?: string; slug: string; name: string; emoji: string; features?: string }) => {
       try {
         const res = await adminFetch(apiKey, "/api/admin/categories", {
           method: "POST",
@@ -1298,7 +1726,7 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
             <Button
               size="sm"
               variant="outline"
-              onClick={() => void save({ id: c.id, slug: c.slug, name: c.name, emoji: c.emoji })}
+              onClick={() => void save({ id: c.id, slug: c.slug, name: c.name, emoji: c.emoji, features: c.features })}
               className="h-8 rounded-lg border-white/15 text-white/70 hover:bg-white/5"
             >
               <Save className="size-3.5" aria-hidden />
@@ -1312,6 +1740,20 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
             >
               <Trash2 className="size-3.5" aria-hidden />
             </Button>
+            <Input
+              value={c.features}
+              aria-label={`Comparison axes for ${c.name}`}
+              onChange={(e) =>
+                setCats((p) =>
+                  p.map((x) => (x.id === c.id ? { ...x, features: e.target.value } : x))
+                )
+              }
+              placeholder="Comparison axes, pipe-separated: Context window|Voice input"
+              className="w-full border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
+            />
+            <p className="w-full font-mono text-xs tracking-wider text-white/45 uppercase">
+              Comparison axes · rows on the /compare matrix
+            </p>
           </div>
         ))}
       </div>
@@ -1347,11 +1789,17 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
             placeholder="slug"
             className="w-40 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
           />
+          <Input
+            value={draft.features}
+            onChange={(e) => setDraft({ ...draft, features: e.target.value })}
+            placeholder="Comparison axes (optional): Context window|Voice input"
+            className="min-w-56 flex-1 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
+          />
           <Button
             disabled={!draft.name || draft.name.length < 2}
             onClick={() => {
               void save(draft).then((ok) => {
-                if (ok) setDraft({ slug: "", name: "", emoji: "🧪" });
+                if (ok) setDraft({ slug: "", name: "", emoji: "🧪", features: "" });
               });
             }}
             className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
@@ -1365,15 +1813,54 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   );
 }
 
-// ── Section: Settings (site copy KV) ─────────────────────────────────────
+// ── Section: Settings (site copy KV) ─────────────────────────────────
 
-const SETTING_FIELDS: { key: string; label: string; multiline?: boolean; hint?: string }[] = [
-  { key: "hero.headline", label: "Hero headline", hint: "Last word renders in ember." },
-  { key: "hero.subline", label: "Hero subline", multiline: true },
-  { key: "hero.announcement", label: "Announcement pill" },
-  { key: "footer.note", label: "Footer note" },
-  { key: "seo.defaultTitle", label: "Default SEO title (≤60)" },
-  { key: "seo.defaultDescription", label: "Default SEO description (≤160)", multiline: true },
+/**
+ * Frontend-elements CMS (Task 32): grouped, human-labeled fields over the
+ * SiteSetting KV. Each card maps one rendered surface; keys are shown in the
+ * hint line so editors can wire custom values elsewhere. Defaults live in
+ * the consuming components, so a blank field never breaks the page.
+ */
+const SETTING_GROUPS: {
+  title: string;
+  hint?: string;
+  fields: { key: string; label: string; multiline?: boolean; hint?: string }[];
+}[] = [
+  {
+    title: "Hero",
+    hint: "The landing page spotlight section.",
+    fields: [
+      { key: "hero.headline", label: "Hero headline", hint: "Last word renders in ember." },
+      { key: "hero.subline", label: "Hero subline", multiline: true },
+      { key: "hero.announcement", label: "Announcement pill" },
+    ],
+  },
+  {
+    title: "Homepage sections",
+    hint: "Server-rendered section copy below the hero.",
+    fields: [
+      { key: "home.categoriesKicker", label: "Categories kicker" },
+      { key: "home.categoriesHeading", label: "Categories heading", hint: "Last word renders in ember." },
+      { key: "home.picksKicker", label: "Editor's Picks kicker" },
+      { key: "home.picksHeading", label: "Picks heading", hint: "Last word renders in ember." },
+      { key: "home.closingHeadline", label: "Closing band headline", hint: "Line breaks stack the headline.", multiline: true },
+      { key: "home.closingSub", label: "Closing band subline" },
+    ],
+  },
+  {
+    title: "Footer",
+    fields: [
+      { key: "footer.tagline", label: "Footer tagline", hint: "Short line under the brand." },
+      { key: "footer.note", label: "Footer note" },
+    ],
+  },
+  {
+    title: "SEO",
+    fields: [
+      { key: "seo.defaultTitle", label: "Default SEO title (≤60)" },
+      { key: "seo.defaultDescription", label: "Default SEO description (≤160)", multiline: true },
+    ],
+  },
 ];
 
 function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
@@ -1415,25 +1902,35 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {SETTING_FIELDS.map((sf) => (
-          <div key={sf.key} className={sf.multiline ? "sm:col-span-2" : ""}>
-            <Field label={sf.label} hint={`${sf.key}${sf.hint ? ` · ${sf.hint}` : ""}`}>
-              {sf.multiline ? (
-                <Textarea
-                  value={values[sf.key] ?? ""}
-                  rows={2}
-                  onChange={(e) => setValues({ ...values, [sf.key]: e.target.value })}
-                  className={inputCx}
-                />
-              ) : (
-                <Input
-                  value={values[sf.key] ?? ""}
-                  onChange={(e) => setValues({ ...values, [sf.key]: e.target.value })}
-                  className={inputCx}
-                />
-              )}
-            </Field>
+      <div className="space-y-4">
+        {SETTING_GROUPS.map((group) => (
+          <div key={group.title} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+            <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">
+              {group.title}
+            </p>
+            {group.hint && <p className="mt-1 text-xs text-white/55">{group.hint}</p>}
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {group.fields.map((sf) => (
+                <div key={sf.key} className={sf.multiline ? "sm:col-span-2" : ""}>
+                  <Field label={sf.label} hint={`${sf.key}${sf.hint ? ` · ${sf.hint}` : ""}`}>
+                    {sf.multiline ? (
+                      <Textarea
+                        value={values[sf.key] ?? ""}
+                        rows={2}
+                        onChange={(e) => setValues({ ...values, [sf.key]: e.target.value })}
+                        className={inputCx}
+                      />
+                    ) : (
+                      <Input
+                        value={values[sf.key] ?? ""}
+                        onChange={(e) => setValues({ ...values, [sf.key]: e.target.value })}
+                        className={inputCx}
+                      />
+                    )}
+                  </Field>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
