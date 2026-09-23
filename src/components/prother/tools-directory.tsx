@@ -162,7 +162,7 @@ export function ToolsDirectory({
       {/* Page head */}
       {!hideHeader && (
         <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
-          <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
+          <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember uppercase">
             <Compass className="size-3.5" aria-hidden />
             The directory
           </p>
@@ -172,7 +172,7 @@ export function ToolsDirectory({
             One shelf.
           </h1>
           <p className="mt-4 max-w-xl text-lg text-white/60">
-            Search the full directory — {total} tools, honestly listed. Filter by
+            Search the full directory: {total} tools, honestly listed. Filter by
             category, pricing, and tags. Free, open, no account needed.
           </p>
         </div>
@@ -200,7 +200,7 @@ export function ToolsDirectory({
                 placeholder="Search tools…"
                 autoComplete="off"
                 spellCheck={false}
-                className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.04] pl-10 pr-9 text-sm text-white outline-none transition-colors placeholder:text-white/35 focus:border-ember/60 focus:ring-2 focus:ring-ember/25"
+                className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.04] pl-10 pr-9 text-sm text-white outline-none transition-colors placeholder:text-white/55 focus:border-ember/60 focus:ring-2 focus:ring-ember/25"
               />
               {query && (
                 <button
@@ -210,7 +210,7 @@ export function ToolsDirectory({
                     setQuery("");
                   }}
                   aria-label="Clear search"
-                  className="absolute right-2.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-white/40 transition-colors hover:text-ember"
+                  className="absolute right-2.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-white/60 transition-colors hover:text-ember"
                 >
                   <X className="size-3.5" aria-hidden />
                 </button>
@@ -240,9 +240,9 @@ export function ToolsDirectory({
                   }}
                   aria-pressed={sort === s.key}
                   className={cn(
-                    "rounded-md px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
+                    "rounded-md px-3 py-1.5 font-mono text-xs tracking-wider uppercase transition-colors",
                     sort === s.key
-                      ? "bg-ember font-semibold text-black"
+                      ? "bg-ember font-semibold text-coal"
                       : "text-white/55 hover:text-white"
                   )}
                 >
@@ -259,9 +259,9 @@ export function ToolsDirectory({
               onClick={() => openCategoryInDirectory("all")}
               aria-pressed={category === "all"}
               className={cn(
-                "shrink-0 rounded-full border px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-all active:scale-95",
+                "shrink-0 rounded-full border px-3 py-1.5 font-mono text-sm tracking-wider uppercase transition-all active:scale-95",
                 category === "all"
-                  ? "border-ember bg-ember font-semibold text-black"
+                  ? "border-ember bg-ember font-semibold text-coal"
                   : "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-white"
               )}
             >
@@ -274,9 +274,9 @@ export function ToolsDirectory({
                 onClick={() => openCategoryInDirectory(c.slug)}
                 aria-pressed={category === c.slug}
                 className={cn(
-                  "shrink-0 rounded-full border px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-all active:scale-95",
+                  "shrink-0 rounded-full border px-3 py-1.5 font-mono text-sm tracking-wider uppercase transition-all active:scale-95",
                   category === c.slug
-                    ? "border-ember bg-ember font-semibold text-black"
+                    ? "border-ember bg-ember font-semibold text-coal"
                     : "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-white"
                 )}
               >
@@ -290,7 +290,7 @@ export function ToolsDirectory({
 
       {/* Result count */}
       <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6" aria-live="polite">
-        <p className="font-mono text-[11px] tracking-[0.25em] text-white/40 uppercase">
+        <p className="font-mono text-xs tracking-[0.25em] text-white/60 uppercase">
           {loading ? (
             "Scanning…"
           ) : (
@@ -323,25 +323,25 @@ export function ToolsDirectory({
         {!loading && failed && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center">
             <p className="font-mono text-sm text-white/60">
-              Couldn&apos;t load the directory — please refresh the page.
+              Couldn&apos;t load the directory. Please refresh the page.
             </p>
           </div>
         )}
 
         {!loading && !failed && count === 0 && (
           <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
-            <SearchX className="mx-auto size-8 text-white/25" aria-hidden />
+            <SearchX className="mx-auto size-8 text-white/55" aria-hidden />
             <p className="mt-4 font-mono text-sm tracking-wider text-white/60 uppercase">
               No tools match
             </p>
-            <p className="mt-2 text-sm text-white/40">
+            <p className="mt-2 text-sm text-white/60">
               Try a shorter query or a different category.
             </p>
             {hasFilters && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-[11px] font-semibold tracking-wider text-ember uppercase transition-colors hover:bg-ember/20"
+                className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-sm font-semibold tracking-wider text-ember uppercase transition-colors hover:bg-ember/20"
               >
                 <X className="size-3.5" aria-hidden />
                 Clear filters
@@ -356,7 +356,7 @@ export function ToolsDirectory({
               <Fragment key={row.slug}>
                 <Link
                   href={`/tools/${row.slug}`}
-                  aria-label={`${row.name} — ${row.tagline}. Open full listing.`}
+                  aria-label={`${row.name}: ${row.tagline}. Open full listing.`}
                   className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -370,7 +370,7 @@ export function ToolsDirectory({
                       {row.emoji}
                     </div>
                     {row.editorsPick && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
                         <Star className="size-2.5 fill-current" aria-hidden />
                         Editor&apos;s Pick
                       </span>
@@ -385,27 +385,42 @@ export function ToolsDirectory({
                   </p>
 
                   <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
+                    <span
+                      title={`Category: ${row.category.name}`}
+                      className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase"
+                    >
                       {row.category.emoji} {row.category.name}
                     </span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
+                    <span
+                      title={`Pricing: ${pricingLabel(row)}`}
+                      className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase"
+                    >
                       {pricingLabel(row)}
                     </span>
                     {row.reviews.count > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                      <span
+                        title={`${row.reviews.count} published hands-on reviews`}
+                        className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase"
+                      >
                         <Star className="size-2.5 fill-current" aria-hidden />
                         {row.reviews.count}
                       </span>
                     )}
                     {isNewListing(row.listedAt) && (
-                      <span className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-mint uppercase">
+                      <span
+                        title="Listed within the last 14 days"
+                        className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-xs tracking-wider text-mint uppercase"
+                      >
                         New
                       </span>
                     )}
-                    <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                    <span
+                      title={`Listed on Prother ${listedLabel(row.listedAt)}`}
+                      className="ml-auto inline-flex items-center gap-1 font-mono text-xs tracking-wider text-white/55 uppercase"
+                    >
                       Listed {listedLabel(row.listedAt)}
                       <ArrowUpRight
-                        className="size-3.5 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+                        className="size-3.5 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
                         aria-hidden
                       />
                     </span>
@@ -423,7 +438,7 @@ export function ToolsDirectory({
 
         {/* Category SEO blurb — scoped to one category */}
         {!loading && !failed && activeCat && count > 0 && (
-          <p className="mt-10 text-center font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">
+          <p className="mt-10 text-center font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
             Viewing the {activeCat.name} shelf ·{" "}
             <button
               type="button"

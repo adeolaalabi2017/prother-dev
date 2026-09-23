@@ -9,7 +9,7 @@ import { placementEnabled } from "@/lib/ad-config";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Forums — discuss building AI products | Prother",
+  title: "Forums · discuss building AI products | Prother",
   description:
     "Ask, share, and compare notes with the people building and buying AI tools: evaluating tools, pricing, vibecoding workflows, show-and-tell, and new-member intros.",
   keywords: [
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     "Prother forums",
   ],
   openGraph: {
-    title: "Prother Forums — compare notes with the AI builder crowd",
+    title: "Prother Forums: compare notes with the AI builder crowd",
     description:
       "Ask, share, and compare notes with the people building and buying AI tools: workflows, pricing, and what actually happened.",
     siteName: "Prother",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Prother Forums — compare notes with the AI builder crowd",
+    title: "Prother Forums: compare notes with the AI builder crowd",
     description:
       "Ask, share, and compare notes with the people building and buying AI tools.",
     images: ["/api/og"],

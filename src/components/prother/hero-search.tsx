@@ -428,12 +428,12 @@ export function HeroSearch() {
             onKeyDown={onKeyDown}
             placeholder={
               indexCounts && indexCounts.tools > 0
-                ? `Search ${indexCounts.tools} AI tools — try “translate video”`
+                ? `Search ${indexCounts.tools} AI tools. Try “translate video”`
                 : "Search AI tools, categories, and tags…"
             }
             autoComplete="off"
             spellCheck={false}
-            className="h-full w-full bg-transparent text-base text-white outline-none placeholder:text-white/35"
+            className="h-full w-full bg-transparent text-base text-white outline-none placeholder:text-white/55"
           />
           <div className="absolute right-3 flex items-center gap-2">
             {loading && <Loader2 className="size-4 animate-spin text-ember" aria-hidden />}
@@ -451,7 +451,7 @@ export function HeroSearch() {
               </button>
             )}
             {!query && (
-              <kbd className="hidden rounded-md border border-white/15 bg-white/5 px-2 py-1 font-mono text-[10px] text-white/40 sm:block">
+              <kbd className="hidden rounded-md border border-white/15 bg-white/5 px-2 py-1 font-mono text-xs text-white/60 sm:block">
                 /
               </kbd>
             )}
@@ -475,11 +475,11 @@ export function HeroSearch() {
             >
               {noMatches && (
                 <div className="border-b border-white/10 px-5 py-6 text-center">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-white/50">
+                  <p className="font-mono text-xs uppercase tracking-[0.25em] text-white/50">
                     No matches for &ldquo;{q}&rdquo;
                   </p>
-                  <p className="mt-2 text-sm text-white/40">
-                    Check the spelling or explore a category — everything AI, one directory.
+                  <p className="mt-2 text-sm text-white/60">
+                    Check the spelling or explore a category. Everything AI, one directory.
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                     {CATEGORIES.map((c) => (
@@ -490,7 +490,7 @@ export function HeroSearch() {
                           setOpen(false);
                           router.push(`/categories/${c.slug}`);
                         }}
-                        className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] text-white/55 transition hover:border-ember/50 hover:text-ember"
+                        className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-sm text-white/55 transition hover:border-ember/50 hover:text-ember"
                       >
                         {c.emoji} {c.short}
                       </button>
@@ -501,13 +501,13 @@ export function HeroSearch() {
 
               {groups.map((group) => (
                 <div key={group.label} className={cn(groups.length > 1 && "border-b border-white/[0.06] last:border-b-0")}>
-                  <p className="flex items-center gap-2 px-4 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+                  <p className="flex items-center gap-2 px-4 pb-1.5 pt-3 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
                     {group.label === "Trending now" && (
                       <TrendingUp className="size-3 text-ember" aria-hidden />
                     )}
                     {group.label === "Recent" && <History className="size-3 text-ember" aria-hidden />}
                     {group.label}
-                    {group.hint && <span className="text-white/25">{group.hint}</span>}
+                    {group.hint && <span className="text-white/55">{group.hint}</span>}
                   </p>
                   {group.items.map((item, li) => {
                     const idx = group.start + li;
@@ -542,47 +542,56 @@ export function HeroSearch() {
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
                             {rank !== null && (
-                              <span className="font-mono text-[10px] font-bold text-ember">#{rank}</span>
+                              <span className="font-mono text-xs font-bold text-ember">#{rank}</span>
                             )}
                             <span className="truncate text-sm font-semibold text-white">
                               {"name" in item ? item.name : item.title}
                             </span>
                             {item.kind === "tool" && item.category.name && (
-                              <span className="hidden truncate font-mono text-[10px] uppercase tracking-wider text-white/30 sm:inline">
+                              <span
+                                title={`Category: ${item.category.name}`}
+                                className="hidden truncate font-mono text-xs uppercase tracking-wider text-white/55 sm:inline"
+                              >
                                 {item.category.name}
                               </span>
                             )}
                           </span>
                           {"tagline" in item && item.tagline && (
-                            <span className="block truncate text-xs text-white/45">{item.tagline}</span>
+                            <span className="block truncate text-xs text-white/60">{item.tagline}</span>
                           )}
                           {item.kind === "post" && (
-                            <span className="block truncate text-xs text-white/45">{item.excerpt}</span>
+                            <span className="block truncate text-xs text-white/60">{item.excerpt}</span>
                           )}
                         </span>
 
                         {item.kind === "tool" &&
                           (item.editorsPick ? (
-                            <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-ember">
+                            <span
+                              title="Earned through hands-on testing, never payment"
+                              className="ml-auto shrink-0 whitespace-nowrap font-mono text-xs uppercase tracking-wider text-ember"
+                            >
                               ★ Editor&apos;s Pick
                             </span>
                           ) : item.pricing.model ? (
-                            <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-white/40">
+                            <span
+                              title={`Pricing: ${pricingChip(item.pricing.model, item.pricing.price)}`}
+                              className="ml-auto shrink-0 whitespace-nowrap font-mono text-xs uppercase tracking-wider text-white/60"
+                            >
                               {pricingChip(item.pricing.model, item.pricing.price)}
                             </span>
                           ) : null)}
                         {item.kind === "category" && (
-                          <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-white/40">
+                          <span className="ml-auto shrink-0 font-mono text-xs uppercase tracking-wider text-white/60">
                             {item.count > 0 ? `${item.count} tools` : "Browse"}
                           </span>
                         )}
                         {item.kind === "post" && (
-                          <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-white/40">
+                          <span className="ml-auto shrink-0 font-mono text-xs uppercase tracking-wider text-white/60">
                             {item.minutes} min
                           </span>
                         )}
                         {item.kind === "recent" && (
-                          <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-white/30">
+                          <span className="ml-auto shrink-0 font-mono text-xs uppercase tracking-wider text-white/55">
                             ↩ Recent
                           </span>
                         )}
@@ -594,13 +603,13 @@ export function HeroSearch() {
             </div>
 
             {/* Footer hints */}
-            <div className="flex items-center justify-between border-t border-white/10 bg-black/20 px-4 py-2 font-mono text-[10px] tracking-[0.18em] text-white/35">
+            <div className="flex items-center justify-between border-t border-white/10 bg-black/20 px-4 py-2 font-mono text-xs tracking-[0.18em] text-white/55">
               <div className="flex gap-3">
                 <span>↑↓ NAVIGATE</span>
                 <span>↵ OPEN</span>
                 <span>ESC CLOSE</span>
               </div>
-              <span className="text-ember/70">
+              <span className="text-ember/85">
                 {indexCounts ? `${indexCounts.tools} TOOLS INDEXED` : "PROTHER DISCOVERY"}
               </span>
             </div>
@@ -611,7 +620,7 @@ export function HeroSearch() {
       {/* Trending quick-query chips (always visible under the bar) */}
       {trending.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
+          <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/55">
             Try:
           </span>
           {trending.slice(0, 4).map((t) => (
@@ -623,7 +632,7 @@ export function HeroSearch() {
                 inputRef.current?.focus();
                 openDropdown();
               }}
-              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-mono text-[11px] text-white/60 transition hover:border-ember/50 hover:bg-ember/10 hover:text-ember"
+              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-mono text-sm text-white/60 transition hover:border-ember/50 hover:bg-ember/10 hover:text-ember"
             >
               {t.name}
             </button>

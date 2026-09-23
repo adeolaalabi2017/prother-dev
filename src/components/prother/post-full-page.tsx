@@ -171,7 +171,7 @@ export function PostFullPage() {
             <button
               type="button"
               onClick={() => closePost()}
-              className="rounded-lg border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-ember/50 hover:text-ember"
+              className="rounded-lg border border-white/15 px-4 py-2 font-mono text-sm uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-ember/50 hover:text-ember"
             >
               Back to Journal
             </button>
@@ -209,7 +209,7 @@ export function PostFullPage() {
                 {post.title}
               </h1>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] tracking-wider text-white/45 uppercase">
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs tracking-wider text-white/60 uppercase">
               <span className="inline-flex items-center gap-1.5">
                 <CalendarDays className="size-3" aria-hidden />
                 {dateLabel(post.publishedAt)}
@@ -241,7 +241,7 @@ export function PostFullPage() {
               {post.tags.map((t) => (
                 <span
                   key={t}
-                  className="rounded-full border border-white/15 px-3 py-1 font-mono text-[10px] tracking-wider text-white/50 uppercase"
+                  className="rounded-full border border-white/15 px-3 py-1 font-mono text-xs tracking-wider text-white/50 uppercase"
                 >
                   #{t}
                 </span>
@@ -252,7 +252,7 @@ export function PostFullPage() {
           {/* related */}
           {related.length > 0 && (
             <section aria-label="Keep reading" className="mt-10 border-t border-white/10 pt-6">
-              <p className="font-mono text-[10px] tracking-[0.25em] text-white/40 uppercase">
+              <p className="font-mono text-xs tracking-[0.25em] text-white/60 uppercase">
                 Keep reading
               </p>
               <ul role="list" className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -270,7 +270,7 @@ export function PostFullPage() {
                       <p className="mt-2 line-clamp-2 text-xs leading-snug font-semibold text-white/85 group-hover:text-ember">
                         {r.title}
                       </p>
-                      <p className="mt-1.5 font-mono text-[9px] tracking-wider text-white/35 uppercase">
+                      <p className="mt-1.5 font-mono text-xs tracking-wider text-white/55 uppercase">
                         {r.readingMinutes} min · {r.category}
                       </p>
                     </button>
@@ -282,7 +282,7 @@ export function PostFullPage() {
 
           {/* permalink footer */}
           <footer className="mt-10 border-t border-white/10 pt-6">
-            <p className="font-mono text-[10px] leading-relaxed tracking-wider text-white/25 uppercase">
+            <p className="font-mono text-xs leading-relaxed tracking-wider text-white/55 uppercase">
               Published {dateLabel(post.publishedAt)} · {post.views} views ·
               Permalink: /journal/{post.slug}
             </p>

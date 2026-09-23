@@ -103,7 +103,7 @@ export function SiteHeader() {
           </Link>
           <Button
             asChild
-            className="hidden rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot sm:inline-flex dark:text-black"
+            className="hidden rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot sm:inline-flex dark:text-coal"
           >
             <Link href="/submit">Submit your tool</Link>
           </Button>
@@ -144,7 +144,7 @@ export function SiteHeader() {
           ))}
           <Button
             asChild
-            className="mt-2 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+            className="mt-2 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
           >
             <Link href="/submit" onClick={() => setOpen(false)}>
               Submit your tool

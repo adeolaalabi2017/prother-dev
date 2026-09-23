@@ -150,7 +150,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
       toast({
         title: nextStatus === "banned" ? `${atHandle(u.handle)} banned` : `${atHandle(u.handle)} reinstated`,
         description:
-          nextStatus === "banned" ? "Sessions revoked — sign-ins dead." : "Account is active again.",
+          nextStatus === "banned" ? "Sessions revoked. Sign-ins dead." : "Account is active again.",
       });
       onChanged();
     },
@@ -200,7 +200,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
       <div className="flex flex-wrap gap-2">
         <div className="relative max-w-xs flex-1">
           <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/30"
+            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/55"
             aria-hidden
           />
           <Input
@@ -238,7 +238,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
       ) : users === null ? (
         <UsersSkeleton />
       ) : users.length === 0 ? (
-        <p className="py-10 text-center text-sm text-white/30">No users match.</p>
+        <p className="py-10 text-center text-sm text-white/55">No users match.</p>
       ) : (
         <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
           {users.map((u) => {
@@ -265,27 +265,27 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                     <span className="font-mono text-ember">{atHandle(u.handle)}</span>
                     {u.name && <span className="ml-2 font-normal text-white/60">{u.name}</span>}
                   </p>
-                  <p className="truncate font-mono text-[10px] text-white/40">
+                  <p className="truncate font-mono text-xs text-white/60">
                     {u.email} · joined {new Date(u.createdAt).toISOString().slice(0, 10)}
                   </p>
                 </div>
 
                 <span
                   className={cn(
-                    "shrink-0 rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wider uppercase",
+                    "shrink-0 rounded-full border px-2 py-0.5 font-mono text-xs tracking-wider uppercase",
                     ROLE_BADGE_CX[u.role]
                   )}
                 >
                   {u.role}
                 </span>
                 {u.status === "banned" && (
-                  <span className="shrink-0 rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-red-300 uppercase">
+                  <span className="shrink-0 rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 font-mono text-xs tracking-wider text-red-300 uppercase">
                     Banned
                   </span>
                 )}
 
                 <span
-                  className="hidden shrink-0 font-mono text-[10px] text-white/40 md:block"
+                  className="hidden shrink-0 font-mono text-xs text-white/60 md:block"
                   title={`${u.threads} threads · ${u.replies} replies · ${u.reviews} reviews`}
                 >
                   T{u.threads} · R{u.replies} · V{u.reviews}
@@ -298,7 +298,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                 >
                   <SelectTrigger
                     aria-label={`Role for ${atHandle(u.handle)}`}
-                    className={cn(inputCx, "h-8 w-[8.5rem] text-xs")}
+                    className={cn(inputCx, "h-8 w-[8.5rem] text-sm")}
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -338,7 +338,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
         </div>
       )}
 
-      <p className="font-mono text-[10px] leading-relaxed text-white/25">
+      <p className="font-mono text-xs leading-relaxed text-white/55">
         BANNING REVOKES ACTIVE SESSIONS SERVER-SIDE · ROLE CHANGES APPLY ON THE
         NEXT REQUEST · T/R/V = THREADS / REPLIES / REVIEWS
       </p>

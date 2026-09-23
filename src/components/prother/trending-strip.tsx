@@ -91,7 +91,7 @@ export function TrendingStrip() {
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.55, ease: "easeOut" }}
           >
-            <p className="inline-flex items-center font-mono text-[10px] tracking-[0.25em] text-white/40 uppercase">
+            <p className="inline-flex items-center font-mono text-xs tracking-[0.25em] text-white/60 uppercase">
               <Flame className="mr-1.5 size-3.5 text-ember" aria-hidden />
               Trending this {window}
             </p>
@@ -99,8 +99,8 @@ export function TrendingStrip() {
               What the community is <span className="text-ember">testing.</span>
             </h2>
             <p className="mt-4 max-w-xl text-lg text-white/60">
-              Ranked by real engagement — comments, reviews, and collection
-              saves — recalculated continuously, not by editorial whim.
+              Ranked by real engagement (comments, reviews, and collection
+              saves), recalculated continuously, not by editorial whim.
             </p>
           </motion.div>
 
@@ -113,7 +113,7 @@ export function TrendingStrip() {
                 onClick={() => switchWindow(w.value)}
                 aria-pressed={window === w.value}
                 className={cn(
-                  "rounded-full border px-3.5 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-all active:scale-95",
+                  "rounded-full border px-3.5 py-1.5 font-mono text-sm tracking-wider uppercase transition-all active:scale-95",
                   window === w.value
                     ? "border-ember bg-ember/15 text-ember"
                     : "border-white/10 bg-white/[0.03] text-white/50 hover:border-white/25 hover:text-white/80"
@@ -144,7 +144,7 @@ export function TrendingStrip() {
               transition={{ duration: 0.4, delay: (i % 4) * 0.05, ease: "easeOut" }}
               className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 transition-colors hover:border-ember/40"
             >
-              <span className="w-6 shrink-0 text-center font-mono text-xs text-white/40 tabular-nums">
+              <span className="w-6 shrink-0 text-center font-mono text-xs text-white/60 tabular-nums">
                 {i + 1}
               </span>
 
@@ -173,11 +173,11 @@ export function TrendingStrip() {
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <span
                   title="Trending engagement score"
-                  className="rounded-full border border-mint/30 bg-mint/10 px-2 py-0.5 font-mono text-[10px] text-mint"
+                  className="rounded-full border border-mint/30 bg-mint/10 px-2 py-0.5 font-mono text-xs text-mint"
                 >
                   +{row.score.toFixed(1)}
                 </span>
-                <span className="whitespace-nowrap font-mono text-[10px] text-white/40">
+                <span className="whitespace-nowrap font-mono text-xs text-white/60">
                   {reasonLine(row.signals, window) ||
                     `${row.category.emoji} ${row.category.name}`}
                 </span>

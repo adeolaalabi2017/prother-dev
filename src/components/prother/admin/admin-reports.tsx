@@ -71,7 +71,7 @@ function TargetLink({ href, label }: { href: string; label: string }) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 font-mono text-[10px] tracking-wider text-white/50 uppercase transition-colors hover:bg-white/5 hover:text-white"
+        className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 font-mono text-sm tracking-wider text-white/50 uppercase transition-colors hover:bg-white/5 hover:text-white"
       >
         <ExternalLink className="size-3.5" aria-hidden />
         Open target
@@ -81,7 +81,7 @@ function TargetLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 font-mono text-[10px] tracking-wider text-white/50 uppercase transition-colors hover:bg-white/5 hover:text-white"
+      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 font-mono text-sm tracking-wider text-white/50 uppercase transition-colors hover:bg-white/5 hover:text-white"
     >
       <ExternalLink className="size-3.5" aria-hidden />
       Open target
@@ -214,7 +214,7 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
               aria-selected={active}
               onClick={() => pickFilter(f.id)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[10px] tracking-wider uppercase transition-colors",
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-sm tracking-wider uppercase transition-colors",
                 active
                   ? "border-ember/50 bg-ember/10 text-ember"
                   : "border-white/15 text-white/55 hover:border-white/30 hover:text-white"
@@ -224,8 +224,8 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
               {n !== null && n !== undefined && (
                 <span
                   className={cn(
-                    "rounded-full px-1.5 text-[9px] font-bold",
-                    active ? "bg-ember text-black" : "bg-white/10 text-white/60"
+                    "rounded-full px-1.5 text-xs font-bold",
+                    active ? "bg-ember text-coal" : "bg-white/10 text-white/60"
                   )}
                 >
                   {n}
@@ -245,7 +245,7 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
           <CheckCircle2 className="mx-auto size-8 text-emerald-400" aria-hidden />
           <p className="mt-3 font-mono text-sm text-white/60">
             {filter === "open"
-              ? "Queue clear — nothing waiting."
+              ? "Queue clear. Nothing waiting."
               : `No ${filter === "all" ? "" : `${filter} `}reports.`}
           </p>
         </div>
@@ -260,18 +260,18 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
                 className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="shrink-0 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[9px] tracking-wider text-white/60 uppercase">
+                  <span className="shrink-0 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-xs tracking-wider text-white/60 uppercase">
                     {r.targetType}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-bold text-white">
                     {r.targetLabel}
                   </span>
                   {r.targetHidden && (
-                    <span className="shrink-0 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-amber-300 uppercase">
+                    <span className="shrink-0 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 font-mono text-xs tracking-wider text-amber-300 uppercase">
                       Content hidden
                     </span>
                   )}
-                  <span className="shrink-0 rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-red-300 uppercase">
+                  <span className="shrink-0 rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 font-mono text-xs tracking-wider text-red-300 uppercase">
                     {r.reason}
                   </span>
                 </div>
@@ -282,7 +282,7 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
                   </blockquote>
                 )}
 
-                <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-white/35">
+                <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-white/55">
                   <span className="max-w-56 truncate" title={`Reported by ${r.reporter}`}>
                     via {r.reporter}
                   </span>
@@ -298,7 +298,7 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
                         maxLength={300}
                         placeholder="Optional note for the moderation record…"
                         aria-label="Resolution note"
-                        className="mt-3 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+                        className="mt-3 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
                       />
                     )}
                     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
@@ -334,7 +334,7 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
                             note: noteOpen ? noteText : undefined,
                           })
                         }
-                        className="ml-auto h-8 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+                        className="ml-auto h-8 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
                       >
                         <EyeOff className="size-3.5" aria-hidden />
                         Hide + resolve
@@ -357,7 +357,7 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
                     </div>
                   </>
                 ) : (
-                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-3 font-mono text-[10px] text-white/35">
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-3 font-mono text-xs text-white/55">
                     <span
                       className={cn(
                         "rounded-full border px-2 py-0.5 tracking-wider uppercase",
@@ -387,7 +387,7 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
         </div>
       )}
 
-      <p className="font-mono text-[10px] leading-relaxed text-white/25">
+      <p className="font-mono text-xs leading-relaxed text-white/55">
         HIDE + RESOLVE SOFT-HIDES THE CONTENT (THREAD/REPLY FLAG · TOOL REMOVED ·
         POST DRAFTED) · DISMISS KEEPS IT LIVE · REOPENING IS NOT SUPPORTED
       </p>

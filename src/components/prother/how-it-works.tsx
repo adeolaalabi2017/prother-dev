@@ -7,7 +7,7 @@ const STATS = [
   {
     value: "7",
     title: "Curated categories",
-    body: "From chatbots to developer platforms — a taxonomy built for how AI actually ships, not a junk drawer.",
+    body: "From chatbots to developer platforms: a taxonomy built for how AI actually ships, not a junk drawer.",
   },
   {
     value: "0",
@@ -17,7 +17,7 @@ const STATS = [
   {
     value: "$0",
     title: "Forever",
-    body: "Searching, comparing, and saving are free. Listings are free. Sponsored slots are labeled — never blended in.",
+    body: "Searching, comparing, and saving are free. Listings are free. Sponsored slots are labeled, never blended in.",
   },
 ];
 
@@ -31,14 +31,14 @@ const STEPS = [
   {
     n: "02 · COMPARE",
     title: "Side by side",
-    body: "Pricing, features, and reviews in one view — decide between two tools in minutes.",
+    body: "Pricing, features, and reviews in one view. Decide between two tools in minutes.",
     chips: ["PRICING", "FEATURES", "REVIEWS"],
     highlight: true,
   },
   {
     n: "03 · SAVE",
     title: "Build your stack",
-    body: "Collections, follows, and shareable stacks — keep the tools you rely on in one place.",
+    body: "Collections, follows, and shareable stacks: keep the tools you rely on in one place.",
     highlight: false,
   },
 ];
@@ -64,8 +64,8 @@ export function HowItWorks() {
             Every AI tool that matters.
           </motion.h2>
           <motion.p {...fadeUp} className="text-lg text-black/70">
-            Prother is one curated place to find AI tools —{" "}
-            <span className="font-semibold text-[#C24A00]">honest pricing, real reviews</span>, and
+            Prother is one curated place to find AI tools:{" "}
+            <span className="font-semibold text-[#A83E00]">honest pricing, real reviews</span>, and
             every listing checked against six published standards. No link dumps. No
             infinite scroll. No pay-to-win.
           </motion.p>
@@ -87,13 +87,13 @@ export function HowItWorks() {
                 <div
                   className={
                     step.highlight
-                      ? "rounded-2xl bg-ember p-6 text-black transition-transform duration-200 hover:scale-[1.02]"
+                      ? "rounded-2xl bg-ember p-6 text-coal transition-transform duration-200 hover:scale-[1.02]"
                       : "rounded-2xl border border-white/10 bg-white/[0.03] p-6"
                   }
                 >
                   <p
                     className={`font-mono text-xs ${
-                      step.highlight ? "text-black/60" : "text-white/50"
+                      step.highlight ? "text-black/70" : "text-white/50"
                     }`}
                   >
                     {step.n}
@@ -113,7 +113,7 @@ export function HowItWorks() {
                       {step.chips.map((chip) => (
                         <span
                           key={chip}
-                          className="rounded-full bg-black/15 px-2.5 py-1 font-mono text-[10px] text-black"
+                          className="rounded-full bg-black/15 px-2.5 py-1 font-mono text-xs text-coal"
                         >
                           {chip}
                         </span>
@@ -140,9 +140,9 @@ export function HowItWorks() {
               transition={{ duration: 0.55, delay: i * 0.08, ease: "easeOut" }}
               className="rounded-2xl border border-black/10 bg-white p-6"
             >
-              <p className="text-5xl font-black text-[#C24A00]">{s.value}</p>
+              <p className="text-5xl font-black text-[#A83E00]">{s.value}</p>
               <h3 className="mt-3 font-bold">{s.title}</h3>
-              <p className="mt-1 text-sm text-black/60">{s.body}</p>
+              <p className="mt-1 text-sm text-black/70">{s.body}</p>
             </motion.div>
           ))}
         </div>

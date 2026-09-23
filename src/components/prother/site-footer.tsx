@@ -34,7 +34,7 @@ const COLS: { title: string; links: FooterLink[] }[] = [
       { label: "FAQ", href: "/about" },
       { label: "For makers", href: "/submit" },
       { label: "Listing standards", href: "/about" },
-      { label: "RSS — journal", href: "/api/rss", external: true },
+      { label: "RSS · Journal", href: "/api/rss", external: true },
     ],
   },
   {
@@ -81,15 +81,15 @@ export function SiteFooter() {
             <p className="mt-3 max-w-xs text-sm text-white/50">
               The curated directory for AI tools. Search, compare, and save your stack.
             </p>
-            <p className="mt-4 font-mono text-xs text-white/30">@PROTHER_DEV · PROTHER.DEV</p>
+            <p className="mt-4 font-mono text-xs text-white/55">@PROTHER_DEV · PROTHER.DEV</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] tracking-wider text-white/45 transition-colors hover:border-ember/40 hover:text-ember">
+              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
                 <span className="text-white/80">⌘K</span> SEARCH
               </kbd>
-              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] tracking-wider text-white/45 transition-colors hover:border-ember/40 hover:text-ember">
+              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
                 <span className="text-white/80">⌘⇧E</span> EDITOR
               </kbd>
-              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] tracking-wider text-white/45 transition-colors hover:border-ember/40 hover:text-ember">
+              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
                 <span className="text-white/80">⌘⇧A</span> ADMIN
               </kbd>
             </div>
@@ -122,10 +122,10 @@ export function SiteFooter() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col justify-between gap-3 px-4 py-6 sm:px-6 md:flex-row md:items-center">
-          <p className="font-mono text-xs text-white/40">
-           © 2026 Prother — Curation is never sold.
+          <p className="font-mono text-xs text-white/60">
+           © 2026 Prother. Curation is never sold.
           </p>
-          <div className="flex items-center gap-2 font-mono text-xs text-white/40">
+          <div className="flex items-center gap-2 font-mono text-xs text-white/60">
             <span>STANDARDS · PRIVACY · STATUS</span>
             <span aria-hidden>·</span>
             <button

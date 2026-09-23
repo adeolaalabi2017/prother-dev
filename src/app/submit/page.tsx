@@ -5,9 +5,9 @@ import { StatusTrackerOpenButton } from "@/components/prother/status-tracker-ope
 
 export const metadata: Metadata = {
   alternates: { canonical: "/submit" },
-  title: "Submit your AI tool — Prother",
+  title: "Submit your AI tool · Prother",
   description:
-    "Submitting is free. Every approved product gets a permanent listing in the AI tools directory — reviewed against six published standards, searchable from day one.",
+    "Submitting is free. Every approved product gets a permanent listing in the AI tools directory, reviewed against six published standards, searchable from day one.",
   keywords: [
     "submit AI tool",
     "get listed AI tool",
@@ -16,16 +16,16 @@ export const metadata: Metadata = {
     "Prother submission",
   ],
   openGraph: {
-    title: "Submit your AI tool — Prother",
+    title: "Submit your AI tool · Prother",
     description:
-      "Submitting is free. Every approved product gets a permanent listing in the AI tools directory — reviewed against six published standards.",
+      "Submitting is free. Every approved product gets a permanent listing in the AI tools directory, reviewed against six published standards.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Submit your AI tool — Prother",
+    title: "Submit your AI tool · Prother",
     description:
       "Submitting is free. Every approved product gets a permanent listing in the AI tools directory.",
     images: ["/api/og"],
@@ -62,7 +62,7 @@ const STANDARDS: { id: string; title: string; body: string }[] = [
   {
     id: "S6",
     title: "English listing",
-    body: "The tool may serve any market — the listing itself is in English.",
+    body: "The tool may serve any market. The listing itself is in English.",
   },
 ];
 
@@ -70,7 +70,7 @@ const TIMELINE = [
   {
     n: "01",
     title: "You submit",
-    body: "One form: URL, name, tagline, category, pricing. Your tool must be live and usable right now — no vaporware.",
+    body: "One form: URL, name, tagline, category, pricing. Your tool must be live and usable right now. No vaporware.",
     minutes: "~3 minutes",
   },
   {
@@ -82,7 +82,7 @@ const TIMELINE = [
   {
     n: "03",
     title: "Editor decision",
-    body: "Review usually takes 1–2 days. Approved listings go live immediately — no calendar, no waiting room.",
+    body: "Review usually takes 1–2 days. Approved listings go live immediately: no calendar, no waiting room.",
     minutes: "1–2 days",
   },
   {
@@ -97,12 +97,12 @@ const REASSURANCE = [
   {
     icon: CheckCircle2,
     q: "Is submitting free?",
-    a: "Yes — submitting and being listed are free, forever. No paid placement, no fast-lane upsell. Curation is never sold.",
+    a: "Yes. Submitting and being listed are free, forever. No paid placement, no fast-lane upsell. Curation is never sold.",
   },
   {
     icon: Clock3,
     q: "How long does review take?",
-    a: "Review usually takes 1–2 days. Approved listings go live immediately. Track your position any time with the status tracker — same email, no account needed.",
+    a: "Review usually takes 1–2 days. Approved listings go live immediately. Track your position any time with the status tracker: same email, no account needed.",
   },
   {
     icon: RefreshCcw,
@@ -112,7 +112,7 @@ const REASSURANCE = [
   {
     icon: ShieldCheck,
     q: "What can I submit?",
-    a: "Live, working AI products of any size — indie or funded. AI must be the core of the product, and the listing must be honest.",
+    a: "Live, working AI products of any size, indie or funded. AI must be the core of the product, and the listing must be honest.",
   },
 ];
 
@@ -129,14 +129,14 @@ export default function SubmitPage() {
           className="absolute top-0 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-ember/10 blur-[100px]"
         />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <p className="font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
+          <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
             For makers
           </p>
           <h1 className="mt-3 max-w-3xl text-5xl font-black tracking-tighter text-white md:text-6xl">
             Submit your tool to <span className="text-ember">the directory.</span>
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-white/60">
-            Submitting is free and open — no waitlist, no invite. Approved
+            Submitting is free and open: no waitlist, no invite. Approved
             listings go live in the directory, in front of people who search
             for AI tools every day.
           </p>
@@ -145,7 +145,7 @@ export default function SubmitPage() {
               label="Start the submission wizard"
               className="h-12 px-6 text-base"
             />
-            <p className="font-mono text-[11px] tracking-[0.2em] text-white/40 uppercase">
+            <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
               6 standards · 7 categories · $0
             </p>
           </div>
@@ -166,7 +166,7 @@ export default function SubmitPage() {
               >
                 <div className="flex items-center justify-between">
                   <p className="font-mono text-sm text-ember">{step.n}</p>
-                  <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                  <p className="font-mono text-xs tracking-wider text-white/55 uppercase">
                     {step.minutes}
                   </p>
                 </div>
@@ -186,8 +186,8 @@ export default function SubmitPage() {
       {/* Standards — the quality bar, mono rows */}
       <section className="border-t border-white/10 py-16">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <p className="font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
-            The quality bar — public
+          <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
+            The quality bar · public
           </p>
           <h2 className="mt-3 text-3xl font-black tracking-tighter text-white md:text-4xl">
             Every tool passes all six. Before it&apos;s listed.
@@ -203,8 +203,8 @@ export default function SubmitPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-6 text-sm italic text-white/45">
-            Not live yet? Submit when you are — the directory takes submissions
+          <p className="mt-6 text-sm italic text-white/60">
+            Not live yet? Submit when you are. The directory takes submissions
             every day.
           </p>
         </div>

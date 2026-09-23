@@ -11,10 +11,10 @@ export function Hero() {
   // Admin-manageable site copy (/api/site ← Site settings KV). Falls back to
   // the locked defaults when the store is empty — the hero never breaks.
   const [copy, setCopy] = useState({
-    announcement: "Curated daily — 46 tools indexed across 7 categories",
+    announcement: "Curated daily · 46 tools indexed across 7 categories",
     headline: "Find the right AI tool.",
     subline:
-      "Prother is a curated search and discovery directory for AI products and tools. Compare pricing, read real reviews, and save your stack — no launch games, no pay-to-win ranking.",
+      "Prother is a curated search and discovery directory for AI products and tools. Compare pricing, read real reviews, and save your stack. No launch games, no pay-to-win ranking.",
   });
   const [stats, setStats] = useState<SiteStats | null>(null);
 
@@ -115,7 +115,7 @@ export function Hero() {
             ].map((s) => (
               <li
                 key={s.label}
-                className="font-mono text-[11px] tracking-[0.2em] text-white/50 uppercase"
+                className="font-mono text-xs tracking-[0.2em] text-white/50 uppercase"
               >
                 {s.label}
               </li>

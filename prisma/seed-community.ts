@@ -61,7 +61,7 @@ async function main() {
   const claude = await db.tool.findUnique({ where: { slug: "claude" } });
   const midjourney = await db.tool.findUnique({ where: { slug: "midjourney" } });
   if (!perplexity || !claude || !midjourney) {
-    throw new Error("Base tools missing — run prisma/seed.ts first.");
+    throw new Error("Base tools missing: run prisma/seed.ts first.");
   }
 
   // ── Reviews: perplexity ×3 published (unlocks the aggregate) ──────────
@@ -78,14 +78,14 @@ async function main() {
       ease: 4,
       power: 4,
       value: 5,
-      body: "We evaluated three answer engines and Perplexity was the only one where the free tier was actually usable for a pilot. Hallucination controls are honest — it cites or it says it doesn't know. Docking one point on ease because the API config assumes you already speak HTTP headers.",
+      body: "We evaluated three answer engines and Perplexity was the only one where the free tier was actually usable for a pilot. Hallucination controls are honest: it cites or it says it doesn't know. Docking one point on ease because the API config assumes you already speak HTTP headers.",
     },
     {
       user: sam,
       ease: 4,
       power: 5,
       value: 3,
-      body: "Powerful retrieval controls — the per-source weighting is the best I've used. Pro pricing stings for solo founders though, and the seat model counts search agents, which feels sneaky. Still: answer quality on our 40k-doc corpus beat the incumbent by a wide margin in blind tests.",
+      body: "Powerful retrieval controls: the per-source weighting is the best I've used. Pro pricing stings for solo founders though, and the seat model counts search agents, which feels sneaky. Still: answer quality on our 40k-doc corpus beat the incumbent by a wide margin in blind tests.",
     },
   ];
   for (const r of perplexityReviews) {
@@ -117,7 +117,7 @@ async function main() {
       ease: 4,
       power: 4,
       value: 4,
-      body: "The diff review gate is genuinely useful — it caught two prompt-injection vectors in a generated PR before CI did. Claude Code setup is five minutes. Would like inline monorepo path filters before I call it complete.",
+      body: "The diff review gate is genuinely useful: it caught two prompt-injection vectors in a generated PR before CI did. Claude Code setup is five minutes. Would like inline monorepo path filters before I call it complete.",
     },
     {
       user: mira,
@@ -162,7 +162,7 @@ async function main() {
         ease: 4,
         power: 3,
         value: 4,
-        body: "Style-reference is real, not vaporware — fed it one mood-board image and got a whole campaign that held the palette. Character consistency across scenes needs work but the direction is right.",
+        body: "Style-reference is real, not vaporware: fed it one mood-board image and got a whole campaign that held the palette. Character consistency across scenes needs work but the direction is right.",
         status: "filtered",
         createdAt: REVIEW_BACKDATED,
         updatedAt: REVIEW_BACKDATED,

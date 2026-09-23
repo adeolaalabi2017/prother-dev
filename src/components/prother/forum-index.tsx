@@ -69,9 +69,9 @@ const SORTS: { value: ForumSort; label: string }[] = [
 const TOPIC_HINTS: Record<TopicFilter, string> = {
   all: "Everything the community is talking about right now.",
   general: "Evaluating, pricing, and picking tools.",
-  vibecoding: "How you build with models and agents — workflows, prompts, stack.",
+  vibecoding: "How you build with models and agents: workflows, prompts, stack.",
   show: "You shipped something. Demo it, share numbers, answer questions.",
-  introduce: "Say hi — what you worked on before, what you are building now.",
+  introduce: "Say hi: what you worked on before, what you are building now.",
 };
 
 export function ForumIndex({
@@ -169,7 +169,7 @@ export function ForumIndex({
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
+            <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember uppercase">
               <MessagesSquare className="size-3.5" aria-hidden />
               Prother Forums
             </p>
@@ -180,7 +180,7 @@ export function ForumIndex({
             </h1>
             <p className="mt-4 max-w-xl text-lg text-white/60">
               Ask, share, and compare notes with the people building and buying
-              AI tools — workflows, pricing, and what actually happened.
+              AI tools: workflows, pricing, and what actually happened.
             </p>
           </div>
         </div>
@@ -197,7 +197,7 @@ export function ForumIndex({
                 type="button"
                 size="sm"
                 onClick={() => setDialogOpen(true)}
-                className="mt-3 w-full bg-ember font-mono text-xs tracking-wider text-black uppercase hover:bg-ember-hot"
+                className="mt-3 w-full bg-ember font-mono text-sm tracking-wider text-coal uppercase hover:bg-ember-hot"
               >
                 <Plus className="size-3.5" aria-hidden />
                 Start new thread
@@ -205,7 +205,7 @@ export function ForumIndex({
             </div>
 
             <nav aria-label="Forum topics">
-              <p className="px-1 font-mono text-[10px] tracking-[0.3em] text-white/35 uppercase">
+              <p className="px-1 font-mono text-xs tracking-[0.3em] text-white/55 uppercase">
                 Topics
               </p>
               <ul className="mt-2 space-y-1">
@@ -219,7 +219,7 @@ export function ForumIndex({
                         onClick={() => setTopic(f.value)}
                         aria-pressed={topic === f.value}
                         className={cn(
-                          "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left font-mono text-xs transition-colors",
+                          "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left font-mono text-sm transition-colors",
                           topic === f.value
                             ? "border-ember/50 bg-ember/15 text-ember"
                             : "border-transparent text-white/55 hover:border-white/10 hover:bg-white/[0.03] hover:text-white/85"
@@ -229,7 +229,7 @@ export function ForumIndex({
                         <span
                           className={cn(
                             "ml-2 shrink-0 tabular-nums",
-                            topic === f.value ? "text-ember/80" : "text-white/30"
+                            topic === f.value ? "text-ember/80" : "text-white/55"
                           )}
                         >
                           {count}
@@ -245,7 +245,7 @@ export function ForumIndex({
           {/* ── main column ── */}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-white/45">{TOPIC_HINTS[topic]}</p>
+              <p className="text-sm text-white/60">{TOPIC_HINTS[topic]}</p>
               <div
                 role="tablist"
                 aria-label="Sort threads"
@@ -259,7 +259,7 @@ export function ForumIndex({
                     aria-selected={sort === s.value}
                     onClick={() => setSort(s.value)}
                     className={cn(
-                      "rounded-md px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
+                      "rounded-md px-3 py-1.5 font-mono text-sm tracking-wider uppercase transition-colors",
                       sort === s.value
                         ? "bg-ember/15 text-ember"
                         : "text-white/50 hover:text-white/85"
@@ -356,7 +356,7 @@ function ThreadRow({ thread, onVote }: { thread: ForumThreadRow; onVote: () => v
         <div className="flex items-start justify-between gap-4">
           {/* content — clicks fall through to the stretched link */}
           <div className="pointer-events-none min-w-0">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] tracking-wider uppercase">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tracking-wider uppercase">
               <span className="rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 text-ember">
                 {FORUM_TOPIC_LABELS[thread.topic]}
               </span>
@@ -366,11 +366,11 @@ function ThreadRow({ thread, onVote }: { thread: ForumThreadRow; onVote: () => v
                   Pinned
                 </span>
               )}
-              <span className="text-white/45">{thread.author}</span>
-              <span aria-hidden className="text-white/25">
+              <span className="text-white/60">{thread.author}</span>
+              <span aria-hidden className="text-white/55">
                 ·
               </span>
-              <ForumTime iso={thread.createdAt} className="text-white/45" />
+              <ForumTime iso={thread.createdAt} className="text-white/60" />
             </div>
             <h3 className="mt-2 text-base leading-snug font-bold text-white transition-colors group-hover:text-ember sm:text-lg">
               {thread.title}
@@ -384,11 +384,11 @@ function ThreadRow({ thread, onVote }: { thread: ForumThreadRow; onVote: () => v
           <div className="flex shrink-0 flex-col gap-2">
             <Link
               href={`/forums/${thread.slug}`}
-              aria-label={`${thread.replyCount} replies — open thread`}
+              aria-label={`${thread.replyCount} replies · open thread`}
               className="relative z-10 flex h-12 w-11 flex-col items-center justify-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/60 transition-colors hover:border-ember/40 hover:text-ember"
             >
               <MessageSquare className="size-3.5" aria-hidden />
-              <span className="font-mono text-[11px] tabular-nums">
+              <span className="font-mono text-xs tabular-nums">
                 {thread.replyCount}
               </span>
             </Link>
@@ -412,7 +412,7 @@ function ThreadRow({ thread, onVote }: { thread: ForumThreadRow; onVote: () => v
                 className={cn("size-3.5", thread.voted && "fill-ember")}
                 aria-hidden
               />
-              <span className="font-mono text-[11px] tabular-nums">{thread.votes}</span>
+              <span className="font-mono text-xs tabular-nums">{thread.votes}</span>
             </button>
           </div>
         </div>
@@ -534,7 +534,7 @@ function NewThreadDialog({
 
         <div className="space-y-4 p-5">
           <div>
-            <label htmlFor="forum-thread-title" className="font-mono text-[11px] tracking-wider text-white/50 uppercase">
+            <label htmlFor="forum-thread-title" className="font-mono text-xs tracking-wider text-white/50 uppercase">
               Title
             </label>
             <Input
@@ -543,15 +543,15 @@ function NewThreadDialog({
               onChange={(e) => setTitle(e.target.value)}
               maxLength={120}
               placeholder="Ask a question or name what you shipped"
-              className="mt-1.5 border-white/10 bg-white/[0.03] text-white placeholder:text-white/30 focus-visible:border-ember/50 focus-visible:ring-ember/30"
+              className="mt-1.5 border-white/10 bg-white/[0.03] text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/30"
             />
-            <p className="mt-1 font-mono text-[10px] text-white/30">
+            <p className="mt-1 font-mono text-xs text-white/55">
               {title.trim().length}/120
             </p>
           </div>
 
           <div>
-            <label id="forum-topic-label" className="font-mono text-[11px] tracking-wider text-white/50 uppercase">
+            <label id="forum-topic-label" className="font-mono text-xs tracking-wider text-white/50 uppercase">
               Topic
             </label>
             <Select value={topic} onValueChange={(v) => setTopic(v as ForumTopic)}>
@@ -564,7 +564,7 @@ function NewThreadDialog({
               <SelectContent className="border-white/10 bg-coal text-white">
                 {FORUM_TOPICS.map((t) => (
                   <SelectItem key={t} value={t} className="focus:bg-ember/15 focus:text-ember">
-                    {FORUM_TOPIC_LABELS[t]} — {TOPIC_HINTS[t]}
+                    {FORUM_TOPIC_LABELS[t]}: {TOPIC_HINTS[t]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -572,7 +572,7 @@ function NewThreadDialog({
           </div>
 
           <div>
-            <label htmlFor="forum-thread-body" className="font-mono text-[11px] tracking-wider text-white/50 uppercase">
+            <label htmlFor="forum-thread-body" className="font-mono text-xs tracking-wider text-white/50 uppercase">
               Body
             </label>
             <Textarea
@@ -582,9 +582,9 @@ function NewThreadDialog({
               rows={7}
               maxLength={5000}
               placeholder="The details: numbers, stack, timelines, what surprised you."
-              className="mt-1.5 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/30 focus-visible:border-ember/50 focus-visible:ring-ember/30"
+              className="mt-1.5 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/30"
             />
-            <p className="mt-1 font-mono text-[10px] text-white/30">
+            <p className="mt-1 font-mono text-xs text-white/55">
               {body.trim().length}/5000
             </p>
           </div>
@@ -593,7 +593,7 @@ function NewThreadDialog({
             <div className="rounded-lg border border-ember/40 bg-ember/10 p-3 text-sm">
               <p className="text-white/80">Sign in to post.</p>
               <p className="mt-0.5 text-xs text-white/50">
-                Threads are tied to an account — the header sign-in uses email
+                Threads are tied to an account: the header sign-in uses email
                 magic links, no password.
               </p>
               <Button
@@ -626,7 +626,7 @@ function NewThreadDialog({
               type="button"
               onClick={() => void submit()}
               disabled={!canSubmit}
-              className="bg-ember text-black hover:bg-ember-hot disabled:opacity-50"
+              className="bg-ember text-coal hover:bg-ember-hot disabled:opacity-50"
             >
               {sending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
               Post thread

@@ -46,7 +46,7 @@ const PLACEMENTS = [
     icon: SquareStack,
     kicker: "PLACEMENT 01",
     title: "Sponsored directory row",
-    body: "Your product appears as a labeled row inside the /tools directory, beside the listings it competes with. One sponsored row per page — never more.",
+    body: "Your product appears as a labeled row inside the /tools directory, beside the listings it competes with. One sponsored row per page: never more.",
     // Mini directory-row mock, rendered in markup (no images to keep the page fast)
     mock: "feed" as const,
   },
@@ -54,7 +54,7 @@ const PLACEMENTS = [
     icon: BookOpen,
     kicker: "PLACEMENT 02",
     title: "Journal sponsorship",
-    body: "Sponsor an issue of the Journal — the weekly brief on what shipped and why it matters. Named at the top, one sponsor per issue, no interstitials.",
+    body: "Sponsor an issue of the Journal, the weekly brief on what shipped and why it matters. Named at the top, one sponsor per issue, no interstitials.",
     mock: "journal" as const,
   },
   {
@@ -68,14 +68,14 @@ const PLACEMENTS = [
     icon: LayoutGrid,
     kicker: "PLACEMENT 04",
     title: "Directory banner",
-    body: "A full-width sponsored card inside the open /tools directory, after the first row of results. Buyers browsing the whole shelf see it — nobody scrolling past it is interrupted.",
+    body: "A full-width sponsored card inside the open /tools directory, after the first row of results. Buyers browsing the whole shelf see it. Nobody scrolling past it is interrupted.",
     mock: "banner" as const,
   },
   {
     icon: Search,
     kicker: "PLACEMENT 05",
     title: "Search results footer",
-    body: "Own the bottom of the search page for a query family. Shown after the organic results, never between them — intent without the ambush.",
+    body: "Own the bottom of the search page for a query family. Shown after the organic results, never between them: intent without the ambush.",
     mock: "search" as const,
   },
 ];
@@ -139,7 +139,7 @@ export default async function AdvertisePage() {
           ))}
         </div>
         <div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6">
-          <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+          <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
             <span aria-hidden className="h-px w-6 bg-ember/70" />
             Advertise on Prother
           </p>
@@ -148,13 +148,13 @@ export default async function AdvertisePage() {
             <span className="text-ember">hunting for AI tools.</span>
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-white/60">
-            Prother&apos;s audience arrives with intent — they search, compare, and save
+            Prother&apos;s audience arrives with intent: they search, compare, and save
             AI tools every day. Reach them at the moment they&apos;re deciding what to adopt.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <a
               href="mailto:makers@prother.dev?subject=Advertising%20on%20Prother"
-              className="inline-flex items-center gap-2 rounded-lg bg-ember px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-ember-hot"
+              className="inline-flex items-center gap-2 rounded-lg bg-ember px-5 py-2.5 text-sm font-semibold text-coal transition-colors hover:bg-ember-hot"
             >
               <Mail className="size-4" aria-hidden />
               Get started
@@ -173,7 +173,7 @@ export default async function AdvertisePage() {
             {statCards.map((s) => (
               <div key={s.label} className="bg-coal px-5 py-4">
                 <dd className="font-mono text-2xl font-bold tabular-nums text-white">{s.value}</dd>
-                <dt className="mt-1 font-mono text-[10px] tracking-[0.2em] text-white/40">
+                <dt className="mt-1 font-mono text-xs tracking-[0.2em] text-white/60">
                   {s.label}
                 </dt>
               </div>
@@ -184,7 +184,7 @@ export default async function AdvertisePage() {
 
       {/* ── Placements ───────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-ember">
+        <p className="font-mono text-xs uppercase tracking-[0.25em] text-ember">
           Find your audience
         </p>
         <h2 className="mt-3 text-3xl font-black tracking-tighter text-white sm:text-4xl">
@@ -192,7 +192,7 @@ export default async function AdvertisePage() {
         </h2>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/55">
           Each slot is fixed-price and capped at one sponsor. You buy the audience&apos;s
-          attention for a moment — not a popunder they&apos;ll learn to ignore.
+          attention for a moment, not a popunder they&apos;ll learn to ignore.
         </p>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -214,11 +214,11 @@ export default async function AdvertisePage() {
                         <p className="truncate text-xs font-bold text-white/85">
                           OpenModel
                         </p>
-                        <p className="truncate text-[11px] text-white/40">
+                        <p className="truncate text-xs text-white/60">
                           Run any model, anywhere · Freemium $19
                         </p>
                       </div>
-                      <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] text-white/40 uppercase">
+                      <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-xs text-white/60 uppercase">
                         AI tool
                       </span>
                     </div>
@@ -230,11 +230,11 @@ export default async function AdvertisePage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold text-white/90">
                           YourTool{" "}
-                          <span className="ml-1 rounded-full bg-ember/15 px-1.5 py-px font-mono text-[9px] text-ember">
+                          <span className="ml-1 rounded-full bg-ember/15 px-1.5 py-px font-mono text-xs text-ember">
                             Promoted
                           </span>
                         </p>
-                        <p className="truncate text-[11px] text-white/45">
+                        <p className="truncate text-xs text-white/60">
                           Your tagline, beside the directory results
                         </p>
                       </div>
@@ -244,10 +244,10 @@ export default async function AdvertisePage() {
                 {p.mock === "journal" && (
                   <div aria-hidden className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                     <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                      <span className="font-mono text-[9px] tracking-[0.2em] text-white/40">
+                      <span className="font-mono text-xs tracking-[0.2em] text-white/60">
                         PROTHER JOURNAL
                       </span>
-                      <span className="font-mono text-[9px] text-ember">SPONSORED BY YourTool</span>
+                      <span className="font-mono text-xs text-ember">SPONSORED BY YourTool</span>
                     </div>
                     <div className="mt-2 space-y-1.5">
                       <span className="block h-2 w-3/4 rounded bg-white/15" />
@@ -258,10 +258,10 @@ export default async function AdvertisePage() {
                 {p.mock === "category" && (
                   <div aria-hidden className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                     <div className="flex items-center justify-between rounded-md bg-ember/10 px-2.5 py-1.5">
-                      <span className="font-mono text-[10px] text-ember">
-                        ① SPOTLIGHT — YourTool
+                      <span className="font-mono text-xs text-ember">
+                        ① SPOTLIGHT · YourTool
                       </span>
-                      <span className="font-mono text-[9px] text-white/40">CATEGORY PAGE</span>
+                      <span className="font-mono text-xs text-white/60">CATEGORY PAGE</span>
                     </div>
                     <div className="mt-2 space-y-1.5">
                       <span className="block h-2 w-2/3 rounded bg-white/10" />
@@ -277,11 +277,11 @@ export default async function AdvertisePage() {
                       <span className="ml-auto h-2 w-9 rounded bg-white/5" />
                     </div>
                     <div className="mt-2 flex items-center gap-3 rounded-md border border-dashed border-ember/30 bg-ember/5 px-2.5 py-2">
-                      <span className="rounded-full bg-ember/15 px-1.5 py-px font-mono text-[9px] text-ember">
+                      <span className="rounded-full bg-ember/15 px-1.5 py-px font-mono text-xs text-ember">
                         SPONSORED
                       </span>
-                      <span className="font-mono text-[10px] text-white/70">
-                        YourTool — one full-width card
+                      <span className="font-mono text-xs text-white/70">
+                        YourTool: one full-width card
                       </span>
                     </div>
                   </div>
@@ -289,25 +289,25 @@ export default async function AdvertisePage() {
                 {p.mock === "search" && (
                   <div aria-hidden className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-white/40">RESULTS FOR “AGENTS”</span>
-                      <span className="ml-auto font-mono text-[9px] text-white/25">ORGANIC ↑</span>
+                      <span className="font-mono text-xs text-white/60">RESULTS FOR “AGENTS”</span>
+                      <span className="ml-auto font-mono text-xs text-white/55">ORGANIC ↑</span>
                     </div>
                     <div className="mt-2 flex items-center justify-between rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-2">
-                      <span className="font-mono text-[10px] text-ember">
-                        SPONSORED — YourTool
+                      <span className="font-mono text-xs text-ember">
+                        SPONSORED · YourTool
                       </span>
-                      <span className="font-mono text-[9px] text-white/40">AFTER RESULTS</span>
+                      <span className="font-mono text-xs text-white/60">AFTER RESULTS</span>
                     </div>
                   </div>
                 )}
               </div>
               <div className="flex flex-1 flex-col p-5">
-                <p className="font-mono text-[10px] tracking-[0.25em] text-white/35">{p.kicker}</p>
+                <p className="font-mono text-xs tracking-[0.25em] text-white/55">{p.kicker}</p>
                 <h3 className="mt-2 text-lg font-bold text-white">{p.title}</h3>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-white/55">{p.body}</p>
                 <a
-                  href={`mailto:makers@prother.dev?subject=${encodeURIComponent(`Placement inquiry — ${p.title}`)}`}
-                  className="mt-4 inline-flex items-center gap-1.5 font-mono text-xs text-ember transition-colors hover:text-ember-hot"
+                  href={`mailto:makers@prother.dev?subject=${encodeURIComponent(`Placement inquiry: ${p.title}`)}`}
+                  className="mt-4 inline-flex items-center gap-1.5 font-mono text-sm text-ember transition-colors hover:text-ember-hot"
                 >
                   Get started <ArrowUpRight className="size-3.5" aria-hidden />
                 </a>
@@ -320,7 +320,7 @@ export default async function AdvertisePage() {
       {/* ── Principles ───────────────────────────────────────── */}
       <section className="border-y border-white/10 bg-coal/60">
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-ember">
+          <p className="font-mono text-xs uppercase tracking-[0.25em] text-ember">
             House rules
           </p>
           <h2 className="mt-3 text-3xl font-black tracking-tighter text-white sm:text-4xl">
@@ -344,12 +344,12 @@ export default async function AdvertisePage() {
           Tell us about your campaign.
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/55">
-          We&apos;ll reply with the media kit, current slot availability, and fixed pricing —
+          We&apos;ll reply with the media kit, current slot availability, and fixed pricing,
           usually within a day.
         </p>
         <a
           href="mailto:makers@prother.dev?subject=Advertising%20on%20Prother"
-          className="mt-8 inline-flex items-center gap-2 rounded-lg bg-ember px-6 py-3 font-mono text-sm font-semibold text-black transition-colors hover:bg-ember-hot"
+          className="mt-8 inline-flex items-center gap-2 rounded-lg bg-ember px-6 py-3 font-mono text-sm font-semibold text-coal transition-colors hover:bg-ember-hot"
         >
           <Mail className="size-4" aria-hidden />
           makers@prother.dev

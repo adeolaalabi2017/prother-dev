@@ -128,7 +128,7 @@ function CommandPalette() {
           setResults(null);
         }
       }}
-      className="border-white/10 bg-coal text-white [&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-input]]:text-white [&_[cmdk-input]::placeholder]:text-white/30 [&_[cmdk-item]]:text-white/80 [&_[cmdk-item][data-selected=true]]:bg-ember/15 [&_[cmdk-item][data-selected=true]]:text-ember [&_[cmdk-separator]]:bg-white/10"
+      className="border-white/10 bg-coal text-white [&_[cmdk-group-heading]]:text-white/60 [&_[cmdk-input]]:text-white [&_[cmdk-input]::placeholder]:text-white/55 [&_[cmdk-item]]:text-white/80 [&_[cmdk-item][data-selected=true]]:bg-ember/15 [&_[cmdk-item][data-selected=true]]:text-ember [&_[cmdk-separator]]:bg-white/10"
     >
       <CommandInput
         placeholder="Search tools, categories, actions…"
@@ -136,7 +136,7 @@ function CommandPalette() {
       />
       <CommandList className="max-h-[420px]">
         <CommandEmpty>
-          No results — try &quot;chatbot&quot; or &quot;video&quot;.
+          No results. Try &quot;chatbot&quot; or &quot;video&quot;.
         </CommandEmpty>
 
         {q.length < 2 && trending.length > 0 && (
@@ -147,7 +147,7 @@ function CommandPalette() {
                 value={`${r.name} ${r.tagline} ${r.category.name}`}
                 onSelect={() => pickTool(r.slug)}
               >
-                <TrendingUp aria-hidden className="text-ember/70" />
+                <TrendingUp aria-hidden className="text-ember/85" />
                 <span
                   aria-hidden
                   className={cn(
@@ -158,8 +158,8 @@ function CommandPalette() {
                   {r.emoji}
                 </span>
                 <span className="font-semibold">{r.name}</span>
-                <span className="truncate text-white/40">{r.tagline}</span>
-                <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-white/40">
+                <span className="truncate text-white/60">{r.tagline}</span>
+                <span className="ml-auto font-mono text-xs uppercase tracking-wider text-white/60">
                   {r.category.name}
                 </span>
               </CommandItem>
@@ -187,13 +187,13 @@ function CommandPalette() {
                     {r.emoji}
                   </span>
                   <span className="font-semibold">{r.name}</span>
-                  <span className="truncate text-white/40">{r.tagline}</span>
+                  <span className="truncate text-white/60">{r.tagline}</span>
                   {r.editorsPick ? (
-                    <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-ember">
+                    <span className="ml-auto shrink-0 font-mono text-xs uppercase tracking-wider text-ember">
                       ★ PICK
                     </span>
                   ) : (
-                    <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-white/40">
+                    <span className="ml-auto shrink-0 font-mono text-xs uppercase tracking-wider text-white/60">
                       {pricingChip(r.pricing.model, r.pricing.price)}
                     </span>
                   )}
@@ -213,7 +213,7 @@ function CommandPalette() {
             >
               <span aria-hidden>{c.emoji}</span>
               <span>{c.name}</span>
-              <span className="ml-auto font-mono text-[10px] text-white/30">
+              <span className="ml-auto font-mono text-xs text-white/55">
                 BROWSE
               </span>
             </CommandItem>

@@ -41,7 +41,7 @@ export function Breadcrumbs({ trail }: { trail: Crumb[] }) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <nav aria-label="Breadcrumb">
-        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] uppercase tracking-[0.2em]">
+        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs uppercase tracking-[0.2em]">
           {trail.map((crumb, i) => {
             const isLast = i === trail.length - 1;
             return (
@@ -56,13 +56,13 @@ export function Breadcrumbs({ trail }: { trail: Crumb[] }) {
                 ) : (
                   <Link
                     href={crumb.href}
-                    className="text-white/40 transition-colors hover:text-ember"
+                    className="text-white/60 transition-colors hover:text-ember"
                   >
                     {crumb.name}
                   </Link>
                 )}
                 {!isLast && (
-                  <span aria-hidden className="text-white/25">
+                  <span aria-hidden className="text-white/55">
                     /
                   </span>
                 )}

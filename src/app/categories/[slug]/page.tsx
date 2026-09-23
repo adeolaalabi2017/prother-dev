@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
   const blurb = blurbFor(category.slug, category.name);
   const count = category._count.tools;
-  const title = `${category.name} — AI tools | Prother`;
+  const title = `${category.name} · AI tools | Prother`;
   const description = clamp(`${blurb} ${count} ${count === 1 ? "tool" : "tools"} listed.`, 200);
 
   return {
@@ -158,7 +158,7 @@ export default async function CategoryPage({ params }: Params) {
 
         {/* Page head */}
         <header className="mt-8">
-          <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
+          <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember uppercase">
             <Compass className="size-3.5" aria-hidden />
             Category
           </p>
@@ -171,7 +171,7 @@ export default async function CategoryPage({ params }: Params) {
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-white/60 sm:text-lg">
             {blurb}
           </p>
-          <p className="mt-4 font-mono text-[11px] tracking-[0.2em] text-white/35 uppercase">
+          <p className="mt-4 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
             {tools.length} {tools.length === 1 ? "tool" : "tools"} listed · curated
             daily
           </p>
@@ -195,10 +195,10 @@ export default async function CategoryPage({ params }: Params) {
               <p className="font-mono text-sm tracking-wider text-white/60 uppercase">
                 Nothing listed here yet
               </p>
-              <p className="mt-2 text-sm text-white/40">
-                New {category.name.toLowerCase()} tools appear as they&apos;re approved —{" "}
+              <p className="mt-2 text-sm text-white/60">
+                New {category.name.toLowerCase()} tools appear as they&apos;re approved.{" "}
                 <Link href="/submit" className="text-ember hover:underline">
-                  submit yours
+                  Submit yours
                 </Link>
                 .
               </p>
@@ -209,7 +209,7 @@ export default async function CategoryPage({ params }: Params) {
                 <Link
                   key={t.slug}
                   href={`/tools/${t.slug}`}
-                  aria-label={`${t.name} — ${t.tagline}. Rank ${i + 1} in ${category.name}.`}
+                  aria-label={`${t.name}: ${t.tagline}. Rank ${i + 1} in ${category.name}.`}
                   className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -224,12 +224,12 @@ export default async function CategoryPage({ params }: Params) {
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       {i < 3 && (
-                        <span className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                        <span className="font-mono text-xs tracking-wider text-white/55 uppercase">
                           #{i + 1}
                         </span>
                       )}
                       {t.editorsPick && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
                           <Star className="size-2.5 fill-current" aria-hidden />
                           Editor&apos;s Pick
                         </span>
@@ -245,13 +245,13 @@ export default async function CategoryPage({ params }: Params) {
                   </p>
 
                   <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase">
                       {t.pricing}
                     </span>
-                    <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                    <span className="ml-auto inline-flex items-center gap-1 font-mono text-xs tracking-wider text-white/55 uppercase">
                       Open listing
                       <ArrowUpRight
-                        className="size-3.5 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+                        className="size-3.5 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
                         aria-hidden
                       />
                     </span>
@@ -262,7 +262,7 @@ export default async function CategoryPage({ params }: Params) {
           )}
 
           {/* Cross-links — the directory stays one hop away */}
-          <p className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">
+          <p className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
             <Link
               href="/tools"
               className="transition-colors hover:text-ember"

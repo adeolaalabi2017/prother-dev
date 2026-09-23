@@ -70,7 +70,7 @@ function subscribeOverlayClaim(onChange: () => void): () => void {
   };
 }
 
-const MONO = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+const MONO = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 const PANEL = "rounded-xl border border-white/10 bg-white/[0.02]";
 
 const TYPE_META: Record<
@@ -167,7 +167,7 @@ export function SavedFullPage() {
             Saved
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">
-            Your bookmarked tools, threads, and posts — kept on this device
+            Your bookmarked tools, threads, and posts, kept on this device
             until you sign in, then kept with your account.
           </p>
         </div>
@@ -186,7 +186,7 @@ export function SavedFullPage() {
               aria-selected={filter === f.value}
               onClick={() => setFilter(f.value)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-colors",
+                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-sm uppercase tracking-wider transition-colors",
                 filter === f.value
                   ? "border-ember bg-ember/15 text-ember"
                   : "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-white"
@@ -195,8 +195,8 @@ export function SavedFullPage() {
               {f.label}
               <span
                 className={cn(
-                  "rounded-full px-1.5 py-px text-[10px] tabular-nums",
-                  filter === f.value ? "bg-ember/20 text-ember" : "bg-white/10 text-white/45"
+                  "rounded-full px-1.5 py-px text-xs tabular-nums",
+                  filter === f.value ? "bg-ember/20 text-ember" : "bg-white/10 text-white/60"
                 )}
               >
                 {counts[f.value]}
@@ -215,7 +215,7 @@ export function SavedFullPage() {
         ) : error ? (
           <div className="flex flex-col items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/5 p-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-red-300">
-              Couldn&apos;t load your saved items — check your connection and retry.
+              Couldn&apos;t load your saved items. Check your connection and retry.
             </p>
             <Button
               type="button"
@@ -236,11 +236,11 @@ export function SavedFullPage() {
               <Bookmark className="size-5 text-ember" />
             </span>
             <p className="max-w-sm text-sm leading-relaxed text-white/70">
-              Nothing saved yet — tap the bookmark on any tool or thread.
+              Nothing saved yet. Tap the bookmark on any tool or thread.
             </p>
             <Link
               href="/tools"
-              className="mt-1 font-mono text-[11px] uppercase tracking-[0.25em] text-ember transition-colors hover:text-ember-hot"
+              className="mt-1 font-mono text-sm uppercase tracking-[0.25em] text-ember transition-colors hover:text-ember-hot"
             >
               Browse the directory →
             </Link>
@@ -279,7 +279,7 @@ export function SavedFullPage() {
                     onClick={() => void onRemove(item)}
                     disabled={busy}
                     aria-label={`Remove ${item.targetLabel} from saved`}
-                    className="size-9 shrink-0 text-white/40 hover:bg-red-500/10 hover:text-red-400"
+                    className="size-9 shrink-0 text-white/60 hover:bg-red-500/10 hover:text-red-400"
                   >
                     {busy ? (
                       <Loader2 className="size-4 animate-spin" aria-hidden />

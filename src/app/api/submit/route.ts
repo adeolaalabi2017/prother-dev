@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
   const recentCount = await countSubmissionsSince(data.email.toLowerCase(), weekAgo);
   if (recentCount >= 3) {
     return NextResponse.json(
-      { error: "Weekly limit reached — 3 submissions per email per 7 days." },
+      { error: "Weekly limit reached: 3 submissions per email per 7 days." },
       { status: 429 }
     );
   }

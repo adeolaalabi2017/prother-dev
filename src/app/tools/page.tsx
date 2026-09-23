@@ -19,9 +19,9 @@ export const metadata: Metadata = {
     canonical: "/tools",
     types: { "application/rss+xml": "/api/rss" },
   },
-  title: "AI tools — search & compare | Prother",
+  title: "AI tools · search & compare | Prother",
   description:
-    "The curated directory for AI tools — search, compare, and save your stack. Filter by category, pricing, and tags. No gates — browse free.",
+    "The curated directory for AI tools: search, compare, and save your stack. Filter by category, pricing, and tags. No gates. Browse free.",
   keywords: [
     "AI tools directory",
     "browse AI tools",
@@ -30,18 +30,18 @@ export const metadata: Metadata = {
     "compare AI tools",
   ],
   openGraph: {
-    title: "AI tools — search & compare | Prother",
+    title: "AI tools · search & compare | Prother",
     description:
-      "The curated directory for AI tools — search, compare, and save your stack. Filter by category, pricing, and tags. No gates — browse free.",
+      "The curated directory for AI tools: search, compare, and save your stack. Filter by category, pricing, and tags. No gates. Browse free.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI tools — search & compare | Prother",
+    title: "AI tools · search & compare | Prother",
     description:
-      "The curated directory for AI tools — search, compare, and save your stack.",
+      "The curated directory for AI tools: search, compare, and save your stack.",
     images: ["/api/og"],
   },
 };
@@ -171,13 +171,13 @@ function SerpResultCard({ row }: { row: SerpToolRow }) {
         </div>
         <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {row.editorsPick && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+            <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
               <Star className="size-2.5 fill-current" aria-hidden />
               Editor&apos;s Pick
             </span>
           )}
           {isNewListing(row.listedAt) && (
-            <span className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-mint uppercase">
+            <span className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-xs tracking-wider text-mint uppercase">
               New
             </span>
           )}
@@ -197,20 +197,20 @@ function SerpResultCard({ row }: { row: SerpToolRow }) {
       </p>
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase">
           {row.category.emoji} {row.category.name}
         </span>
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase">
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase">
           {pricingLabel(row.pricingModel, row.startingPrice)}
         </span>
-        <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-white/35 uppercase">
+        <span className="ml-auto inline-flex items-center gap-1 font-mono text-xs tracking-wider text-white/55 uppercase">
           Listed {new Date(row.listedAt).toLocaleDateString("en-US", {
             month: "short",
             year: "numeric",
             timeZone: "UTC",
           })}
           <ArrowUpRight
-            className="size-3.5 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+            className="size-3.5 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
             aria-hidden
           />
         </span>
@@ -239,7 +239,7 @@ function SerpPagination({ q, page, pages }: { q: string; page: number; pages: nu
     `/tools?${new URLSearchParams({ q, page: String(p) }).toString()}`;
 
   const navBtn =
-    "inline-flex h-9 items-center gap-1 rounded-lg border px-3 font-mono text-[11px] tracking-wider uppercase transition-colors";
+    "inline-flex h-9 items-center gap-1 rounded-lg border px-3 font-mono text-xs tracking-wider uppercase transition-colors";
   const numBtn =
     "inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 font-mono text-xs transition-colors";
 
@@ -251,7 +251,7 @@ function SerpPagination({ q, page, pages }: { q: string; page: number; pages: nu
           Prev
         </Link>
       ) : (
-        <span aria-disabled="true" className={cn(navBtn, "cursor-not-allowed border-white/5 bg-transparent text-white/20")}>
+        <span aria-disabled="true" className={cn(navBtn, "cursor-not-allowed border-white/5 bg-transparent text-white/55")}>
           <ChevronLeft className="size-3.5" aria-hidden />
           Prev
         </span>
@@ -259,14 +259,14 @@ function SerpPagination({ q, page, pages }: { q: string; page: number; pages: nu
 
       {serpPageNumbers(page, pages).map((p, i) =>
         p === "gap" ? (
-          <span key={`gap-${i}`} aria-hidden className="px-1 font-mono text-xs text-white/25">
+          <span key={`gap-${i}`} aria-hidden className="px-1 font-mono text-xs text-white/55">
             …
           </span>
         ) : p === page ? (
           <span
             key={p}
             aria-current="page"
-            className={cn(numBtn, "border-ember bg-ember font-semibold text-black")}
+            className={cn(numBtn, "border-ember bg-ember font-semibold text-coal")}
           >
             {p}
           </span>
@@ -287,7 +287,7 @@ function SerpPagination({ q, page, pages }: { q: string; page: number; pages: nu
           <ChevronRight className="size-3.5" aria-hidden />
         </Link>
       ) : (
-        <span aria-disabled="true" className={cn(navBtn, "cursor-not-allowed border-white/5 bg-transparent text-white/20")}>
+        <span aria-disabled="true" className={cn(navBtn, "cursor-not-allowed border-white/5 bg-transparent text-white/55")}>
           Next
           <ChevronRight className="size-3.5" aria-hidden />
         </span>
@@ -346,15 +346,15 @@ export default async function ToolsPage({
         {/* Results header — the page's single H1 (the directory's hero is hidden) */}
         <section className="bg-ink">
           <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
-            <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
+            <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember uppercase">
               <Compass className="size-3.5" aria-hidden />
               Search results
             </p>
             <h1 className="mt-3 break-words text-4xl font-black tracking-tighter text-white md:text-5xl">
-              &ldquo;{q}&rdquo; — AI tool search results
+              &ldquo;{q}&rdquo; · AI tool search results
             </h1>
             <p
-              className="mt-4 font-mono text-[11px] tracking-[0.25em] text-white/40 uppercase"
+              className="mt-4 font-mono text-xs tracking-[0.25em] text-white/60 uppercase"
               aria-live="polite"
             >
               {serp.total} {serp.total === 1 ? "result" : "results"} · page {serp.page} of{" "}
@@ -365,16 +365,16 @@ export default async function ToolsPage({
           <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
             {serp.rows.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
-                <SearchX className="mx-auto size-8 text-white/25" aria-hidden />
+                <SearchX className="mx-auto size-8 text-white/55" aria-hidden />
                 <p className="mt-4 font-mono text-sm tracking-wider text-white/60 uppercase">
                   No results for &ldquo;{q}&rdquo;
                 </p>
-                <p className="mt-2 text-sm text-white/40">
+                <p className="mt-2 text-sm text-white/60">
                   Try a shorter query, check the spelling, or browse the full directory.
                 </p>
                 <Link
                   href="/tools"
-                  className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-[11px] font-semibold tracking-wider text-ember uppercase transition-colors hover:bg-ember/20"
+                  className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-sm font-semibold tracking-wider text-ember uppercase transition-colors hover:bg-ember/20"
                 >
                   Browse all tools
                 </Link>
@@ -418,7 +418,7 @@ export default async function ToolsPage({
     "@type": "ItemList",
     name: "AI tools on Prother",
     description:
-      "The curated directory of AI tools — search, compare, and save your stack.",
+      "The curated directory of AI tools: search, compare, and save your stack.",
     numberOfItems: initial.rows.length,
     itemListElement: initial.rows.map((t, i) => ({
       "@type": "ListItem",

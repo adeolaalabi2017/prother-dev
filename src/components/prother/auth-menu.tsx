@@ -40,7 +40,7 @@ export function requestSignIn() {
 // ── Constants ────────────────────────────────────────────────────────────
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SEC = 30;
-const MONO_LABEL = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+const MONO_LABEL = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 
 type ProviderMap = Record<string, unknown>;
 
@@ -126,9 +126,9 @@ export function AuthMenu() {
     setMagicUrl(null);
     try {
       const csrfRes = await fetch("/api/auth/csrf");
-      if (!csrfRes.ok) throw new Error("Could not start sign-in — try again.");
+      if (!csrfRes.ok) throw new Error("Could not start sign-in. Try again.");
       const { csrfToken } = (await csrfRes.json()) as { csrfToken?: string };
-      if (!csrfToken) throw new Error("Missing CSRF token — try again.");
+      if (!csrfToken) throw new Error("Missing CSRF token. Try again.");
 
       await fetch("/api/auth/signin/email", {
         method: "POST",
@@ -143,7 +143,7 @@ export function AuthMenu() {
       setSentTo(addr);
       setResendIn(RESEND_COOLDOWN_SEC);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong — try again.");
+      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setSending(false);
     }
@@ -205,7 +205,7 @@ export function AuthMenu() {
             <span className="block truncate font-mono text-xs font-semibold uppercase tracking-[0.15em] text-white">
               {name}
             </span>
-            <span className="block truncate font-mono text-[10px] text-white/40">{user.email}</span>
+            <span className="block truncate font-mono text-xs text-white/60">{user.email}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator className="bg-white/10" />
 
@@ -249,7 +249,7 @@ export function AuthMenu() {
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label="Sign in or create account"
-          className="inline-flex h-9 items-center rounded-lg border border-white/15 bg-transparent px-3.5 font-mono text-[10px] uppercase tracking-[0.25em] text-ember transition-colors hover:border-ember/50 hover:bg-ember/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+          className="inline-flex h-9 items-center rounded-lg border border-white/15 bg-transparent px-3.5 font-mono text-sm uppercase tracking-[0.25em] text-ember transition-colors hover:border-ember/50 hover:bg-ember/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
         >
           Sign in
         </button>
@@ -270,7 +270,7 @@ export function AuthMenu() {
           <button
             type="button"
             onClick={() => void signIn("google", { callbackUrl: "/" })}
-            className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2.5 rounded-lg border border-white/15 bg-white/[0.03] font-mono text-[10px] uppercase tracking-[0.25em] text-white/80 transition-colors hover:border-ember/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+            className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2.5 rounded-lg border border-white/15 bg-white/[0.03] font-mono text-sm uppercase tracking-[0.25em] text-white/80 transition-colors hover:border-ember/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
           >
             <GoogleGlyph />
             Continue with Google
@@ -278,9 +278,9 @@ export function AuthMenu() {
         ) : (
           <div
             aria-disabled="true"
-            className="mt-4 flex min-h-9 items-center justify-center rounded-lg border border-white/10 px-2 py-2 text-center font-mono text-[9px] uppercase leading-relaxed tracking-[0.2em] text-white/30 opacity-50"
+            className="mt-4 flex min-h-9 items-center justify-center rounded-lg border border-white/10 px-2 py-2 text-center font-mono text-xs uppercase leading-relaxed tracking-[0.2em] text-white/55 opacity-50"
           >
-            Google — configure GOOGLE_CLIENT_ID to enable
+            Google: configure GOOGLE_CLIENT_ID to enable
           </div>
         )}
 
@@ -306,7 +306,7 @@ export function AuthMenu() {
             onChange={(e) => setEmail(e.target.value)}
             aria-invalid={error ? true : undefined}
             disabled={sending}
-            className="h-9 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/30 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+            className="h-9 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
           />
           <Button
             type="submit"
@@ -351,20 +351,20 @@ export function AuthMenu() {
                 Open magic link ↗
               </a>
             </Button>
-            <p className={cn(MONO_LABEL, "mt-2")}>Dev inbox — replaced by SMTP in prod</p>
+            <p className={cn(MONO_LABEL, "mt-2")}>Dev inbox (replaced by SMTP in prod)</p>
           </div>
         )}
 
         {sentTo !== null && !error && !magicUrl && (
           <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
             <p className="text-xs leading-snug text-white/80">
-              Check your inbox — the link expires in 15 min.
+              Check your inbox. The link expires in 15 min.
             </p>
             <button
               type="button"
               disabled={sending || resendIn > 0}
               onClick={() => void sendMagicLink(sentTo)}
-              className="mt-2 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.25em] text-ember transition-colors hover:text-ember-hot disabled:cursor-not-allowed disabled:text-white/30"
+              className="mt-2 inline-flex items-center gap-1.5 font-mono text-sm uppercase tracking-[0.25em] text-ember transition-colors hover:text-ember-hot disabled:cursor-not-allowed disabled:text-white/40"
             >
               {sending && <Loader2 className="size-3 animate-spin" aria-hidden />}
               {sending ? "Resending…" : resendIn > 0 ? `Resend in ${resendIn}s` : "Resend"}
@@ -385,7 +385,7 @@ export function AuthMenu() {
             <Bookmark className="size-3.5 shrink-0 text-ember" aria-hidden />
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-semibold text-white/80">Saved items</span>
-              <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-white/35">
+              <span className="block font-mono text-xs uppercase tracking-[0.2em] text-white/55">
                 Works without an account →
               </span>
             </span>

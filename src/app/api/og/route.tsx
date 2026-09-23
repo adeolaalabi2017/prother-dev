@@ -364,7 +364,7 @@ export async function GET(req: Request) {
             marginBottom: 20,
           }}
         >
-          PROTHER — FIND THE RIGHT AI TOOL
+          PROTHER · FIND THE RIGHT AI TOOL
         </div>
         <div
           style={{
@@ -378,7 +378,7 @@ export async function GET(req: Request) {
             fontFamily: SANS,
           }}
         >
-          <span>Prother — Find the</span>
+          <span>Prother · Find the</span>
           <span>
             right AI tool.
             <span style={{ color: C.ember }}>_</span>
@@ -393,7 +393,7 @@ export async function GET(req: Request) {
             fontFamily: SANS,
           }}
         >
-          Search, compare, and choose from the best AI tools — rated by
+          Search, compare, and choose from the best AI tools, rated by
           reviews.
         </div>
       </div>

@@ -163,7 +163,7 @@ export function CategoryFullPage() {
             <button
               type="button"
               onClick={() => closeCategory()}
-              className="rounded-lg border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-ember/50 hover:text-ember"
+              className="rounded-lg border border-white/15 px-4 py-2 font-mono text-sm uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-ember/50 hover:text-ember"
             >
               Back to the directory
             </button>
@@ -176,12 +176,12 @@ export function CategoryFullPage() {
       {isEmpty && (
         <PageError
           title="No tools yet"
-          message="Nothing has been submitted to this category so far — browse all tools in this category from the directory."
+          message="Nothing has been submitted to this category so far. Browse all tools in this category from the directory."
           action={
             <button
               type="button"
               onClick={() => closeCategory()}
-              className="rounded-lg border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-ember/50 hover:text-ember"
+              className="rounded-lg border border-white/15 px-4 py-2 font-mono text-sm uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-ember/50 hover:text-ember"
             >
               Browse all tools
             </button>
@@ -207,7 +207,7 @@ export function CategoryFullPage() {
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span
                     aria-label={`${meta.count} tools in this category`}
-                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-[0.2em] text-white/60 uppercase"
+                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-[0.2em] text-white/60 uppercase"
                   >
                     {meta.count} tools
                   </span>
@@ -217,7 +217,7 @@ export function CategoryFullPage() {
                     aria-pressed={isFollowing}
                     disabled={followBusy}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-[10px] tracking-[0.2em] uppercase transition-colors disabled:opacity-50",
+                      "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-sm tracking-[0.2em] uppercase transition-colors disabled:opacity-50",
                       isFollowing
                         ? "border-ember/60 bg-ember/10 text-ember"
                         : "border-white/15 text-white/70 hover:border-ember/50 hover:text-ember"
@@ -237,7 +237,7 @@ export function CategoryFullPage() {
               aria-label="About this category"
               className="mt-6 rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-5"
             >
-              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+              <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
                 <span aria-hidden className="h-px w-6 bg-ember/70" />
                 About this category
               </p>
@@ -261,7 +261,7 @@ export function CategoryFullPage() {
                   onClick={() => setSort(s)}
                   aria-pressed={sort === s}
                   className={cn(
-                    "rounded-full border px-3 py-1 font-mono text-[10px] tracking-[0.2em] uppercase transition-colors",
+                    "rounded-full border px-3 py-1 font-mono text-sm tracking-[0.2em] uppercase transition-colors",
                     sort === s
                       ? "border-ember bg-ember/10 text-ember"
                       : "border-white/10 text-white/50 hover:border-white/25 hover:text-white/80"
@@ -271,7 +271,7 @@ export function CategoryFullPage() {
                 </button>
               ))}
             </div>
-            <p className="font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">
+            <p className="font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
               Sorted by {sort === "featured" ? "editorial picks" : sort === "top-rated" ? "review rating" : "recency"}
             </p>
           </div>
@@ -302,7 +302,7 @@ export function CategoryFullPage() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold text-white">
-                        <span aria-hidden className="mr-1.5 font-mono text-[10px] text-white/30">
+                        <span aria-hidden className="mr-1.5 font-mono text-xs text-white/55">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         {row.name}
@@ -312,7 +312,7 @@ export function CategoryFullPage() {
                   <span className="mt-2 line-clamp-2 text-xs leading-relaxed text-white/60">
                     {row.tagline}
                   </span>
-                  <span className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 font-mono text-[10px] tracking-wider text-white/40 uppercase">
+                  <span className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 font-mono text-xs tracking-wider text-white/60 uppercase">
                     {row.editorsPick && (
                       <span className="inline-flex items-center gap-1 text-ember">
                         <Star className="size-3" fill="currentColor" aria-hidden />
@@ -330,7 +330,7 @@ export function CategoryFullPage() {
                         New
                       </span>
                     )}
-                    <span aria-hidden className="text-white/20">
+                    <span aria-hidden className="text-white/55">
                       ·
                     </span>
                     <span className="rounded border border-white/10 px-1.5 py-0.5 text-white/55">

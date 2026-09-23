@@ -43,13 +43,13 @@ const threads: SeedThread[] = [
     hoursAgo: 96,
     body: `Quick orientation so posts land in front of the right people:
 
-p/general — tools, evaluation, pricing, workflows. If it is about picking the right AI for the job and getting your money's worth, it goes here.
+p/general: tools, evaluation, pricing, workflows. If it is about picking the right AI for the job and getting your money's worth, it goes here.
 
-p/vibecoding — how you actually build: prompts, agents, workflows, what your stack looks like after three weeks of co-writing with a model.
+p/vibecoding: how you actually build: prompts, agents, workflows, what your stack looks like after three weeks of co-writing with a model.
 
-p/show — demo what you built with AI tools. Share real numbers, answer stack questions. One thread per project, link your listing.
+p/show: demo what you built with AI tools. Share real numbers, answer stack questions. One thread per project, link your listing.
 
-p/introduce — say hi. What you worked on before, what you are working on now. No pitch decks needed.
+p/introduce: say hi. What you worked on before, what you are working on now. No pitch decks needed.
 
 Moderation is light but real: show posts with fabricated numbers get unlisted, and cross-posting the same thread into three rooms gets the duplicates merged. Ask questions the way you would ask a friend who happens to have evaluated more tools than they can count.`,
     replies: [
@@ -69,25 +69,25 @@ Moderation is light but real: show posts with fabricated numbers get unlisted, a
     hoursAgo: 5,
     body: `We put an answer engine on our compliance team's critical path last quarter and learned the hard way that "impressive in a demo" and "trustworthy at 4pm on a deadline" are different products.
 
-Now every candidate tool runs the same gauntlet before it touches real work. A three-task test on our own material — not the vendor's sample data — with output graded against what a careful human produced. An export drill: can I get everything out in a usable format on day one, or is my work product hostage from the first click? And a data-retention check: what is stored, for how long, is it used for training by default, and does the delete button actually delete?
+Now every candidate tool runs the same gauntlet before it touches real work. A three-task test on our own material (not the vendor's sample data) with output graded against what a careful human produced. An export drill: can I get everything out in a usable format on day one, or is my work product hostage from the first click? And a data-retention check: what is stored, for how long, is it used for training by default, and does the delete button actually delete?
 
 The pricing math matters too. Free-tier limits are usually where the real product lives or dies, so I simulate a busy week on the free plan before paying. Discovering the wall after procurement is the expensive way to learn it.
 
-Curious what other people's gauntlets look like. Refund policies are my latest obsession — a tool that won't refund the month you didn't use is telling you something about how confident they are in retention.`,
+Curious what other people's gauntlets look like. Refund policies are my latest obsession: a tool that won't refund the month you didn't use is telling you something about how confident they are in retention.`,
     replies: [
       {
         author: "@leo",
-        body: "Eval habit that changed everything for us: the test set is real work the tool has never seen, and it gets graded by the person whose job it would assist — not the person championing the tool. Champions grade on enthusiasm. Owners grade on what breaks. Also check the changelog cadence before anything else; a tool shipping fixes weekly is telling you the failure you found is already on someone's list.",
+        body: "Eval habit that changed everything for us: the test set is real work the tool has never seen, and it gets graded by the person whose job it would assist, not the person championing the tool. Champions grade on enthusiasm. Owners grade on what breaks. Also check the changelog cadence before anything else; a tool shipping fixes weekly is telling you the failure you found is already on someone's list.",
         hoursAfter: 1,
       },
       {
         author: "@reid",
-        body: "Refund policy data point: every tool that made our procurement shortlist this year had a no-questions refund window, and the one that didn't was the one that burned us — we paid a year up front for a transcription tool that degraded after a model swap and offered store credit. The refund policy is a signal about how a company handles mistakes, not just money.",
+        body: "Refund policy data point: every tool that made our procurement shortlist this year had a no-questions refund window, and the one that didn't was the one that burned us: we paid a year up front for a transcription tool that degraded after a model swap and offered store credit. The refund policy is a signal about how a company handles mistakes, not just money.",
         hoursAfter: 2,
       },
       {
         author: "@mira",
-        body: "The data-retention check saved us once — turned out the meeting-notes tool we were about to standardize on trained on customer audio by default, and the opt-out was buried in an admin panel nobody had opened. Also: check what happens when the tool is down. An AI tool with no status page and no degraded mode is a liability dressed as a convenience.",
+        body: "The data-retention check saved us once: turned out the meeting-notes tool we were about to standardize on trained on customer audio by default, and the opt-out was buried in an admin panel nobody had opened. Also: check what happens when the tool is down. An AI tool with no status page and no degraded mode is a liability dressed as a convenience.",
         hoursAfter: 4,
       },
     ],
@@ -122,7 +122,7 @@ What has actually predicted retention for you? Deposit pages, concierge onboardi
   {
     slug: "keeping-a-cursor-claude-codebase-coherent-5tw7",
     topic: "vibecoding",
-    title: "Three weeks into a Cursor + Claude codebase — how are you keeping it coherent?",
+    title: "Three weeks into a Cursor + Claude codebase: how are you keeping it coherent?",
     author: "@leo",
     baseUpvotes: 42,
     hoursAgo: 8,
@@ -130,11 +130,11 @@ What has actually predicted retention for you? Deposit pages, concierge onboardi
 
 1. Rules file is law. Our .cursorrules is 90 lines: naming, folder boundaries, error handling, and a hard list of "never touch" files (auth, migrations, payments). Generated PRs stopped wandering after we wrote it down.
 
-2. Plans before prompts. Every feature gets a markdown file in /plans first — data model, failure modes, what NOT to build. The agent implements the plan; it does not get to invent scope. Reviewing a plan takes two minutes; reviewing 900 lines of confident code takes an afternoon.
+2. Plans before prompts. Every feature gets a markdown file in /plans first: data model, failure modes, what NOT to build. The agent implements the plan; it does not get to invent scope. Reviewing a plan takes two minutes; reviewing 900 lines of confident code takes an afternoon.
 
 3. Weekly human refactor pass. Friday afternoons I read every diff of the week and delete cleverness. The model writes working code and then quietly builds a second, slightly different error-handling pattern next to the first. Left alone, that compounds.
 
-Curious what the long-haul people do differently — especially anyone past the two-month mark with an agent-heavy codebase.`,
+Curious what the long-haul people do differently, especially anyone past the two-month mark with an agent-heavy codebase.`,
     replies: [
       {
         author: "@sol",
@@ -143,12 +143,12 @@ Curious what the long-haul people do differently — especially anyone past the 
       },
       {
         author: "@greg",
-        body: "Our on-call bot is around 40% generated and the rule that saved us: every agent PR goes through the identical CI a human PR would — lint, types, e2e — and diffs stay under ~300 lines. Small diffs are the whole game. A 40-line generated change is usually fine. A 900-line one is how you spend a weekend.",
+        body: "Our on-call bot is around 40% generated and the rule that saved us: every agent PR goes through the identical CI a human PR would (lint, types, e2e) and diffs stay under ~300 lines. Small diffs are the whole game. A 40-line generated change is usually fine. A 900-line one is how you spend a weekend.",
         hoursAfter: 3,
       },
       {
         author: "@tara",
-        body: "Context rot was our killer — hour three of a chat session, the model was confidently citing functions from a repo state that never existed. Now: fresh session per task, one NOTES.md that I keep updated with current state, and the agent reads it first. Feels inefficient. Measures faster.",
+        body: "Context rot was our killer: hour three of a chat session, the model was confidently citing functions from a repo state that never existed. Now: fresh session per task, one NOTES.md that I keep updated with current state, and the agent reads it first. Feels inefficient. Measures faster.",
         hoursAfter: 6,
       },
     ],
@@ -170,7 +170,7 @@ Anyone else burned by this, or am I the only one who had to learn it twice?`,
     replies: [
       {
         author: "@greg",
-        body: "Per-branch database files changed everything for us. Every branch gets its own dev DB, copied from a seed snapshot. Worst case an agent destroys a branch DB that costs 30 seconds to recreate. Agents are fearless exactly because they have no fear — put the blast radius where fear belongs.",
+        body: "Per-branch database files changed everything for us. Every branch gets its own dev DB, copied from a seed snapshot. Worst case an agent destroys a branch DB that costs 30 seconds to recreate. Agents are fearless exactly because they have no fear: put the blast radius where fear belongs.",
         hoursAfter: 1,
       },
       {
@@ -189,15 +189,15 @@ Anyone else burned by this, or am I the only one who had to learn it twice?`,
     hoursAgo: 3,
     body: `Open-sourced my podcast-clipping pipeline last month, so this is the demo post without a sales pitch: you upload a long episode, it finds the ten moments worth clipping and cuts them with proper framing.
 
-Stack, for those who asked when I shared the first snippet: Whisper large-v3 running locally for the transcript, ffmpeg for the actual cutting, and a small fine-tuned model that scores segments on hook strength — the scoring model is the secret sauce and it took four retraining rounds to stop picking intro music.
+Stack, for those who asked when I shared the first snippet: Whisper large-v3 running locally for the transcript, ffmpeg for the actual cutting, and a small fine-tuned model that scores segments on hook strength: the scoring model is the secret sauce and it took four retraining rounds to stop picking intro music.
 
-Monthly numbers, honestly: ~600 episodes processed, 14 active podcasters, two of them paying for the hosted version ($15 Creator tier). Biggest surprise — people run entire back-catalogs through it in one evening. One user processed 74 episodes of a history podcast overnight. That was NOT the persona we designed for, and now it might be the product.
+Monthly numbers, honestly: ~600 episodes processed, 14 active podcasters, two of them paying for the hosted version ($15 Creator tier). Biggest surprise: people run entire back-catalogs through it in one evening. One user processed 74 episodes of a history podcast overnight. That was NOT the persona we designed for, and now it might be the product.
 
 AMA about the pipeline. Especially happy to go deep on the segment scoring, because that is where every hour of the last three months went.`,
     replies: [
       {
         author: "@stella",
-        body: "The scoring model is the part I want to hear about. What was your training signal — editor-labeled clips, or retention data from real posts? We cheat at RenderMind and just ask a big model to score outputs, but it costs a fortune per image.",
+        body: "The scoring model is the part I want to hear about. What was your training signal: editor-labeled clips, or retention data from real posts? We cheat at RenderMind and just ask a big model to score outputs, but it costs a fortune per image.",
         hoursAfter: 1,
       },
       {
@@ -223,9 +223,9 @@ AMA about the pipeline. Especially happy to go deep on the segment scoring, beca
 
 Since the same three questions keep coming up, here is the honest version of how the cite-everything engine works: retrieval pulls candidate sources, a claim-extraction pass turns each sentence of our draft answer into checkable statements, and a verification pass attaches or removes a citation per claim. Anything that fails verification gets rewritten, not footnoted.
 
-Costs nobody asks about: that pipeline roughly triples our latency versus a normal answer engine and it is worth every millisecond, because trust is the product. We also kill answers entirely when verification confidence drops below threshold — roughly 4% of queries get "here is what I could not verify" instead of a confident guess, and users cite that refusal in reviews more than any feature.
+Costs nobody asks about: that pipeline roughly triples our latency versus a normal answer engine and it is worth every millisecond, because trust is the product. We also kill answers entirely when verification confidence drops below threshold: roughly 4% of queries get "here is what I could not verify" instead of a confident guess, and users cite that refusal in reviews more than any feature.
 
-AMA — happy to talk retrieval, the verification thresholds, or why betting on open models was the right call even when the closed ones were cheaper per token.`,
+AMA: happy to talk retrieval, the verification thresholds, or why betting on open models was the right call even when the closed ones were cheaper per token.`,
     replies: [
       {
         author: "@mira",
@@ -234,7 +234,7 @@ AMA — happy to talk retrieval, the verification thresholds, or why betting on 
       },
       {
         author: "@harvey",
-        body: "Late to the party — legal uses this pattern constantly and the verification-threshold question is exactly where enterprise buyers get nervous. What did the false-citation rate look like in your first months versus now, and how do you measure it at all? We resorted to paying paralegals to spot-check and I still do not trust our numbers.",
+        body: "Late to the party: legal uses this pattern constantly and the verification-threshold question is exactly where enterprise buyers get nervous. What did the false-citation rate look like in your first months versus now, and how do you measure it at all? We resorted to paying paralegals to spot-check and I still do not trust our numbers.",
         hoursAfter: 7,
       },
     ],
@@ -242,26 +242,26 @@ AMA — happy to talk retrieval, the verification thresholds, or why betting on 
   {
     slug: "new-here-amara-ex-radio-voice-tooling-7rw6",
     topic: "introduce",
-    title: "New here — Amara, ex-radio, now working on voice tooling",
+    title: "New here. Amara, ex-radio, now working on voice tooling",
     author: "@amara",
     baseUpvotes: 12,
     hoursAgo: 50,
-    body: `Hello all. Twelve years in radio production before this — mostly documentary and voice work, which is a long way of saying I have heard what happens to a voice when technology mangles it, thousands of times.
+    body: `Hello all. Twelve years in radio production before this, mostly documentary and voice work, which is a long way of saying I have heard what happens to a voice when technology mangles it, thousands of times.
 
-These days I am working on voice tooling that treats the source recording with respect: dubbing that keeps the breath and pacing of the original instead of flattening everything into that beige audiobook read. Still early — consulting for studios by day, building by night.
+These days I am working on voice tooling that treats the source recording with respect: dubbing that keeps the breath and pacing of the original instead of flattening everything into that beige audiobook read. Still early: consulting for studios by day, building by night.
 
 What drew me to this community is that everyone here argues about details like segment scoring and migration safety, which is exactly the level of conversation my old industry never had about voice tech. I am mostly here to learn from people who have already worked out how to evaluate this stuff properly.
 
-If you are doing anything with audio, I will happily trade notes on quality issues — bad dithering is a pet peeve and I will talk about it at length.`,
+If you are doing anything with audio, I will happily trade notes on quality issues: bad dithering is a pet peeve and I will talk about it at length.`,
     replies: [
       {
         author: "@nova",
-        body: "Welcome — EchoGrain is music-side but half our users push voice tracks through it. The beige audiobook read is real and I have never heard anyone name it before. When your tool is far enough along I want to test the breath preservation specifically, that is the tell in every clone I have auditioned.",
+        body: "Welcome. EchoGrain is music-side but half our users push voice tracks through it. The beige audiobook read is real and I have never heard anyone name it before. When your tool is far enough along I want to test the breath preservation specifically, that is the tell in every clone I have auditioned.",
         hoursAfter: 6,
       },
       {
         author: "@prother",
-        body: "Welcome, Amara. When you have something to demo, post it in p/show with one before/after clip — voice products convert on hearing, not reading. The stress-testing thread in p/general is where the tool-evaluation veterans live if you want the unfiltered version.",
+        body: "Welcome, Amara. When you have something to demo, post it in p/show with one before/after clip: voice products convert on hearing, not reading. The stress-testing thread in p/general is where the tool-evaluation veterans live if you want the unfiltered version.",
         hoursAfter: 11,
       },
     ],

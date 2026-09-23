@@ -129,8 +129,8 @@ function fmtWindow(c: AdCampaign): string {
 const WINDOW_CX: Record<WindowState, string> = {
   running: "border-emerald-400/30 bg-emerald-400/10 text-emerald-400",
   scheduled: "border-white/15 bg-white/5 text-white/50",
-  finished: "border-white/10 bg-white/[0.03] text-white/30",
-  none: "border-white/10 bg-white/[0.03] text-white/30",
+  finished: "border-white/10 bg-white/[0.03] text-white/55",
+  none: "border-white/10 bg-white/[0.03] text-white/55",
 };
 
 function CampaignsSkeleton() {
@@ -255,7 +255,7 @@ function CampaignDialog({
       >
         <DialogHeader className="border-b border-white/10 p-5 text-left">
           <DialogTitle className="text-lg font-black tracking-tight">
-            {isNew ? "New campaign" : `Edit — ${campaign.name}`}
+            {isNew ? "New campaign" : `Edit: ${campaign.name}`}
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm text-white/50">
             Sponsored slots across the directory, journal, category and search
@@ -270,7 +270,7 @@ function CampaignDialog({
                 value={f.name}
                 maxLength={80}
                 onChange={(e) => setF({ ...f, name: e.target.value })}
-                placeholder="Directory banner — spring campaign"
+                placeholder="Directory banner · spring campaign"
                 className={inputCx}
               />
             </Field>
@@ -326,7 +326,7 @@ function CampaignDialog({
               rows={2}
               maxLength={140}
               onChange={(e) => setF({ ...f, body: e.target.value })}
-              placeholder="One supporting sentence — optional."
+              placeholder="One supporting sentence (optional)."
               className={inputCx}
             />
           </Field>
@@ -341,7 +341,7 @@ function CampaignDialog({
                 className={cn(inputCx, "font-mono text-xs")}
               />
               {f.clickUrl.trim() && !urlOk(f.clickUrl) && (
-                <p className="text-[10px] text-red-400">Not a valid http(s) URL</p>
+                <p className="text-xs text-red-400">Not a valid http(s) URL</p>
               )}
             </Field>
             <Field label="Emoji">
@@ -366,7 +366,7 @@ function CampaignDialog({
                 className={inputCx}
               />
               {!Number.isNaN(weightNum) && (weightNum < 1 || weightNum > 10) && (
-                <p className="text-[10px] text-red-400">Pick 1–10 — higher wins the slot</p>
+                <p className="text-xs text-red-400">Pick 1–10. Higher wins the slot</p>
               )}
             </Field>
             <Field label="Starts (UTC)">
@@ -414,7 +414,7 @@ function CampaignDialog({
             <Button
               disabled={!valid || busy}
               onClick={() => void submit()}
-              className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+              className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
             >
               <Plus className="size-4" aria-hidden />
               {isNew ? "Create campaign" : "Save changes"}
@@ -428,7 +428,7 @@ function CampaignDialog({
               Cancel
             </Button>
             {!valid && (
-              <p className="hidden font-mono text-[10px] text-white/30 sm:block">
+              <p className="hidden font-mono text-xs text-white/55 sm:block">
                 NAME · ADVERTISER · HEADLINE · VALID URL · WEIGHT 1–10 REQUIRED
               </p>
             )}
@@ -533,14 +533,14 @@ function ServingControls({ apiKey }: { apiKey: string }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-bold text-white">Serving controls</p>
-          <p className="text-xs text-white/45">
-            Live kill switches — no deploy. Off slots render nothing and spend no
+          <p className="text-xs text-white/60">
+            Live kill switches: no deploy. Off slots render nothing and spend no
             impressions.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Power
-            className={cn("size-4", config?.master ? "text-ember" : "text-white/30")}
+            className={cn("size-4", config?.master ? "text-ember" : "text-white/55")}
             aria-hidden
           />
           <Switch
@@ -559,10 +559,10 @@ function ServingControls({ apiKey }: { apiKey: string }) {
             className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
           >
             <span className="min-w-0">
-              <span className="block truncate font-mono text-[11px] tracking-wider text-white/70 uppercase">
+              <span className="block truncate font-mono text-xs tracking-wider text-white/70 uppercase">
                 {p.label}
               </span>
-              <span className="block truncate font-mono text-[9px] text-white/30">
+              <span className="block truncate font-mono text-xs text-white/55">
                 {p.value}
               </span>
             </span>
@@ -598,13 +598,13 @@ function MeasurementCard({ m }: { m: Measurement | null }) {
     <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-white">Measurement — 7-day fill</p>
-          <p className="text-xs text-white/45">
+          <p className="text-sm font-bold text-white">Measurement · 7-day fill</p>
+          <p className="text-xs text-white/60">
             Served vs. unsold demand per placement. Unfill = no campaign (house fills
-            included) — that gap is open selling inventory.
+            included). That gap is open selling inventory.
           </p>
         </div>
-        <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-white/40 uppercase">
+        <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 font-mono text-xs tracking-wider text-white/60 uppercase">
           {m ? `${m.days[0]?.day} → ${m.days[m.days.length - 1]?.day}` : "…"}
         </span>
       </div>
@@ -625,17 +625,17 @@ function MeasurementCard({ m }: { m: Measurement | null }) {
               key={row.placement}
               className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
             >
-              <span className="w-28 shrink-0 truncate font-mono text-[11px] tracking-wider text-white/70 uppercase">
+              <span className="w-28 shrink-0 truncate font-mono text-xs tracking-wider text-white/70 uppercase">
                 {label}
               </span>
-              <span className="w-16 shrink-0 text-right font-mono text-[11px] tabular-nums text-white">
+              <span className="w-16 shrink-0 text-right font-mono text-xs tabular-nums text-white">
                 {row.served.toLocaleString("en-US")}
-                <span className="ml-1 text-white/35">imp</span>
+                <span className="ml-1 text-white/55">imp</span>
               </span>
-              <span className="hidden w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/45 sm:block">
+              <span className="hidden w-14 shrink-0 text-right font-mono text-xs tabular-nums text-white/60 sm:block">
                 {row.house} hs
               </span>
-              <span className="hidden w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/45 sm:block">
+              <span className="hidden w-14 shrink-0 text-right font-mono text-xs tabular-nums text-white/60 sm:block">
                 {row.unfilled} un
               </span>
               {/* served share bar + unfill rate readout */}
@@ -651,14 +651,14 @@ function MeasurementCard({ m }: { m: Measurement | null }) {
                 </span>
                 <span
                   className={cn(
-                    "w-16 shrink-0 text-right font-mono text-[10px] tabular-nums",
+                    "w-16 shrink-0 text-right font-mono text-xs tabular-nums",
                     requested === 0
-                      ? "text-white/30"
+                      ? "text-white/55"
                       : row.unfillRate >= 50
                         ? "text-amber-400"
                         : "text-emerald-400"
                   )}
-                  title="Unfill rate — (house + unfilled) / requested"
+                  title="Unfill rate: (house + unfilled) / requested"
                 >
                   {requested === 0 ? "—" : `${row.unfillRate}% unfill`}
                 </span>
@@ -668,8 +668,8 @@ function MeasurementCard({ m }: { m: Measurement | null }) {
         })}
       </div>
 
-      <p className="mt-3 font-mono text-[10px] leading-relaxed text-white/25">
-        VIEWABILITY (VW) IS COUNTED MRC-STYLE — ≥50% OF THE CREATIVE ON SCREEN FOR ≥1S —
+      <p className="mt-3 font-mono text-xs leading-relaxed text-white/55">
+        VIEWABILITY (VW) IS COUNTED MRC-STYLE: ≥50% OF THE CREATIVE ON SCREEN FOR ≥1S,
         PER CAMPAIGN BELOW · DISABLED SLOTS COUNT NOTHING (AN OFF SWITCH IS NOT A FILL)
       </p>
     </div>
@@ -802,14 +802,14 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
       <MeasurementCard m={measurement} />
 
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+        <p className="font-mono text-xs tracking-wider text-white/55 uppercase">
           {campaigns ? `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"}` : "…"} ·
           weight picks the slot winner
         </p>
         <Button
           size="sm"
           onClick={() => setDialog({ open: true, campaign: null })}
-          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+          className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
         >
           <Plus className="size-4" aria-hidden />
           New campaign
@@ -822,13 +822,13 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
         <CampaignsSkeleton />
       ) : campaigns.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
-          <Megaphone className="mx-auto size-8 text-white/25" aria-hidden />
+          <Megaphone className="mx-auto size-8 text-white/55" aria-hidden />
           <p className="mt-3 font-mono text-sm text-white/60">
-            No campaigns yet — create the first one
+            No campaigns yet: create the first one
           </p>
           <Button
             onClick={() => setDialog({ open: true, campaign: null })}
-            className="mt-4 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+            className="mt-4 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
           >
             <Plus className="size-4" aria-hidden />
             New campaign
@@ -847,17 +847,17 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
                 </span>
                 <div className="min-w-44 flex-1">
                   <p className="truncate text-sm font-bold text-white">{c.name}</p>
-                  <p className="truncate text-xs text-white/45">{c.headline}</p>
+                  <p className="truncate text-xs text-white/60">{c.headline}</p>
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                  <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[9px] tracking-wider text-white/60 uppercase">
+                  <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-xs tracking-wider text-white/60 uppercase">
                     {PLACEMENT_LABEL[c.placement]}
                   </span>
                   {c.windowState !== "none" && (
                     <span
                       className={cn(
-                        "rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wider uppercase",
+                        "rounded-full border px-2 py-0.5 font-mono text-xs tracking-wider uppercase",
                         WINDOW_CX[c.windowState]
                       )}
                     >
@@ -867,14 +867,14 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
                   {c.targetCategory && (
                     <span
                       title={`Category spotlight: ${c.targetCategory}`}
-                      className="rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-ember"
+                      className="rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember"
                     >
                       → {c.targetCategory}
                     </span>
                   )}
                 </div>
 
-                <div className="hidden shrink-0 text-right font-mono text-[10px] leading-relaxed text-white/40 lg:block">
+                <div className="hidden shrink-0 text-right font-mono text-xs leading-relaxed text-white/60 lg:block">
                   <p>{fmtWindow(c)}</p>
                   <p>
                     {fmtMoney(c.totalBudgetCents)}
@@ -884,11 +884,11 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
                   </p>
                 </div>
 
-                <div className="hidden shrink-0 text-right font-mono text-[10px] leading-relaxed text-white/50 sm:block">
+                <div className="hidden shrink-0 text-right font-mono text-xs leading-relaxed text-white/50 sm:block">
                   <p>
                     {c.impressions.toLocaleString("en-US")} imp
                     {c.impressions > 0 && (
-                      <span className="text-white/30">
+                      <span className="text-white/55">
                         {" "}· {Math.round(c.vRate)}% vw
                       </span>
                     )}
@@ -906,7 +906,7 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
                 >
                   <SelectTrigger
                     aria-label={`Status for ${c.name}`}
-                    className={cn(inputCx, "h-8 w-28 shrink-0 text-xs")}
+                    className={cn(inputCx, "h-8 w-28 shrink-0 text-sm")}
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -951,7 +951,7 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
                     disabled={busy === c.id}
                     onClick={() => setDialog({ open: true, campaign: c })}
                     aria-label={`Edit ${c.name}`}
-                    className="size-8 rounded-lg text-white/40 hover:text-ember"
+                    className="size-8 rounded-lg text-white/60 hover:text-ember"
                   >
                     <Pencil className="size-3.5" aria-hidden />
                   </Button>
@@ -964,7 +964,7 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
                       confirmDelete === c.id ? `Confirm delete ${c.name}` : `Delete ${c.name}`
                     }
                     className={cn(
-                      "h-8 rounded-lg font-mono text-[10px] tracking-wider uppercase",
+                      "h-8 rounded-lg font-mono text-xs tracking-wider uppercase",
                       confirmDelete === c.id
                         ? "bg-red-500/15 text-red-300 hover:bg-red-500/25"
                         : "text-red-400/70 hover:bg-red-400/10 hover:text-red-300"
@@ -980,7 +980,7 @@ export function AdsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () =>
         </div>
       )}
 
-      <p className="font-mono text-[10px] leading-relaxed text-white/25">
+      <p className="font-mono text-xs leading-relaxed text-white/55">
         IMPRESSIONS &amp; CLICKS COUNT THROUGH THE PUBLIC /API/ADS ENDPOINTS ·
         DELETE IS TWO-CLICK CONFIRM (CLICK AGAIN WITHIN 3S) · FLIGHT DATES ARE UTC
       </p>

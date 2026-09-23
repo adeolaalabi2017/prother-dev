@@ -63,7 +63,7 @@ const HouseCard = ({ variant }: { variant: AdSlotVariant }) => {
   return (
     <Link
       href="/advertise"
-      aria-label="Prother house ad — this advertising slot is open. See placements and pricing."
+      aria-label="Prother house ad: this advertising slot is open. See placements and pricing."
       className={cn(
         "group flex h-full w-full items-center gap-4 rounded-xl border border-dashed border-ember/30 bg-ember/[0.04] transition-colors hover:border-ember/60 hover:bg-ember/[0.07] focus-visible:outline-2 focus-visible:outline-ember/60",
         spotlight ? "flex-col items-start justify-center gap-3 p-6" : "p-4 sm:gap-5"
@@ -80,7 +80,7 @@ const HouseCard = ({ variant }: { variant: AdSlotVariant }) => {
       </span>
       <span className={cn("min-w-0", spotlight && "flex-1")}>
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="inline-flex shrink-0 items-center rounded-full border border-white/15 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-white/50">
+          <span className="inline-flex shrink-0 items-center rounded-full border border-white/15 px-1.5 py-0.5 font-mono text-xs uppercase tracking-[0.2em] text-white/50">
             Prother
           </span>
           <span className={cn("leading-snug font-bold text-white", spotlight ? "text-xl" : "text-lg")}>
@@ -94,11 +94,11 @@ const HouseCard = ({ variant }: { variant: AdSlotVariant }) => {
           )}
         >
           {spotlight
-            ? "Hold the top slot of this category — one sponsor, fixed price, clearly labeled."
+            ? "Hold the top slot of this category: one sponsor, fixed price, clearly labeled."
             : "Fixed price, one sponsor, clearly labeled. See what advertising on Prother buys."}
         </span>
       </span>
-      <span className="ml-auto inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+      <span className="ml-auto inline-flex shrink-0 items-center gap-1 font-mono text-xs tracking-wider text-ember uppercase">
         Advertise
         <ArrowUpRight
           className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
@@ -212,7 +212,7 @@ export function AdSlot({
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="inline-flex shrink-0 items-center rounded-full border border-ember/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-ember">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-ember/50 px-1.5 py-0.5 font-mono text-xs uppercase tracking-[0.2em] text-ember">
                 Sponsored
               </span>
               <span
@@ -234,12 +234,12 @@ export function AdSlot({
                 {phase.ad.body}
               </span>
             )}
-            <span className="mt-1 block font-mono text-[10px] tracking-wider text-white/40 uppercase">
+            <span className="mt-1 block font-mono text-xs tracking-wider text-white/60 uppercase">
               by {phase.ad.advertiser} · Sponsored
             </span>
           </span>
           <ArrowUpRight
-            className="size-4 shrink-0 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+            className="size-4 shrink-0 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
             aria-hidden
           />
         </a>

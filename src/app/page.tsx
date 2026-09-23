@@ -84,7 +84,7 @@ export async function generateMetadata({
       },
     });
     if (tool) {
-      const title = `${tool.name} — ${tool.tagline} | Prother`;
+      const title = `${tool.name} · ${tool.tagline} | Prother`;
       const description = clamp(
         `${tool.category.name} · ${tool.pricingModel}. ${tool.description || tool.tagline}`,
         200,
@@ -123,9 +123,9 @@ export async function generateMetadata({
         db.tool.findUnique({ where: { slug: bSlug }, select: { name: true, tagline: true } }),
       ]);
       if (a && b) {
-        const title = `${a.name} vs ${b.name} — Compare AI tools | Prother`;
+        const title = `${a.name} vs ${b.name} · Compare AI tools | Prother`;
         const description = clamp(
-          `Side-by-side comparison: ${a.name} (${a.tagline}) vs ${b.name} (${b.tagline}) — pricing, ratings, and features.`,
+          `Side-by-side comparison of ${a.name} (${a.tagline}) and ${b.name} (${b.tagline}): pricing, ratings, and features.`,
           200,
         );
         return { title, description, alternates: { canonical: `/?compare=${encodeURIComponent(compareRaw)}` } };
@@ -141,7 +141,7 @@ export async function generateMetadata({
       include: { _count: { select: { items: true } } },
     });
     if (c && c.isPublic) {
-      const title = `${c.name} — Curated collection | Prother`;
+      const title = `${c.name} · Curated collection | Prother`;
       const description = clamp(
         `${c.description || `A curated collection of ${c._count.items} AI tools`}, hand-picked by ${c.ownerName} on Prother.`,
         200,
@@ -163,7 +163,7 @@ export async function generateMetadata({
     });
     if (cat) {
       const blurb = CATEGORY_BLURBS[cat.slug] ?? "";
-      const title = `${cat.name} — AI tools, ranked | Prother`;
+      const title = `${cat.name} · AI tools, ranked | Prother`;
       const description = clamp(`${blurb} ${cat._count.tools} tools listed.`, 200);
       return {
         title,
@@ -251,7 +251,7 @@ function CategoryGrid({ counts }: { counts: Map<string, number> }) {
   return (
     <section id="categories" className="bg-ink py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <p className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+        <p className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
           <span aria-hidden className="h-px w-6 bg-ember/70" />
           Browse by category
         </p>
@@ -273,7 +273,7 @@ function CategoryGrid({ counts }: { counts: Map<string, number> }) {
                 >
                   {c.emoji}
                 </span>
-                <span className="font-mono text-[11px] uppercase tracking-wider text-white/40 group-hover:text-ember">
+                <span className="font-mono text-xs uppercase tracking-wider text-white/60 group-hover:text-ember">
                   {counts.get(c.slug) ?? 0} tools
                 </span>
               </div>
@@ -308,7 +308,7 @@ function EditorsPicks({
   return (
     <section id="picks" className="bg-ink py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <p className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+        <p className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
           <span aria-hidden className="text-ember">★</span>
           Editor&apos;s Picks
         </p>
@@ -330,7 +330,7 @@ function EditorsPicks({
                 >
                   {p.logoEmoji}
                 </span>
-                <span className="rounded-full border border-ember/40 bg-ember/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-ember">
+                <span className="rounded-full border border-ember/40 bg-ember/10 px-2 py-0.5 font-mono text-xs uppercase tracking-[0.2em] text-ember">
                   Editor&apos;s Pick
                 </span>
               </div>
@@ -338,7 +338,7 @@ function EditorsPicks({
                 {p.name}
               </h3>
               <p className="mt-1 line-clamp-2 text-sm text-white/50">{p.tagline}</p>
-              <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-white/40">
+              <p className="mt-3 font-mono text-xs uppercase tracking-wider text-white/60">
                 {p.category.emoji} {p.category.name}
               </p>
             </Link>
@@ -394,7 +394,7 @@ export default async function Page() {
         url: `${base}/`,
         name: "Prother",
         description:
-          "Search and discovery for AI products and tools — a curated directory with honest pricing, reviews, and side-by-side comparisons.",
+          "Search and discovery for AI products and tools: a curated directory with honest pricing, reviews, and side-by-side comparisons.",
         publisher: { "@id": `${base}/#organization` },
         inLanguage: "en",
         potentialAction: {

@@ -70,7 +70,7 @@ export function ToolDetailActions({
     const url = `${window.location.origin}/tools/${slug}`;
     if (typeof navigator.share === "function") {
       try {
-        await navigator.share({ title: `${name} — Prother`, url });
+        await navigator.share({ title: `${name} · Prother`, url });
         return;
       } catch (err) {
         // User dismissed the share sheet — not an error.
@@ -133,7 +133,7 @@ export function ToolDetailActions({
           inCompare
             ? `Remove ${name} from comparison`
             : compareFull
-              ? "Comparison is full — remove a tool first"
+              ? "Comparison is full. Remove a tool first."
               : `Add ${name} to comparison`
         }
         aria-pressed={inCompare}
@@ -172,7 +172,7 @@ export function ToolDetailActions({
         onClick={() => setReportOpen(true)}
         className={cn(
           iconBtn,
-          "border-white/10 text-white/40 hover:border-ember/40 hover:text-ember"
+          "border-white/10 text-white/60 hover:border-ember/40 hover:text-ember"
         )}
       >
         <Flag className="size-4" aria-hidden />

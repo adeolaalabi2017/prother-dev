@@ -37,10 +37,10 @@ function relTime(iso: string): string {
   return d === 1 ? "1 day ago" : `${d} days ago`;
 }
 
-/** reviewNote looks like "Failed: S1, S4 — optional note" (PRD §7). */
+/** reviewNote looks like "Failed: S1, S4: optional note" (PRD §7). */
 function parseReviewNote(note: string): { ids: string[]; note: string } {
   // [\s\S] instead of the `s` flag — project targets ES2017 (TS1501).
-  const m = note.match(/^Failed:\s*([\s\S]+?)(?:\s+—\s*([\s\S]*))?$/);
+  const m = note.match(/^Failed:\s*([\s\S]+?)(?:\s*[—:]\s*([\s\S]*))?$/);
   if (!m) return { ids: [], note };
   return {
     ids: m[1].split(",").map((s) => s.trim()).filter(Boolean),
@@ -52,7 +52,7 @@ function StatusChip({ item }: { item: SubmissionStatusItem }) {
   if (item.status === "pending") {
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-amber-400"
+        className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-mono text-xs tracking-wider text-amber-400"
         title="Editors review within 24h"
       >
         <span className="relative flex size-1.5">
@@ -65,13 +65,13 @@ function StatusChip({ item }: { item: SubmissionStatusItem }) {
   }
   if (item.status === "approved") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-emerald-400">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-xs tracking-wider text-emerald-400">
         <BadgeCheck className="size-3" aria-hidden /> LISTING LIVE
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-red-400">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 font-mono text-xs tracking-wider text-red-400">
       <TriangleAlert className="size-3" aria-hidden /> REJECTED
     </span>
   );
@@ -111,7 +111,7 @@ function ResultCard({
             <StatusChip item={item} />
           </div>
           <p className="mt-0.5 truncate text-xs text-white/50">{item.tagline}</p>
-          <p className="mt-1 font-mono text-[10px] tracking-wider text-white/35">
+          <p className="mt-1 font-mono text-xs tracking-wider text-white/55">
             {item.domain.toUpperCase()} · SUBMITTED {relTime(item.createdAt)}
           </p>
         </div>
@@ -120,14 +120,14 @@ function ResultCard({
       {/* Rejection detail — cited standards + editor note (PRD §7) */}
       {item.status === "rejected" && parsed && (
         <div className="mt-3 rounded-lg border border-red-500/20 bg-red-500/[0.06] p-3">
-          <p className="font-mono text-[10px] tracking-widest text-red-400/80">
+          <p className="font-mono text-xs tracking-widest text-red-400/80">
             FAILED STANDARDS
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {parsed.ids.map((id) => (
               <span
                 key={id}
-                className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 font-mono text-[10px] text-red-300"
+                className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 font-mono text-xs text-red-300"
               >
                 {id}
               </span>
@@ -138,8 +138,8 @@ function ResultCard({
               {parsed.note}
             </p>
           )}
-          <p className="mt-2 text-[11px] text-white/40">
-            Fix the cited standards and submit again — the same product is
+          <p className="mt-2 text-xs text-white/60">
+            Fix the cited standards and submit again. The same product is
             welcome once it complies.
           </p>
           {item.resubmit && (
@@ -154,7 +154,7 @@ function ResultCard({
               }}
               className="group mt-3 inline-flex w-full items-center justify-between rounded-lg border border-red-500/25 bg-red-500/[0.06] px-3 py-2 text-left transition-colors hover:bg-red-500/[0.14]"
             >
-              <span className="font-mono text-[11px] tracking-wider text-red-300">
+              <span className="font-mono text-xs tracking-wider text-red-300">
                 RESUBMIT WITH FIXES
               </span>
               <ArrowRight
@@ -172,8 +172,8 @@ function ResultCard({
           href={`/tools/${item.toolSlug}`}
           className="group mt-3 inline-flex w-full items-center justify-between rounded-lg border border-ember/25 bg-ember/[0.06] px-3 py-2 text-left transition-colors hover:bg-ember/[0.12]"
         >
-          <span className="font-mono text-[11px] tracking-wider text-ember">
-            Listing live — view it
+          <span className="font-mono text-xs tracking-wider text-ember">
+            Listing live · view it
           </span>
           <ArrowRight
             className="size-3.5 text-ember transition-transform group-hover:translate-x-0.5"
@@ -257,14 +257,14 @@ export function StatusTracker() {
         </DialogDescription>
 
         <div className="px-6 pt-6 pb-2">
-          <p className="font-mono text-[10px] tracking-widest text-ember">
+          <p className="font-mono text-xs tracking-widest text-ember">
             MAKERS
           </p>
           <h2 className="mt-1 text-xl font-black tracking-tight">
             Track your submission
           </h2>
           <p className="mt-1.5 text-sm text-white/50">
-            Editors check every listing against the six standards — typically
+            Editors check every listing against the six standards, typically
             within 24h. Decisions are also emailed.
           </p>
         </div>
@@ -285,12 +285,12 @@ export function StatusTracker() {
             inputMode="email"
             autoComplete="email"
             aria-label="Submission email"
-            className="border-white/10 bg-white/5 text-white placeholder:text-white/25"
+            className="border-white/10 bg-white/5 text-white placeholder:text-white/55"
           />
           <Button
             type="submit"
             disabled={loading}
-            className="shrink-0 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+            className="shrink-0 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
           >
             {loading ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -340,12 +340,12 @@ export function StatusTracker() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center rounded-xl border border-dashed border-white/15 px-6 py-10 text-center"
               >
-                <Inbox className="size-8 text-white/25" aria-hidden />
+                <Inbox className="size-8 text-white/55" aria-hidden />
                 <p className="mt-3 text-sm font-semibold text-white/70">
                   No submissions for{" "}
                   <span className="font-mono text-white/90">{searchedFor}</span>
                 </p>
-                <p className="mt-1 max-w-xs text-xs text-white/40">
+                <p className="mt-1 max-w-xs text-xs text-white/60">
                   Shipped something? Every listing that passes the quality bar
                   gets a permanent listing in the directory.
                 </p>
@@ -355,7 +355,7 @@ export function StatusTracker() {
                     setOpen(false);
                     window.setTimeout(() => setSubmitOpen(true), 80);
                   }}
-                  className="mt-5 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+                  className="mt-5 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
                 >
                   Submit your tool
                 </Button>
@@ -364,7 +364,7 @@ export function StatusTracker() {
           </AnimatePresence>
 
           {searchedFor && items && items.length > 0 && (
-            <p className="mt-4 border-t border-white/10 pt-3 text-center font-mono text-[10px] tracking-wider text-white/30">
+            <p className="mt-4 border-t border-white/10 pt-3 text-center font-mono text-xs tracking-wider text-white/55">
               ALSO SENT TO {searchedFor.toUpperCase()} · REVIEW USUALLY TAKES 1–2 DAYS
             </p>
           )}

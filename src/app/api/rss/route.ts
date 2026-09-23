@@ -49,9 +49,9 @@ async function journalFeed(req: Request, explicitKind: boolean) {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Prother Journal — AI tool discovery</title>
+    <title>Prother Journal · AI tool discovery</title>
     <link>${esc(origin)}</link>
-    <description>Notes on finding, comparing, and choosing AI tools — reviews, directories, and ecosystem data from the Prother Journal.</description>
+    <description>Notes on finding, comparing, and choosing AI tools: reviews, directories, and ecosystem data from the Prother Journal.</description>
     <language>en-us</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <ttl>1440</ttl>

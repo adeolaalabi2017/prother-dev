@@ -14,12 +14,12 @@ const comments: SeedComment[] = [
     tool: "perplexity",
     author: "@dana",
     isMaker: true,
-    body: "Maker here — the citation engine now cross-checks every claim against two sources before an answer ships. AMA about how we cut hallucinations to near-zero.",
+    body: "Maker here: the citation engine now cross-checks every claim against two sources before an answer ships. AMA about how we cut hallucinations to near-zero.",
   },
   {
     tool: "perplexity",
     author: "Priya N.",
-    body: "Switched our research workflow over last week. The inline citations are the killer detail — reviewers stopped asking for sources.",
+    body: "Switched our research workflow over last week. The inline citations are the killer detail: reviewers stopped asking for sources.",
   },
   {
     tool: "perplexity",
@@ -35,7 +35,7 @@ const comments: SeedComment[] = [
     tool: "claude",
     author: "@jonas",
     isMaker: true,
-    body: "Thanks @Ravi M.! The latest release added monorepo-aware diffing — the exact pain point you hit.",
+    body: "Thanks @Ravi M.! The latest release added monorepo-aware diffing: the exact pain point you hit.",
   },
   {
     tool: "midjourney",
@@ -52,14 +52,14 @@ const comments: SeedComment[] = [
 async function main() {
   const existing = await db.comment.count();
   if (existing > 0) {
-    console.log(`seed-comments: ${existing} comments already present — skipping.`);
+    console.log(`seed-comments: ${existing} comments already present: skipping.`);
     return;
   }
   let added = 0;
   for (const c of comments) {
     const tool = await db.tool.findUnique({ where: { slug: c.tool } });
     if (!tool) {
-      console.warn(`seed-comments: tool ${c.tool} not found — skipping.`);
+      console.warn(`seed-comments: tool ${c.tool} not found: skipping.`);
       continue;
     }
     await db.comment.create({

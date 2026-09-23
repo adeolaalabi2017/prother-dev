@@ -70,9 +70,9 @@ export function adminFetch(key: string, url: string, init?: RequestInit) {
 // ── dark form atoms ──────────────────────────────────────────────────────
 
 export const inputCx =
-  "border-white/10 bg-white/5 text-white placeholder:text-white/25 text-sm";
+  "border-white/10 bg-white/5 text-white placeholder:text-white/55 text-sm";
 export const labelCx =
-  "font-mono text-[10px] tracking-[0.2em] text-white/40 uppercase";
+  "font-mono text-xs tracking-[0.2em] text-white/60 uppercase";
 
 export function Field({
   label,
@@ -87,14 +87,14 @@ export function Field({
     <div className="space-y-1.5">
       <Label className={labelCx}>{label}</Label>
       {children}
-      {hint && <p className="text-[11px] text-white/30">{hint}</p>}
+      {hint && <p className="text-xs text-white/55">{hint}</p>}
     </div>
   );
 }
 
 export function Spinner() {
   return (
-    <div className="flex items-center justify-center py-14 text-white/30">
+    <div className="flex items-center justify-center py-14 text-white/55">
       <Loader2 className="size-5 animate-spin" aria-hidden />
     </div>
   );
@@ -137,7 +137,7 @@ export function MiniStat({
         accent ? "border-ember/40 bg-ember/[0.06]" : "border-white/10 bg-white/[0.02]"
       )}
     >
-      <p className="font-mono text-[9px] tracking-[0.2em] text-white/40 uppercase">
+      <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
         {label}
       </p>
       <p className="mt-1 text-xl font-black tracking-tight text-white">
@@ -157,15 +157,15 @@ export function LoadError({
 }) {
   return (
     <div className="rounded-xl border border-red-400/25 bg-red-400/[0.04] p-8 text-center">
-      <p className="font-mono text-[10px] tracking-[0.25em] text-red-300 uppercase">
+      <p className="font-mono text-xs tracking-[0.25em] text-red-300 uppercase">
         {label} unavailable
       </p>
       <p className="mx-auto mt-2 max-w-sm text-sm text-white/60">
-        Couldn&apos;t load data — check the admin key or network, then retry.
+        Couldn&apos;t load data. Check the admin key or network, then retry.
       </p>
       <Button
         onClick={onRetry}
-        className="mt-5 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+        className="mt-5 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
       >
         <RotateCcw className="size-4" aria-hidden />
         Retry

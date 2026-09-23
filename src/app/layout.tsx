@@ -39,9 +39,9 @@ export const metadata: Metadata = {
     // localhost into every og:image/canonical URL in production.
     siteUrl()
   ),
-  title: "Prother — Find the right AI tool",
+  title: "Prother · Find the right AI tool",
   description:
-    "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms — with honest pricing and real reviews.",
+    "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.",
   keywords: [
     "Prother",
     "AI tools",
@@ -52,18 +52,18 @@ export const metadata: Metadata = {
     "find AI tools",
   ],
   openGraph: {
-    title: "Prother — Find the right AI tool",
+    title: "Prother · Find the right AI tool",
     description:
-      "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms — with honest pricing and real reviews.",
+      "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Prother — Find the right AI tool",
+    title: "Prother · Find the right AI tool",
     description:
-      "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms — with honest pricing and real reviews.",
+      "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.",
     images: ["/api/og"],
   },
   alternates: {

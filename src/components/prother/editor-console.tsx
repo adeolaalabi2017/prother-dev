@@ -137,11 +137,11 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
           placeholder="Editor key"
           type="password"
           aria-label="Editor key"
-          className="border-white/10 bg-white/5 font-mono text-white placeholder:text-white/25"
+          className="border-white/10 bg-white/5 font-mono text-white placeholder:text-white/55"
         />
         <Button
           type="submit"
-          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+          className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
         >
           Unlock
         </Button>
@@ -206,7 +206,7 @@ function PendingCard({
         if (decision === "approve" && data.slug) {
           toast({
             title: `${sub.name} approved`,
-            description: `Listing approved — now live in the directory at /tool/${data.slug}.`,
+            description: `Listing approved and now live in the directory at /tool/${data.slug}.`,
           });
           onApproved(data.slug);
         } else {
@@ -216,7 +216,7 @@ function PendingCard({
       } catch {
         toast({
           title: "Decision failed",
-          description: "Network error — try again.",
+          description: "Network error. Try again.",
           variant: "destructive",
         });
       } finally {
@@ -248,11 +248,11 @@ function PendingCard({
           <p className="flex items-center gap-2 font-bold text-white">
             <span className="truncate">{sub.name}</span>
             {sub.isOwner ? (
-              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-px font-mono text-[9px] text-emerald-400">
+              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-px font-mono text-xs text-emerald-400">
                 <BadgeCheck className="size-2.5" aria-hidden /> OWNER
               </span>
             ) : (
-              <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px font-mono text-[9px] text-white/50">
+              <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px font-mono text-xs text-white/50">
                 3RD PARTY
               </span>
             )}
@@ -260,14 +260,14 @@ function PendingCard({
           <p className="truncate text-sm text-white/60">{sub.tagline}</p>
         </div>
         <div className="hidden shrink-0 text-right sm:block">
-          <p className="font-mono text-[10px] text-white/40">{sub.domain}</p>
-          <p className="flex items-center justify-end gap-1 font-mono text-[10px] text-ember">
+          <p className="font-mono text-xs text-white/60">{sub.domain}</p>
+          <p className="flex items-center justify-end gap-1 font-mono text-xs text-ember">
             <Clock className="size-3" aria-hidden /> {sub.ageH}h in queue
           </p>
         </div>
         <ChevronDown
           className={cn(
-            "size-4 shrink-0 text-white/40 transition-transform",
+            "size-4 shrink-0 text-white/60 transition-transform",
             expanded && "rotate-180"
           )}
           aria-hidden
@@ -287,7 +287,7 @@ function PendingCard({
             <div className="space-y-4 border-t border-white/10 p-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <p className="font-mono text-[10px] tracking-widest text-white/40">
+                  <p className="font-mono text-xs tracking-widest text-white/60">
                     LISTING
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-white/70">
@@ -296,33 +296,33 @@ function PendingCard({
                 </div>
                 <div className="space-y-1.5 text-xs text-white/70">
                   <p>
-                    <span className="font-mono text-[10px] text-white/40">CATEGORY</span>{" "}
+                    <span className="font-mono text-xs text-white/60">CATEGORY</span>{" "}
                     {category ? `${category.emoji} ${category.name}` : sub.categorySlug}
                   </p>
                   <p>
-                    <span className="font-mono text-[10px] text-white/40">PRICING</span>{" "}
+                    <span className="font-mono text-xs text-white/60">PRICING</span>{" "}
                     {pricing}
                     {sub.startingPrice && (
                       <span className="ml-1 font-mono text-ember">{sub.startingPrice}</span>
                     )}
                     {sub.pricingNote && (
-                      <span className="text-white/50"> — {sub.pricingNote}</span>
+                      <span className="text-white/50">: {sub.pricingNote}</span>
                     )}
                   </p>
                   <p>
-                    <span className="font-mono text-[10px] text-white/40">EMAIL</span>{" "}
+                    <span className="font-mono text-xs text-white/60">EMAIL</span>{" "}
                     <span className="font-mono">{sub.email}</span>
                   </p>
                   <p className="flex flex-wrap gap-1.5 pt-0.5">
                     {sub.hasApi && (
-                      <span className="rounded border border-white/15 px-1.5 py-px font-mono text-[10px] text-white/60">
+                      <span className="rounded border border-white/15 px-1.5 py-px font-mono text-xs text-white/60">
                         API
                       </span>
                     )}
                     {tags.map((t) => (
                       <span
                         key={t}
-                        className="rounded border border-white/15 px-1.5 py-px font-mono text-[10px] text-white/60"
+                        className="rounded border border-white/15 px-1.5 py-px font-mono text-xs text-white/60"
                       >
                         {t}
                       </span>
@@ -332,7 +332,7 @@ function PendingCard({
                     href={sub.websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block font-mono text-[11px] text-ember hover:underline"
+                    className="inline-block font-mono text-sm text-ember hover:underline"
                   >
                     Visit {sub.domain} ↗
                   </a>
@@ -357,11 +357,11 @@ function PendingCard({
                         />
                       ) : (
                         <CircleDashed
-                          className="size-3.5 shrink-0 text-white/30"
+                          className="size-3.5 shrink-0 text-white/55"
                           aria-hidden
                         />
                       )}
-                      <p className="min-w-0 text-[11px] text-white/60">
+                      <p className="min-w-0 text-xs text-white/60">
                         <span className="font-mono text-ember">{s.id}</span>{" "}
                         {s.title}
                       </p>
@@ -377,7 +377,7 @@ function PendingCard({
                     type="button"
                     disabled={busy !== null}
                     onClick={() => decide("approve")}
-                    className="h-9 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-50 dark:text-black"
+                    className="h-9 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot disabled:opacity-50 dark:text-coal"
                   >
                     {busy === "approve" ? (
                       <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -399,7 +399,7 @@ function PendingCard({
                 </div>
               ) : (
                 <div className="space-y-3 rounded-xl border border-red-400/25 bg-red-400/[0.05] p-3.5">
-                  <p className="flex items-center gap-2 font-mono text-[11px] tracking-widest text-red-300">
+                  <p className="flex items-center gap-2 font-mono text-xs tracking-widest text-red-300">
                     <ShieldAlert className="size-4" aria-hidden />
                     REJECTIONS MUST CITE FAILED STANDARD(S)
                   </p>
@@ -410,7 +410,7 @@ function PendingCard({
                         <label
                           key={s.id}
                           className={cn(
-                            "flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] transition-all active:scale-95",
+                            "flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-xs transition-all active:scale-95",
                             on
                               ? "border-red-400 bg-red-400/15 text-red-200"
                               : "border-white/15 text-white/60 hover:border-red-400/40"
@@ -425,7 +425,7 @@ function PendingCard({
                                   : prev.filter((x) => x !== s.id)
                               )
                             }
-                            className="size-3 border-white/30 data-[state=checked]:border-red-400 data-[state=checked]:bg-red-400 data-[state=checked]:text-black"
+                            className="size-3 border-white/30 data-[state=checked]:border-red-400 data-[state=checked]:bg-red-400 data-[state=checked]:text-coal"
                           />
                           {s.id} {s.title}
                         </label>
@@ -437,7 +437,7 @@ function PendingCard({
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Optional note for the maker…"
                     maxLength={500}
-                    className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+                    className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
                   />
                   <div className="flex gap-2">
                     <Button
@@ -515,13 +515,13 @@ function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }
           description:
             action === "verify"
               ? "Listing ownership transferred, badge goes live."
-              : "Claimant sees DISPUTED — they can re-claim with proof.",
+              : "Claimant sees DISPUTED and can re-claim with proof.",
         });
         onDone();
       } catch {
         toast({
           title: "Arbitration failed",
-          description: "Network error — try again.",
+          description: "Network error. Try again.",
           variant: "destructive",
         });
       } finally {
@@ -545,20 +545,20 @@ function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }
             <span className="truncate">{claim.toolName}</span>
             <span
               className={cn(
-                "rounded-full border px-1.5 py-px font-mono text-[9px] uppercase",
+                "rounded-full border px-1.5 py-px font-mono text-xs uppercase",
                 CLAIM_STATUS_STYLE[claim.status]
               )}
             >
               {claim.status}
             </span>
-            <span className="rounded-full border border-white/15 px-1.5 py-px font-mono text-[9px] text-white/50">
+            <span className="rounded-full border border-white/15 px-1.5 py-px font-mono text-xs text-white/50">
               {claim.method === "email_domain" ? "EMAIL DOMAIN" : "META TAG"}
             </span>
           </p>
           <p className="truncate text-sm text-white/60">
             {claim.userName} · <span className="font-mono text-xs">{claim.userEmail}</span>
           </p>
-          <p className="mt-0.5 flex items-center gap-1 font-mono text-[10px] text-white/40">
+          <p className="mt-0.5 flex items-center gap-1 font-mono text-xs text-white/60">
             <Clock className="size-3" aria-hidden /> waiting {claim.ageH}h · /{claim.toolSlug}
           </p>
           {claim.note && (
@@ -571,8 +571,8 @@ function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }
 
       {/* verification token — editors can spot-check the live site */}
       <div className="mt-3 rounded-lg border border-white/10 bg-black/40 p-2.5">
-        <p className="font-mono text-[10px] tracking-widest text-white/35">EXPECTED META TAG</p>
-        <p className="mt-1 break-all font-mono text-[11px] text-white/70">
+        <p className="font-mono text-xs tracking-widest text-white/55">EXPECTED META TAG</p>
+        <p className="mt-1 break-all font-mono text-xs text-white/70">
           &lt;meta name=&quot;prother-claim&quot; content=&quot;
           <span className="text-ember">{claim.token}</span>&quot;&gt;
         </p>
@@ -584,7 +584,7 @@ function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }
             type="button"
             disabled={busy !== null}
             onClick={() => decide("verify")}
-            className="h-9 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-50 dark:text-black"
+            className="h-9 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot disabled:opacity-50 dark:text-coal"
           >
             {busy === "verify" ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -606,7 +606,7 @@ function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }
         </div>
       ) : (
         <div className="mt-3 space-y-2.5 rounded-xl border border-red-400/25 bg-red-400/[0.05] p-3">
-          <p className="flex items-center gap-2 font-mono text-[11px] tracking-widest text-red-300">
+          <p className="flex items-center gap-2 font-mono text-xs tracking-widest text-red-300">
             <ShieldAlert className="size-4" aria-hidden />
             DISMISSAL IS FINAL FOR THIS CLAIM
           </p>
@@ -615,7 +615,7 @@ function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }
             onChange={(e) => setNote(e.target.value)}
             placeholder="Reason shown to the claimant…"
             maxLength={500}
-            className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+            className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
           />
           <div className="flex gap-2">
             <Button
@@ -651,13 +651,13 @@ function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }
 function StarRow({ label, value }: { label: string; value: number }) {
   return (
     <span className="inline-flex items-center gap-1" title={`${label} ${value}/5`}>
-      <span className="font-mono text-[10px] tracking-widest text-white/40">{label}</span>
+      <span className="font-mono text-xs tracking-widest text-white/60">{label}</span>
       {Array.from({ length: 5 }, (_, i) => (
         <Star
           key={i}
           className={cn(
             "size-3",
-            i < value ? "fill-ember text-ember" : "text-white/20"
+            i < value ? "fill-ember text-ember" : "text-white/55"
           )}
           aria-hidden
         />
@@ -708,7 +708,7 @@ function FilteredReviewCard({
       } catch {
         toast({
           title: "Moderation failed",
-          description: "Network error — try again.",
+          description: "Network error. Try again.",
           variant: "destructive",
         });
       } finally {
@@ -730,7 +730,7 @@ function FilteredReviewCard({
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 font-bold text-white">
             <span className="truncate">{review.toolName}</span>
-            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-px font-mono text-[9px] text-amber-300">
+            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-px font-mono text-xs text-amber-300">
               HELD &lt;48H ACCOUNT
             </span>
           </p>
@@ -754,7 +754,7 @@ function FilteredReviewCard({
           type="button"
           disabled={busy !== null}
           onClick={() => decide("publish")}
-          className="h-9 rounded-lg bg-emerald-500 font-semibold text-black shadow-none hover:bg-emerald-400 disabled:opacity-50"
+          className="h-9 rounded-lg bg-emerald-500 font-semibold text-coal shadow-none hover:bg-emerald-400 disabled:opacity-50"
         >
           {busy === "publish" ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -898,7 +898,7 @@ export function EditorConsole() {
             {/* header */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="font-mono text-[11px] tracking-[0.25em] text-ember">
+                <p className="font-mono text-xs tracking-[0.25em] text-ember">
                   EDITOR CONSOLE
                 </p>
                 <h2 className="mt-1 text-xl font-black tracking-tight text-white">
@@ -906,7 +906,7 @@ export function EditorConsole() {
                 </h2>
               </div>
               {queue && (
-                <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] text-ember">
+                <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs text-ember">
                   PENDING {pendingCount}
                 </span>
               )}
@@ -926,9 +926,9 @@ export function EditorConsole() {
                   aria-selected={tab === t.id}
                   onClick={() => setTab(t.id)}
                   className={cn(
-                    "flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-mono text-[11px] tracking-widest transition-colors",
+                    "flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-mono text-sm tracking-widest transition-colors",
                     tab === t.id
-                      ? "bg-ember font-bold text-black"
+                      ? "bg-ember font-bold text-coal"
                       : "text-white/55 hover:bg-white/5 hover:text-white"
                   )}
                 >
@@ -936,9 +936,9 @@ export function EditorConsole() {
                   {t.count > 0 && (
                     <span
                       className={cn(
-                        "rounded-full px-1.5 py-px text-[9px]",
+                        "rounded-full px-1.5 py-px text-xs",
                         tab === t.id
-                          ? "bg-black/20 text-black"
+                          ? "bg-black/20 text-coal"
                           : "bg-ember/15 text-ember"
                       )}
                     >
@@ -952,7 +952,7 @@ export function EditorConsole() {
             {/* queue */}
             <div className="mt-4 space-y-3">
               {loading && !queue && (
-                <div className="flex items-center justify-center py-12 text-white/40">
+                <div className="flex items-center justify-center py-12 text-white/60">
                   <Loader2 className="size-5 animate-spin" aria-hidden />
                 </div>
               )}
@@ -966,9 +966,9 @@ export function EditorConsole() {
                         aria-hidden
                       />
                       <p className="mt-3 font-mono text-sm text-white/60">
-                        Queue clear — nothing waiting for review.
+                        Queue clear. Nothing waiting for review.
                       </p>
-                      <p className="mt-1 text-xs text-white/35">
+                      <p className="mt-1 text-xs text-white/55">
                         New submissions from the wizard land here oldest-first.
                       </p>
                     </div>
@@ -999,7 +999,7 @@ export function EditorConsole() {
                       <p className="mt-3 font-mono text-sm text-white/60">
                         No claims awaiting arbitration.
                       </p>
-                      <p className="mt-1 text-xs text-white/35">
+                      <p className="mt-1 text-xs text-white/55">
                         Failed or disputed ownership claims land here for a human
                         decision (F-30).
                       </p>
@@ -1023,8 +1023,8 @@ export function EditorConsole() {
                       <p className="mt-3 font-mono text-sm text-white/60">
                         No reviews held in moderation.
                       </p>
-                      <p className="mt-1 text-xs text-white/35">
-                        Reviews from accounts younger than 48h are held here —
+                      <p className="mt-1 text-xs text-white/55">
+                        Reviews from accounts younger than 48h are held here:
                         publish the legit ones, trash the spam (F-16).
                       </p>
                     </div>
@@ -1041,10 +1041,10 @@ export function EditorConsole() {
               )}
             </div>
 
-            <p className="mt-5 font-mono text-[10px] leading-relaxed text-white/30">
+            <p className="mt-5 font-mono text-xs leading-relaxed text-white/55">
               APPROVED LISTINGS GO LIVE IMMEDIATELY · REJECTIONS EMAIL THE MAKER
               WITH CITED STANDARDS · CLAIM ARBITRATION TRANSFERS OWNERSHIP
-              IMMEDIATELY · DEMO AUTH — PHASE 2 ADDS NEXTAUTH ROLES
+              IMMEDIATELY · DEMO AUTH · PHASE 2 ADDS NEXTAUTH ROLES
             </p>
           </div>
         )}

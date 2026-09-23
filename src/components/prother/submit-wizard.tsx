@@ -58,10 +58,10 @@ function FieldLabel({
   return (
     <label
       htmlFor={htmlFor}
-      className="flex items-baseline justify-between gap-2 font-mono text-[11px] tracking-widest text-white/60"
+      className="flex items-baseline justify-between gap-2 font-mono text-xs tracking-widest text-white/60"
     >
       <span>{children}</span>
-      {hint && <span className="text-[10px] normal-case tracking-normal text-white/35">{hint}</span>}
+      {hint && <span className="text-xs normal-case tracking-normal text-white/55">{hint}</span>}
     </label>
   );
 }
@@ -69,7 +69,7 @@ function FieldLabel({
 function FieldError({ msg }: { msg?: string }) {
   if (!msg) return null;
   return (
-    <p className="flex items-center gap-1.5 font-mono text-[11px] text-red-400">
+    <p className="flex items-center gap-1.5 font-mono text-xs text-red-400">
       <TriangleAlert className="size-3" aria-hidden />
       {msg}
     </p>
@@ -77,7 +77,7 @@ function FieldError({ msg }: { msg?: string }) {
 }
 
 const inputCls =
-  "border-white/10 bg-white/5 text-white placeholder:text-white/25 focus-visible:border-ember/60 focus-visible:ring-ember/20";
+  "border-white/10 bg-white/5 text-white placeholder:text-white/55 focus-visible:border-ember/60 focus-visible:ring-ember/20";
 
 // ── Live preview (right rail — updates every keystroke, PRD §11) ─────────
 
@@ -87,7 +87,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
   const category = CATEGORIES.find((c) => c.slug === form.categorySlug);
   return (
     <div className="space-y-4">
-      <p className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest text-white/40">
+      <p className="flex items-center gap-1.5 font-mono text-xs tracking-widest text-white/60">
         <Eye className="size-3.5 text-ember" aria-hidden /> LIVE PREVIEW
       </p>
 
@@ -109,19 +109,19 @@ function LivePreview({ form }: { form: SubmitForm }) {
                 {form.name.trim() || "Your tool"}
               </p>
               {form.isOwner && form.name.trim() && (
-                <span className="rounded-full border border-ember/30 bg-ember/15 px-2 py-0.5 font-mono text-[9px] text-ember">
+                <span className="rounded-full border border-ember/30 bg-ember/15 px-2 py-0.5 font-mono text-xs text-ember">
                   SUBMITTED BY YOU
                 </span>
               )}
             </div>
             <p className="mt-0.5 line-clamp-2 text-sm text-white/70">
               {form.tagline.trim() || (
-                <span className="text-white/25">Say what it does in the first 5 words…</span>
+                <span className="text-white/55">Say what it does in the first 5 words…</span>
               )}
             </p>
           </div>
         </div>
-        <p className="mt-3 font-mono text-[11px] text-white/40">
+        <p className="mt-3 font-mono text-xs text-white/60">
           {category ? `${category.emoji} ${category.name}` : "Category"} · {pricing}
           {form.hasApi && " · API"}
           {form.tags.includes("open-source") && " · OSS"}
@@ -131,7 +131,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
 
       {/* Pricing mock */}
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="font-mono text-[10px] tracking-widest text-white/40">PRICING</p>
+        <p className="font-mono text-xs tracking-widest text-white/60">PRICING</p>
         <p className="mt-1.5 text-sm text-white/80">
           {pricing}
           {form.startingPrice.trim() && (
@@ -145,7 +145,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
 
       {/* Standards reminder */}
       <div className="rounded-xl border border-ember/20 bg-ember/[0.06] p-4">
-        <p className="font-mono text-[10px] tracking-widest text-ember">QUALITY BAR</p>
+        <p className="font-mono text-xs tracking-widest text-ember">QUALITY BAR</p>
         <p className="mt-1.5 text-xs leading-relaxed text-white/60">
           Every listing passes all six standards: live &amp; accessible, AI-native,
           complete, honest, safe, English. Rejections cite the failed standard.
@@ -182,7 +182,7 @@ function DuplicateBanner({
       <p className="flex items-start gap-2 text-sm text-amber-200">
         <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-400" aria-hidden />
         <span>
-          This tool may already be on Prother —{" "}
+          This tool may already be on Prother:{" "}
           <span className="font-semibold">{dup.name}</span>
           {dup.kind === "tool" && (
             <span className="text-amber-200/70"> · already listed</span>
@@ -204,15 +204,15 @@ function DuplicateBanner({
             This is my product → View it
           </Button>
         ) : (
-          <span className="pl-0.5 font-mono text-[11px] text-amber-200/70">
-            One submission per domain — pick another product or contact editors.
+          <span className="pl-0.5 font-mono text-xs text-amber-200/70">
+            One submission per domain: pick another product or contact editors.
           </span>
         )}
         {dup.kind !== "submission" && (
           <button
             type="button"
             onClick={onContinue}
-            className="rounded-lg px-2 py-1 font-mono text-[11px] text-white/50 underline-offset-2 transition-colors hover:text-white hover:underline"
+            className="rounded-lg px-2 py-1 font-mono text-sm text-white/50 underline-offset-2 transition-colors hover:text-white hover:underline"
           >
             It&apos;s a different tool → Continue
           </button>
@@ -349,7 +349,7 @@ export function SubmitWizard() {
     } catch {
       toast({
         title: "Submission failed",
-        description: "Network error — please try again.",
+        description: "Network error. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -405,19 +405,19 @@ export function SubmitWizard() {
             <p className="mt-2 max-w-sm text-sm text-white/60">
               <span className="font-semibold text-white">{form.name.trim()}</span> is
               in the moderation queue. Editors check the six standards and reply
-              to <span className="font-mono text-ember">{form.email.trim()}</span> —
-              typically within 24h. Review usually takes 1–2 days — approved
+              to <span className="font-mono text-ember">{form.email.trim()}</span>,
+              typically within 24h. Review usually takes 1–2 days. Approved
               listings go live immediately, free forever.
             </p>
             <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-3">
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <p className="font-mono text-[10px] tracking-widest text-white/40">QUEUE</p>
+                <p className="font-mono text-xs tracking-widest text-white/60">QUEUE</p>
                 <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-ember">
                   #{result.position}
                 </p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <p className="font-mono text-[10px] tracking-widest text-white/40">TICKET</p>
+                <p className="font-mono text-xs tracking-widest text-white/60">TICKET</p>
                 <p className="mt-1.5 font-mono text-sm text-white/70">
                   {result.id.slice(0, 8).toUpperCase()}
                 </p>
@@ -427,9 +427,9 @@ export function SubmitWizard() {
               <Button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+                className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
               >
-                Done — back to the directory
+                Done. Back to the directory
               </Button>
               <Button
                 type="button"
@@ -462,10 +462,10 @@ export function SubmitWizard() {
               {/* Progress header */}
               <div className="border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
                 <div className="flex items-center justify-between">
-                  <p className="font-mono text-[11px] tracking-[0.25em] text-ember">
+                  <p className="font-mono text-xs tracking-[0.25em] text-ember">
                     SUBMIT YOUR TOOL
                   </p>
-                  <p className="font-mono text-[11px] text-white/40">
+                  <p className="font-mono text-xs text-white/60">
                     STEP {String(step + 1).padStart(2, "0")}/05
                   </p>
                 </div>
@@ -482,7 +482,7 @@ export function SubmitWizard() {
                 </div>
                 <p className="mt-2.5 text-sm font-semibold text-white">
                   {STEP_TITLES[step]}
-                  <span className="ml-2 font-mono text-[10px] font-normal text-white/35">
+                  <span className="ml-2 font-mono text-xs font-normal text-white/55">
                     {step === 0 && "Where does it live?"}
                     {step === 1 && "The 5-second scan"}
                     {step === 2 && "Honest pricing only (S4)"}
@@ -513,7 +513,7 @@ export function SubmitWizard() {
                         />
                         {checkingDup && (
                           <Loader2
-                            className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-white/30"
+                            className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-white/55"
                             aria-hidden
                           />
                         )}
@@ -567,11 +567,11 @@ export function SubmitWizard() {
                       <Checkbox
                         checked={form.isOwner}
                         onCheckedChange={(v) => set("isOwner", v === true)}
-                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-black"
+                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-coal"
                       />
                       <span className="text-sm text-white/75">
                         This is my product
-                        <span className="block text-xs text-white/40">
+                        <span className="block text-xs text-white/60">
                           Uncheck to submit on behalf of someone else (listing starts unclaimed).
                         </span>
                       </span>
@@ -585,7 +585,7 @@ export function SubmitWizard() {
                     <div className="space-y-1.5">
                       <FieldLabel
                         htmlFor="su-tagline"
-                        hint={`${taglineLen}/60 — say what it does in the first 5 words`}
+                        hint={`${taglineLen}/60 · say what it does in the first 5 words`}
                       >
                         TAGLINE *
                       </FieldLabel>
@@ -615,7 +615,7 @@ export function SubmitWizard() {
                     <div className="space-y-1.5">
                       <FieldLabel
                         htmlFor="su-desc"
-                        hint={`${descLen}/500 — what it does, for whom, how it's AI-native`}
+                        hint={`${descLen}/500 · what it does, for whom, how it's AI-native`}
                       >
                         DESCRIPTION *
                       </FieldLabel>
@@ -625,7 +625,7 @@ export function SubmitWizard() {
                         onChange={(e) => set("description", e.target.value)}
                         rows={4}
                         maxLength={600}
-                        placeholder="What does it do, who is it for, and what makes the AI core to the value — not a bolt-on?"
+                        placeholder="What does it do, who is it for, and what makes the AI core to the value, not a bolt-on?"
                         className={cn(
                           inputCls,
                           "w-full rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-2",
@@ -636,7 +636,7 @@ export function SubmitWizard() {
                     </div>
 
                     <fieldset className="space-y-1.5">
-                      <legend className="font-mono text-[11px] tracking-widest text-white/60">
+                      <legend className="font-mono text-xs tracking-widest text-white/60">
                         CATEGORY *
                       </legend>
                       <div className="grid gap-1.5 sm:grid-cols-2">
@@ -662,7 +662,7 @@ export function SubmitWizard() {
                               <span className="block text-xs font-semibold text-white">
                                 {c.emoji} {c.name}
                               </span>
-                              <span className="block text-[11px] leading-snug text-white/40">
+                              <span className="block text-xs leading-snug text-white/60">
                                 {c.helper}
                               </span>
                             </span>
@@ -673,7 +673,7 @@ export function SubmitWizard() {
                     </fieldset>
 
                     <div className="space-y-1.5">
-                      <FieldLabel hint={`${form.tags.length}/5 — controlled vocabulary`}>
+                      <FieldLabel hint={`${form.tags.length}/5 · controlled vocabulary`}>
                         TAGS
                       </FieldLabel>
                       <div className="flex flex-wrap gap-1.5">
@@ -686,9 +686,9 @@ export function SubmitWizard() {
                               aria-pressed={active}
                               onClick={() => toggleTag(tag)}
                               className={cn(
-                                "rounded-full border px-2.5 py-1 font-mono text-[11px] transition-all active:scale-95",
+                                "rounded-full border px-2.5 py-1 font-mono text-sm transition-all active:scale-95",
                                 active
-                                  ? "border-ember bg-ember font-semibold text-black"
+                                  ? "border-ember bg-ember font-semibold text-coal"
                                   : "border-white/15 text-white/60 hover:border-ember/40 hover:text-white",
                                 !active && form.tags.length >= 5 && "opacity-40"
                               )}
@@ -706,7 +706,7 @@ export function SubmitWizard() {
                 {step === 2 && (
                   <>
                     <fieldset className="space-y-1.5">
-                      <legend className="font-mono text-[11px] tracking-widest text-white/60">
+                      <legend className="font-mono text-xs tracking-widest text-white/60">
                         PRICING MODEL *
                       </legend>
                       <div className="grid gap-1.5 sm:grid-cols-2">
@@ -732,7 +732,7 @@ export function SubmitWizard() {
                               <span className="block text-sm font-semibold text-white">
                                 {p.label}
                               </span>
-                              <span className="block text-[11px] text-white/40">{p.helper}</span>
+                              <span className="block text-xs text-white/60">{p.helper}</span>
                             </span>
                           </label>
                         ))}
@@ -773,11 +773,11 @@ export function SubmitWizard() {
                       <Checkbox
                         checked={form.hasApi}
                         onCheckedChange={(v) => set("hasApi", v === true)}
-                        className="border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-black"
+                        className="border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-coal"
                       />
                       <span className="text-sm text-white/75">
                         Public API available
-                        <span className="ml-2 font-mono text-[10px] text-white/35">
+                        <span className="ml-2 font-mono text-xs text-white/55">
                           gets an API chip on your listing
                         </span>
                       </span>
@@ -871,7 +871,7 @@ export function SubmitWizard() {
                     <p className="rounded-xl border border-ember/20 bg-ember/[0.06] p-3.5 text-xs leading-relaxed text-white/60">
                       <span className="font-semibold text-ember">Heads up:</span> screenshots
                       and real logo upload ship with maker accounts (Phase 2). Editors
-                      enrich your listing — you&apos;ll get a preview.
+                      enrich your listing: you&apos;ll get a preview.
                     </p>
                   </>
                 )}
@@ -880,7 +880,7 @@ export function SubmitWizard() {
                 {step === 4 && (
                   <>
                     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                      <p className="font-mono text-[10px] tracking-widest text-white/40">
+                      <p className="font-mono text-xs tracking-widest text-white/60">
                         SUMMARY
                       </p>
                       <div className="mt-2 grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
@@ -893,7 +893,7 @@ export function SubmitWizard() {
                           ["Contact", form.email.trim()],
                         ].map(([k, v]) => (
                           <p key={k} className="truncate">
-                            <span className="font-mono text-[10px] tracking-widest text-white/40">
+                            <span className="font-mono text-xs tracking-widest text-white/60">
                               {k.toUpperCase()}
                             </span>{" "}
                             <span className="text-white/80">{v}</span>
@@ -906,10 +906,10 @@ export function SubmitWizard() {
                       <Checkbox
                         checked={form.confirmedLive}
                         onCheckedChange={(v) => set("confirmedLive", v === true)}
-                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-black"
+                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-coal"
                       />
                       <span className="text-sm text-white/75">
-                        My tool is <em>live and usable right now</em> — no waitlists,
+                        My tool is <em>live and usable right now</em>: no waitlists,
                         coming-soon pages, or closed betas (S1).
                       </span>
                     </label>
@@ -919,7 +919,7 @@ export function SubmitWizard() {
                       <Checkbox
                         checked={form.agreedStandards}
                         onCheckedChange={(v) => set("agreedStandards", v === true)}
-                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-black"
+                        className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-coal"
                       />
                       <span className="text-sm text-white/75">
                         I&apos;ve read the{" "}
@@ -940,9 +940,9 @@ export function SubmitWizard() {
                     </label>
                     <FieldError msg={errors.agreedStandards} />
 
-                    <p className="font-mono text-[11px] leading-relaxed text-white/35">
+                    <p className="font-mono text-xs leading-relaxed text-white/55">
                       Rate limits: 3 submissions / email / 7 days · 1 per domain.
-                      By submitting you agree to editor review — rejections cite the
+                      By submitting you agree to editor review, and rejections cite the
                       failed standard(s) with one-click resubmit.
                     </p>
                   </>
@@ -962,7 +962,7 @@ export function SubmitWizard() {
                 </Button>
                 <div className="flex items-center gap-2.5">
                   {step === 0 && dup?.kind === "submission" && (
-                    <span className="font-mono text-[11px] text-amber-300">
+                    <span className="font-mono text-xs text-amber-300">
                       Domain already queued
                     </span>
                   )}
@@ -971,7 +971,7 @@ export function SubmitWizard() {
                       type="button"
                       onClick={goNext}
                       disabled={checkingDup || (step === 0 && dup?.kind === "submission")}
-                      className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-40 dark:text-black"
+                      className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot disabled:opacity-40 dark:text-coal"
                     >
                       Continue
                       <ArrowRight className="size-4" aria-hidden />
@@ -981,7 +981,7 @@ export function SubmitWizard() {
                       type="button"
                       onClick={onSubmit}
                       disabled={submitting}
-                      className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot disabled:opacity-60 dark:text-black"
+                      className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot disabled:opacity-60 dark:text-coal"
                     >
                       {submitting ? (
                         <>
@@ -1006,7 +1006,7 @@ export function SubmitWizard() {
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="mt-5 inline-flex items-center gap-1 font-mono text-[11px] text-white/30 transition-colors hover:text-white/60"
+                className="mt-5 inline-flex items-center gap-1 font-mono text-sm text-white/55 transition-colors hover:text-white/60"
               >
                 <X className="size-3" aria-hidden /> close &amp; finish later
               </button>

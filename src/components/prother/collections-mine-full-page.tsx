@@ -36,7 +36,7 @@ type FollowRow = {
   createdAt: string;
 };
 
-const MONO = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+const MONO = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 const PANEL = "rounded-xl border border-white/10 bg-white/[0.02]";
 
 /** Re-open the auth modal (wired by the site header). */
@@ -257,7 +257,7 @@ export function CollectionsMineFullPage() {
         kicker="Account"
         breadcrumb={[{ label: "Home" }]}
         onClose={closeMine}
-        ariaLabel="My collections — sign in required"
+        ariaLabel="My collections (sign in required)"
       >
         <div className="flex flex-col items-center gap-4 py-16 text-center">
           <span
@@ -268,13 +268,13 @@ export function CollectionsMineFullPage() {
           </span>
           <h1 className="text-2xl font-black tracking-tight text-white">SIGN IN REQUIRED</h1>
           <p className="max-w-sm text-sm leading-relaxed text-white/55">
-            Collections and follows live in your account — sign in to keep your
+            Collections and follows live in your account. Sign in to keep your
             picks across visits.
           </p>
           <Button
             type="button"
             onClick={openAuth}
-            className="h-11 bg-ember px-6 font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+            className="h-11 bg-ember px-6 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
           >
             SIGN IN →
           </Button>
@@ -294,13 +294,13 @@ export function CollectionsMineFullPage() {
         <TabsList className="h-11 w-fit border border-white/10 bg-white/[0.03] p-1">
           <TabsTrigger
             value="collections"
-            className="h-9 rounded-lg px-4 font-mono text-[11px] tracking-wider text-white/60 data-[state=active]:bg-ember data-[state=active]:text-[#0A0A0A]"
+            className="h-9 rounded-lg px-4 font-mono text-xs tracking-wider text-white/60 data-[state=active]:bg-ember data-[state=active]:text-[#0A0A0A]"
           >
             MY COLLECTIONS
           </TabsTrigger>
           <TabsTrigger
             value="following"
-            className="h-9 rounded-lg px-4 font-mono text-[11px] tracking-wider text-white/60 data-[state=active]:bg-ember data-[state=active]:text-[#0A0A0A]"
+            className="h-9 rounded-lg px-4 font-mono text-xs tracking-wider text-white/60 data-[state=active]:bg-ember data-[state=active]:text-[#0A0A0A]"
           >
             FOLLOWING
           </TabsTrigger>
@@ -320,7 +320,7 @@ export function CollectionsMineFullPage() {
                   id="coll-name"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value.slice(0, 48))}
-                  placeholder="Name — e.g. Agent stacks"
+                  placeholder="Name (e.g. Agent stacks)"
                   className="h-11 border-white/10 bg-transparent text-sm focus-visible:border-ember/50 focus-visible:ring-0"
                 />
               </div>
@@ -348,7 +348,7 @@ export function CollectionsMineFullPage() {
                   onCheckedChange={setNewPublic}
                   aria-label="Make this collection public"
                 />
-                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
+                <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/50">
                   {newPublic ? "Public" : "Private"}
                 </span>
               </label>
@@ -356,7 +356,7 @@ export function CollectionsMineFullPage() {
                 type="button"
                 onClick={() => void create()}
                 disabled={newName.trim().length < 2 || creating}
-                className="h-10 bg-ember px-5 font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+                className="h-10 bg-ember px-5 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
               >
                 {creating ? (
                   <>
@@ -380,7 +380,7 @@ export function CollectionsMineFullPage() {
             </div>
           ) : (colls?.length ?? 0) === 0 ? (
             <p className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-white/50">
-              No collections yet — create your first one above, or hit the
+              No collections yet. Create your first one above, or hit the
               bookmark on any tool.
             </p>
           ) : (
@@ -391,7 +391,7 @@ export function CollectionsMineFullPage() {
                     <div className="min-w-0">
                       <h3 className="truncate text-sm font-bold text-white/90">{c.name}</h3>
                       {c.description && (
-                        <p className="mt-0.5 line-clamp-2 text-xs text-white/45">{c.description}</p>
+                        <p className="mt-0.5 line-clamp-2 text-xs text-white/60">{c.description}</p>
                       )}
                     </div>
                     <div className="flex shrink-0 -space-x-1.5" aria-hidden>
@@ -423,7 +423,7 @@ export function CollectionsMineFullPage() {
                       size="sm"
                       onClick={() => openCollection(c.slug)}
                       aria-label={`Open collection ${c.name}`}
-                      className="h-9 bg-ember px-3.5 font-mono text-[11px] font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+                      className="h-9 bg-ember px-3.5 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
                     >
                       OPEN →
                     </Button>
@@ -441,7 +441,7 @@ export function CollectionsMineFullPage() {
                           variant="outline"
                           onClick={() => void remove(c)}
                           aria-label={`Confirm deleting ${c.name}`}
-                          className="h-9 border-red-500/40 px-2.5 font-mono text-[10px] text-red-400 hover:bg-red-500/10"
+                          className="h-9 border-red-500/40 px-2.5 font-mono text-sm text-red-400 hover:bg-red-500/10"
                         >
                           SURE?
                         </Button>
@@ -452,7 +452,7 @@ export function CollectionsMineFullPage() {
                           variant="ghost"
                           onClick={() => armDelete(c.slug)}
                           aria-label={`Delete ${c.name}`}
-                          className="size-9 text-white/40 hover:bg-red-500/10 hover:text-red-400"
+                          className="size-9 text-white/60 hover:bg-red-500/10 hover:text-red-400"
                         >
                           <Trash2 className="size-4" aria-hidden />
                         </Button>
@@ -475,10 +475,10 @@ export function CollectionsMineFullPage() {
             </div>
           ) : groupedFollows.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/15 p-10 text-center">
-              <Heart className="size-5 text-white/30" aria-hidden />
+              <Heart className="size-5 text-white/55" aria-hidden />
               <p className="text-sm text-white/70">You&apos;re not following anything yet.</p>
-              <p className="max-w-sm text-xs leading-relaxed text-white/40">
-                Follow tools, categories, and makers from their pages — new
+              <p className="max-w-sm text-xs leading-relaxed text-white/60">
+                Follow tools, categories, and makers from their pages. New
                 listings land here.
               </p>
             </div>
@@ -494,7 +494,7 @@ export function CollectionsMineFullPage() {
                     <li key={f.id} className="flex items-center gap-3 p-3.5">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-white/85">{f.targetLabel}</p>
-                        <p className="truncate font-mono text-[10px] text-white/35">{f.targetId}</p>
+                        <p className="truncate font-mono text-xs text-white/55">{f.targetId}</p>
                       </div>
                       <Button
                         type="button"
@@ -503,7 +503,7 @@ export function CollectionsMineFullPage() {
                         onClick={() => void unfollow(f)}
                         disabled={unfollowing === f.id}
                         aria-label={`Unfollow ${f.targetLabel}`}
-                        className="bg-white/[0.03] hover:bg-white/[0.08] h-9 shrink-0 border-white/10 px-3 font-mono text-[10px] tracking-wider text-white/60 hover:border-ember/40 hover:text-ember"
+                        className="bg-white/[0.03] hover:bg-white/[0.08] h-9 shrink-0 border-white/10 px-3 font-mono text-sm tracking-wider text-white/60 hover:border-ember/40 hover:text-ember"
                       >
                         {unfollowing === f.id ? (
                           <>

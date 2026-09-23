@@ -112,7 +112,7 @@ export default async function JournalArticlePage({ params }: Params) {
         {/* back */}
         <Link
           href="/journal"
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.2em] text-white/45 uppercase transition-colors hover:text-ember"
+          className="inline-flex items-center gap-1.5 font-mono text-sm tracking-[0.2em] text-white/60 uppercase transition-colors hover:text-ember"
         >
           <ArrowLeft className="size-3.5" aria-hidden />
           Back to Journal
@@ -120,9 +120,9 @@ export default async function JournalArticlePage({ params }: Params) {
 
         {/* header */}
         <header className="mt-8">
-          <p className="font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
+          <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
             Prother Journal
-            <span className="text-white/35"> · {post.category}</span>
+            <span className="text-white/55"> · {post.category}</span>
           </p>
 
           <div className="mt-4 flex items-start gap-4">
@@ -140,7 +140,7 @@ export default async function JournalArticlePage({ params }: Params) {
             </h1>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] tracking-wider text-white/45 uppercase">
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs tracking-wider text-white/60 uppercase">
             <span className="inline-flex items-center gap-1.5">
               <Feather className="size-3" aria-hidden />
               {post.author}
@@ -174,7 +174,7 @@ export default async function JournalArticlePage({ params }: Params) {
             {tags.map((t) => (
               <span
                 key={t}
-                className="rounded-full border border-white/15 px-3 py-1 font-mono text-[10px] tracking-wider text-white/50 uppercase"
+                className="rounded-full border border-white/15 px-3 py-1 font-mono text-xs tracking-wider text-white/50 uppercase"
               >
                 #{t}
               </span>
@@ -184,12 +184,12 @@ export default async function JournalArticlePage({ params }: Params) {
 
         {/* footer */}
         <footer className="mt-8 flex flex-col justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center">
-          <p className="font-mono text-[10px] tracking-wider text-white/25 uppercase">
+          <p className="font-mono text-xs tracking-wider text-white/55 uppercase">
             Published {dateLabel(post.publishedAt)} · {post.views} views
           </p>
           <Link
             href="/journal"
-            className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.2em] text-white/45 uppercase transition-colors hover:text-ember"
+            className="inline-flex items-center gap-1.5 font-mono text-sm tracking-[0.2em] text-white/60 uppercase transition-colors hover:text-ember"
           >
             <ArrowLeft className="size-3.5" aria-hidden />
             More from the Journal

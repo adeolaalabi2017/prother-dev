@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     // dismiss → disputed is the terminal state (failed stays retryable).
     await db.$executeRaw`
-      UPDATE Claim SET status = 'disputed', note = ${parsed.data.note ?? "Editor dismissed — ownership not established"}
+      UPDATE Claim SET status = 'disputed', note = ${parsed.data.note ?? "Editor dismissed: ownership not established"}
       WHERE id = ${row.id}`;
     logAudit(
       "claim.arbitrated",

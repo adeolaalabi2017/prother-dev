@@ -66,10 +66,10 @@ export function CompareTray() {
             <Scale className="size-4 shrink-0 text-ember" aria-hidden />
             {slugs.length === 1 && (
               <>
-                <p className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/80">
+                <p className="truncate font-mono text-xs uppercase tracking-[0.2em] text-white/80">
                   Compare · {nameOf(slugs[0]!)}
                 </p>
-                <p className="hidden truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 sm:block">
+                <p className="hidden truncate font-mono text-xs uppercase tracking-[0.2em] text-white/60 sm:block">
                   Pick one more tool
                 </p>
                 <Button
@@ -100,14 +100,14 @@ export function CompareTray() {
                         type="button"
                         onClick={() => removeCompare(slug)}
                         aria-label={`Remove ${nameOf(slug)} from comparison`}
-                        className="flex size-6 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/10 hover:text-white"
+                        className="flex size-6 shrink-0 items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white"
                       >
                         <X className="size-3" aria-hidden />
                       </button>
                       {i === 0 && (
                         <span
                           aria-hidden
-                          className="mr-1 shrink-0 font-mono text-[10px] text-ember"
+                          className="mr-1 shrink-0 font-mono text-xs text-ember"
                         >
                           VS
                         </span>
@@ -118,7 +118,7 @@ export function CompareTray() {
                 <Button
                   type="button"
                   onClick={() => openCompare(slugs[0]!, slugs[1]!)}
-                  className="h-10 shrink-0 rounded-full bg-ember px-4 font-mono text-[11px] font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+                  className="h-10 shrink-0 rounded-full bg-ember px-4 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
                 >
                   COMPARE →
                 </Button>

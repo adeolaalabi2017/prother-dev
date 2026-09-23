@@ -59,7 +59,7 @@ type DirectoryRow = {
   editorsPick?: boolean;
 };
 
-const MONO = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+const MONO = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 const PRICING_LABEL: Record<string, string> = {
   free: "Free",
   freemium: "Freemium",
@@ -119,7 +119,7 @@ function ToolPicker({
               "flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl border px-3 text-left transition-colors",
               current
                 ? "border-white/10 bg-white/[0.02] hover:border-ember/40"
-                : "border-dashed border-white/20 text-white/40 hover:border-ember/40 hover:text-white/70"
+                : "border-dashed border-white/20 text-white/60 hover:border-ember/40 hover:text-white/70"
             )}
           >
             {current ? (
@@ -181,12 +181,12 @@ function ToolPicker({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-white/90">{r.name}</span>
-                  <span className="block truncate text-xs text-white/40">{r.tagline}</span>
+                  <span className="block truncate text-xs text-white/60">{r.tagline}</span>
                 </span>
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="px-3 py-6 text-center text-xs text-white/40">
+              <p className="px-3 py-6 text-center text-xs text-white/60">
                 No tools match “{q}”.
               </p>
             )}
@@ -224,11 +224,11 @@ function MetricRow({
     <div className="grid gap-2 border-b border-white/[0.06] py-3 last:border-0 lg:grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)] lg:gap-4">
       <div className={cn(MONO, "lg:pt-0.5")}>{label}</div>
       <div className="flex min-w-0 items-center gap-2 text-sm text-white/85">
-        <span className="shrink-0 font-mono text-[9px] text-white/30 lg:hidden">A</span>
+        <span className="shrink-0 font-mono text-xs text-white/55 lg:hidden">A</span>
         <span className="min-w-0">{a}</span>
       </div>
       <div className="flex min-w-0 items-center gap-2 text-sm text-white/85">
-        <span className="shrink-0 font-mono text-[9px] text-white/30 lg:hidden">B</span>
+        <span className="shrink-0 font-mono text-xs text-white/55 lg:hidden">B</span>
         <span className="min-w-0">{b}</span>
       </div>
     </div>
@@ -244,7 +244,7 @@ function MiniBar({ value }: { value: number }) {
           style={{ width: `${Math.max(4, Math.min(100, (value / 5) * 100))}%` }}
         />
       </span>
-      <span className="font-mono text-[11px] tabular-nums text-white/60">
+      <span className="font-mono text-xs tabular-nums text-white/60">
         {value.toFixed(1)}
       </span>
     </span>
@@ -255,7 +255,7 @@ function YesNo({ yes, yesLabel = "YES" }: { yes: boolean; yesLabel?: string }) {
   return yes ? (
     <span className="text-mint">✓ {yesLabel}</span>
   ) : (
-    <span className="text-white/35">✗</span>
+    <span className="text-white/55">✗</span>
   );
 }
 
@@ -436,10 +436,10 @@ export function CompareFullPage() {
             />
           </div>
           {!hasPair && (
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/40">
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-white/60">
               {a || b
                 ? "Pick the second tool to unlock the side-by-side."
-                : "Pick two tools to compare — or start from a popular matchup below."}
+                : "Pick two tools to compare, or start from a popular matchup below."}
             </p>
           )}
         </section>
@@ -450,7 +450,7 @@ export function CompareFullPage() {
         {/* Load failure — pickers stay usable */}
         {hasPair && !loading && (loadErr || !rowA || !rowB) && (
           <p className="rounded-xl border border-red-500/25 bg-red-500/[0.04] p-4 text-sm text-red-300">
-            Couldn&apos;t load the comparison for this pair — try different tools.
+            Couldn&apos;t load the comparison for this pair. Try different tools.
           </p>
         )}
 
@@ -476,7 +476,7 @@ export function CompareFullPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate text-xl font-black text-white">{r.name}</h2>
-                      <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px font-mono text-[9px] tracking-wider text-white/50">
+                      <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px font-mono text-xs tracking-wider text-white/50">
                         {i === 0 ? "TOOL A" : "TOOL B"}
                       </span>
                     </div>
@@ -495,7 +495,7 @@ export function CompareFullPage() {
 
             {/* Auto-verdict */}
             {verdict && (
-              <p className="text-center font-mono text-[11px] uppercase tracking-[0.25em] text-white/50" aria-live="polite">
+              <p className="text-center font-mono text-xs uppercase tracking-[0.25em] text-white/50" aria-live="polite">
                 {verdict}
               </p>
             )}
@@ -508,10 +508,10 @@ export function CompareFullPage() {
                   rowA.rating != null ? (
                     <span className="tabular-nums">
                       {rowA.rating.overall.toFixed(1)}{" "}
-                      <span className="font-mono text-[10px] text-white/40">({rowA.rating.count})</span>
+                      <span className="font-mono text-xs text-white/60">({rowA.rating.count})</span>
                     </span>
                   ) : (
-                    <span className="font-mono text-xs text-white/40">
+                    <span className="font-mono text-xs text-white/60">
                       UNRATED · {rowA.reviewCount} reviews
                     </span>
                   )
@@ -520,10 +520,10 @@ export function CompareFullPage() {
                   rowB.rating != null ? (
                     <span className="tabular-nums">
                       {rowB.rating.overall.toFixed(1)}{" "}
-                      <span className="font-mono text-[10px] text-white/40">({rowB.rating.count})</span>
+                      <span className="font-mono text-xs text-white/60">({rowB.rating.count})</span>
                     </span>
                   ) : (
-                    <span className="font-mono text-xs text-white/40">
+                    <span className="font-mono text-xs text-white/60">
                       UNRATED · {rowB.reviewCount} reviews
                     </span>
                   )
@@ -661,14 +661,14 @@ export function CompareFullPage() {
                   type="button"
                   onClick={() => openCompare(p.aSlug, p.bSlug)}
                   aria-label={`Compare ${p.aName} vs ${p.bName}, viewed ${p.views} times`}
-                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3.5 py-2 text-xs text-white/80 transition-colors hover:border-ember/40 hover:bg-ember/[0.05]"
+                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3.5 py-2 text-sm text-white/80 transition-colors hover:border-ember/40 hover:bg-ember/[0.05]"
                 >
                   <span aria-hidden>{p.aEmoji}</span>
                   <span className="font-semibold">{p.aName}</span>
-                  <span className="font-mono text-[10px] text-ember">VS</span>
+                  <span className="font-mono text-xs text-ember">VS</span>
                   <span aria-hidden>{p.bEmoji}</span>
                   <span className="font-semibold">{p.bName}</span>
-                  <span className="font-mono text-[10px] tabular-nums text-white/35">· {p.views}</span>
+                  <span className="font-mono text-xs tabular-nums text-white/55">· {p.views}</span>
                 </button>
               ))}
             </div>

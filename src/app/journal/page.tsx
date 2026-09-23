@@ -16,9 +16,9 @@ export const metadata: Metadata = {
     // /api/rss and /api/rss?kind=journal (see src/app/api/rss/route.ts).
     types: { "application/rss+xml": "/api/rss?kind=journal" },
   },
-  title: "The Journal — Prother",
+  title: "The Journal · Prother",
   description:
-    "Guides, evaluation playbooks, taxonomy notes, and ecosystem trends from Prother — notes from the directory.",
+    "Guides, evaluation playbooks, taxonomy notes, and ecosystem trends from Prother. Notes from the directory.",
   keywords: [
     "AI tool guides",
     "AI tool evaluation",
@@ -27,16 +27,16 @@ export const metadata: Metadata = {
     "how to evaluate AI tools",
   ],
   openGraph: {
-    title: "The Prother Journal — Notes from the directory",
+    title: "The Prother Journal · Notes from the directory",
     description:
-      "Guides, evaluation playbooks, taxonomy notes, and ecosystem trends from Prother — notes from the directory.",
+      "Guides, evaluation playbooks, taxonomy notes, and ecosystem trends from Prother. Notes from the directory.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "The Prother Journal — Notes from the directory",
+    title: "The Prother Journal · Notes from the directory",
     description:
       "Guides, evaluation playbooks, taxonomy notes, and ecosystem trends from Prother.",
     images: ["/api/og"],
@@ -75,7 +75,7 @@ export default async function JournalPage() {
     "@type": "Blog",
     name: "Prother Journal",
     description:
-      "Guides, evaluation playbooks, and ecosystem trends from Prother — find the right AI tool.",
+      "Guides, evaluation playbooks, and ecosystem trends from Prother. Find the right AI tool.",
     blogPost: cards.slice(0, 10).map((p) => ({
       "@type": "BlogPosting",
       headline: p.title,

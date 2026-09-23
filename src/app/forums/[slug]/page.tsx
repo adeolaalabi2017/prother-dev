@@ -66,7 +66,7 @@ export default async function ForumThreadPage({ params }: Params) {
           <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
             <Link
               href="/forums"
-              className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.2em] text-white/45 transition-colors hover:text-ember"
+              className="inline-flex items-center gap-1.5 font-mono text-sm uppercase tracking-[0.2em] text-white/60 transition-colors hover:text-ember"
             >
               <ArrowLeft className="size-3.5" aria-hidden />
               Back to Forums
@@ -76,9 +76,9 @@ export default async function ForumThreadPage({ params }: Params) {
                 aria-hidden
                 className="grid size-12 place-items-center rounded-2xl border border-white/15 bg-white/[0.03]"
               >
-                <ShieldX className="size-5 text-white/45" />
+                <ShieldX className="size-5 text-white/60" />
               </span>
-              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">
+              <p className="font-mono text-xs uppercase tracking-[0.3em] text-white/60">
                 Moderation
               </p>
               <p className="text-sm text-white/70">
@@ -142,7 +142,7 @@ export default async function ForumThreadPage({ params }: Params) {
         {/* back */}
         <Link
           href="/forums"
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.2em] text-white/45 uppercase transition-colors hover:text-ember"
+          className="inline-flex items-center gap-1.5 font-mono text-sm tracking-[0.2em] text-white/60 uppercase transition-colors hover:text-ember"
         >
           <ArrowLeft className="size-3.5" aria-hidden />
           Back to Forums
@@ -151,11 +151,11 @@ export default async function ForumThreadPage({ params }: Params) {
         {/* header */}
         <header className="mt-8">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+            <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
               {topicLabel}
             </span>
             {thread.pinned && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/55 uppercase">
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 px-2.5 py-1 font-mono text-xs tracking-wider text-white/55 uppercase">
                 <Pin className="size-3" aria-hidden />
                 Pinned
               </span>
@@ -166,9 +166,9 @@ export default async function ForumThreadPage({ params }: Params) {
             {thread.title}
           </h1>
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tracking-wider text-white/45 uppercase">
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tracking-wider text-white/60 uppercase">
             <span className="text-ember">{thread.author}</span>
-            <span aria-hidden className="text-white/25">
+            <span aria-hidden className="text-white/55">
               ·
             </span>
             <ForumTime iso={thread.createdAt} />

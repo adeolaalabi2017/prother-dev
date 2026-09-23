@@ -241,7 +241,7 @@ export function ForumThreadActions({
           ) : (
             <Bookmark className="size-4" aria-hidden />
           )}
-          <span className="font-mono text-[11px] uppercase tracking-wider">
+          <span className="font-mono text-xs uppercase tracking-wider">
             {threadBookmarked ? "Saved" : "Save"}
           </span>
         </button>
@@ -257,13 +257,13 @@ export function ForumThreadActions({
             })
           }
           aria-label="Report this thread"
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-transparent px-3 font-mono text-[11px] uppercase tracking-wider text-white/40 transition-colors hover:border-red-500/30 hover:text-red-400"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-transparent px-3 font-mono text-xs uppercase tracking-wider text-white/60 transition-colors hover:border-red-500/30 hover:text-red-400"
         >
           <Flag className="size-3.5" aria-hidden />
           Report
         </button>
 
-        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider text-white/40 uppercase">
+        <span className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider text-white/60 uppercase">
           <MessageSquare className="size-3.5" aria-hidden />
           {replies.length} {replies.length === 1 ? "reply" : "replies"}
         </span>
@@ -271,7 +271,7 @@ export function ForumThreadActions({
 
       {/* replies */}
       <section className="mt-10 border-t border-white/10 pt-8" aria-label="Replies">
-        <h2 className="font-mono text-[11px] tracking-[0.3em] text-white/45 uppercase">
+        <h2 className="font-mono text-xs tracking-[0.3em] text-white/60 uppercase">
           Replies{" "}
           <span className="text-ember">
             ({replies.length})
@@ -284,7 +284,7 @@ export function ForumThreadActions({
               key={r.id}
               className="group/reply relative rounded-xl border border-white/10 bg-white/[0.02] p-4"
             >
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tracking-wider text-white/45">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tracking-wider text-white/60">
                 <span className="text-ember">{r.author}</span>
                 <span aria-hidden>·</span>
                 <ForumTime iso={r.createdAt} />
@@ -301,10 +301,10 @@ export function ForumThreadActions({
                     })
                   }
                   aria-label={`Report reply by ${r.author}`}
-                  className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-white/30 transition-all hover:text-red-400 focus-visible:opacity-100 focus-visible:text-red-400 focus-visible:outline-none sm:opacity-0 sm:group-hover/reply:opacity-100 sm:focus-visible:opacity-100"
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-white/55 transition-all hover:text-red-400 focus-visible:opacity-100 focus-visible:text-red-400 focus-visible:outline-none sm:opacity-0 sm:group-hover/reply:opacity-100 sm:focus-visible:opacity-100"
                 >
                   <Flag className="size-3" aria-hidden />
-                  <span className="sr-only sm:not-sr-only sm:text-[10px] uppercase tracking-wider">
+                  <span className="sr-only sm:not-sr-only sm:text-xs uppercase tracking-wider">
                     Report
                   </span>
                 </button>
@@ -315,7 +315,7 @@ export function ForumThreadActions({
             </li>
           ))}
           {replies.length === 0 && (
-            <li className="rounded-xl border border-dashed border-white/15 p-6 text-center text-sm text-white/40">
+            <li className="rounded-xl border border-dashed border-white/15 p-6 text-center text-sm text-white/60">
               No replies yet. If you have been through this, say so below.
             </li>
           )}
@@ -325,7 +325,7 @@ export function ForumThreadActions({
         <div className="mt-8 rounded-xl border border-white/10 bg-coal/60 p-4">
           {signedIn || status === "loading" ? (
             <>
-              <label htmlFor="forum-reply-body" className="font-mono text-[11px] tracking-wider text-white/50 uppercase">
+              <label htmlFor="forum-reply-body" className="font-mono text-xs tracking-wider text-white/50 uppercase">
                 Your reply
               </label>
               <Textarea
@@ -334,11 +334,11 @@ export function ForumThreadActions({
                 onChange={(e) => setBody(e.target.value)}
                 rows={4}
                 maxLength={3000}
-                placeholder="Add a specific, honest take — what you did and what happened."
-                className="mt-2 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/30 focus-visible:border-ember/50 focus-visible:ring-ember/30"
+                placeholder="Add a specific, honest take: what you did and what happened."
+                className="mt-2 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/30"
               />
               <div className="mt-3 flex items-center justify-between gap-3">
-                <span className="font-mono text-[10px] text-white/30">
+                <span className="font-mono text-xs text-white/55">
                   {body.trim().length}/3000
                 </span>
                 <Button
@@ -346,7 +346,7 @@ export function ForumThreadActions({
                   size="sm"
                   onClick={() => void submitReply()}
                   disabled={!canPost}
-                  className="bg-ember text-black hover:bg-ember-hot disabled:opacity-50"
+                  className="bg-ember text-coal hover:bg-ember-hot disabled:opacity-50"
                 >
                   {sending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
                   Post reply
@@ -357,8 +357,8 @@ export function ForumThreadActions({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-white/80">Sign in to reply.</p>
-                <p className="mt-0.5 text-xs text-white/45">
-                  Replies are tied to an account — the header sign-in uses email magic links, no password.
+                <p className="mt-0.5 text-xs text-white/60">
+                  Replies are tied to an account: the header sign-in uses email magic links, no password.
                 </p>
               </div>
               <Button
@@ -377,7 +377,7 @@ export function ForumThreadActions({
             <div className="mt-3 rounded-lg border border-ember/40 bg-ember/10 p-3 text-sm">
               <p className="text-white/80">Sign in to post.</p>
               <p className="mt-0.5 text-xs text-white/50">
-                Your session expired — use the SIGN IN button in the header (email magic link).
+                Your session expired. Use the SIGN IN button in the header (email magic link).
               </p>
               <Button
                 type="button"

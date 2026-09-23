@@ -41,7 +41,7 @@ const tools: SeedTool[] = [
     pick: true, maker: "@openai", claimed: true, api: true,
     tags: "api-available|enterprise|mobile", listedDaysAgo: 210, website: "https://chatgpt.com",
     description:
-      "ChatGPT is OpenAI's general-purpose conversational assistant: drafting, coding, data analysis, web browsing, file uploads, and a GPT store of custom assistants. The consumer default for AI chat — with the widest plugin and integrations ecosystem to show for it.",
+      "ChatGPT is OpenAI's general-purpose conversational assistant: drafting, coding, data analysis, web browsing, file uploads, and a GPT store of custom assistants. The consumer default for AI chat, with the widest plugin and integrations ecosystem to show for it.",
   },
   {
     slug: "claude", name: "Claude", cat: "conversational-ai",
@@ -91,7 +91,7 @@ const tools: SeedTool[] = [
     maker: "@character-ai", claimed: true,
     tags: "mobile|free-tier", listedDaysAgo: 170, website: "https://character.ai",
     description:
-      "Character.AI hosts millions of user-created personas — tutors, game masters, language partners — each with a persistent personality. Built for entertainment and roleplay rather than productivity; memory and long-conversation coherence are its stand-out traits.",
+      "Character.AI hosts millions of user-created personas (tutors, game masters, language partners), each with a persistent personality. Built for entertainment and roleplay rather than productivity; memory and long-conversation coherence are its stand-out traits.",
   },
   {
     slug: "intercom-fin", name: "Intercom Fin", cat: "conversational-ai",
@@ -111,7 +111,7 @@ const tools: SeedTool[] = [
     maker: "@inflection", claimed: true,
     tags: "free-tier|mobile", listedDaysAgo: 150, website: "https://pi.ai",
     description:
-      "Pi (Inflection) is designed around conversational quality rather than task completion — patient, curious, and voice-first. A low-pressure companion for thinking out loud, rehearsing hard conversations, or unwinding; not a spreadsheet worker.",
+      "Pi (Inflection) is designed around conversational quality rather than task completion: patient, curious, and voice-first. A low-pressure companion for thinking out loud, rehearsing hard conversations, or unwinding; not a spreadsheet worker.",
   },
 
   // ── Generative Content Creation (7) ──────────────────────────────────
@@ -153,7 +153,7 @@ const tools: SeedTool[] = [
     maker: "@suno", claimed: true, api: true,
     tags: "api-available|free-tier", listedDaysAgo: 140, website: "https://suno.com",
     description:
-      "Suno generates complete songs — verses, hooks, vocals, mastering — from a prompt or custom lyrics, in any genre you can name. v4 output is radio-plausible; stem export and persona consistency make it usable beyond one-shot novelty.",
+      "Suno generates complete songs (verses, hooks, vocals, mastering) from a prompt or custom lyrics, in any genre you can name. v4 output is radio-plausible; stem export and persona consistency make it usable beyond one-shot novelty.",
   },
   {
     slug: "synthesia", name: "Synthesia", cat: "generative-content",
@@ -173,7 +173,7 @@ const tools: SeedTool[] = [
     maker: "@adobe", claimed: true, api: true,
     tags: "api-available|enterprise", listedDaysAgo: 155, website: "https://adobe.com/products/firefly",
     description:
-      "Firefly is Adobe's generative family, trained on licensed content so outputs carry IP indemnification for enterprise users. Generative Fill and Generate Similar live inside Photoshop and Illustrator where designers already work — no tab-switching tax.",
+      "Firefly is Adobe's generative family, trained on licensed content so outputs carry IP indemnification for enterprise users. Generative Fill and Generate Similar live inside Photoshop and Illustrator where designers already work: no tab-switching tax.",
   },
   {
     slug: "heygen", name: "HeyGen", cat: "generative-content",
@@ -195,7 +195,7 @@ const tools: SeedTool[] = [
     pick: true, maker: "@grammarly", claimed: true, api: true,
     tags: "api-available|browser-extension|enterprise", listedDaysAgo: 220, website: "https://grammarly.com",
     description:
-      "Grammarly is the writing layer that follows you across apps: grammar and spelling, tone detection, full-paragraph rewrites, and generative drafting. Enterprise features add style-guide enforcement and plagiarism checks — the quiet default on 30M keyboards.",
+      "Grammarly is the writing layer that follows you across apps: grammar and spelling, tone detection, full-paragraph rewrites, and generative drafting. Enterprise features add style-guide enforcement and plagiarism checks: the quiet default on 30M keyboards.",
   },
   {
     slug: "deepl", name: "DeepL", cat: "nlp-text",
@@ -235,7 +235,7 @@ const tools: SeedTool[] = [
     maker: "@otter-ai", claimed: true, api: true,
     tags: "api-available|free-tier", listedDaysAgo: 135, website: "https://otter.ai",
     description:
-      "Otter joins Zoom, Meet, and Teams calls to produce live transcripts, speaker-labeled summaries, and action items you can query later ('what did we promise the client?'). The searchable meeting archive is the real product — transcription is just the capture step.",
+      "Otter joins Zoom, Meet, and Teams calls to produce live transcripts, speaker-labeled summaries, and action items you can query later ('what did we promise the client?'). The searchable meeting archive is the real product: transcription is just the capture step.",
   },
   {
     slug: "originality-ai", name: "Originality.ai", cat: "nlp-text",
@@ -245,7 +245,7 @@ const tools: SeedTool[] = [
     maker: "@originality-ai", claimed: true, api: true,
     tags: "api-available", listedDaysAgo: 110, website: "https://originality.ai",
     description:
-      "Originality.ai scans text for AI-generation signals (per-sentence highlighting), plagiarism, and factual errors — built for content agencies and publishers managing freelance pipelines. Team activity logs and scan history make audits reproducible.",
+      "Originality.ai scans text for AI-generation signals (per-sentence highlighting), plagiarism, and factual errors, built for content agencies and publishers managing freelance pipelines. Team activity logs and scan history make audits reproducible.",
   },
 
   // ── Computer Vision (6) ──────────────────────────────────────────────
@@ -268,7 +268,7 @@ const tools: SeedTool[] = [
     maker: "@clarifai", claimed: true, api: true,
     tags: "api-available|enterprise", listedDaysAgo: 140, website: "https://clarifai.com",
     description:
-      "Clarifai packages vision (and now language/audio) recognition as hosted models plus custom training, with an inference stack that runs in cloud, on-prem, or air-gapped. Longest track record in the category — production deployments across defense, retail, and media.",
+      "Clarifai packages vision (and now language/audio) recognition as hosted models plus custom training, with an inference stack that runs in cloud, on-prem, or air-gapped. Longest track record in the category: production deployments across defense, retail, and media.",
   },
   {
     slug: "google-cloud-vision", name: "Google Cloud Vision", cat: "computer-vision",
@@ -330,7 +330,7 @@ const tools: SeedTool[] = [
     curated: true, maker: "@h2o-ai", claimed: true, oss: "https://github.com/h2oai",
     tags: "open-source|enterprise", listedDaysAgo: 185, website: "https://h2o.ai",
     description:
-      "H2O.ai pairs the battle-tested H2O-3 distributed ML platform with h2oGPT document intelligence — ask questions across thousands of PDFs with air-gapped deployment. The rare vendor equally credible in open-source gradient boosting and private LLM serving.",
+      "H2O.ai pairs the battle-tested H2O-3 distributed ML platform with h2oGPT document intelligence: ask questions across thousands of PDFs with air-gapped deployment. The rare vendor equally credible in open-source gradient boosting and private LLM serving.",
   },
   {
     slug: "tableau-pulse", name: "Tableau Pulse", cat: "data-analytics",
@@ -350,7 +350,7 @@ const tools: SeedTool[] = [
     maker: "@salesforce", claimed: true, api: true,
     tags: "api-available|enterprise", listedDaysAgo: 175, website: "https://salesforce.com/einstein",
     description:
-      "Einstein embeds prediction and generation across Salesforce: lead scoring, opportunity forecasting, case routing, and Einstein Copilot drafting on your CRM data. The value is context — predictions computed on the system of record, not a CSV export of it.",
+      "Einstein embeds prediction and generation across Salesforce: lead scoring, opportunity forecasting, case routing, and Einstein Copilot drafting on your CRM data. The value is context: predictions computed on the system of record, not a CSV export of it.",
   },
   {
     slug: "hex", name: "Hex", cat: "data-analytics",
@@ -360,7 +360,7 @@ const tools: SeedTool[] = [
     curated: true, maker: "@hex", claimed: true,
     tags: "no-code|free-tier", listedDaysAgo: 115, website: "https://hex.tech",
     description:
-      "Hex combines SQL, Python, and no-code cells in one collaborative notebook, then ships results as shareable apps. Hex Magic autocompletes queries with schema awareness and writes transformation code from natural language — analytics engineering, accelerated.",
+      "Hex combines SQL, Python, and no-code cells in one collaborative notebook, then ships results as shareable apps. Hex Magic autocompletes queries with schema awareness and writes transformation code from natural language: analytics engineering, accelerated.",
   },
   {
     slug: "polymer", name: "Polymer", cat: "data-analytics",
@@ -370,7 +370,7 @@ const tools: SeedTool[] = [
     maker: "@polymer", claimed: true,
     tags: "no-code|free-tier", listedDaysAgo: 95, website: "https://polymersearch.com",
     description:
-      "Polymer takes a CSV or spreadsheet and auto-builds a searchable, filterable app with embedded BI boards — no BI stack required. Explore modes surface trends and outliers conversationally, which makes it a favorite for sales teams and market researchers.",
+      "Polymer takes a CSV or spreadsheet and auto-builds a searchable, filterable app with embedded BI boards: no BI stack required. Explore modes surface trends and outliers conversationally, which makes it a favorite for sales teams and market researchers.",
   },
 
   // ── Automation & Workflow Orchestration (6) ──────────────────────────
@@ -382,7 +382,7 @@ const tools: SeedTool[] = [
     pick: true, maker: "@zapier", claimed: true, api: true,
     tags: "api-available|no-code|free-tier", listedDaysAgo: 230, website: "https://zapier.com",
     description:
-      "Zapier is the default automation layer of the no-code era: 7,000+ integrations, trigger-action Zaps, multi-step paths, tables, and interfaces. Copilot drafts workflows from a plain-English description — the fastest path from 'this should happen automatically' to done.",
+      "Zapier is the default automation layer of the no-code era: 7,000+ integrations, trigger-action Zaps, multi-step paths, tables, and interfaces. Copilot drafts workflows from a plain-English description: the fastest path from 'this should happen automatically' to done.",
   },
   {
     slug: "make", name: "Make", cat: "automation",
@@ -392,7 +392,7 @@ const tools: SeedTool[] = [
     curated: true, maker: "@make", claimed: true, api: true,
     tags: "api-available|no-code", listedDaysAgo: 160, website: "https://make.com",
     description:
-      "Make renders automations as a visual data-flow canvas: branches, iterators, aggregators, and error handlers that Zapier's linear model can't express. Operations-based pricing rewards complex scenarios — the power tool of the integration category.",
+      "Make renders automations as a visual data-flow canvas: branches, iterators, aggregators, and error handlers that Zapier's linear model can't express. Operations-based pricing rewards complex scenarios: the power tool of the integration category.",
   },
   {
     slug: "n8n", name: "n8n", cat: "automation",
@@ -402,7 +402,7 @@ const tools: SeedTool[] = [
     maker: "@n8n", claimed: true, oss: "https://github.com/n8n-io/n8n",
     tags: "open-source|self-hosted|api-available", listedDaysAgo: 155, website: "https://n8n.io",
     description:
-      "n8n is the self-hostable automation engine with 400+ integrations, JavaScript/Python code nodes, and native AI agent steps (LangChain-backed). Data never leaves your infra unless you route it out — the reason compliance-sensitive teams standardize on it.",
+      "n8n is the self-hostable automation engine with 400+ integrations, JavaScript/Python code nodes, and native AI agent steps (LangChain-backed). Data never leaves your infra unless you route it out: the reason compliance-sensitive teams standardize on it.",
   },
   {
     slug: "uipath", name: "UiPath", cat: "automation",
@@ -422,7 +422,7 @@ const tools: SeedTool[] = [
     maker: "@relay", claimed: true, api: true,
     tags: "api-available|no-code|free-tier", listedDaysAgo: 105, website: "https://relay.app",
     description:
-      "Relay builds approval gates into automations: a step can pause for a human check-in, collect input, then continue — with playbooks assignable to teammates. AI agents draft, humans approve. The workflow tool for teams that don't trust black boxes.",
+      "Relay builds approval gates into automations: a step can pause for a human check-in, collect input, then continue, with playbooks assignable to teammates. AI agents draft, humans approve. The workflow tool for teams that don't trust black boxes.",
   },
   {
     slug: "bardeen", name: "Bardeen", cat: "automation",
@@ -432,7 +432,7 @@ const tools: SeedTool[] = [
     maker: "@bardeen", claimed: true,
     tags: "browser-extension|free-tier", listedDaysAgo: 90, website: "https://bardeen.ai",
     description:
-      "Bardeen automates inside the browser tab: scraper recipes, meeting joins, CRM autofill, and multi-app playbooks triggered from a shortcut. Ask Bardeen builds the automation from a description — web work that felt robotic becomes one keystroke.",
+      "Bardeen automates inside the browser tab: scraper recipes, meeting joins, CRM autofill, and multi-app playbooks triggered from a shortcut. Ask Bardeen builds the automation from a description: web work that felt robotic becomes one keystroke.",
   },
 
   // ── Developer Frameworks & Infrastructure (7) ────────────────────────
@@ -444,7 +444,7 @@ const tools: SeedTool[] = [
     pick: true, maker: "@pytorch", claimed: true, oss: "https://github.com/pytorch/pytorch",
     tags: "open-source|self-hosted", listedDaysAgo: 240, website: "https://pytorch.org",
     description:
-      "PyTorch's define-by-run model and eager execution made it the lingua franca of ML research — the overwhelming majority of new papers ship with PyTorch code. torch.compile and distributed tooling now carry it into production at the largest training scales.",
+      "PyTorch's define-by-run model and eager execution made it the lingua franca of ML research: the overwhelming majority of new papers ship with PyTorch code. torch.compile and distributed tooling now carry it into production at the largest training scales.",
   },
   {
     slug: "tensorflow", name: "TensorFlow", cat: "dev-platforms",
@@ -454,7 +454,7 @@ const tools: SeedTool[] = [
     maker: "@google", claimed: true, oss: "https://github.com/tensorflow/tensorflow",
     tags: "open-source|enterprise", listedDaysAgo: 235, website: "https://tensorflow.org",
     description:
-      "TensorFlow remains the end-to-end option: Keras high-level API, TFX pipelines, TensorBoard profiling, and TFLite/JS runtimes spanning servers to microcontrollers. The deployment story — especially edge and JS — keeps it in production stacks everywhere.",
+      "TensorFlow remains the end-to-end option: Keras high-level API, TFX pipelines, TensorBoard profiling, and TFLite/JS runtimes spanning servers to microcontrollers. The deployment story (especially edge and JS) keeps it in production stacks everywhere.",
   },
   {
     slug: "hugging-face", name: "Hugging Face", cat: "dev-platforms",
@@ -465,7 +465,7 @@ const tools: SeedTool[] = [
     oss: "https://github.com/huggingface/transformers",
     tags: "open-source|api-available|free-tier", listedDaysAgo: 225, website: "https://huggingface.co",
     description:
-      "Hugging Face is the GitHub of machine learning: a million models and datasets, the transformers library, Spaces demos, and inference APIs. If a model exists, its weights, card, and community evaluation live here — the de facto public infrastructure of open AI.",
+      "Hugging Face is the GitHub of machine learning: a million models and datasets, the transformers library, Spaces demos, and inference APIs. If a model exists, its weights, card, and community evaluation live here: the de facto public infrastructure of open AI.",
   },
   {
     slug: "langchain", name: "LangChain", cat: "dev-platforms",
@@ -475,7 +475,7 @@ const tools: SeedTool[] = [
     curated: true, maker: "@langchain", claimed: true, oss: "https://github.com/langchain-ai/langchain",
     tags: "open-source|api-available", listedDaysAgo: 130, website: "https://langchain.com",
     description:
-      "LangChain standardizes the plumbing of LLM apps: model abstraction, retrieval pipelines, agent runtimes, and LangGraph for stateful, resumable workflows. Pair with LangSmith for tracing and evals — the default scaffold when a prototype needs to become a product.",
+      "LangChain standardizes the plumbing of LLM apps: model abstraction, retrieval pipelines, agent runtimes, and LangGraph for stateful, resumable workflows. Pair with LangSmith for tracing and evals: the default scaffold when a prototype needs to become a product.",
   },
   {
     slug: "ollama", name: "Ollama", cat: "dev-platforms",
@@ -485,7 +485,7 @@ const tools: SeedTool[] = [
     curated: true, maker: "@ollama", claimed: true, oss: "https://github.com/ollama/ollama",
     tags: "open-source|self-hosted|free-tier", listedDaysAgo: 100, website: "https://ollama.com",
     description:
-      "Ollama packages open models (Llama, Qwen, Gemma, Mistral) into one-line installs with a local OpenAI-compatible API. Privacy, offline use, and zero inference bills — the tool that made local LLMs a consumer experience instead of a CUDA weekend project.",
+      "Ollama packages open models (Llama, Qwen, Gemma, Mistral) into one-line installs with a local OpenAI-compatible API. Privacy, offline use, and zero inference bills: the tool that made local LLMs a consumer experience instead of a CUDA weekend project.",
   },
   {
     slug: "pinecone", name: "Pinecone", cat: "dev-platforms",
@@ -505,7 +505,7 @@ const tools: SeedTool[] = [
     maker: "@replicate", claimed: true, api: true,
     tags: "api-available|open-source", listedDaysAgo: 125, website: "https://replicate.com",
     description:
-      "Replicate hosts thousands of community models — image, video, voice, LLM — behind one API with per-second billing and zero cold-start management. Push your own model with Cog, or fine-tune someone else's with your data; scale happens automatically.",
+      "Replicate hosts thousands of community models (image, video, voice, LLM) behind one API with per-second billing and zero cold-start management. Push your own model with Cog, or fine-tune someone else's with your data; scale happens automatically.",
   },
 ];
 

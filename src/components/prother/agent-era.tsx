@@ -7,7 +7,7 @@ const POINTS = [
   {
     n: "01",
     title: "Rated by real reviews",
-    body: "Ratings from published reviews — ease, power, value — not popularity contests.",
+    body: "Ratings from published reviews (ease, power, value), not popularity contests.",
   },
   {
     n: "02",
@@ -154,14 +154,14 @@ export function AgentEra() {
           </h2>
           <p className="mt-6 text-lg text-white/70">
             Coding agents build, test, and review in loops. A listing on Prother puts every
-            loop&apos;s output in front of people actively searching for it — with honest
+            loop&apos;s output in front of people actively searching for it, with honest
             pricing and real reviews attached.
           </p>
 
           <ul className="mt-8 divide-y divide-white/10 border-y border-white/10">
             {POINTS.map((p) => (
               <li key={p.n} className="flex gap-5 py-4">
-                <span className="w-8 shrink-0 font-mono text-sm text-ember/70" aria-hidden>
+                <span className="w-8 shrink-0 font-mono text-sm text-ember/85" aria-hidden>
                   {p.n}
                 </span>
                 <div>

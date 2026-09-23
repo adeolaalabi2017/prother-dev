@@ -23,7 +23,7 @@ export function SubmitOpenButton({
       type="button"
       onClick={() => setSubmitOpen(true)}
       className={cn(
-        "rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black",
+        "rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal",
         className
       )}
     >

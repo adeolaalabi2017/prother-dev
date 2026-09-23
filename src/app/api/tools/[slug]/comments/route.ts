@@ -80,7 +80,7 @@ export async function POST(
   const age = await lastCommentAgeSec(tool.id, author);
   if (age !== null && age < 15) {
     return NextResponse.json(
-      { error: "Slow down — try again in a few seconds." },
+      { error: "Slow down. Try again in a few seconds." },
       { status: 429 }
     );
   }

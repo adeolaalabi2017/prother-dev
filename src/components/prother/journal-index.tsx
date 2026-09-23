@@ -61,7 +61,7 @@ export function JournalIndex({
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.3em] text-ember uppercase">
+            <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember uppercase">
               <Feather className="size-3.5" aria-hidden />
               The Prother Journal
             </p>
@@ -71,13 +71,13 @@ export function JournalIndex({
               the directory.
             </h1>
             <p className="mt-4 max-w-xl text-lg text-white/60">
-              Evaluation guides, taxonomy notes, and ecosystem trends —
+              Evaluation guides, taxonomy notes, and ecosystem trends:
               written by the people who watch the AI tool ecosystem.
             </p>
           </div>
           <Link
             href="/api/rss?kind=journal"
-            className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 py-2 font-mono text-xs text-white/60 transition-colors hover:border-ember/40 hover:text-ember sm:inline-flex"
+            className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 py-2 font-mono text-sm text-white/60 transition-colors hover:border-ember/40 hover:text-ember sm:inline-flex"
             title="Journal RSS feed"
           >
             <Rss className="size-3.5" aria-hidden />
@@ -94,7 +94,7 @@ export function JournalIndex({
               onClick={() => setActive(c)}
               aria-pressed={active === c}
               className={cn(
-                "rounded-full border px-3.5 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-all active:scale-95",
+                "rounded-full border px-3.5 py-1.5 font-mono text-sm tracking-wider uppercase transition-all active:scale-95",
                 active === c
                   ? "border-ember bg-ember/15 text-ember"
                   : "border-white/10 bg-white/[0.03] text-white/50 hover:border-white/25 hover:text-white/80"
@@ -108,7 +108,7 @@ export function JournalIndex({
         {/* cards */}
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {shown.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-dashed border-white/15 p-12 text-center text-white/40">
+            <div className="col-span-full rounded-2xl border border-dashed border-white/15 p-12 text-center text-white/60">
               The first issue ships soon.
             </div>
           )}
@@ -135,7 +135,7 @@ export function JournalIndex({
                   >
                     {p.coverEmoji}
                   </div>
-                  <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                  <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
                     {p.category}
                   </span>
                 </div>
@@ -147,7 +147,7 @@ export function JournalIndex({
                   {p.excerpt}
                 </p>
 
-                <div className="mt-auto flex items-center gap-4 pt-5 font-mono text-[10px] tracking-wider text-white/40 uppercase">
+                <div className="mt-auto flex items-center gap-4 pt-5 font-mono text-xs tracking-wider text-white/60 uppercase">
                   <span className="inline-flex items-center gap-1">
                     <CalendarDays className="size-3" aria-hidden />
                     {dateLabel(p.publishedAt)}
@@ -157,7 +157,7 @@ export function JournalIndex({
                     {p.readingMinutes} min
                   </span>
                   <ArrowUpRight
-                    className="ml-auto size-4 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+                    className="ml-auto size-4 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
                     aria-hidden
                   />
                 </div>

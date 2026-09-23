@@ -145,6 +145,6 @@ function metaTagInstructions(websiteUrl: string): string[] {
   return [
     `Add the meta tag to the <head> of ${websiteUrl}`,
     "Deploy the change",
-    "Press Verify — we fetch your page and match the token",
+    "Press Verify: we fetch your page and match the token",
   ];
 }

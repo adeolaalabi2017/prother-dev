@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   if (input.decision === "reject") {
     const note = `Failed: ${input.failedStandards.join(", ")}${
-      input.note ? ` — ${input.note}` : ""
+      input.note ? `: ${input.note}` : ""
     }`;
     await setSubmissionStatus(sub.id, "rejected", note);
     return NextResponse.json({ ok: true, decision: "rejected", reviewNote: note });

@@ -64,7 +64,7 @@ async function seedUsers(): Promise<void> {
 }
 
 async function seedCampaigns(): Promise<void> {
-  // Per-placement guard (Task 27) — each placement seeds exactly one demo
+  // Per-placement guard (Task 27): each placement seeds exactly one demo
   // campaign the first time it appears; re-runs skip rows that already exist.
   const campaigns: {
     name: string; advertiser: string; placement: string; status: string;
@@ -74,12 +74,12 @@ async function seedCampaigns(): Promise<void> {
     dailyBudgetCents: number; impressions: number; clicks: number;
   }[] = [
     {
-      name: "IndieShip — ship-your-tool checklist",
+      name: "IndieShip: ship-your-tool checklist",
       advertiser: "IndieShip",
       placement: "journal_bar",
       status: "active",
       headline: "The listing checklist 400 makers swear by",
-      body: "Free checklist — position, assets, honest pricing.",
+      body: "Free checklist: position, assets, honest pricing.",
       clickUrl: "https://indieship.example.com/playbook?utm_source=prother",
       emoji: "📕",
       gradient: "from-stone-600 to-orange-700",
@@ -93,7 +93,7 @@ async function seedCampaigns(): Promise<void> {
       clicks: 41,
     },
     {
-      name: "PromptForge Pro — agents spotlight",
+      name: "PromptForge Pro: agents spotlight",
       advertiser: "PromptForge",
       placement: "category_spotlight",
       status: "active",
@@ -116,7 +116,7 @@ async function seedCampaigns(): Promise<void> {
       advertiser: "Loomline",
       placement: "directory_banner",
       status: "active",
-      headline: "Watch your agents think — trace every run",
+      headline: "Watch your agents think: trace every run",
       body: "Loomline records, replays and diffs agent sessions so you can fix what went wrong.",
       clickUrl: "https://loomline.example.com/?utm_source=prother",
       emoji: "🛰️",
@@ -135,7 +135,7 @@ async function seedCampaigns(): Promise<void> {
       advertiser: "QueryFox",
       placement: "serp_footer",
       status: "active",
-      headline: "Analytics for AI search — see how tools rank",
+      headline: "Analytics for AI search: see how tools rank",
       body: "QueryFox tracks AI-search visibility across engines, weekly.",
       clickUrl: "https://queryfox.example.com/?utm_source=prother",
       emoji: "🦊",
@@ -169,12 +169,12 @@ async function seedCampaigns(): Promise<void> {
       )`;
     inserted += 1;
   }
-  // Legacy demo row (Task 23) shipped as draft+scheduled — flip it live so
+  // Legacy demo row (Task 23) shipped as draft+scheduled: flip it live so
   // the category spotlight slot demonstrates a real creative.
   await db.$executeRaw`
     UPDATE AdCampaign
     SET status = 'active', startsAt = ${daysAgo(1)}, updatedAt = ${new Date().toISOString()}
-    WHERE name = 'PromptForge Pro — agents spotlight' AND status = 'draft'`;
+    WHERE name = 'PromptForge Pro: agents spotlight' AND status = 'draft'`;
   console.log(`[community-seed] campaigns ensured (${inserted} inserted, ${campaigns.length} placements covered)`);
 }
 
@@ -182,7 +182,7 @@ async function seedReports(): Promise<void> {
   const count = await db.$queryRaw<{ n: number }[]>`
     SELECT COUNT(*) AS n FROM Report`;
   if (Number(count[0]?.n ?? 0) > 0) {
-    console.log("[community-seed] reports already present — skipping");
+    console.log("[community-seed] reports already present: skipping");
     return;
   }
 
@@ -207,7 +207,7 @@ async function seedReports(): Promise<void> {
   if (tool[0]) {
     rows.push([
       crypto.randomUUID(), "ivy@makers.dev", null, "tool", tool[0].id,
-      tool[0].name.slice(0, 120), "misleading", "The landing page promises an API, but there is none — gated waitlist instead.",
+      tool[0].name.slice(0, 120), "misleading", "The landing page promises an API, but there is none: gated waitlist instead.",
       "open", null, null, daysAgo(1.1),
     ]);
   }

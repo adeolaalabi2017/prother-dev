@@ -31,7 +31,7 @@ const STANDARDS = [
   {
     id: "S6",
     title: "English listing",
-    body: "The tool may serve any market — the listing itself is in English.",
+    body: "The tool may serve any market. The listing itself is in English.",
   },
 ];
 
@@ -45,8 +45,8 @@ export function Standards() {
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.55, ease: "easeOut" }}
         >
-          <p className="font-mono text-xs tracking-[0.3em] text-[#C24A00]">
-            THE QUALITY BAR — PUBLIC AT /STANDARDS
+          <p className="font-mono text-xs tracking-[0.3em] text-[#A83E00]">
+            THE QUALITY BAR · PUBLIC AT /STANDARDS
           </p>
           <h2 className="mt-4 max-w-2xl text-5xl leading-[0.95] font-black tracking-tighter md:text-6xl">
             Every tool passes all six. Before it can be listed.
@@ -63,14 +63,14 @@ export function Standards() {
               transition={{ duration: 0.45, delay: (i % 3) * 0.07, ease: "easeOut" }}
               className="rounded-2xl border border-black/10 bg-white p-6 transition hover:shadow-md"
             >
-              <p className="font-mono text-sm text-[#C24A00]">{s.id}</p>
+              <p className="font-mono text-sm text-[#A83E00]">{s.id}</p>
               <h3 className="mt-2 text-lg font-bold">{s.title}</h3>
-              <p className="mt-1 text-sm text-black/60">{s.body}</p>
+              <p className="mt-1 text-sm text-black/70">{s.body}</p>
             </motion.div>
           ))}
         </div>
 
-        <p className="mt-8 italic text-black/50">
+        <p className="mt-8 italic text-black/65">
           Rejected? You&apos;ll get the specific standard(s) your listing failed and a one-click
           resubmit. Not live yet? We&apos;ll remind you when you are.
         </p>

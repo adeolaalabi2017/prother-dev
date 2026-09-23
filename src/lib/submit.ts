@@ -52,7 +52,7 @@ export const LOGO_EMOJIS = [
 
 /** Pricing model radio (PRD §11 step ③). */
 export const PRICING_MODELS = [
-  { value: "free", label: "Free", helper: "No paid tier — say why it stays free" },
+  { value: "free", label: "Free", helper: "No paid tier: say why it stays free" },
   { value: "freemium", label: "Freemium", helper: "Free tier + paid upgrades" },
   { value: "paid", label: "Paid", helper: "Trial or demo must be visible" },
   { value: "open_source", label: "Open Source", helper: "Public repo required (S4)" },
@@ -144,7 +144,7 @@ export type SubmissionStatusItem = {
   queuePosition: number | null;
   /** approved only — slug of the created Tool (opens the listing modal). */
   toolSlug: string | null;
-  /** rejected only — "Failed: S1, S4 — note" (standards cited). */
+  /** rejected only — "Failed: S1, S4: note" (standards cited). */
   reviewNote: string | null;
   /** rejected only — form values to re-open the wizard pre-filled. */
   resubmit: SubmitPrefill | null;
@@ -177,7 +177,7 @@ export function validateStep(
     if (form.pricingModel === "open_source" && form.githubUrl.trim().length < 8)
       errors.githubUrl = "Open Source tools need a public GitHub URL";
     if (form.pricingModel === "paid" && form.startingPrice.trim().length < 1)
-      errors.startingPrice = "Honest pricing — what does it start at? (S4)";
+      errors.startingPrice = "Honest pricing: what does it start at? (S4)";
   }
   if (step === 4) {
     if (!form.confirmedLive)

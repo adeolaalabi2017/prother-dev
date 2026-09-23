@@ -123,7 +123,7 @@ export function FullPageShell(props: {
               return (
                 <span key={`${seg.label}-${i}`} className="flex min-w-0 items-center gap-2">
                   {i > 0 && (
-                    <span aria-hidden className="font-mono text-[10px] text-white/25">
+                    <span aria-hidden className="font-mono text-xs text-white/55">
                       ›
                     </span>
                   )}
@@ -131,8 +131,8 @@ export function FullPageShell(props: {
                     <span
                       aria-current={last ? "page" : undefined}
                       className={cn(
-                        "truncate font-mono text-[10px] uppercase tracking-[0.2em]",
-                        last ? "text-white/80" : "text-white/45"
+                        "truncate font-mono text-xs uppercase tracking-[0.2em]",
+                        last ? "text-white/80" : "text-white/60"
                       )}
                     >
                       {seg.label}
@@ -141,7 +141,7 @@ export function FullPageShell(props: {
                     <button
                       type="button"
                       onClick={seg.onClick}
-                      className="truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/45 transition-colors hover:text-ember"
+                      className="truncate font-mono text-sm uppercase tracking-[0.2em] text-white/60 transition-colors hover:text-ember"
                     >
                       {seg.label}
                     </button>
@@ -186,7 +186,7 @@ export function FullPageShell(props: {
         style={{ paddingBottom: "calc(7rem + env(safe-area-inset-bottom))" }}
       >
         {kicker && (
-          <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+          <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
             <span aria-hidden className="h-px w-6 bg-ember/70" />
             {kicker}
           </p>

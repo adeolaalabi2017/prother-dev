@@ -37,7 +37,7 @@ type CollectionDetail = {
   items: { id: string; position: number; tool: CollectionTool }[];
 };
 
-const MONO = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+const MONO = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 
 export function CollectionFullPage() {
   const slug = useExplorer((s) => s.collectionSlug);
@@ -104,7 +104,7 @@ export function CollectionFullPage() {
             type="button"
             variant="outline"
             onClick={() => closeCollection()}
-            className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+            className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
           >
             ← CLOSE
           </Button>
@@ -117,14 +117,14 @@ export function CollectionFullPage() {
     return (
       <PageError
         title="COULDN'T LOAD THIS COLLECTION"
-        message="The collection service didn't respond — try again in a moment."
+        message="The collection service didn't respond. Try again in a moment."
         action={
           <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => void load()}
-              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
             >
               RETRY
             </Button>
@@ -132,7 +132,7 @@ export function CollectionFullPage() {
               type="button"
               variant="outline"
               onClick={() => closeCollection()}
-              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
             >
               ← CLOSE
             </Button>
@@ -177,7 +177,7 @@ export function CollectionFullPage() {
         {/* Items grid */}
         {detail.items.length === 0 ? (
           <p className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-white/50">
-            Nothing here yet — the curator is still picking.
+            Nothing here yet. The curator is still picking.
           </p>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Collection tools">
@@ -201,13 +201,13 @@ export function CollectionFullPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-white/90">{item.tool.name}</p>
-                      <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-white/45">
+                      <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-white/60">
                         {item.tool.tagline}
                       </p>
                     </div>
                   </div>
                   <p className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-2.5">
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-white/35">
+                    <span className="font-mono text-xs uppercase tracking-widest text-white/55">
                       {item.tool.maker ?? item.tool.category?.name ?? ""}
                     </span>
                     <span className="inline-flex items-center gap-1 font-mono text-xs tabular-nums text-ember">

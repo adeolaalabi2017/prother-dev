@@ -105,14 +105,14 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-ember/30 bg-ember/10">
           <KeyRound className="size-5 text-ember" aria-hidden />
         </div>
-        <p className="mt-4 font-mono text-[10px] tracking-[0.3em] text-ember uppercase">
+        <p className="mt-4 font-mono text-xs tracking-[0.3em] text-ember uppercase">
           Restricted
         </p>
         <h2 className="mt-1 text-xl font-black tracking-tight text-white">
           Enter the backstage
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-white/50">
-          Listings, journal, taxonomy and site copy — one key,
+          Listings, journal, taxonomy and site copy: one key,
           no deploys. Demo key:{" "}
           <button
             type="button"
@@ -139,12 +139,12 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
           />
           <Button
             type="submit"
-            className="w-full rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+            className="w-full rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
           >
             Unlock console
           </Button>
         </form>
-        <p className="mt-5 font-mono text-[9px] leading-relaxed tracking-wider text-white/25 uppercase">
+        <p className="mt-5 font-mono text-xs leading-relaxed tracking-wider text-white/55 uppercase">
           Key lives in this tab&apos;s session only · sent as x-editor-key
         </p>
       </div>
@@ -309,7 +309,7 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
         <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
           <CheckCircle2 className="mx-auto size-8 text-emerald-400" aria-hidden />
           <p className="mt-3 font-mono text-sm text-white/60">
-            Queue clear — nothing waiting.
+            Queue clear. Nothing waiting.
           </p>
         </div>
       )}
@@ -329,14 +329,14 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
               <p className="truncate text-sm font-bold text-white">{s.name}</p>
               <p className="truncate text-xs text-white/50">{s.tagline}</p>
             </div>
-            <span className="hidden shrink-0 font-mono text-[10px] text-white/40 sm:block">
+            <span className="hidden shrink-0 font-mono text-xs text-white/60 sm:block">
               {s.domain} · {s.ageH}h
             </span>
           </div>
 
           {rejecting === s.id ? (
             <div className="mt-3 space-y-2.5 rounded-lg border border-red-400/25 bg-red-400/[0.05] p-3">
-              <p className="font-mono text-[10px] tracking-widest text-red-300">
+              <p className="font-mono text-xs tracking-widest text-red-300">
                 REJECTIONS MUST CITE FAILED STANDARD(S)
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -346,7 +346,7 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
                     <label
                       key={sd.id}
                       className={cn(
-                        "flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px]",
+                        "flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-xs",
                         on ? "border-red-400 bg-red-400/15 text-red-200" : "border-white/15 text-white/60"
                       )}
                     >
@@ -387,7 +387,7 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
                 size="sm"
                 disabled={busy === s.id}
                 onClick={() => void decide(s.id, "approve")}
-                className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+                className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
               >
                 {busy === s.id ? (
                   <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -406,7 +406,7 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
               </Button>
               <a
                 href={s.email ? `mailto:${s.email}` : "#"}
-                className="ml-auto hidden items-center gap-1 font-mono text-[10px] text-white/40 hover:text-white/70 sm:flex"
+                className="ml-auto hidden items-center gap-1 font-mono text-sm text-white/60 hover:text-white/70 sm:flex"
               >
                 <Mail className="size-3" aria-hidden /> maker
               </a>
@@ -510,7 +510,7 @@ function ListingEditor({
       });
       const d = (await res.json()) as { ok?: boolean };
       if (res.ok && d.ok) {
-        toast({ title: `${tool.name} removed (soft — history kept)` });
+        toast({ title: `${tool.name} removed (soft delete, history kept)` });
         onSaved();
       }
     } catch {
@@ -529,7 +529,7 @@ function ListingEditor({
       });
       const d = (await res.json()) as { ok?: boolean };
       if (res.ok && d.ok) {
-        toast({ title: `${tool.name} marked verified`, description: "Verified-at stamped — staleness clock reset." });
+        toast({ title: `${tool.name} marked verified`, description: "Verified-at stamped. Staleness clock reset." });
         onSaved();
       }
     } catch {
@@ -549,7 +549,7 @@ function ListingEditor({
             onChange={(e) => setF({ ...f, tagline: e.target.value })}
             className={inputCx}
           />
-          <p className="text-[10px] text-white/30">{f.tagline.length}/60</p>
+          <p className="text-xs text-white/55">{f.tagline.length}/60</p>
         </Field>
         <Field label="Website URL">
           <Input
@@ -634,7 +634,7 @@ function ListingEditor({
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Pin rank (0 = none — tops the directory)">
+        <Field label="Pin rank (0 = none; 1 tops the directory)">
           <Input
             type="number"
             min={0}
@@ -665,7 +665,7 @@ function ListingEditor({
         <Button
           disabled={busy}
           onClick={() => void save()}
-          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+          className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
         >
           {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
           Save changes
@@ -743,7 +743,7 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
 
       {tools === null && <Spinner />}
       {tools?.length === 0 && (
-        <p className="py-10 text-center text-sm text-white/30">No listings match.</p>
+        <p className="py-10 text-center text-sm text-white/55">No listings match.</p>
       )}
       <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
         {tools?.map((t) => (
@@ -762,7 +762,7 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
                   {t.editorsPick && <Star className="size-3 shrink-0 text-ember" aria-label="Editor's Pick" />}
                   <span
                     className={cn(
-                      "shrink-0 rounded px-1.5 py-px font-mono text-[9px] tracking-wider uppercase",
+                      "shrink-0 rounded px-1.5 py-px font-mono text-xs tracking-wider uppercase",
                       t.status === "live"
                         ? "bg-emerald-400/10 text-emerald-400/80"
                         : "bg-white/10 text-white/60"
@@ -773,21 +773,21 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
                 </p>
                 <p className="truncate text-xs text-white/50">{t.tagline}</p>
               </div>
-              <span className="hidden shrink-0 font-mono text-[10px] text-white/40 md:block">
+              <span className="hidden shrink-0 font-mono text-xs text-white/60 md:block">
                 {t.category.emoji} {t.category.name}
               </span>
-              <span className="hidden shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60 sm:inline">
+              <span className="hidden shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-white/60 sm:inline">
                 {t.pricingModel.replace("_", " ")}
                 {t.startingPrice ? ` · ${t.startingPrice}` : ""}
               </span>
               <span
-                className="hidden shrink-0 font-mono text-[10px] tabular-nums text-white/50 lg:block"
+                className="hidden shrink-0 font-mono text-xs tabular-nums text-white/50 lg:block"
                 title={`${t.reviews} published reviews · ${t.comments} comments`}
               >
                 {t.reviews} rev · {t.comments} cmt
               </span>
               <ChevronDown
-                className={cn("size-4 shrink-0 text-white/40 transition-transform", expanded === t.id && "rotate-180")}
+                className={cn("size-4 shrink-0 text-white/60 transition-transform", expanded === t.id && "rotate-180")}
                 aria-hidden
               />
             </button>
@@ -930,7 +930,7 @@ function PostEditor({
 
       <Field label="Excerpt (20–200 · cards + meta description)">
         <Textarea value={f.excerpt} rows={2} maxLength={200} onChange={(e) => setF({ ...f, excerpt: e.target.value })} className={inputCx} />
-        <p className="text-[10px] text-white/30">{f.excerpt.length}/200</p>
+        <p className="text-xs text-white/55">{f.excerpt.length}/200</p>
       </Field>
 
       <Field label="Body (markdown: ##, lists, **bold**, `code`, ``` blocks)">
@@ -940,7 +940,7 @@ function PostEditor({
           onChange={(e) => setF({ ...f, body: e.target.value })}
           className={cn(inputCx, "font-mono text-xs leading-relaxed")}
         />
-        <p className="text-[10px] text-white/30">
+        <p className="text-xs text-white/55">
           {f.body.split(/\s+/).filter(Boolean).length} words · ~
           {Math.max(1, Math.round(f.body.split(/\s+/).filter(Boolean).length / 220))} min read
         </p>
@@ -986,23 +986,23 @@ function PostEditor({
 
       {/* SEO panel */}
       <div className="rounded-xl border border-ember/25 bg-ember/[0.04] p-4">
-        <p className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.2em] text-ember uppercase">
+        <p className="flex items-center gap-1.5 font-mono text-xs tracking-[0.2em] text-ember uppercase">
           <BarChart3 className="size-3.5" aria-hidden /> SEO panel
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Field label="SEO title (≤60 — falls back to title)">
+          <Field label="SEO title (≤60, falls back to title)">
             <Input value={f.seoTitle} maxLength={70} onChange={(e) => setF({ ...f, seoTitle: e.target.value })} className={inputCx} />
-            <p className={cn("text-[10px]", seoTitle.length > 60 ? "text-red-400" : "text-white/30")}>
-              {seoTitle.length}/60 {seoTitle.length > 60 && "— will truncate in SERP"}
+            <p className={cn("text-xs", seoTitle.length > 60 ? "text-red-400" : "text-white/55")}>
+              {seoTitle.length}/60 {seoTitle.length > 60 && "(will truncate in SERP)"}
             </p>
           </Field>
           <Field label="Keywords (comma-separated)">
             <Input value={f.keywords} onChange={(e) => setF({ ...f, keywords: e.target.value })} className={inputCx} placeholder="evaluate ai tools, ai tool directory" />
           </Field>
           <div className="sm:col-span-2">
-            <Field label="SEO description (≤160 — falls back to excerpt)">
+            <Field label="SEO description (≤160, falls back to excerpt)">
               <Textarea value={f.seoDescription} rows={2} maxLength={170} onChange={(e) => setF({ ...f, seoDescription: e.target.value })} className={inputCx} />
-              <p className={cn("text-[10px]", seoDesc.length > 160 ? "text-red-400" : "text-white/30")}>
+              <p className={cn("text-xs", seoDesc.length > 160 ? "text-red-400" : "text-white/55")}>
                 {seoDesc.length}/160
               </p>
             </Field>
@@ -1011,17 +1011,17 @@ function PostEditor({
 
         {/* SERP preview */}
         <div className="mt-3 rounded-lg border border-white/10 bg-coal p-3.5">
-          <p className="font-mono text-[10px] tracking-widest text-white/30 uppercase">
+          <p className="font-mono text-xs tracking-widest text-white/55 uppercase">
             SERP preview
           </p>
-          <p className="mt-1.5 truncate text-[11px] text-emerald-400/90">
+          <p className="mt-1.5 truncate text-xs text-emerald-400/90">
             prother.dev › journal › {f.slug || "your-post-slug"}
           </p>
           <p className="mt-0.5 truncate text-base font-semibold text-white/90">
             {seoTitle || "Untitled post"}
           </p>
           <p className="mt-0.5 line-clamp-2 text-xs text-white/50">
-            {seoDesc || "Write an excerpt that earns the click — it doubles as the meta description."}
+            {seoDesc || "Write an excerpt that earns the click. It doubles as the meta description."}
           </p>
         </div>
       </div>
@@ -1030,7 +1030,7 @@ function PostEditor({
         <Button
           disabled={busy || !f.title || (isNew && f.body.trim().length < 50)}
           onClick={() => void save()}
-          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+          className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
         >
           {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
           Save {f.status === "published" && !isNew ? "(published)" : "draft"}
@@ -1117,13 +1117,13 @@ function BlogTab({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+        <p className="font-mono text-xs tracking-wider text-white/55 uppercase">
           {posts?.length ?? "…"} posts · drafts never render publicly
         </p>
         <Button
           size="sm"
           onClick={() => setEditing({ ...EMPTY_POST })}
-          className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+          className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
         >
           <Plus className="size-4" aria-hidden />
           New post
@@ -1140,14 +1140,14 @@ function BlogTab({
             <span aria-hidden className="text-lg">{p.coverEmoji}</span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-white">{p.title}</p>
-              <p className="truncate font-mono text-[10px] text-white/40">
+              <p className="truncate font-mono text-xs text-white/60">
                 /journal/{p.slug} · {p.category} · {p.readingMinutes} min · {p.views} views
-                {p.seoTitle || p.seoDescription || p.keywords ? " · SEO ✓" : " · SEO —"}
+                {p.seoTitle || p.seoDescription || p.keywords ? " · SEO ✓" : " · SEO ✕"}
               </p>
             </div>
             <span
               className={cn(
-                "rounded-full px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase",
+                "rounded-full px-2.5 py-1 font-mono text-xs tracking-wider uppercase",
                 p.status === "published"
                   ? "border border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
                   : "border border-white/15 bg-white/5 text-white/50"
@@ -1159,7 +1159,7 @@ function BlogTab({
               <button
                 type="button"
                 onClick={() => onPreview(p.slug)}
-                className="rounded-lg p-2 text-white/40 transition-colors hover:text-ember"
+                className="rounded-lg p-2 text-white/60 transition-colors hover:text-ember"
                 aria-label={`Preview ${p.title}`}
               >
                 <ExternalLink className="size-4" aria-hidden />
@@ -1185,7 +1185,7 @@ function BlogTab({
                   keywords: p.keywords ?? "",
                 })
               }
-              className="rounded-lg p-2 text-white/40 transition-colors hover:text-ember"
+              className="rounded-lg p-2 text-white/60 transition-colors hover:text-ember"
               aria-label={`Edit ${p.title}`}
             >
               <Pencil className="size-4" aria-hidden />
@@ -1193,8 +1193,8 @@ function BlogTab({
           </div>
         ))}
       </div>
-      <p className="font-mono text-[10px] leading-relaxed text-white/25">
-        METADATA-ONLY EDITS KEEP THE STORED MARKDOWN — REWRITE THE BODY FIELD TO
+      <p className="font-mono text-xs leading-relaxed text-white/55">
+        METADATA-ONLY EDITS KEEP THE STORED MARKDOWN · REWRITE THE BODY FIELD TO
         REPLACE IT. READING TIME RECOMPUTES ON BODY SAVE.
       </p>
     </div>
@@ -1291,8 +1291,8 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
               }
               className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white"
             />
-            <span className="font-mono text-[10px] text-white/35">{c.slug}</span>
-            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+            <span className="font-mono text-xs text-white/55">{c.slug}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-white/60">
               {c.toolCount} tools
             </span>
             <Button
@@ -1339,13 +1339,13 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
               })
             }
             placeholder="Name"
-            className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+            className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
           />
           <Input
             value={draft.slug}
             onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
             placeholder="slug"
-            className="w-40 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/25"
+            className="w-40 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
           />
           <Button
             disabled={!draft.name || draft.name.length < 2}
@@ -1354,7 +1354,7 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
                 if (ok) setDraft({ slug: "", name: "", emoji: "🧪" });
               });
             }}
-            className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+            className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
           >
             <Plus className="size-4" aria-hidden />
             Add
@@ -1401,7 +1401,7 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
       });
       const d = (await res.json()) as { ok?: boolean; updated?: number };
       if (res.ok && d.ok) {
-        toast({ title: "Site copy saved", description: `${d.updated} keys written — refresh to see it live.` });
+        toast({ title: "Site copy saved", description: `${d.updated} keys written. Refresh to see it live.` });
         setExtra({ key: "", value: "" });
         load();
         onChanged();
@@ -1445,13 +1445,13 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
             value={extra.key}
             onChange={(e) => setExtra({ ...extra, key: e.target.value })}
             placeholder="e.g. og.imageNote"
-            className="w-48 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/25"
+            className="w-48 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
           />
           <Input
             value={extra.value}
             onChange={(e) => setExtra({ ...extra, value: e.target.value })}
             placeholder="value"
-            className="flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/25"
+            className="flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
           />
         </div>
       </div>
@@ -1459,7 +1459,7 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
       <Button
         disabled={busy}
         onClick={() => void save()}
-        className="rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+        className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
       >
         {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
         Save site copy
@@ -1489,7 +1489,7 @@ function computeDelta(cur: number, prev: number): Delta {
 const DELTA_CX: Record<Delta["dir"], string> = {
   up: "bg-emerald-400/10 text-emerald-400/80",
   down: "bg-red-400/10 text-red-400/80",
-  flat: "bg-white/5 text-white/40",
+  flat: "bg-white/5 text-white/60",
 };
 
 function DeltaPill({ delta }: { delta: Delta }) {
@@ -1497,7 +1497,7 @@ function DeltaPill({ delta }: { delta: Delta }) {
     <span
       title={delta.title}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px]",
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs",
         DELTA_CX[delta.dir]
       )}
     >
@@ -1546,7 +1546,7 @@ function StatCard({
         accent ? "border-ember/40 bg-ember/[0.06]" : "border-white/10 bg-white/[0.02]"
       )}
     >
-      <p className="font-mono text-[10px] tracking-[0.2em] text-white/45 uppercase">
+      <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
         {label}
       </p>
       <p className="mt-1.5 text-3xl font-black tracking-tight text-white">
@@ -1557,7 +1557,7 @@ function StatCard({
         <div className="mt-2.5 flex min-h-5 flex-wrap items-center gap-2">
           {delta && <DeltaPill delta={delta} />}
           {caption && (
-            <span className="min-w-0 truncate font-mono text-[10px] text-white/30">
+            <span className="min-w-0 truncate font-mono text-xs text-white/55">
               {caption}
             </span>
           )}
@@ -1589,8 +1589,8 @@ function TrendChartCard({
   return (
     <Panel>
       <div className="flex items-center justify-between gap-2">
-        <p className={labelCx}>{label} — last 14 days</p>
-        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+        <p className={labelCx}>{label} · last 14 days</p>
+        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-white/60">
           {total} total
         </span>
       </div>
@@ -1621,8 +1621,8 @@ function TrendChartCard({
             <span
               key={i}
               className={cn(
-                "flex-1 text-center font-mono text-[8px]",
-                i === 13 ? "text-ember" : "text-white/30"
+                "flex-1 text-center font-mono text-xs",
+                i === 13 ? "text-ember" : "text-white/55"
               )}
             >
               {dayLabel(i)}
@@ -1655,7 +1655,7 @@ function CategoryMixCard({ mix }: { mix: { name: string; count: number }[] }) {
     <Panel>
       <div className="flex items-center justify-between gap-2">
         <p className={labelCx}>Category mix</p>
-        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-white/60">
           {total} live
         </span>
       </div>
@@ -1669,7 +1669,7 @@ function CategoryMixCard({ mix }: { mix: { name: string; count: number }[] }) {
                 style={{ backgroundColor: MIX_COLORS[i % MIX_COLORS.length] }}
               />
               <span className="min-w-0 flex-1 truncate text-sm text-white/70">{r.name}</span>
-              <span className="font-mono text-xs text-white/45">{r.count}</span>
+              <span className="font-mono text-xs text-white/60">{r.count}</span>
             </div>
             <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
               <div
@@ -1683,7 +1683,7 @@ function CategoryMixCard({ mix }: { mix: { name: string; count: number }[] }) {
           </div>
         ))}
         {rows.length === 0 && (
-          <p className="py-10 text-center text-sm text-white/30">No live listings yet.</p>
+          <p className="py-10 text-center text-sm text-white/55">No live listings yet.</p>
         )}
       </div>
     </Panel>
@@ -1725,25 +1725,25 @@ function PricingDonutCard({ mix }: { mix: { model: string; count: number }[] }) 
             <span className="text-2xl font-black tracking-tight text-white">
               {total.toLocaleString()}
             </span>
-            <span className="font-mono text-[8px] tracking-[0.2em] text-white/40 uppercase">
+            <span className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
               tools
             </span>
           </div>
         </div>
         <div className="w-full space-y-2">
           {rows.map((r) => (
-            <div key={r.model} className="flex items-center gap-2 font-mono text-[11px]">
+            <div key={r.model} className="flex items-center gap-2 font-mono text-xs">
               <span
                 aria-hidden
                 className="size-2 shrink-0 rounded-full"
                 style={{ backgroundColor: PRICING_COLORS[r.model] }}
               />
               <span className="flex-1 text-white/60">{r.model.replace("_", " ")}</span>
-              <span className="text-white/40">{r.count}</span>
+              <span className="text-white/60">{r.count}</span>
             </div>
           ))}
           {total === 0 && (
-            <p className="text-sm text-white/30">No live listings yet.</p>
+            <p className="text-sm text-white/55">No live listings yet.</p>
           )}
         </div>
       </div>
@@ -1764,22 +1764,22 @@ function ActivityCard({
     <Panel className={cn("flex min-w-0 flex-col", className)}>
       <div className="flex items-center justify-between gap-2">
         <p className={labelCx}>Recent activity</p>
-        <span className="font-mono text-[10px] text-white/30">audit trail</span>
+        <span className="font-mono text-xs text-white/55">audit trail</span>
       </div>
       <div className="mt-3 max-h-80 overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-white/10 hover:bg-transparent">
-              <TableHead className="h-8 font-mono text-[9px] tracking-[0.2em] text-white/35 uppercase">
+              <TableHead className="h-8 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
                 Time
               </TableHead>
-              <TableHead className="h-8 font-mono text-[9px] tracking-[0.2em] text-white/35 uppercase">
+              <TableHead className="h-8 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
                 Action
               </TableHead>
-              <TableHead className="hidden h-8 font-mono text-[9px] tracking-[0.2em] text-white/35 uppercase md:table-cell">
+              <TableHead className="hidden h-8 font-mono text-xs tracking-[0.2em] text-white/55 uppercase md:table-cell">
                 Target
               </TableHead>
-              <TableHead className="h-8 font-mono text-[9px] tracking-[0.2em] text-white/35 uppercase">
+              <TableHead className="h-8 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
                 Meta
               </TableHead>
             </TableRow>
@@ -1793,11 +1793,11 @@ function ActivityCard({
                     <div className="flex items-center gap-2.5">
                       <span
                         aria-hidden
-                        className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-ember/20 bg-ember/10 font-mono text-[10px] font-bold text-ember uppercase"
+                        className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-ember/20 bg-ember/10 font-mono text-xs font-bold text-ember uppercase"
                       >
                         {(a.entity || a.action).slice(0, 1)}
                       </span>
-                      <span className="whitespace-nowrap font-mono text-[10px] text-white/40">
+                      <span className="whitespace-nowrap font-mono text-xs text-white/60">
                         {d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
                         {" · "}
                         {d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}
@@ -1805,11 +1805,11 @@ function ActivityCard({
                     </div>
                   </TableCell>
                   <TableCell className="py-2.5">
-                    <span className="whitespace-nowrap rounded bg-ember/10 px-1.5 py-0.5 font-mono text-[10px] text-ember">
+                    <span className="whitespace-nowrap rounded bg-ember/10 px-1.5 py-0.5 font-mono text-xs text-ember">
                       {a.action}
                     </span>
                   </TableCell>
-                  <TableCell className="hidden py-2.5 font-mono text-[10px] text-white/50 md:table-cell">
+                  <TableCell className="hidden py-2.5 font-mono text-xs text-white/50 md:table-cell">
                     {a.entity}
                     {a.entityId ? `…${a.entityId.slice(-4)}` : ""}
                   </TableCell>
@@ -1821,7 +1821,7 @@ function ActivityCard({
             })}
             {audit.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-sm text-white/30">
+                <TableCell colSpan={4} className="py-10 text-center text-sm text-white/55">
                   No admin actions recorded yet.
                 </TableCell>
               </TableRow>
@@ -1842,7 +1842,7 @@ function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number 
       <div className="flex items-center justify-between gap-2">
         <p className={labelCx}>Queue aging</p>
         {oldest && ageH > QUEUE_SLA_H && (
-          <span className="rounded-full bg-red-400/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-red-400/80 uppercase">
+          <span className="rounded-full bg-red-400/10 px-2 py-0.5 font-mono text-xs tracking-wider text-red-400/80 uppercase">
             past SLA
           </span>
         )}
@@ -1851,7 +1851,7 @@ function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number 
         <>
           <p className="mt-3 text-3xl font-black tracking-tight text-white">
             {ageH}
-            <span className="ml-1 text-base font-bold text-white/40">h</span>
+            <span className="ml-1 text-base font-bold text-white/60">h</span>
           </p>
           <p className="mt-1 truncate text-xs text-white/50">
             oldest pending · <span className="text-white/80">{oldest}</span>
@@ -1861,7 +1861,7 @@ function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number 
             aria-label={`Oldest pending submission: ${ageH} hours of the ${QUEUE_SLA_H} hour SLA`}
             className="mt-4 h-1.5 bg-white/10 [&_[data-slot=progress-indicator]]:bg-ember"
           />
-          <p className="mt-2 font-mono text-[10px] text-white/30">
+          <p className="mt-2 font-mono text-xs text-white/55">
             SLA {QUEUE_SLA_H}h · {pct}% elapsed
           </p>
         </>
@@ -1869,7 +1869,7 @@ function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number 
         <div className="flex flex-col items-center py-8 text-center">
           <CheckCircle2 className="size-8 text-emerald-400" aria-hidden />
           <p className="mt-2.5 font-mono text-sm text-white/60">Queue clear</p>
-          <p className="mt-1 text-xs text-white/30">Nothing waiting on review.</p>
+          <p className="mt-1 text-xs text-white/55">Nothing waiting on review.</p>
         </div>
       )}
     </Panel>
@@ -2003,14 +2003,14 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
   return (
     <Panel>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className={labelCx}>Traffic — last 14 days</p>
+        <p className={labelCx}>Traffic, last 14 days</p>
         <div className="flex items-center gap-2">
-          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/60">
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-white/60">
             {traffic ? `${traffic.total.toLocaleString("en-US")} views` : "…"}
           </span>
           <span
             className={cn(
-              "rounded-full border px-2 py-0.5 font-mono text-[10px]",
+              "rounded-full border px-2 py-0.5 font-mono text-xs",
               today >= yesterday
                 ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
                 : "border-white/10 bg-white/5 text-white/50"
@@ -2024,13 +2024,13 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
 
       {error ? (
         <div className="mt-4 rounded-xl border border-red-400/25 bg-red-400/[0.04] p-5 text-center">
-          <p className="font-mono text-[10px] tracking-wider text-red-300 uppercase">
+          <p className="font-mono text-xs tracking-wider text-red-300 uppercase">
             Traffic readout unavailable
           </p>
           <Button
             size="sm"
             onClick={load}
-            className="mt-3 rounded-lg border border-white/15 bg-transparent font-mono text-[10px] tracking-wider text-white/70 uppercase hover:bg-white/5"
+            className="mt-3 rounded-lg border border-white/15 bg-transparent font-mono text-sm tracking-wider text-white/70 uppercase hover:bg-white/5"
           >
             <RotateCcw className="size-3.5" aria-hidden />
             Retry
@@ -2068,7 +2068,7 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
           </div>
 
           <div className="mt-4">
-            <p className="font-mono text-[10px] tracking-[0.2em] text-white/40 uppercase">
+            <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
               Top paths
             </p>
             <ul className="mt-2 space-y-1">
@@ -2077,7 +2077,7 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
                   key={t.path}
                   className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5"
                 >
-                  <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-white/70">
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-white/70">
                     {t.path}
                   </span>
                   <span
@@ -2094,7 +2094,7 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
                       }}
                     />
                   </span>
-                  <span className="w-14 shrink-0 text-right font-mono text-[10px] tabular-nums text-white/50">
+                  <span className="w-14 shrink-0 text-right font-mono text-xs tabular-nums text-white/50">
                     {t.views.toLocaleString("en-US")}
                   </span>
                 </li>
@@ -2102,8 +2102,8 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
             </ul>
           </div>
 
-          <p className="mt-3 font-mono text-[10px] leading-relaxed text-white/25">
-            COOKIELESS FIRST-PARTY COUNTING (PATH × DAY — NO COOKIES, IPS OR
+          <p className="mt-3 font-mono text-xs leading-relaxed text-white/55">
+            COOKIELESS FIRST-PARTY COUNTING (PATH × DAY, NO COOKIES, IPS OR
             FINGERPRINTS) · ADMIN/API/EDITOR SURFACES EXCLUDED
           </p>
         </>
@@ -2168,14 +2168,14 @@ const SECTION_TITLES: Record<SectionId, string> = {
 
 const SECTION_NOTES: Record<SectionId, string> = {
   overview: "Directory growth, moderation load, first-party traffic and the live audit trail.",
-  submissions: "Community queue — approval publishes the listing, rejections cite standards.",
+  submissions: "Community queue: approval publishes the listing, rejections cite standards.",
   tools: "Every listing: edit copy, pricing, status, pins and verification.",
-  categories: "Primary taxonomy — names, emoji, slugs, tool counts.",
-  users: "Community roster — roles, bans and activity, sessions revoke on ban.",
-  reports: "Community moderation queue — hide content, resolve or dismiss with a note.",
+  categories: "Primary taxonomy: names, emoji, slugs, tool counts.",
+  users: "Community roster: roles, bans and activity. Sessions revoke on ban.",
+  reports: "Community moderation queue: hide content, resolve or dismiss with a note.",
   journal: "SEO workhorse: markdown posts with drafts, SERP preview and views.",
-  ads: "Sponsored campaigns — placements, flights, budgets and CTR.",
-  settings: "KV site copy — hero, announcement, footer, SEO defaults. No deploys.",
+  ads: "Sponsored campaigns: placements, flights, budgets and CTR.",
+  settings: "KV site copy: hero, announcement, footer, SEO defaults. No deploys.",
 };
 
 // ── Shell: sidebar ───────────────────────────────────────────────────────
@@ -2202,7 +2202,7 @@ function SidebarContent({
       <a
         href="/"
         className="flex shrink-0 items-center gap-2.5 rounded-lg px-1 py-1"
-        aria-label="Prother — back to home page"
+        aria-label="Back to the Prother home page"
       >
         <span
           aria-hidden
@@ -2211,7 +2211,7 @@ function SidebarContent({
           <Hexagon className="size-4 text-ember" />
         </span>
         <span className="text-base font-black tracking-tight text-white">Prother</span>
-        <span className="rounded border border-ember/30 bg-ember/10 px-1.5 py-px font-mono text-[9px] tracking-[0.2em] text-ember">
+        <span className="rounded border border-ember/30 bg-ember/10 px-1.5 py-px font-mono text-xs tracking-[0.2em] text-ember">
           ADMIN
         </span>
       </a>
@@ -2219,7 +2219,7 @@ function SidebarContent({
       {/* jump-to search (filters nav) */}
       <div className="relative mt-4 shrink-0">
         <Search
-          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/30"
+          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/55"
           aria-hidden
         />
         <Input
@@ -2227,12 +2227,12 @@ function SidebarContent({
           onChange={(e) => setQ(e.target.value)}
           placeholder="Jump to…"
           aria-label="Filter admin sections"
-          className="h-9 border-white/10 bg-white/5 pl-8 pr-10 text-sm text-white placeholder:text-white/25"
+          className="h-9 border-white/10 bg-white/5 pl-8 pr-10 text-sm text-white placeholder:text-white/55"
         />
         <kbd
           aria-hidden
           title="Filters the sections below"
-          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-white/10 bg-white/5 px-1 font-mono text-[9px] text-white/35"
+          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-white/10 bg-white/5 px-1 font-mono text-xs text-white/55"
         >
           ⌘K
         </kbd>
@@ -2242,7 +2242,7 @@ function SidebarContent({
       <nav aria-label="Admin sections" className="mt-5 flex-1 space-y-5">
         {groups.map((g) => (
           <div key={g.label}>
-            <p className="px-2 pb-1.5 font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">
+            <p className="px-2 pb-1.5 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
               {g.label}
             </p>
             <div className="space-y-0.5">
@@ -2270,7 +2270,7 @@ function SidebarContent({
                     <item.icon className="size-4 shrink-0" aria-hidden />
                     <span className="truncate">{item.label}</span>
                     {item.id === "submissions" && pending > 0 && (
-                      <span className="ml-auto rounded-full bg-ember px-1.5 py-px font-mono text-[9px] font-bold text-black">
+                      <span className="ml-auto rounded-full bg-ember px-1.5 py-px font-mono text-xs font-bold text-coal">
                         {pending}
                       </span>
                     )}
@@ -2281,7 +2281,7 @@ function SidebarContent({
           </div>
         ))}
         {groups.length === 0 && (
-          <p className="px-2 py-4 font-mono text-[10px] tracking-wider text-white/25 uppercase">
+          <p className="px-2 py-4 font-mono text-xs tracking-wider text-white/55 uppercase">
             No section matches “{q.trim()}”
           </p>
         )}
@@ -2289,7 +2289,7 @@ function SidebarContent({
 
       {/* promo card — honest pointer to the home-page editor desk */}
       <div className="mt-5 shrink-0 rounded-xl border border-ember/25 bg-ember/[0.06] p-3.5">
-        <p className="font-mono text-[9px] tracking-[0.25em] text-ember uppercase">
+        <p className="font-mono text-xs tracking-[0.25em] text-ember uppercase">
           Editor desk
         </p>
         <p className="mt-1.5 text-xs leading-relaxed text-white/55">
@@ -2298,11 +2298,11 @@ function SidebarContent({
         </p>
         <a
           href="/"
-          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-2.5 py-1.5 font-mono text-[10px] tracking-[0.15em] text-ember uppercase transition-colors hover:bg-ember/20"
+          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-2.5 py-1.5 font-mono text-sm tracking-[0.15em] text-ember uppercase transition-colors hover:bg-ember/20"
         >
           Open on home
         </a>
-        <p className="mt-2 text-center font-mono text-[9px] text-white/30">
+        <p className="mt-2 text-center font-mono text-xs text-white/55">
           or press ⌘⇧E on the home page
         </p>
       </div>
@@ -2410,7 +2410,7 @@ export function AdminDashboard() {
                 <Menu className="size-4.5" aria-hidden />
               </Button>
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-[9px] tracking-[0.3em] text-ember uppercase">
+                <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
                   Prother admin
                 </p>
                 <h1 className="truncate text-xl font-black tracking-tight text-white sm:text-2xl">
@@ -2420,10 +2420,10 @@ export function AdminDashboard() {
               <span
                 aria-live="polite"
                 className={cn(
-                  "hidden items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[9px] tracking-[0.2em] uppercase sm:inline-flex",
+                  "hidden items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-xs tracking-[0.2em] uppercase sm:inline-flex",
                   key
                     ? "border-ember/30 bg-ember/10 text-ember"
-                    : "border-white/10 bg-white/5 text-white/40"
+                    : "border-white/10 bg-white/5 text-white/60"
                 )}
               >
                 <span
@@ -2456,21 +2456,21 @@ export function AdminDashboard() {
               <Gate onUnlock={unlock} />
             ) : section === "overview" ? (
               <section aria-label="Overview" className="space-y-3">
-                <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                <p className="font-mono text-xs tracking-wider text-white/55 uppercase">
                   {SECTION_NOTES.overview}
                 </p>
                 {overviewError ? (
                   <div className="rounded-2xl border border-red-400/25 bg-red-400/[0.04] p-10 text-center">
-                    <p className="font-mono text-[10px] tracking-[0.25em] text-red-300 uppercase">
+                    <p className="font-mono text-xs tracking-[0.25em] text-red-300 uppercase">
                       Overview unavailable
                     </p>
                     <p className="mx-auto mt-2 max-w-sm text-sm text-white/60">
-                      Couldn&apos;t load dashboard data — check the admin key or
+                      Couldn&apos;t load dashboard data. Check the admin key or
                       network, then retry.
                     </p>
                     <Button
                       onClick={retryOverview}
-                      className="mt-5 rounded-lg bg-ember font-semibold text-black shadow-none hover:bg-ember-hot dark:text-black"
+                      className="mt-5 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
                     >
                       <RotateCcw className="size-4" aria-hidden />
                       Retry
@@ -2484,7 +2484,7 @@ export function AdminDashboard() {
               </section>
             ) : (
               <section aria-label={SECTION_TITLES[section]} className="space-y-3">
-                <p className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                <p className="font-mono text-xs tracking-wider text-white/55 uppercase">
                   {SECTION_NOTES[section]}
                 </p>
                 <Panel>

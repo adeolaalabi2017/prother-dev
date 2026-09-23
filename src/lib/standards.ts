@@ -39,6 +39,6 @@ export const STANDARD_DEFS: ReadonlyArray<{ id: string; title: string; blurb: st
   {
     id: "S6",
     title: "English listing",
-    blurb: "The tool may serve any market — the listing itself is in English.",
+    blurb: "The tool may serve any market. The listing itself is in English.",
   },
 ];

@@ -13,6 +13,7 @@ import { listPublishedReviews, reviewStats } from "@/lib/community";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { ToolDetailActions } from "@/components/prother/tool-detail-actions";
+import { AboutClamp } from "@/components/prother/about-clamp";
 
 /**
  * /tools/[slug] — the real, crawlable tool detail page (Task 25).
@@ -68,12 +69,12 @@ function pricingLine(model: string, price: string | null): string {
 /** Mono chip shared by badges / tags / ratings. */
 function chipCx(extra?: string): string {
   return cn(
-    "inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase",
+    "inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider uppercase",
     extra
   );
 }
 
-const SECTION_HEAD = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+const SECTION_HEAD = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 
 // ── Metadata ──────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   // Unknown slug or removed/unlisted tool → 404 covers the meta too.
   if (!tool || tool.status !== "live") notFound();
 
-  const title = `${tool.name} — ${tool.tagline} | Prother`;
+  const title = `${tool.name} · ${tool.tagline} | Prother`;
   const description = clamp(
     `Listed on Prother · ${tool.category.name} · ${pricingLine(tool.pricingModel, tool.startingPrice)}. ${tool.description || tool.tagline}`,
     200,
@@ -302,7 +303,7 @@ export default async function ToolPage({ params }: Params) {
                   Curated
                 </li>
               )}
-              {!tool.claimed && <li className={chipCx("text-white/40")}>Unclaimed</li>}
+              {!tool.claimed && <li className={chipCx("text-white/60")}>Unclaimed</li>}
               {tool.hasApi && <li className={chipCx("text-white/60")}>API ✓</li>}
               {tool.pricingModel === "open_source" && (
                 <li className={chipCx("text-white/60")}>Open source</li>
@@ -313,15 +314,15 @@ export default async function ToolPage({ params }: Params) {
             </ul>
 
             {/* Mono meta line: pricing · maker · listed date (UTC, static) */}
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-wider text-white/45">
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs uppercase tracking-wider text-white/60">
               <span title={tool.pricingNote ?? undefined} className="text-ember">
                 {pricingLine(tool.pricingModel, tool.startingPrice)}
               </span>
-              <span aria-hidden className="text-white/25">
+              <span aria-hidden className="text-white/55">
                 ·
               </span>
               <span>{tool.makerHandle}</span>
-              <span aria-hidden className="text-white/25">
+              <span aria-hidden className="text-white/55">
                 ·
               </span>
               <span>Listed {utcMonthYear(tool.createdAt)}</span>
@@ -331,18 +332,18 @@ export default async function ToolPage({ params }: Params) {
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={`/categories/${tool.category.slug}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-sm tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
               >
                 <span aria-hidden>{tool.category.emoji}</span>
                 {tool.category.name}
               </Link>
               {aggregate ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember uppercase">
+                <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
                   <Star className="size-2.5 fill-current" aria-hidden />
                   {aggregate.overall}/5 · {aggregate.count} reviews
                 </span>
               ) : (
-                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/50 uppercase">
+                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/50 uppercase">
                   {stats.count} reviews
                 </span>
               )}
@@ -360,9 +361,7 @@ export default async function ToolPage({ params }: Params) {
           {tool.description && (
             <section aria-label={`About ${name}`} className="space-y-3">
               <h2 className={SECTION_HEAD}>About {name}</h2>
-              <p className="text-[15px] leading-relaxed whitespace-pre-line text-white/80 sm:text-base">
-                {tool.description}
-              </p>
+              <AboutClamp text={tool.description} />
             </section>
           )}
 
@@ -388,7 +387,7 @@ export default async function ToolPage({ params }: Params) {
                 href={tool.websiteUrl}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
-                className="inline-flex items-center gap-2 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-ember transition-colors hover:bg-ember/20"
+                className="inline-flex items-center gap-2 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-sm font-semibold uppercase tracking-wider text-ember transition-colors hover:bg-ember/20"
               >
                 Visit website
                 <ArrowUpRight className="size-3.5" aria-hidden />
@@ -398,7 +397,7 @@ export default async function ToolPage({ params }: Params) {
                   href={tool.githubUrl}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-sm tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
                 >
                   GitHub
                   <ArrowUpRight className="size-3" aria-hidden />
@@ -409,7 +408,7 @@ export default async function ToolPage({ params }: Params) {
                   href={tool.docsUrl}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-sm tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
                 >
                   Docs
                   <ArrowUpRight className="size-3" aria-hidden />
@@ -420,7 +419,7 @@ export default async function ToolPage({ params }: Params) {
                   href={tool.twitterUrl}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-sm tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
                 >
                   Twitter
                   <ArrowUpRight className="size-3" aria-hidden />
@@ -437,9 +436,9 @@ export default async function ToolPage({ params }: Params) {
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-white/10 bg-white/[0.02] p-4">
                 <span className="text-2xl font-black tabular-nums text-ember">
                   {aggregate.overall}
-                  <span className="text-sm text-white/35">/5</span>
+                  <span className="text-sm text-white/55">/5</span>
                 </span>
-                <span className="font-mono text-[10px] tracking-wider text-white/40 uppercase">
+                <span className="font-mono text-xs tracking-wider text-white/60 uppercase">
                   {aggregate.count} verified reviews
                 </span>
                 <span className="flex flex-wrap items-center gap-1.5">
@@ -452,7 +451,7 @@ export default async function ToolPage({ params }: Params) {
 
             {reviews.length === 0 ? (
               <p className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-sm text-white/50">
-                No reviews yet — be the first after you&apos;ve tried it.
+                No reviews yet. Be the first after you&apos;ve tried it.
               </p>
             ) : (
               <ul className="space-y-3">
@@ -465,10 +464,10 @@ export default async function ToolPage({ params }: Params) {
                       <span className="font-mono text-xs font-semibold tracking-wider text-ember">
                         {r.author}
                       </span>
-                      <span aria-hidden className="text-white/25">
+                      <span aria-hidden className="text-white/55">
                         ·
                       </span>
-                      <span className="font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                      <span className="font-mono text-xs tracking-wider text-white/55 uppercase">
                         {utcDateLabel(r.createdAt)}
                       </span>
                       <span className="ml-auto flex items-center gap-1.5">
@@ -498,19 +497,19 @@ export default async function ToolPage({ params }: Params) {
                       className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                     >
                       <MessagesSquare
-                        className="size-4 shrink-0 text-white/35 transition-colors group-hover:text-ember"
+                        className="size-4 shrink-0 text-white/55 transition-colors group-hover:text-ember"
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-white/85 transition-colors group-hover:text-ember">
                           {t.title}
                         </span>
-                        <span className="mt-0.5 block font-mono text-[10px] tracking-wider text-white/35 uppercase">
+                        <span className="mt-0.5 block font-mono text-xs tracking-wider text-white/55 uppercase">
                           {t.author} · {utcDateLabel(t.createdAt)}
                         </span>
                       </span>
                       <ArrowUpRight
-                        className="size-4 shrink-0 text-white/25 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+                        className="size-4 shrink-0 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
                         aria-hidden
                       />
                     </Link>
@@ -520,7 +519,7 @@ export default async function ToolPage({ params }: Params) {
             )}
             <Link
               href="/forums"
-              className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-ember transition-colors hover:text-ember-hot"
+              className="inline-flex items-center gap-1.5 font-mono text-sm font-semibold uppercase tracking-wider text-ember transition-colors hover:text-ember-hot"
             >
               Start a discussion
               <ArrowUpRight className="size-3.5" aria-hidden />
@@ -536,7 +535,7 @@ export default async function ToolPage({ params }: Params) {
                   <Link
                     key={r.slug}
                     href={`/tools/${r.slug}`}
-                    aria-label={`Open ${r.name} — ${r.tagline}`}
+                    aria-label={`Open ${r.name}: ${r.tagline}`}
                     className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                   >
                     <span
@@ -555,14 +554,14 @@ export default async function ToolPage({ params }: Params) {
                       {r.editorsPick && (
                         <span
                           aria-label="Editor's Pick"
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[10px] tracking-wider text-ember uppercase"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase"
                         >
                           <Star className="size-2.5 fill-current" aria-hidden />
                           Pick
                         </span>
                       )}
                     </span>
-                    <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/45">
+                    <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
                       {r.tagline}
                     </span>
                   </Link>
@@ -576,7 +575,7 @@ export default async function ToolPage({ params }: Params) {
         <p className="mt-14 border-t border-white/10 pt-6">
           <Link
             href="/tools"
-            className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.2em] text-white/40 uppercase transition-colors hover:text-ember"
+            className="inline-flex items-center gap-1.5 font-mono text-sm tracking-[0.2em] text-white/60 uppercase transition-colors hover:text-ember"
           >
             <Check className="size-3.5" aria-hidden />
             Browse all AI tools on Prother

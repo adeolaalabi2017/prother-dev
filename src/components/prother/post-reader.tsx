@@ -46,7 +46,7 @@ type RelatedPost = {
 };
 
 const DEFAULT_TITLE =
-  typeof document !== "undefined" ? document.title : "Prother — Find the right AI tool.";
+  typeof document !== "undefined" ? document.title : "Prother · Find the right AI tool.";
 
 function dateLabel(iso: string | null): string {
   if (!iso) return "Unpublished";
@@ -204,11 +204,11 @@ export function PostReader() {
                 {post.coverEmoji}
               </div>
               <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] tracking-[0.25em] text-ember uppercase">
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tracking-[0.25em] text-ember uppercase">
                   <span className="inline-flex items-center gap-1">
                     <Feather className="size-3" aria-hidden /> Prother Journal
                   </span>
-                  <span className="text-white/30">{post.category}</span>
+                  <span className="text-white/55">{post.category}</span>
                 </p>
                 <h2 className="mt-1.5 text-xl leading-tight font-black tracking-tight text-white sm:text-2xl">
                   {post.title}
@@ -217,7 +217,7 @@ export function PostReader() {
             </div>
 
             {/* meta row */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-white/10 bg-white/[0.02] px-6 py-2.5 font-mono text-[10px] tracking-wider text-white/45 uppercase sm:px-8">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-white/10 bg-white/[0.02] px-6 py-2.5 font-mono text-xs tracking-wider text-white/60 uppercase sm:px-8">
               <span className="inline-flex items-center gap-1">
                 <CalendarDays className="size-3" aria-hidden />
                 {dateLabel(post.publishedAt)}
@@ -232,7 +232,7 @@ export function PostReader() {
                 variant="ghost"
                 size="sm"
                 onClick={() => void share()}
-                className="ml-auto h-7 gap-1.5 rounded-md px-2 font-mono text-[10px] tracking-wider text-ember uppercase hover:bg-ember/10 hover:text-ember"
+                className="ml-auto h-7 gap-1.5 rounded-md px-2 font-mono text-sm tracking-wider text-ember uppercase hover:bg-ember/10 hover:text-ember"
               >
                 <Link2 className="size-3" aria-hidden /> Copy link
               </Button>
@@ -250,7 +250,7 @@ export function PostReader() {
                   {post.tags.map((t) => (
                     <span
                       key={t}
-                      className="rounded-full border border-white/15 px-3 py-1 font-mono text-[10px] tracking-wider text-white/50 uppercase"
+                      className="rounded-full border border-white/15 px-3 py-1 font-mono text-xs tracking-wider text-white/50 uppercase"
                     >
                       #{t}
                     </span>
@@ -260,7 +260,7 @@ export function PostReader() {
 
               {related.length > 0 && (
                 <div className="mt-10 border-t border-white/10 pt-6">
-                  <p className="font-mono text-[10px] tracking-[0.25em] text-white/40 uppercase">
+                  <p className="font-mono text-xs tracking-[0.25em] text-white/60 uppercase">
                     Keep reading
                   </p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -277,7 +277,7 @@ export function PostReader() {
                         <p className="mt-2 line-clamp-2 text-xs leading-snug font-semibold text-white/85 group-hover:text-ember">
                           {r.title}
                         </p>
-                        <p className="mt-1.5 font-mono text-[9px] tracking-wider text-white/35 uppercase">
+                        <p className="mt-1.5 font-mono text-xs tracking-wider text-white/55 uppercase">
                           {r.readingMinutes} min · {r.category}
                         </p>
                       </button>
@@ -286,7 +286,7 @@ export function PostReader() {
                 </div>
               )}
 
-              <p className="mt-10 font-mono text-[10px] leading-relaxed tracking-wider text-white/25 uppercase">
+              <p className="mt-10 font-mono text-xs leading-relaxed tracking-wider text-white/55 uppercase">
                 Published {dateLabel(post.publishedAt)} · {post.views} views ·
                 Permalink: /?post={post.slug}
               </p>

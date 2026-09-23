@@ -8,7 +8,7 @@ import { AdminDashboard } from "@/components/prother/admin-console";
  * /api/admin/** route enforces the key server-side anyway.
  */
 export const metadata: Metadata = {
-  title: "Admin — Prother",
+  title: "Admin · Prother",
   robots: { index: false, follow: false },
 };
 

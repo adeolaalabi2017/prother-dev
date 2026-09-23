@@ -113,12 +113,12 @@ export function ReportDialog(props: {
         return;
       }
       if (res.status === 400 || res.status === 422) {
-        setError("Something went wrong — try again in a moment.");
+        setError("Something went wrong. Try again in a moment.");
         setPhase("form");
         return;
       }
       if (!res.ok) {
-        setError("Something went wrong — try again in a moment.");
+        setError("Something went wrong. Try again in a moment.");
         setPhase("form");
         return;
       }
@@ -131,7 +131,7 @@ export function ReportDialog(props: {
         closeSoon(1600);
       }
     } catch {
-      setError("Something went wrong — try again in a moment.");
+      setError("Something went wrong. Try again in a moment.");
       setPhase("form");
     }
   };
@@ -164,16 +164,16 @@ export function ReportDialog(props: {
               <Check className="size-5 text-mint" />
             </span>
             <p className="text-sm font-semibold text-white">
-              {phase === "already" ? "Already reported — thanks" : "Thanks — our moderators will take a look"}
+              {phase === "already" ? "Already reported, thanks" : "Thanks. Our moderators will take a look"}
             </p>
-            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/35">
+            <p className="font-mono text-xs uppercase tracking-[0.25em] text-white/55">
               {phase === "already" ? "One report is enough" : "Closing…"}
             </p>
           </div>
         ) : (
           <div className="space-y-4 p-5">
             <fieldset>
-              <legend className="font-mono text-[11px] uppercase tracking-wider text-white/50">
+              <legend className="font-mono text-xs uppercase tracking-wider text-white/50">
                 What&apos;s wrong?
               </legend>
               <RadioGroup
@@ -200,7 +200,7 @@ export function ReportDialog(props: {
                     />
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold text-white/90">{r.label}</span>
-                      <span className="mt-0.5 block text-xs leading-snug text-white/45">{r.hint}</span>
+                      <span className="mt-0.5 block text-xs leading-snug text-white/60">{r.hint}</span>
                     </span>
                   </label>
                 ))}
@@ -210,7 +210,7 @@ export function ReportDialog(props: {
             <div>
               <label
                 htmlFor="report-details"
-                className="font-mono text-[11px] uppercase tracking-wider text-white/50"
+                className="font-mono text-xs uppercase tracking-wider text-white/50"
               >
                 Details (optional)
               </label>
@@ -220,10 +220,10 @@ export function ReportDialog(props: {
                 onChange={(e) => setDetails(e.target.value.slice(0, DETAILS_MAX))}
                 rows={3}
                 maxLength={DETAILS_MAX}
-                placeholder="Anything that helps the moderators — links, context, what happened."
-                className="mt-1.5 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/30 focus-visible:border-ember/50 focus-visible:ring-ember/30"
+                placeholder="Anything that helps the moderators: links, context, what happened."
+                className="mt-1.5 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/30"
               />
-              <p className="mt-1 font-mono text-[10px] text-white/30">
+              <p className="mt-1 font-mono text-xs text-white/55">
                 {details.length}/{DETAILS_MAX}
               </p>
             </div>
@@ -247,7 +247,7 @@ export function ReportDialog(props: {
                 type="button"
                 onClick={() => void submit()}
                 disabled={!reason || phase === "submitting"}
-                className="bg-ember text-black hover:bg-ember-hot disabled:opacity-50"
+                className="bg-ember text-coal hover:bg-ember-hot disabled:opacity-50"
               >
                 {phase === "submitting" && (
                   <Loader2 className="size-3.5 animate-spin" aria-hidden />

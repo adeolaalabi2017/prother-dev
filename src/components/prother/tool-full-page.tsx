@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { AboutClamp } from "@/components/prother/about-clamp";
 import {
   Collapsible,
   CollapsibleContent,
@@ -106,7 +107,7 @@ type CollectionRow = {
 
 // ── Shared bits ───────────────────────────────────────────────────────────
 
-const MONO = "font-mono text-[10px] uppercase tracking-[0.25em] text-white/40";
+const MONO = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 const PANEL = "rounded-xl border border-white/10 bg-white/[0.02]";
 
 const PRICING_LABEL: Record<string, string> = {
@@ -153,7 +154,7 @@ function Stars({ value, size = 3.5 }: { value: number; size?: number }) {
           aria-hidden
           style={{ width: size * 4, height: size * 4 }}
           className={cn(
-            i <= Math.round(value) ? "fill-ember text-ember" : "text-white/25"
+            i <= Math.round(value) ? "fill-ember text-ember" : "text-white/55"
           )}
         />
       ))}
@@ -233,7 +234,7 @@ function FactsRail({ detail }: { detail: ToolFullDetail }) {
             </span>
           )}
           {detail.pricing.note && (
-            <span className="mt-0.5 block text-xs text-white/45">
+            <span className="mt-0.5 block text-xs text-white/60">
               {detail.pricing.note}
             </span>
           )}
@@ -262,7 +263,7 @@ function FactsRail({ detail }: { detail: ToolFullDetail }) {
           </Fact>
         )}
         <Fact label="Claimed">
-          <span className={verified.ok ? "text-mint" : "text-white/35"}>
+          <span className={verified.ok ? "text-mint" : "text-white/55"}>
             {verified.label}
           </span>
         </Fact>
@@ -284,7 +285,7 @@ type StartedClaim = {
 const DEFAULT_CLAIM_STEPS = [
   "Add the meta tag below to your site's <head> section.",
   "Deploy or save the change so the tag is live on your homepage.",
-  "Hit VERIFY NOW — we fetch your page and look for the tag.",
+  "Hit VERIFY NOW: we fetch your page and look for the tag.",
 ];
 
 function ClaimPanel({
@@ -339,7 +340,7 @@ function ClaimPanel({
         });
         return;
       }
-      toast({ title: "Claim started — add the meta tag to your site." });
+      toast({ title: "Claim started: add the meta tag to your site." });
       onRefresh();
     } catch {
       toast({
@@ -376,7 +377,7 @@ function ClaimPanel({
         setFailReason(data.reason ?? "We couldn't find the meta tag on your site yet.");
       }
     } catch {
-      setFailReason("Verification request failed — please try again.");
+      setFailReason("Verification request failed. Please try again.");
     } finally {
       setVerifying(false);
     }
@@ -388,7 +389,7 @@ function ClaimPanel({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      toast({ title: "Could not copy — select the tag manually.", variant: "destructive" });
+      toast({ title: "Could not copy. Select the tag manually.", variant: "destructive" });
     }
   }, [metaTag, toast]);
 
@@ -402,7 +403,7 @@ function ClaimPanel({
         <Button
           type="button"
           onClick={openAuth}
-          className="h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+          className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
         >
           SIGN IN TO CLAIM →
         </Button>
@@ -415,7 +416,7 @@ function ClaimPanel({
     return (
       <div className="rounded-xl border border-ember/30 bg-ember/[0.05] p-4">
         <p className="text-sm text-white/70">
-          Start a claim — we&apos;ll generate a verification meta tag for{" "}
+          Start a claim: we&apos;ll generate a verification meta tag for{" "}
           <span className="text-white">{maker}</span> to place on the product
           site.
         </p>
@@ -423,7 +424,7 @@ function ClaimPanel({
           type="button"
           onClick={() => void startClaim()}
           disabled={starting}
-          className="mt-3 h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+          className="mt-3 h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
         >
           {starting ? (
             <>
@@ -451,7 +452,7 @@ function ClaimPanel({
         <p className={MONO}>OWNERSHIP CLAIM</p>
         <span
           className={cn(
-            "rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wider",
+            "rounded-full border px-2 py-0.5 font-mono text-xs tracking-wider",
             verified
               ? "border-mint/40 bg-mint/10 text-mint"
               : claim.status === "failed"
@@ -465,7 +466,7 @@ function ClaimPanel({
 
       {verified ? (
         <p className="mt-2 text-sm text-mint">
-          ✓ Verified — this listing is yours.
+          ✓ Verified: this listing is yours.
         </p>
       ) : (
         <>
@@ -479,7 +480,7 @@ function ClaimPanel({
           </ol>
 
           <div className="mt-3 flex items-start gap-2">
-            <code className="min-w-0 flex-1 break-all rounded-lg border border-white/10 bg-black/40 p-2.5 font-mono text-[11px] text-white/80">
+            <code className="min-w-0 flex-1 break-all rounded-lg border border-white/10 bg-black/40 p-2.5 font-mono text-xs text-white/80">
               {metaTag}
             </code>
             <Button
@@ -508,7 +509,7 @@ function ClaimPanel({
               type="button"
               onClick={() => void onVerify()}
               disabled={verifying}
-              className="h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+              className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
             >
               {verifying ? (
                 <>
@@ -518,7 +519,7 @@ function ClaimPanel({
                 "VERIFY NOW"
               )}
             </Button>
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-white/55">
               False claims fail by design · disputes → editor arbitration
             </p>
           </div>
@@ -557,7 +558,7 @@ function StarPicker({
               aria-hidden
               className={cn(
                 "size-5",
-                n <= value ? "fill-ember text-ember" : "text-white/30"
+                n <= value ? "fill-ember text-ember" : "text-white/55"
               )}
             />
           </button>
@@ -570,7 +571,7 @@ function StarPicker({
 function DimBar({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-12 shrink-0 font-mono text-[10px] tracking-[0.2em] text-white/40">
+      <span className="w-12 shrink-0 font-mono text-xs tracking-[0.2em] text-white/60">
         {label}
       </span>
       <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
@@ -579,7 +580,7 @@ function DimBar({ label, value }: { label: string; value: number }) {
           style={{ width: `${Math.max(4, Math.min(100, (value / 5) * 100))}%` }}
         />
       </div>
-      <span className="w-7 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/70">
+      <span className="w-7 shrink-0 text-right font-mono text-xs tabular-nums text-white/70">
         {value.toFixed(1)}
       </span>
     </div>
@@ -693,7 +694,7 @@ function ReviewsSection({
               }
             : prev
         );
-        toast({ title: isUpdate ? "Review updated" : "Review posted — thanks!" });
+        toast({ title: isUpdate ? "Review updated" : "Review posted. Thanks!" });
         onRefreshTool();
       } else if (res.status === 401) {
         openAuth();
@@ -708,7 +709,7 @@ function ReviewsSection({
         setErrors([msg]);
       }
     } catch {
-      setErrors(["Could not submit the review — please try again."]);
+      setErrors(["Could not submit the review. Please try again."]);
     } finally {
       setSubmitting(false);
     }
@@ -719,11 +720,11 @@ function ReviewsSection({
       ? "text-red-400"
       : body.length >= REVIEW_BODY_MAX * 0.8
         ? "text-ember"
-        : "text-white/35";
+        : "text-white/55";
 
   return (
     <section aria-label="Reviews" className="space-y-4">
-      <SectionHead right={<span className="font-mono text-[10px] text-white/30">MODERATED · HONEST ONLY</span>}>
+      <SectionHead right={<span className="font-mono text-xs text-white/55">MODERATED · HONEST ONLY</span>}>
         Reviews ({count})
       </SectionHead>
 
@@ -738,7 +739,7 @@ function ReviewsSection({
             <div className="mt-1 flex justify-center">
               <Stars value={aggregate.overall} />
             </div>
-            <p className="mt-1 font-mono text-[10px] text-white/40">
+            <p className="mt-1 font-mono text-xs text-white/60">
               {aggregate.count} REVIEWS
             </p>
           </div>
@@ -750,9 +751,9 @@ function ReviewsSection({
         </div>
       )}
       {!loading && !loadErr && !aggregate && (
-        <p className={cn(PANEL, "p-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/45")}>
+        <p className={cn(PANEL, "p-4 font-mono text-xs uppercase tracking-[0.2em] text-white/60")}>
           {count === 0
-            ? "No reviews yet — be the first after you've tried it."
+            ? "No reviews yet. Be the first after you've tried it."
             : `Ratings unlock at 3 reviews · ${count} so far`}
         </p>
       )}
@@ -778,25 +779,25 @@ function ReviewsSection({
                   {r.author}
                 </span>
                 {r.status === "filtered" && r.mine && (
-                  <span className="rounded-full border border-white/20 bg-white/5 px-1.5 py-px font-mono text-[9px] tracking-wider text-white/50">
+                  <span className="rounded-full border border-white/20 bg-white/5 px-1.5 py-px font-mono text-xs tracking-wider text-white/50">
                     IN MODERATION
                   </span>
                 )}
-                <span className="ml-auto font-mono text-[10px] text-white/35">
+                <span className="ml-auto font-mono text-xs text-white/55">
                   {fmtDay(r.createdAt)}
                 </span>
               </div>
               <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="font-mono text-[9px] tracking-widest text-white/35">EASE</span>
+                  <span className="font-mono text-xs tracking-widest text-white/55">EASE</span>
                   <Stars value={r.ease} size={2.5} />
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="font-mono text-[9px] tracking-widest text-white/35">POWER</span>
+                  <span className="font-mono text-xs tracking-widest text-white/55">POWER</span>
                   <Stars value={r.power} size={2.5} />
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="font-mono text-[9px] tracking-widest text-white/35">VALUE</span>
+                  <span className="font-mono text-xs tracking-widest text-white/55">VALUE</span>
                   <Stars value={r.value} size={2.5} />
                 </span>
               </div>
@@ -815,13 +816,13 @@ function ReviewsSection({
           <Button
             type="button"
             onClick={openAuth}
-            className="h-10 bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+            className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
           >
             SIGN IN TO REVIEW →
           </Button>
         </div>
       ) : data?.reason === "maker" || isMaker ? (
-        <p className={cn(PANEL, "p-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/40")}>
+        <p className={cn(PANEL, "p-4 font-mono text-xs uppercase tracking-[0.2em] text-white/60")}>
           Makers can&apos;t review their own product
         </p>
       ) : data?.canReview ? (
@@ -838,14 +839,14 @@ function ReviewsSection({
               value={body}
               onChange={(e) => setBody(e.target.value.slice(0, REVIEW_BODY_MAX))}
               rows={4}
-              placeholder="Honest, specific, useful — what does this tool actually do well or badly?"
-              className="resize-none border-white/10 bg-transparent text-sm text-white placeholder:text-white/30 focus-visible:border-ember/50"
+              placeholder="Honest, specific, useful: what does this tool actually do well or badly?"
+              className="resize-none border-white/10 bg-transparent text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50"
             />
             <div className="mt-1 flex items-center justify-between">
-              <span className="font-mono text-[10px] text-white/30">
+              <span className="font-mono text-xs text-white/55">
                 {REVIEW_BODY_MIN}–{REVIEW_BODY_MAX} CHARS
               </span>
-              <span className={cn("font-mono text-[10px] tabular-nums", counterTone)} aria-live="polite">
+              <span className={cn("font-mono text-xs tabular-nums", counterTone)} aria-live="polite">
                 {body.length}/{REVIEW_BODY_MAX}
               </span>
             </div>
@@ -863,7 +864,7 @@ function ReviewsSection({
             type="button"
             onClick={() => void submit()}
             disabled={submitting}
-            className="h-11 w-full bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot sm:w-auto"
+            className="h-11 w-full bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot sm:w-auto"
           >
             {submitting ? (
               <>
@@ -967,7 +968,7 @@ function Discussion({
         body: JSON.stringify({ author: name.trim(), body: body.trim() }),
       });
       const data = (await res.json()) as CommentRow & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not post — please try again.");
+      if (!res.ok) throw new Error(data.error ?? "Could not post. Please try again.");
       setItems((prev) => [...(prev ?? []), data]);
       setBody("");
       window.localStorage.setItem(COMMENT_NAME_STORAGE, name.trim());
@@ -989,13 +990,13 @@ function Discussion({
       ? "text-red-400"
       : body.length >= COMMENT_BODY_WARN
         ? "text-ember"
-        : "text-white/35";
+        : "text-white/55";
 
   return (
     <section aria-label="Discussion" className="space-y-3">
       <SectionHead
         right={
-          <span className="font-mono text-[10px] tracking-wider text-white/25">
+          <span className="font-mono text-xs tracking-wider text-white/55">
             MODERATED PER S6
           </span>
         }
@@ -1017,17 +1018,17 @@ function Discussion({
 
         {!loading && loadError && (
           <p className="rounded-lg border border-red-500/25 bg-red-500/[0.04] p-3 text-xs text-red-300">
-            Couldn&apos;t load the discussion — it will appear next time you open
+            Couldn&apos;t load the discussion. It will appear next time you open
             this listing.
           </p>
         )}
 
         {!loading && !loadError && count === 0 && (
           <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-white/15 p-6 text-center">
-            <MessageSquare className="size-4 text-white/30" aria-hidden />
+            <MessageSquare className="size-4 text-white/55" aria-hidden />
             <p className="text-sm text-white/70">No comments yet.</p>
-            <p className="text-xs text-white/40">
-              Start the discussion — ask {makerHandle} anything.
+            <p className="text-xs text-white/60">
+              Start the discussion: ask {makerHandle} anything.
             </p>
           </div>
         )}
@@ -1044,7 +1045,7 @@ function Discussion({
               <span
                 aria-hidden
                 className={cn(
-                  "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-black",
+                  "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-coal",
                   avatarGradient(c.author)
                 )}
               >
@@ -1054,11 +1055,11 @@ function Discussion({
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="text-sm font-semibold text-white/90">{c.author}</span>
                   {c.isMaker && (
-                    <span className="rounded-full border border-ember/40 bg-ember/15 px-1.5 py-px font-mono text-[9px] tracking-wider text-ember">
+                    <span className="rounded-full border border-ember/40 bg-ember/15 px-1.5 py-px font-mono text-xs tracking-wider text-ember">
                       MAKER
                     </span>
                   )}
-                  <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] text-white/35">
+                  <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-xs text-white/55">
                     {relTime(c.createdAt)}
                   </span>
                 </div>
@@ -1103,14 +1104,14 @@ function Discussion({
           maxLength={COMMENT_BODY_MAX}
           aria-label="Write a comment"
           className={cn(
-            "mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-white placeholder:text-white/30 focus:outline-none",
+            "mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-white placeholder:text-white/55 focus:outline-none",
             body.length >= COMMENT_BODY_MAX && "text-red-300"
           )}
         />
         <div className="mt-2 flex items-center justify-between gap-3">
-          <p className="font-mono text-[10px] text-white/30">⌘↵ TO POST · BE CONSTRUCTIVE (S6)</p>
+          <p className="font-mono text-xs text-white/55">⌘↵ TO POST · BE CONSTRUCTIVE (S6)</p>
           <div className="flex items-center gap-3">
-            <span className={cn("font-mono text-[10px] tabular-nums", counterTone)} aria-live="polite">
+            <span className={cn("font-mono text-xs tabular-nums", counterTone)} aria-live="polite">
               {body.length}/{COMMENT_BODY_MAX}
             </span>
             <Button
@@ -1118,7 +1119,7 @@ function Discussion({
               onClick={() => void onPost()}
               disabled={!canPost}
               aria-label="Post comment"
-              className="h-9 rounded-lg bg-ember px-3 text-xs font-semibold text-[#0A0A0A] hover:bg-ember-hot disabled:opacity-40"
+              className="h-9 rounded-lg bg-ember px-3 text-sm font-semibold text-[#0A0A0A] hover:bg-ember-hot disabled:opacity-40"
             >
               {posting ? (
                 <>
@@ -1276,8 +1277,8 @@ function SavePopover({
             </>
           )}
           {colls !== null && colls.length === 0 && (
-            <p className="px-1 py-2 text-xs text-white/45">
-              No collections yet — create your first one below.
+            <p className="px-1 py-2 text-xs text-white/60">
+              No collections yet. Create your first one below.
             </p>
           )}
           {colls?.map((c) => {
@@ -1292,7 +1293,7 @@ function SavePopover({
                 className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/5"
               >
                 <span className="min-w-0 flex-1 truncate text-sm text-white/85">{c.name}</span>
-                <span className="font-mono text-[10px] text-white/35">{c.itemCount}</span>
+                <span className="font-mono text-xs text-white/55">{c.itemCount}</span>
                 <span
                   aria-hidden
                   className={cn(
@@ -1418,7 +1419,7 @@ export function ToolFullPage() {
       }
       const data = (await res.json()) as { following?: boolean };
       setFollowing(!!data.following);
-      toast({ title: data.following ? "Following — you'll see updates" : "Unfollowed" });
+      toast({ title: data.following ? "Following. You'll see updates." : "Unfollowed" });
     } catch {
       setFollowing(!next);
       toast({ title: "Could not update follow", variant: "destructive" });
@@ -1492,7 +1493,7 @@ export function ToolFullPage() {
             type="button"
             variant="outline"
             onClick={() => closeTool()}
-            className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+            className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
           >
             ← CLOSE
           </Button>
@@ -1505,14 +1506,14 @@ export function ToolFullPage() {
     return (
       <PageError
         title="COULDN'T LOAD THIS TOOL"
-        message="The listing service didn't respond — try again in a moment."
+        message="The listing service didn't respond. Try again in a moment."
         action={
           <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => void load()}
-              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
             >
               RETRY
             </Button>
@@ -1520,7 +1521,7 @@ export function ToolFullPage() {
               type="button"
               variant="outline"
               onClick={() => closeTool()}
-              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-xs tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
             >
               ← CLOSE
             </Button>
@@ -1539,7 +1540,7 @@ export function ToolFullPage() {
       onClose={closeTool}
       shareUrl={shareUrl}
       wide
-      ariaLabel={`${name} — full listing`}
+      ariaLabel={`${name}, full listing`}
     >
       <div className="space-y-10">
         {/* a. Header */}
@@ -1565,31 +1566,31 @@ export function ToolFullPage() {
           {/* Badge chips */}
           <ul className="flex flex-wrap items-center gap-1.5" aria-label="Badges">
             {detail.badges.editorsPick && (
-              <li className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-[10px] tracking-wider text-ember">
+              <li className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember">
                 <Star className="size-3" aria-hidden /> EDITORS PICK
               </li>
             )}
             {detail.badges.curated && (
-              <li className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 font-mono text-[10px] tracking-wider text-yellow-500">
+              <li className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 font-mono text-xs tracking-wider text-yellow-500">
                 CURATED
               </li>
             )}
             {detail.badges.unclaimed && (
-              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/40">
+              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
                 UNCLAIMED
               </li>
             )}
             {detail.badges.hasApi && (
-              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60">
+              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
                 API ✓
               </li>
             )}
             {detail.badges.openSource && (
-              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60">
+              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
                 OPEN SOURCE
               </li>
             )}
-            <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[10px] tracking-wider text-white/60">
+            <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
               {detail.track === "editor_seed" ? "SEED" : "SUBMITTED"}
             </li>
           </ul>
@@ -1601,7 +1602,7 @@ export function ToolFullPage() {
                 <Star className="size-5 fill-ember text-ember" aria-hidden />
                 <span className="text-2xl font-black tabular-nums text-white">
                   {detail.reviews.aggregate.overall.toFixed(1)}
-                  <span className="text-sm text-white/35">/5</span>
+                  <span className="text-sm text-white/55">/5</span>
                 </span>
               </span>
               <span className="grid min-w-0 flex-1 gap-1.5 sm:max-w-xs">
@@ -1609,7 +1610,7 @@ export function ToolFullPage() {
                 <DimBar label="POWER" value={detail.reviews.aggregate.power} />
                 <DimBar label="VALUE" value={detail.reviews.aggregate.value} />
               </span>
-              <span className="font-mono text-[10px] tracking-[0.2em] text-white/40 uppercase">
+              <span className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
                 {detail.reviews.aggregate.count} reviews
               </span>
             </div>
@@ -1673,7 +1674,7 @@ export function ToolFullPage() {
                 size="icon"
                 aria-label={
                   savedSet.size > 0
-                    ? `Saved in ${savedSet.size} collection${savedSet.size === 1 ? "" : "s"} — manage`
+                    ? `Saved in ${savedSet.size} collection${savedSet.size === 1 ? "" : "s"}: manage`
                     : `Save ${name} to a collection`
                 }
                 aria-pressed={savedSet.size > 0}
@@ -1722,7 +1723,7 @@ export function ToolFullPage() {
                 inCompare
                   ? `Remove ${name} from comparison`
                   : compareFull
-                    ? "Comparison is full — remove a tool first"
+                    ? "Comparison is full. Remove a tool first."
                     : `Add ${name} to comparison`
               }
               aria-pressed={inCompare}
@@ -1764,7 +1765,7 @@ export function ToolFullPage() {
               size="icon"
               aria-label={`Report ${name}`}
               onClick={() => setReportOpen(true)}
-              className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/40 hover:border-ember/40 hover:text-ember"
+              className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/60 hover:border-ember/40 hover:text-ember"
             >
               <Flag className="size-4" aria-hidden />
             </Button>
@@ -1786,9 +1787,7 @@ export function ToolFullPage() {
             {detail.description && (
               <section aria-label="About" className="space-y-3">
                 <SectionHead>About</SectionHead>
-                <p className="whitespace-pre-line text-sm leading-relaxed text-white/70">
-                  {detail.description}
-                </p>
+                <AboutClamp text={detail.description} />
               </section>
             )}
 
@@ -1858,13 +1857,13 @@ export function ToolFullPage() {
                       <span className="mt-2.5 flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-bold text-white/90">{r.name}</span>
                         {r.editorsPick && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[9px] tracking-wider text-ember uppercase">
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase">
                             <Star className="size-2.5 fill-current" aria-hidden />
                             Pick
                           </span>
                         )}
                       </span>
-                      <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/45">
+                      <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
                         {r.tagline}
                       </span>
                     </button>
@@ -1882,7 +1881,7 @@ export function ToolFullPage() {
                   )}
                 >
                   <span className={MONO}>
-                    Quality bar — {passedCount}/{detail.standards.length} passed
+                    Quality bar: {passedCount}/{detail.standards.length} passed
                   </span>
                   <ChevronDown
                     className="size-4 text-white/50 transition-transform group-data-[state=open]:rotate-180"
@@ -1896,7 +1895,7 @@ export function ToolFullPage() {
                         <span
                           className={cn(
                             "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full",
-                            s.passed ? "bg-mint/15 text-mint" : "bg-white/10 text-white/40"
+                            s.passed ? "bg-mint/15 text-mint" : "bg-white/10 text-white/60"
                           )}
                         >
                           {s.passed ? (
@@ -1910,7 +1909,7 @@ export function ToolFullPage() {
                             <span className="mr-1.5 font-mono text-ember">{s.id}</span>
                             {s.title}
                           </p>
-                          <p className="mt-0.5 text-[11px] leading-snug text-white/45">{s.blurb}</p>
+                          <p className="mt-0.5 text-xs leading-snug text-white/60">{s.blurb}</p>
                         </div>
                       </li>
                     ))}
