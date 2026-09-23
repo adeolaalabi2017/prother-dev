@@ -21,7 +21,7 @@
  * Honors prefers-reduced-motion (single static frame, no loop/shockwaves).
  */
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 export type GatewayFlowProps = {
   mode?: "dark" | "light";
@@ -67,7 +67,7 @@ type Explosion = { x: number; y: number; radius: number; life: number };
 type Point = { x: number; y: number };
 
 export default function GatewayFlow({
-  mode = "dark",
+  mode,
   speed = 1,
   size = 1,
   density = 1,
@@ -84,6 +84,30 @@ export default function GatewayFlow({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const speedRef = useRef(clamp(speed, 0, 3));
 
+  /* Theme-reactive palette: when no explicit mode prop is passed, follow
+     the html.light class (next-themes) via MutationObserver. The palette
+     lives in a ref so the animation loop picks up the swap next frame
+     without tearing down observers/particles. */
+  const [autoMode, setAutoMode] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    if (mode) return;
+    const doc = document.documentElement;
+    const sync = () =>
+      setAutoMode(doc.classList.contains("light") ? "light" : "dark");
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(doc, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, [mode]);
+
+  const activeMode = mode ?? autoMode;
+  const paletteRef = useRef(PALETTES[activeMode]);
+
+  useEffect(() => {
+    paletteRef.current = PALETTES[activeMode];
+  }, [activeMode]);
+
   useEffect(() => {
     speedRef.current = clamp(speed, 0, 3);
   }, [speed]);
@@ -95,7 +119,7 @@ export default function GatewayFlow({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const palette = PALETTES[mode];
+    const palette = paletteRef;
     const reduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -158,7 +182,7 @@ export default function GatewayFlow({
       }
       explosions = explosions.filter((exp) => exp.life > 0);
 
-      ctx.strokeStyle = palette.path;
+      ctx.strokeStyle = palette.current.path;
       ctx.lineWidth = lineWidth;
       ctx.setLineDash([1, 4]);
 
@@ -211,11 +235,11 @@ export default function GatewayFlow({
             ctx.save();
             ctx.shadowColor = "rgba(255, 106, 0, 0.8)";
             ctx.shadowBlur = 10;
-            ctx.fillStyle = palette.hot;
+            ctx.fillStyle = palette.current.hot;
             ctx.fillRect(px - 2.5, py - 2.5, 5, 5);
             ctx.restore();
           } else {
-            ctx.fillStyle = palette.particle;
+            ctx.fillStyle = palette.current.particle;
             ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
           }
         }
@@ -303,7 +327,7 @@ export default function GatewayFlow({
           style={{
             backgroundImage: `url("${DITHER_URI}")`,
             backgroundSize: "2px 2px",
-            opacity: mode === "dark" ? 0.05 : 0.08,
+            opacity: activeMode === "dark" ? 0.05 : 0.08,
           }}
         />
       ) : null}

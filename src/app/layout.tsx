@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/prother/auth-provider";
@@ -107,6 +108,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
+        {/* Dark is the brand default; the header toggle flips to the warm
+            paper light theme (globals.css html.light token remap). The
+            class is set pre-hydration by next-themes' inline script, so
+            there is no first-paint flash. */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          storageKey="prother-theme"
+          disableTransitionOnChange
+        >
         <AuthProvider>
           <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
             <ScrollProgress />
@@ -132,6 +144,7 @@ export default function RootLayout({
             <AnalyticsPing />
           </div>
         </AuthProvider>
+        </ThemeProvider>
         <Toaster />
       </body>
     </html>

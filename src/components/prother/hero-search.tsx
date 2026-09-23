@@ -464,7 +464,7 @@ export function HeroSearch() {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
-            className="absolute inset-x-0 top-full z-40 mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#141210]/95 shadow-2xl backdrop-blur-xl"
+            className="absolute inset-x-0 top-full z-40 mt-3 overflow-hidden rounded-2xl border border-white/10 bg-coal/95 shadow-2xl backdrop-blur-xl"
           >
             <div
               id={LIST_ID}

@@ -41,20 +41,32 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  /* Prother palette (ember-tint/mint aligned with try.cloudflare.com's
-     --brand-tint #FFB877 and --success #3FCF8E) */
-  --color-ember: #FF6A00;
-  --color-ember-hot: #FF8A3D;
-  --color-ember-tint: #FFB877;
-  --color-mint: #3FCF8E;
-  --color-ink: #0A0A0A;
-  --color-coal: #141312;
-  --color-cream: #F1EDE4;
-  --color-sand: #E9E4D8;
+  /* Prother palette — declared as indirection vars so utilities resolve
+     them per-scope at runtime (html.light remaps the tokens without
+     touching a single component class). ember-tint/mint aligned with
+     try.cloudflare.com's --brand-tint #FFB877 and --success #3FCF8E. */
+  --color-ember: var(--brand-ember);
+  --color-ember-hot: var(--brand-ember-hot);
+  --color-ember-tint: var(--brand-ember-tint);
+  --color-mint: var(--brand-mint);
+  --color-ink: var(--brand-ink);
+  --color-coal: var(--brand-coal);
+  --color-cream: var(--brand-cream);
+  --color-sand: var(--brand-sand);
 }
 
 :root {
   --radius: 0.625rem;
+  /* Prother brand tokens (dark-first). Tailwind utilities reference these
+     via the @theme inline indirection above; html.light remaps them. */
+  --brand-ember: #ff6a00;
+  --brand-ember-hot: #ff8a3d;
+  --brand-ember-tint: #ffb877;
+  --brand-mint: #3fcf8e;
+  --brand-ink: #0a0a0a;
+  --brand-coal: #141312;
+  --brand-cream: #f1ede4;
+  --brand-sand: #e9e4d8;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -89,12 +101,12 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --background: #0a0a0a;
+  --foreground: #f1ede4;
+  --card: #141312;
+  --card-foreground: #f1ede4;
+  --popover: #141312;
+  --popover-foreground: #f1ede4;
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
@@ -410,3 +422,160 @@
 }
 
 /* post-body qa marker */
+
+/* ══ Prother light theme ════════════════════════════════════════════════
+   Dark is the brand default (next-themes: defaultTheme="dark"). html.light
+   remaps the brand tokens to a warm paper palette. Tailwind compiles
+   white-opacity utilities against var(--color-white), so flipping that
+   single token converts every text-white/x, bg-white/x and border-white/x
+   to ink-opacity (~1,100 class occurrences). Vivid ember stays for fills
+   (buttons, chips) while TEXT ember darkens to --ember-text for WCAG AA
+   on paper. The two "light island" bands (bg-cream sections on the
+   homepage) pin their dark-mode tokens: they keep their original look and
+   become deliberate dark bands in the light theme's rhythm. */
+html.light {
+  --brand-ink: #f2eee4; /* warm paper page background */
+  --brand-coal: #fbfaf5; /* raised off-white surfaces */
+  --brand-cream: #1d1915; /* primary foreground on paper */
+  --brand-sand: #e7e0cf;
+  --brand-ember: #ff6a00; /* fills stay vivid */
+  --brand-ember-hot: #ff8a3d;
+  --brand-ember-tint: #bc3e00;
+  --brand-mint: #166534; /* AA green on paper */
+  /* Flip the Tailwind default white token: every white-opacity utility
+     (text-white/60, bg-white/5, border-white/10 ...) becomes ink-opacity. */
+  --color-white: #26211c;
+  /* Ember reserved for text/borders on paper must pass 4.5:1. */
+  --ember-text: #bc3e00;
+  /* shadcn surfaces follow the paper. */
+  --background: #f2eee4;
+  --foreground: #26211c;
+}
+
+/* Dark label on ember fills: bg-ember elements (buttons, highlight cards,
+   data-[state=checked]:bg-ember toggles) keep their dark text color.
+   Substring match also covers hover:bg-ember-hot and bg-ember/10 chips. */
+html.light [class*="bg-ember"] {
+  --brand-coal: #171310;
+}
+
+/* The cream "light islands" (how-it-works, standards bands) keep their
+   dark-mode palette: white cards, ink flow panel, vivid ember on dark. */
+html.light [class*="bg-cream"] {
+  --brand-ink: #0a0a0a;
+  --brand-coal: #141312;
+  --brand-cream: #f1ede4;
+  --brand-sand: #e9e4d8;
+  --color-white: #ffffff;
+}
+html.light [class*="bg-cream"] .text-ember,
+html.light [class*="bg-cream"] .hover\:text-ember:hover,
+html.light [class*="bg-cream"] .group:hover .group-hover\:text-ember {
+  color: var(--brand-ember);
+}
+
+/* Ember/mint as TEXT on paper: darken to AA-compliant shades. Vivid fills
+   (bg-ember, bg-ember-hot, bg-mint tints) are untouched. */
+html.light .text-ember,
+html.light .hover\:text-ember:hover,
+html.light .focus\:text-ember:focus,
+html.light .group:hover .group-hover\:text-ember,
+html.light .text-ember-hot {
+  color: var(--ember-text);
+}
+html.light .text-ember\/80 {
+  color: color-mix(in oklab, var(--ember-text) 80%, transparent);
+}
+html.light .text-ember\/85 {
+  color: color-mix(in oklab, var(--ember-text) 85%, transparent);
+}
+html.light .border-ember {
+  border-color: var(--ember-text);
+}
+html.light .ring-ember {
+  --tw-ring-color: var(--ember-text);
+}
+
+/* Light scrollbar: ember thumb on a neutral track. */
+html.light * {
+  scrollbar-color: rgba(188, 62, 0, 0.5) rgba(0, 0, 0, 0.06);
+}
+html.light ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(188, 62, 0, 0.5);
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(188, 62, 0, 0.7);
+}
+
+/* Command palette on paper (overrides the fixed dark cmdk block above). */
+html.light [role="dialog"] [cmdk-root] {
+  background-color: #fbfaf5;
+  color: #26211c;
+}
+html.light [role="dialog"] [cmdk-input] {
+  color: #26211c;
+  caret-color: #bc3e00;
+}
+html.light [role="dialog"] [cmdk-input]::placeholder {
+  color: rgba(0, 0, 0, 0.55);
+}
+html.light [role="dialog"] [cmdk-group-heading] {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+html.light [role="dialog"] [cmdk-item] {
+  color: rgba(0, 0, 0, 0.8);
+}
+html.light [role="dialog"] [cmdk-item][data-selected="true"],
+html.light [role="dialog"] [cmdk-item][data-active="true"] {
+  background: rgba(255, 106, 0, 0.12);
+  color: #bc3e00;
+}
+html.light [role="dialog"] [cmdk-separator] {
+  background: rgba(0, 0, 0, 0.1);
+}
+html.light [role="dialog"] [cmdk-input-wrapper] {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Journal article body on paper (overrides the fixed dark block above). */
+html.light .post-body {
+  color: #45403a;
+}
+html.light .post-body h2 {
+  color: #1d1915;
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+html.light .post-body h3 {
+  color: #1d1915;
+}
+html.light .post-body p strong {
+  color: #1d1915;
+}
+html.light .post-body .md-code {
+  background: rgba(188, 62, 0, 0.08);
+  border-color: rgba(188, 62, 0, 0.3);
+  color: #9a3a08;
+}
+html.light .post-body .md-pre {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #3c3730;
+}
+html.light .post-body .md-quote {
+  background: rgba(188, 62, 0, 0.05);
+  color: #4a453e;
+}
+html.light .post-body .md-hr {
+  border-top-color: rgba(0, 0, 0, 0.18);
+}
+html.light .post-body a {
+  color: #bc3e00;
+}
+html.light .post-body a:hover {
+  color: #9a3407;
+}
+
+/* light-theme rebuild marker */

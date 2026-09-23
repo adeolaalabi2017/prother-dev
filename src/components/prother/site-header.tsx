@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
 import { AuthMenu } from "./auth-menu";
+import { ThemeToggle, ThemeToggleRow } from "./theme-toggle";
 
 /**
  * Nav points at dedicated routes; "Categories" is the one homepage anchor
@@ -93,6 +94,7 @@ export function SiteHeader() {
           {/* No search box in the bar — the hero search, /tools directory and
               the global ⌘K palette (mounted in layout.tsx) already cover it. */}
           <AuthMenu />
+          <ThemeToggle />
           <Link
             href="/admin"
             aria-label="Admin console"
@@ -169,6 +171,7 @@ export function SiteHeader() {
             <Search className="size-4 text-ember" aria-hidden />
             Search tools
           </button>
+          <ThemeToggleRow />
         </nav>
       </div>
     </header>
