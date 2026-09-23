@@ -291,6 +291,10 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = user.id;
         session.user.handle = user.handle ?? null;
+        // Avatar passthrough (Task 34): User.image is a PRE-boot column, so
+        // the ORM-typed AdapterUser always carries it; the client header chip
+        // and profile popover read session.user.image.
+        session.user.image = user.image ?? null;
         session.user.createdAt = user.createdAt;
       }
       return session;

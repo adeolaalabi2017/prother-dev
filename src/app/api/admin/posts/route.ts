@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
+import { postCoversByIds, setPostCover } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
+
+/** Media library URLs only — uploads must come from /api/media. */
+const MEDIA_URL = z
+  .string()
+  .regex(/^\/api\/media\/[A-Za-z0-9_-]+$/, "must be an uploaded media URL")
+  .max(200);
 
 /**
  * Journal post management (Admin Console → Blog tab).
@@ -30,6 +37,8 @@ const postInput = z.object({
   seoTitle: z.string().max(70).optional(),
   seoDescription: z.string().max(170).optional(),
   keywords: z.string().max(200).optional(),
+  /** Uploaded cover image (POST-boot column → raw SQL, lib/media.ts). */
+  coverUrl: MEDIA_URL.nullable().optional(),
 });
 
 function slugify(title: string): string {
@@ -84,9 +93,12 @@ export async function GET(req: NextRequest) {
       createdAt: true,
     },
   });
+  // POST-boot column → raw SQL (stale-PrismaClient rule).
+  const coverMap = await postCoversByIds(posts.map((p) => p.id));
   return NextResponse.json({
     posts: posts.map((p) => ({
       ...p,
+      coverUrl: coverMap.get(p.id) ?? null,
       publishedAt: p.publishedAt?.toISOString() ?? null,
       updatedAt: p.updatedAt.toISOString(),
       createdAt: p.createdAt.toISOString(),
@@ -106,16 +118,22 @@ export async function POST(req: NextRequest) {
     );
   }
   const data = parsed.data;
+  // coverUrl is a POST-boot column: the ORM write below must not see it.
+  const { coverUrl, ...restData } = data;
   const slug = await uniquePostSlug(data.slug ? slugify(data.slug) : slugify(data.title));
 
   const post = await db.post.create({
     data: {
-      ...data,
+      ...restData,
       slug,
       readingMinutes: Math.max(1, Math.round(data.body.split(/\s+/).length / 220)),
       publishedAt: data.status === "published" ? new Date() : null,
     },
   });
+  // POST-boot column → raw SQL (stale-PrismaClient rule).
+  if (data.coverUrl !== undefined) {
+    await setPostCover(post.id, data.coverUrl);
+  }
   logAudit(
     data.status === "published" ? "post.publish" : "post.create",
     "post",

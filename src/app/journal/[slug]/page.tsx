@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Clock3, Feather } from "lucide-react";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
+import { postCoversByIds } from "@/lib/media";
 import { renderMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
@@ -73,6 +74,8 @@ export default async function JournalArticlePage({ params }: Params) {
   const html = renderMarkdown(post.body);
   const tags = post.tags ? post.tags.split("|").filter(Boolean) : [];
   const journalBarOn = await placementEnabled("journal_bar");
+  // POST-boot cover column → raw SQL merge (lib/media.ts; never in a select).
+  const coverUrl = (await postCoversByIds([post.id])).get(post.id) ?? null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -154,6 +157,18 @@ export default async function JournalArticlePage({ params }: Params) {
               {post.readingMinutes} min read
             </span>
           </div>
+
+          {/* Uploaded cover art (Task 34) — hero banner; the emoji tile above
+              stays as the fallback when the post has no image. */}
+          {coverUrl && (
+            <div className="mt-8 overflow-hidden rounded-2xl border border-white/10">
+              <img
+                src={coverUrl}
+                alt={`${post.title} cover`}
+                className="aspect-video w-full object-cover"
+              />
+            </div>
+          )}
         </header>
 
         {/* Journal sponsorship — named at the top of the issue (one sponsor

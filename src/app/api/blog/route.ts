@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/prother";
+import { postCoversByIds } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest) {
     orderBy: { publishedAt: "desc" },
     take: limit,
     select: {
+      id: true,
       slug: true,
       title: true,
       excerpt: true,
@@ -34,10 +36,13 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // POST-boot column → raw SQL (stale-PrismaClient rule).
+  const coverMap = await postCoversByIds(posts.map((p) => p.id));
   return NextResponse.json(
     {
       posts: posts.map((p) => ({
         ...p,
+        coverUrl: coverMap.get(p.id) ?? null,
         tags: p.tags ? p.tags.split("|").filter(Boolean) : [],
         publishedAt: p.publishedAt?.toISOString() ?? null,
       })),

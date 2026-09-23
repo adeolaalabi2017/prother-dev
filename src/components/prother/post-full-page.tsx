@@ -25,6 +25,8 @@ type FullPost = {
   tags: string[];
   coverEmoji: string;
   coverGradient: string;
+  /** Uploaded cover image; when set it replaces the emoji tile (Task 34). */
+  coverUrl?: string | null;
   author: string;
   readingMinutes: number;
   views: number;
@@ -36,6 +38,8 @@ type RelatedPost = {
   title: string;
   coverEmoji: string;
   coverGradient: string;
+  /** Uploaded cover image (Task 34); falls back to the emoji. */
+  coverUrl?: string | null;
   readingMinutes: number;
   category: string;
 };
@@ -196,15 +200,26 @@ export function PostFullPage() {
           {/* big header */}
           <header>
             <div className="flex items-start gap-4">
-              <div
-                aria-hidden
-                className={cn(
-                  "flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-inner",
-                  post.coverGradient
-                )}
-              >
-                {post.coverEmoji}
-              </div>
+              {post.coverUrl ? (
+                <div className="size-16 shrink-0 overflow-hidden rounded-2xl border border-white/10 shadow-inner sm:size-20">
+                  <img
+                    src={post.coverUrl}
+                    alt=""
+                    loading="lazy"
+                    className="size-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div
+                  aria-hidden
+                  className={cn(
+                    "flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-inner",
+                    post.coverGradient
+                  )}
+                >
+                  {post.coverEmoji}
+                </div>
+              )}
               <h1 className="min-w-0 text-3xl leading-tight font-black tracking-tight text-white sm:text-4xl">
                 {post.title}
               </h1>
@@ -264,9 +279,20 @@ export function PostFullPage() {
                       aria-label={`Read ${r.title}`}
                       className="group h-full w-full rounded-xl border border-white/10 bg-white/[0.02] p-3.5 text-left transition-colors hover:border-ember/40"
                     >
-                      <span aria-hidden className="text-lg">
-                        {r.coverEmoji}
-                      </span>
+                      {r.coverUrl ? (
+                        <span className="block overflow-hidden rounded-lg border border-white/10">
+                          <img
+                            src={r.coverUrl}
+                            alt=""
+                            loading="lazy"
+                            className="aspect-video w-full object-cover"
+                          />
+                        </span>
+                      ) : (
+                        <span aria-hidden className="text-lg">
+                          {r.coverEmoji}
+                        </span>
+                      )}
                       <p className="mt-2 line-clamp-2 text-xs leading-snug font-semibold text-white/85 group-hover:text-ember">
                         {r.title}
                       </p>

@@ -54,4 +54,7 @@ prompt
 
 server.log
 # Skills directory
-/skills/
+/skills/uploads/
+
+# Task 34 media library (local uploads, served via /api/media)
+/uploads/

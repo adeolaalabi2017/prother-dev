@@ -1,0 +1,714 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useRef, useState } from "react";
+     4→import { signIn, signOut, useSession } from "next-auth/react";
+     5→import { Bookmark, FolderHeart, Loader2, LogOut, UserRound } from "lucide-react";
+     6→import { Button } from "@/components/ui/button";
+     7→import { Input } from "@/components/ui/input";
+     8→import { Label } from "@/components/ui/label";
+     9→import { Textarea } from "@/components/ui/textarea";
+    10→import { ImageUploadField } from "@/components/prother/image-upload-field";
+    11→import { useToast } from "@/hooks/use-toast";
+    12→import {
+    13→  DropdownMenu,
+    14→  DropdownMenuContent,
+    15→  DropdownMenuItem,
+    16→  DropdownMenuLabel,
+    17→  DropdownMenuSeparator,
+    18→  DropdownMenuTrigger,
+    19→} from "@/components/ui/dropdown-menu";
+    20→import {
+    21→  Popover,
+    22→  PopoverAnchor,
+    23→  PopoverContent,
+    24→  PopoverTrigger,
+    25→} from "@/components/ui/popover";
+    26→import { cn } from "@/lib/utils";
+    27→import { useExplorer } from "./explorer-store";
+    28→
+    29→/**
+    30→ * Header sign-in / account widget (PRD F-37).
+    31→ *
+    32→ * Signed out  → "SIGN IN" mono button opening a popover with Google OAuth
+    33→ *               (only when configured) + the email magic-link flow
+    34→ *               (CSRF → POST /api/auth/signin/email → dev-inbox lookup).
+    35→ * Signed in   → avatar/@handle chip with a dropdown (profile editor, my
+    36→ *               collections, sign out). The profile editor is a controlled
+    37→ *               Popover anchored to the chip: selecting "Profile" closes the
+    38→ *               menu and opens the form, so the two Radix layers never nest.
+    39→ * Loading     → skeleton chip.
+    40→ *
+    41→ * Other components can pop the sign-in popover via requestSignIn() — it
+    42→ * dispatches a "prother:auth-open" window event this component listens for.
+    43→ */
+    44→
+    45→/** Ask any mounted AuthMenu to open its sign-in popover. */
+    46→export function requestSignIn() {
+    47→  if (typeof window !== "undefined") {
+    48→    window.dispatchEvent(new CustomEvent("prother:auth-open"));
+    49→  }
+    50→}
+    51→
+    52→// ── Constants ────────────────────────────────────────────────────────────
+    53→const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    54→const RESEND_COOLDOWN_SEC = 30;
+    55→const MONO_LABEL = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
+    56→
+    57→type ProviderMap = Record<string, unknown>;
+    58→
+    59→/** Minimal inline Google "G" (no icon dependency). */
+    60→function GoogleGlyph() {
+    61→  return (
+    62→    <svg viewBox="0 0 24 24" className="size-3.5" aria-hidden focusable="false">
+    63→      <path
+    64→        fill="#4285F4"
+    65→        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+    66→      />
+    67→      <path
+    68→        fill="#34A853"
+    69→        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"
+    70→      />
+    71→      <path
+    72→        fill="#FBBC05"
+    73→        d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"
+    74→      />
+    75→      <path
+    76→        fill="#EB4335"
+    77→        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
+    78→      />
+    79→    </svg>
+    80→  );
+    81→}
+    82→
+    83→export function AuthMenu() {
+    84→  const { status, data, update } = useSession();
+    85→
+    86→  // Popover open state — also driven by the "prother:auth-open" event.
+    87→  const [open, setOpen] = useState(false);
+    88→
+    89→  // Profile editor popover (signed in) — anchored to the avatar chip; the
+    90→  // dropdown menu closes before it opens, so the layers never stack.
+    91→  const [profileOpen, setProfileOpen] = useState(false);
+    92→  // Radix restores focus to the trigger after the menu closes; that stray
+    93→  // focus event dismisses the freshly opened popover, so the close-restore
+    94→  // is suppressed when the Profile item opened it (flag consumed by
+    95→  // DropdownMenuContent.onCloseAutoFocus).
+    96→  const openProfileRef = useRef(false);
+    97→  const chipRef = useRef<HTMLButtonElement>(null);
+    98→
+    99→  const handleProfileOpenChange = useCallback((next: boolean) => {
+   100→    setProfileOpen(next);
+   101→    if (!next) {
+   102→      // Return focus to the chip so keyboard users keep their place after
+   103→      // Escape / outside-click / the Save flow closes the editor.
+   104→      window.setTimeout(() => chipRef.current?.focus(), 0);
+   105→    }
+   106→  }, []);
+   107→
+   108→  // Google is rendered only when /api/auth/providers exposes it (F-37).
+   109→  const [hasGoogle, setHasGoogle] = useState(false);
+   110→
+   111→  // Magic-link flow state.
+   112→  const [email, setEmail] = useState("");
+   113→  const [sending, setSending] = useState(false);
+   114→  const [error, setError] = useState<string | null>(null);
+   115→  const [sentTo, setSentTo] = useState<string | null>(null);
+   116→  const [magicUrl, setMagicUrl] = useState<string | null>(null);
+   117→  const [resendIn, setResendIn] = useState(0);
+   118→
+   119→  // Detect Google availability once.
+   120→  useEffect(() => {
+   121→    let cancelled = false;
+   122→    fetch("/api/auth/providers")
+   123→      .then((r) => (r.ok ? (r.json() as Promise<ProviderMap>) : {}))
+   124→      .then((providers) => {
+   125→        if (!cancelled && providers && "google" in providers) setHasGoogle(true);
+   126→      })
+   127→      .catch(() => {
+   128→        /* provider detection is best-effort; fall back to the muted row */
+   129→      });
+   130→    return () => {
+   131→      cancelled = true;
+   132→    };
+   133→  }, []);
+   134→
+   135→  // Other components dispatch "prother:auth-open" to request sign-in.
+   136→  useEffect(() => {
+   137→    const openMenu = () => setOpen(true);
+   138→    window.addEventListener("prother:auth-open", openMenu);
+   139→    return () => window.removeEventListener("prother:auth-open", openMenu);
+   140→  }, []);
+   141→
+   142→  // Resend cooldown ticker.
+   143→  useEffect(() => {
+   144→    if (resendIn <= 0) return;
+   145→    const t = setTimeout(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
+   146→    return () => clearTimeout(t);
+   147→  }, [resendIn]);
+   148→
+   149→  /**
+   150→   * Magic-link send: GET /api/auth/csrf for the token, POST it urlencoded to
+   151→   * /api/auth/signin/email (opaque redirect — NextAuth answers 302 either
+   152→   * way), then ask the dev inbox whether a link was actually minted.
+   153→   */
+   154→  const sendMagicLink = useCallback(async (addr: string) => {
+   155→    setSending(true);
+   156→    setError(null);
+   157→    setMagicUrl(null);
+   158→    try {
+   159→      const csrfRes = await fetch("/api/auth/csrf");
+   160→      if (!csrfRes.ok) throw new Error("Could not start sign-in. Try again.");
+   161→      const { csrfToken } = (await csrfRes.json()) as { csrfToken?: string };
+   162→      if (!csrfToken) throw new Error("Missing CSRF token. Try again.");
+   163→
+   164→      await fetch("/api/auth/signin/email", {
+   165→        method: "POST",
+   166→        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+   167→        body: new URLSearchParams({ email: addr, csrfToken }).toString(),
+   168→        redirect: "manual",
+   169→      });
+   170→
+   171→      const inboxRes = await fetch(`/api/auth/dev-inbox?email=${encodeURIComponent(addr)}`);
+   172→      const inbox = (await inboxRes.json()) as { enabled?: boolean; url?: string | null };
+   173→      setMagicUrl(inbox.enabled && inbox.url ? inbox.url : null);
+   174→      setSentTo(addr);
+   175→      setResendIn(RESEND_COOLDOWN_SEC);
+   176→    } catch (err) {
+   177→      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+   178→    } finally {
+   179→      setSending(false);
+   180→    }
+   181→  }, []);
+   182→
+   183→  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+   184→    e.preventDefault();
+   185→    const addr = email.trim();
+   186→    if (!EMAIL_RE.test(addr)) {
+   187→      setError("Enter a valid email address.");
+   188→      setSentTo(null);
+   189→      setMagicUrl(null);
+   190→      return;
+   191→    }
+   192→    void sendMagicLink(addr);
+   193→  };
+   194→
+   195→  // ── Loading: skeleton chip ─────────────────────────────────────────────
+   196→  if (status === "loading") {
+   197→    return (
+   198→      <span
+   199→        role="status"
+   200→        aria-label="Loading session"
+   201→        className="inline-flex h-9 w-24 animate-pulse rounded-full bg-white/5"
+   202→      />
+   203→    );
+   204→  }
+   205→
+   206→  // ── Signed in: avatar/@handle chip + dropdown ──────────────────────────
+   207→  if (status === "authenticated" && data?.user) {
+   208→    const user = data.user;
+   209→    const fallback = user.email?.split("@")[0] ?? "maker";
+   210→    const name = user.name || user.handle || fallback;
+   211→    const handle = user.handle || fallback;
+   212→    const letter = (name.trim()[0] || "P").toUpperCase();
+   213→    const avatar = user.image;
+   214→
+   215→    return (
+   216→      <Popover open={profileOpen} onOpenChange={handleProfileOpenChange}>
+   217→        <DropdownMenu>
+   218→          <PopoverAnchor asChild>
+   219→            <DropdownMenuTrigger asChild>
+   220→              <button
+   221→                ref={chipRef}
+   222→                type="button"
+   223→                aria-haspopup="menu"
+   224→                aria-label={`Account menu for @${handle}`}
+   225→                className="inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 transition-colors hover:border-ember/40 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+   226→              >
+   227→                {avatar ? (
+   228→                  <img
+   229→                    src={avatar}
+   230→                    alt=""
+   231→                    className="size-6 shrink-0 rounded-full border border-white/15 object-cover"
+   232→                  />
+   233→                ) : (
+   234→                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-ember/20 font-bold text-ember">
+   235→                    {letter}
+   236→                  </span>
+   237→                )}
+   238→                <span className="font-mono text-xs text-white/80">@{handle}</span>
+   239→              </button>
+   240→            </DropdownMenuTrigger>
+   241→          </PopoverAnchor>
+   242→
+   243→          <DropdownMenuContent
+   244→            align="end"
+   245→            sideOffset={8}
+   246→            onCloseAutoFocus={(e) => {
+   247→              // The Profile item opens the editor popover: keep Radix from
+   248→              // restoring focus to the trigger (that dismisses the popover).
+   249→              if (openProfileRef.current) {
+   250→                openProfileRef.current = false;
+   251→                e.preventDefault();
+   252→              }
+   253→            }}
+   254→            className="z-[70] w-64 rounded-xl border border-white/10 bg-coal p-1 text-white shadow-xl shadow-black/40"
+   255→          >
+   256→            <DropdownMenuLabel className="px-2 py-2">
+   257→              <div className="flex items-center gap-2.5">
+   258→                {avatar ? (
+   259→                  <img
+   260→                    src={avatar}
+   261→                    alt=""
+   262→                    className="size-9 shrink-0 rounded-full border border-white/15 object-cover"
+   263→                  />
+   264→                ) : (
+   265→                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-ember/20 font-mono text-sm font-bold text-ember">
+   266→                    {letter}
+   267→                  </span>
+   268→                )}
+   269→                <div className="min-w-0">
+   270→                  <span className="block truncate font-mono text-xs font-semibold uppercase tracking-[0.15em] text-white">
+   271→                    {name}
+   272→                  </span>
+   273→                  <span className="block truncate font-mono text-xs text-white/60">{user.email}</span>
+   274→                </div>
+   275→              </div>
+   276→            </DropdownMenuLabel>
+   277→            <DropdownMenuSeparator className="bg-white/10" />
+   278→
+   279→            <DropdownMenuItem
+   280→              onSelect={() => {
+   281→                openProfileRef.current = true;
+   282→                // Open after the menu finishes its close cycle; Radix treats
+   283→                // the same-tick open as a dismiss and cancels it otherwise.
+   284→                window.setTimeout(() => setProfileOpen(true), 0);
+   285→              }}
+   286→              className="gap-2 rounded-lg px-2 py-2 text-sm text-white/80 focus:bg-white/10 focus:text-white"
+   287→            >
+   288→              <UserRound className="size-4 text-ember" aria-hidden />
+   289→              Profile
+   290→            </DropdownMenuItem>
+   291→
+   292→            <DropdownMenuItem
+   293→              onSelect={() => useExplorer.getState().openMine("collections")}
+   294→              className="gap-2 rounded-lg px-2 py-2 text-sm text-white/80 focus:bg-white/10 focus:text-white"
+   295→            >
+   296→              <FolderHeart className="size-4 text-ember" aria-hidden />
+   297→              My collections &amp; follows
+   298→            </DropdownMenuItem>
+   299→
+   300→          <DropdownMenuItem
+   301→            onSelect={() => useExplorer.getState().openSaved("mine")}
+   302→            className="gap-2 rounded-lg px-2 py-2 text-sm text-white/80 focus:bg-white/10 focus:text-white"
+   303→          >
+   304→            <Bookmark className="size-4 text-ember" aria-hidden />
+   305→            Saved
+   306→          </DropdownMenuItem>
+   307→
+   308→          <DropdownMenuItem
+   309→            onSelect={() => void signOut({ callbackUrl: "/" })}
+   310→            className="gap-2 rounded-lg px-2 py-2 text-sm text-red-400 focus:bg-red-500/10 focus:text-red-300"
+   311→          >
+   312→            <LogOut className="size-4" aria-hidden />
+   313→            Sign out
+   314→          </DropdownMenuItem>
+   315→
+   316→          <DropdownMenuSeparator className="bg-white/10" />
+   317→          <div className={cn(MONO_LABEL, "px-2 pb-1 pt-1.5")}>Session · Database</div>
+   318→          </DropdownMenuContent>
+   319→        </DropdownMenu>
+   320→
+   321→        <ProfileEditor
+   322→          open={profileOpen}
+   323→          onOpenChange={handleProfileOpenChange}
+   324→          initial={{ name, handle, email: user.email ?? null }}
+   325→          onSaved={async () => {
+   326→            // Refetch the session so the chip avatar + @handle update without
+   327→            // a page reload (database sessions re-run the session callback).
+   328→            await update();
+   329→          }}
+   330→        />
+   331→      </Popover>
+   332→    );
+   333→  }
+   334→
+   335→  // ── Signed out: SIGN IN button + popover ───────────────────────────────
+   336→  return (
+   337→    <Popover open={open} onOpenChange={setOpen}>
+   338→      <PopoverTrigger asChild>
+   339→        <button
+   340→          type="button"
+   341→          aria-haspopup="dialog"
+   342→          aria-expanded={open}
+   343→          aria-label="Sign in or create account"
+   344→          className="inline-flex h-9 items-center rounded-lg border border-white/15 bg-transparent px-3.5 font-mono text-sm uppercase tracking-[0.25em] text-ember transition-colors hover:border-ember/50 hover:bg-ember/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+   345→        >
+   346→          Sign in
+   347→        </button>
+   348→      </PopoverTrigger>
+   349→
+   350→      <PopoverContent
+   351→        align="end"
+   352→        sideOffset={8}
+   353→        className="z-[70] w-[320px] rounded-xl border border-white/10 bg-coal p-4 text-white shadow-xl shadow-black/40"
+   354→      >
+   355→        <p className={MONO_LABEL}>Sign in / Create account</p>
+   356→        <p className="mt-1.5 text-xs leading-snug text-white/60">
+   357→          Upvote, review, save collections, claim listings.
+   358→        </p>
+   359→
+   360→        {/* Google OAuth — only when configured on the server */}
+   361→        {hasGoogle ? (
+   362→          <button
+   363→            type="button"
+   364→            onClick={() => void signIn("google", { callbackUrl: "/" })}
+   365→            className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2.5 rounded-lg border border-white/15 bg-white/[0.03] font-mono text-sm uppercase tracking-[0.25em] text-white/80 transition-colors hover:border-ember/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+   366→          >
+   367→            <GoogleGlyph />
+   368→            Continue with Google
+   369→          </button>
+   370→        ) : (
+   371→          <div
+   372→            aria-disabled="true"
+   373→            className="mt-4 flex min-h-9 items-center justify-center rounded-lg border border-white/10 px-2 py-2 text-center font-mono text-xs uppercase leading-relaxed tracking-[0.2em] text-white/55 opacity-50"
+   374→          >
+   375→            Google: configure GOOGLE_CLIENT_ID to enable
+   376→          </div>
+   377→        )}
+   378→
+   379→        {/* Divider */}
+   380→        <div className="my-4 flex items-center gap-3" aria-hidden>
+   381→          <span className="h-px flex-1 bg-white/10" />
+   382→          <span className={MONO_LABEL}>Or magic link</span>
+   383→          <span className="h-px flex-1 bg-white/10" />
+   384→        </div>
+   385→
+   386→        {/* Magic-link form */}
+   387→        <form onSubmit={onSubmit} noValidate className="space-y-2">
+   388→          <label htmlFor="prother-auth-email" className={MONO_LABEL}>
+   389→            Email
+   390→          </label>
+   391→          <Input
+   392→            id="prother-auth-email"
+   393→            type="email"
+   394→            inputMode="email"
+   395→            autoComplete="email"
+   396→            placeholder="you@studio.dev"
+   397→            value={email}
+   398→            onChange={(e) => setEmail(e.target.value)}
+   399→            aria-invalid={error ? true : undefined}
+   400→            disabled={sending}
+   401→            className="h-9 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+   402→          />
+   403→          <Button
+   404→            type="submit"
+   405→            disabled={sending}
+   406→            className="h-9 w-full rounded-lg bg-ember font-semibold text-[#0A0A0A] shadow-none hover:bg-ember/90"
+   407→          >
+   408→            {sending ? (
+   409→              <>
+   410→                <Loader2 className="size-4 animate-spin" aria-hidden />
+   411→                Sending link…
+   412→              </>
+   413→            ) : (
+   414→              "Send magic link"
+   415→            )}
+   416→          </Button>
+   417→        </form>
+   418→
+   419→        {/* Inline error */}
+   420→        {error && (
+   421→          <p role="alert" className="mt-2 text-xs leading-snug text-red-400">
+   422→            {error}
+   423→          </p>
+   424→        )}
+   425→
+   426→        {/* Outcome blocks */}
+   427→        {sentTo !== null && !error && magicUrl && (
+   428→          <div className="mt-3 rounded-lg border border-ember/25 bg-ember/[0.06] p-3">
+   429→            <p className="text-xs leading-snug text-white/80">
+   430→              Magic link sent to <span className="font-semibold text-white">{sentTo}</span>
+   431→            </p>
+   432→            <Button
+   433→              asChild
+   434→              className="mt-2 h-9 w-full rounded-lg bg-ember font-semibold text-[#0A0A0A] shadow-none hover:bg-ember/90"
+   435→            >
+   436→              <a
+   437→                href={magicUrl}
+   438→                onClick={(e) => {
+   439→                  e.preventDefault();
+   440→                  window.location.href = magicUrl;
+   441→                }}
+   442→              >
+   443→                Open magic link ↗
+   444→              </a>
+   445→            </Button>
+   446→            <p className={cn(MONO_LABEL, "mt-2")}>Dev inbox (replaced by SMTP in prod)</p>
+   447→          </div>
+   448→        )}
+   449→
+   450→        {sentTo !== null && !error && !magicUrl && (
+   451→          <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+   452→            <p className="text-xs leading-snug text-white/80">
+   453→              Check your inbox. The link expires in 15 min.
+   454→            </p>
+   455→            <button
+   456→              type="button"
+   457→              disabled={sending || resendIn > 0}
+   458→              onClick={() => void sendMagicLink(sentTo)}
+   459→              className="mt-2 inline-flex items-center gap-1.5 font-mono text-sm uppercase tracking-[0.25em] text-ember transition-colors hover:text-ember-hot disabled:cursor-not-allowed disabled:text-white/40"
+   460→            >
+   461→              {sending && <Loader2 className="size-3 animate-spin" aria-hidden />}
+   462→              {sending ? "Resending…" : resendIn > 0 ? `Resend in ${resendIn}s` : "Resend"}
+   463→            </button>
+   464→          </div>
+   465→        )}
+   466→
+   467→        {/* Saved works without an account — bookmarks ride the anon visitor key */}
+   468→        <div className="mt-4 border-t border-white/10 pt-3">
+   469→          <button
+   470→            type="button"
+   471→            onClick={() => {
+   472→              setOpen(false);
+   473→              useExplorer.getState().openSaved("mine");
+   474→            }}
+   475→            className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left transition-colors hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+   476→          >
+   477→            <Bookmark className="size-3.5 shrink-0 text-ember" aria-hidden />
+   478→            <span className="min-w-0 flex-1">
+   479→              <span className="block text-xs font-semibold text-white/80">Saved items</span>
+   480→              <span className="block font-mono text-xs uppercase tracking-[0.2em] text-white/55">
+   481→                Works without an account →
+   482→              </span>
+   483→            </span>
+   484→          </button>
+   485→        </div>
+   486→      </PopoverContent>
+   487→    </Popover>
+   488→  );
+   489→}
+   490→
+   491→// ── Profile editor (Task 34) ────────────────────────────────────────────────
+   492→
+   493→/** GET/PATCH /api/user/profile payload (route returns this shape). */
+   494→type ProfilePayload = {
+   495→  id: string;
+   496→  name: string | null;
+   497→  handle: string | null;
+   498→  bio: string | null;
+   499→  image: string | null;
+   500→  role: string;
+   501→  createdAt: string;
+   502→};
+   503→
+   504→const BIO_MAX = 200;
+   505→
+   506→/**
+   507→ * Compact profile editor in a Popover anchored to the avatar chip.
+   508→ * Opening (the parent owns `open`) pulls the full profile so bio and avatar
+   509→ * are always current (fetch continuation, not an effect body, per the
+   510→ * repo's setState-in-effect lint ban); Save → PATCH, then onSaved() lets the
+   511→ * parent refresh the session so the header chip and the dropdown row pick up
+   512→ * the new avatar/handle without a reload.
+   513→ */
+   514→function ProfileEditor({
+   515→  open,
+   516→  onOpenChange,
+   517→  initial,
+   518→  onSaved,
+   519→}: {
+   520→  open: boolean;
+   521→  onOpenChange: (open: boolean) => void;
+   522→  initial: { name: string; handle: string; email: string | null };
+   523→  onSaved: () => void | Promise<void>;
+   524→}) {
+   525→  const { toast } = useToast();
+   526→  const [saving, setSaving] = useState(false);
+   527→  const [name, setName] = useState(initial.name);
+   528→  const [handle, setHandle] = useState(initial.handle);
+   529→  const [bio, setBio] = useState("");
+   530→  const [image, setImage] = useState<string | null>(null);
+   531→  const [error, setError] = useState<string | null>(null);
+   532→
+   533→  // Every open: pull the authoritative profile (bio and avatar are not on
+   534→  // the session) and clear stale errors. All state writes happen in async
+   535→  // continuations so react-hooks/set-state-in-effect stays satisfied.
+   536→  useEffect(() => {
+   537→    if (!open) return;
+   538→    let alive = true;
+   539→    setError(null);
+   540→    fetch("/api/user/profile")
+   541→      .then((r) =>
+   542→        r.ok ? (r.json() as Promise<{ profile: ProfilePayload }>) : null
+   543→      )
+   544→      .then((d) => {
+   545→        if (!alive || !d?.profile) return;
+   546→        setName(d.profile.name || initial.name);
+   547→        setHandle(d.profile.handle || initial.handle);
+   548→        setBio(d.profile.bio ?? "");
+   549→        setImage(d.profile.image ?? null);
+   550→      })
+   551→      .catch(() => {
+   552→        /* fall back to the session-derived values already in the form */
+   553→      });
+   554→    return () => {
+   555→      alive = false;
+   556→    };
+   557→  }, [open, initial.name, initial.handle]);
+   558→
+   559→  const save = async () => {
+   560→    setSaving(true);
+   561→    setError(null);
+   562→    try {
+   563→      const res = await fetch("/api/user/profile", {
+   564→        method: "PATCH",
+   565→        headers: { "Content-Type": "application/json" },
+   566→        body: JSON.stringify({ name, handle, bio, image }),
+   567→      });
+   568→      const payload = (await res.json().catch(() => null)) as
+   569→        | { profile?: ProfilePayload; error?: string }
+   570→        | null;
+   571→      if (!res.ok || !payload?.profile) {
+   572→        throw new Error(
+   573→          payload?.error ?? "Could not save the profile. Try again."
+   574→        );
+   575→      }
+   576→      toast({ title: "Profile saved." });
+   577→      await onSaved();
+   578→      onOpenChange(false);
+   579→    } catch (err) {
+   580→      setError(
+   581→        err instanceof Error ? err.message : "Could not save the profile."
+   582→      );
+   583→    } finally {
+   584→      setSaving(false);
+   585→    }
+   586→  };
+   587→
+   588→  return (
+   589→    <PopoverContent
+   590→      align="end"
+   591→      sideOffset={8}
+   592→      className="z-[70] w-[340px] rounded-xl border border-white/10 bg-coal p-4 text-white shadow-xl shadow-black/40"
+   593→    >
+   594→      <p className={MONO_LABEL}>Profile</p>
+   595→      <p className="mt-1 text-xs leading-snug text-white/60">
+   596→        Signed in as {initial.email ?? "a maker"}.
+   597→      </p>
+   598→
+   599→      <form
+   600→        onSubmit={(e) => {
+   601→          e.preventDefault();
+   602→          if (!saving) void save();
+   603→        }}
+   604→        noValidate
+   605→        className="mt-4 space-y-3"
+   606→      >
+   607→        <div className="flex items-start gap-3">
+   608→          <ImageUploadField
+   609→            value={image}
+   610→            onChange={(url) => setImage(url)}
+   611→            purpose="avatar"
+   612→            endpoint="user"
+   613→            square
+   614→            label="Avatar"
+   615→            hint="Square works best"
+   616→            className="w-[116px] shrink-0"
+   617→            disabled={saving}
+   618→          />
+   619→          <div className="min-w-0 flex-1 space-y-2">
+   620→            <div>
+   621→              <Label htmlFor="prother-profile-name" className={MONO_LABEL}>
+   622→                Name
+   623→              </Label>
+   624→              <Input
+   625→                id="prother-profile-name"
+   626→                value={name}
+   627→                onChange={(e) => setName(e.target.value)}
+   628→                maxLength={40}
+   629→                autoComplete="name"
+   630→                disabled={saving}
+   631→                className="mt-1 h-10 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+   632→                placeholder="Your name"
+   633→              />
+   634→            </div>
+   635→            <div>
+   636→              <Label htmlFor="prother-profile-handle" className={MONO_LABEL}>
+   637→                Handle
+   638→              </Label>
+   639→              <div className="relative mt-1">
+   640→                <span
+   641→                  aria-hidden
+   642→                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-white/55"
+   643→                >
+   644→                  @
+   645→                </span>
+   646→                <Input
+   647→                  id="prother-profile-handle"
+   648→                  value={handle}
+   649→                  onChange={(e) =>
+   650→                    setHandle(e.target.value.replace(/\s/g, ""))
+   651→                  }
+   652→                  maxLength={24}
+   653→                  autoComplete="off"
+   654→                  spellCheck={false}
+   655→                  disabled={saving}
+   656→                  className="h-10 rounded-lg border-white/15 bg-white/[0.03] pl-7 text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+   657→                  placeholder="handle"
+   658→                />
+   659→              </div>
+   660→            </div>
+   661→          </div>
+   662→        </div>
+   663→
+   664→        <div>
+   665→          <div className="flex items-baseline justify-between gap-2">
+   666→            <Label htmlFor="prother-profile-bio" className={MONO_LABEL}>
+   667→              Bio
+   668→            </Label>
+   669→            <span
+   670→              className={cn(
+   671→                "font-mono text-xs tabular-nums",
+   672→                bio.length >= BIO_MAX ? "text-ember" : "text-white/55"
+   673→              )}
+   674→            >
+   675→              {bio.length}/{BIO_MAX}
+   676→            </span>
+   677→          </div>
+   678→          <Textarea
+   679→            id="prother-profile-bio"
+   680→            value={bio}
+   681→            onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
+   682→            maxLength={BIO_MAX}
+   683→            rows={3}
+   684→            disabled={saving}
+   685→            className="mt-1 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+   686→            placeholder="What are you building?"
+   687→          />
+   688→        </div>
+   689→
+   690→        {error && (
+   691→          <p role="alert" className="text-xs leading-snug text-red-400">
+   692→            {error}
+   693→          </p>
+   694→        )}
+   695→
+   696→        <Button
+   697→          type="submit"
+   698→          disabled={saving}
+   699→          className="h-11 w-full rounded-lg bg-ember font-semibold text-[#0A0A0A] shadow-none hover:bg-ember/90"
+   700→        >
+   701→          {saving ? (
+   702→            <>
+   703→              <Loader2 className="size-4 animate-spin" aria-hidden />
+   704→              Saving…
+   705→            </>
+   706→          ) : (
+   707→            "Save profile"
+   708→          )}
+   709→        </Button>
+   710→      </form>
+   711→    </PopoverContent>
+   712→  );
+   713→}
+   714→

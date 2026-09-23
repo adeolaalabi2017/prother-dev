@@ -361,13 +361,22 @@ export function ToolsDirectory({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div
-                      aria-hidden
+                      aria-hidden={!row.logoUrl}
                       className={cn(
-                        "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
+                        "flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br text-xl shadow-inner",
                         row.gradient
                       )}
                     >
-                      {row.emoji}
+                      {row.logoUrl ? (
+                        <img
+                          src={row.logoUrl}
+                          alt={`${row.name} logo`}
+                          loading="lazy"
+                          className="size-full object-contain"
+                        />
+                      ) : (
+                        <span aria-hidden>{row.emoji}</span>
+                      )}
                     </div>
                     {row.editorsPick && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">

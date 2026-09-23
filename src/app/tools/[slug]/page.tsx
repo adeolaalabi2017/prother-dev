@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
+import { toolMediaByIds } from "@/lib/media";
 import { listPublishedReviews, reviewStats } from "@/lib/community";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
@@ -173,7 +174,7 @@ export default async function ToolPage({ params }: Params) {
   const name = tool.name;
 
   // ── Full live listing — everything below is server-rendered ────────────
-  const [stats, reviews, threads, relatedRows] = await Promise.all([
+  const [stats, reviews, threads, relatedRows, mediaMap] = await Promise.all([
     reviewStats(tool.id),
     db.review.findMany({
       where: { toolId: tool.id, status: "published" },
@@ -208,7 +209,13 @@ export default async function ToolPage({ params }: Params) {
         editorsPick: true,
       },
     }),
+    // POST-boot media columns → raw SQL (stale-PrismaClient rule; never
+    // select logoUrl/screenshotUrls via the ORM).
+    toolMediaByIds([tool.id]),
   ]);
+
+  const logoUrl = mediaMap.get(tool.id)?.logoUrl ?? null;
+  const screenshots = mediaMap.get(tool.id)?.screenshotUrls ?? [];
 
   const aggregate = stats.aggregate;
   const related = relatedRows.map((r) => ({
@@ -275,13 +282,21 @@ export default async function ToolPage({ params }: Params) {
           <header className="space-y-5">
             <div className="flex items-start gap-4 sm:gap-5">
               <span
-                aria-hidden
+                aria-hidden={!logoUrl}
                 className={cn(
-                  "grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
+                  "grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
                   tool.logoGradient
                 )}
               >
-                {tool.logoEmoji}
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt={`${name} logo`}
+                    className="size-full object-contain"
+                  />
+                ) : (
+                  <span aria-hidden>{tool.logoEmoji}</span>
+                )}
               </span>
               <div className="min-w-0 flex-1">
                 <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
@@ -362,6 +377,25 @@ export default async function ToolPage({ params }: Params) {
             <section aria-label={`About ${name}`} className="space-y-3">
               <h2 className={SECTION_HEAD}>About {name}</h2>
               <AboutClamp text={tool.description} />
+            </section>
+          )}
+
+          {/* b2. Screenshots (Task 34) — uploaded gallery strip; only when the
+              listing has media. Mirrors tool-full-page.tsx placement. */}
+          {screenshots.length > 0 && (
+            <section aria-label={`Screenshots of ${name}`} className="space-y-3">
+              <h2 className={SECTION_HEAD}>Screenshots</h2>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {screenshots.map((src, i) => (
+                  <img
+                    key={`${src}-${i}`}
+                    src={src}
+                    alt={`${name} screenshot ${i + 1}`}
+                    loading="lazy"
+                    className="h-40 w-auto shrink-0 rounded-xl border border-white/10 object-cover sm:h-52"
+                  />
+                ))}
+              </div>
             </section>
           )}
 

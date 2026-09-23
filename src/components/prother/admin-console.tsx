@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
   BarChart3,
@@ -11,6 +11,7 @@ import {
   FileText,
   Flag,
   Hexagon,
+  Images,
   KeyRound,
   LayoutDashboard,
   ListChecks,
@@ -31,6 +32,7 @@ import {
   Tags,
   Trash2,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -79,6 +81,9 @@ import {
 import { UsersTab } from "./admin/admin-users";
 import { ReportsTab } from "./admin/admin-reports";
 import { AdsTab } from "./admin/admin-ads";
+import { AdminMediaTab } from "./admin/admin-media";
+import { IntegrationsModule } from "./admin/admin-integrations";
+import { ImageUploadField } from "./image-upload-field";
 
 /**
  * Admin Console — /admin route (Task 20-c redesign).
@@ -212,6 +217,9 @@ type AdminTool = {
   verifiedAt: string | null;
   /** Comparison-matrix values (Task 32): {"Context window":"128k tokens"}. */
   features: Record<string, string>;
+  /** Uploaded media (Task 34): POST-boot columns read via raw SQL server-side. */
+  logoUrl: string | null;
+  screenshotUrls: string[];
   category: { id: string; name: string; emoji: string; slug: string };
   comments: number;
   reviews: number;
@@ -234,6 +242,8 @@ type AdminPost = {
   seoTitle: string | null;
   seoDescription: string | null;
   keywords: string | null;
+  /** Uploaded cover (Task 34): POST-boot column merged into the payload server-side. */
+  coverUrl: string | null;
   publishedAt: string | null;
   updatedAt: string;
 };
@@ -853,32 +863,50 @@ function ListingEditor({
     makerHandle: tool.makerHandle,
     categoryId: tool.category.id,
   });
+  // Listing media (Task 34-c): uploaded logo + screenshot strip. Only sent in
+  // the PATCH when actually changed, so untouched tools never risk a clear.
+  const [logoUrl, setLogoUrl] = useState<string | null>(tool.logoUrl);
+  const [screenshots, setScreenshots] = useState<string[]>(tool.screenshotUrls);
+  const initialMedia = useRef({
+    logoUrl: tool.logoUrl,
+    screenshots: tool.screenshotUrls,
+  });
 
   const save = async () => {
     setBusy(true);
     try {
+      const payload: Record<string, unknown> = {
+        id: tool.id,
+        tagline: f.tagline,
+        description: f.description || null,
+        pricingModel: f.pricingModel,
+        startingPrice: f.startingPrice || null,
+        pricingNote: f.pricingNote || null,
+        websiteUrl: f.websiteUrl,
+        githubUrl: f.githubUrl || null,
+        docsUrl: f.docsUrl || null,
+        twitterUrl: f.twitterUrl || null,
+        tags: f.tags,
+        status: f.status,
+        pinned: f.pinned,
+        editorsPick: f.editorsPick,
+        curated: f.curated,
+        claimed: f.claimed,
+        makerHandle: f.makerHandle,
+        categoryId: f.categoryId,
+      };
+      if (logoUrl !== initialMedia.current.logoUrl) {
+        payload.logoUrl = logoUrl;
+      }
+      if (
+        JSON.stringify(screenshots) !==
+        JSON.stringify(initialMedia.current.screenshots)
+      ) {
+        payload.screenshotUrls = screenshots;
+      }
       const res = await adminFetch(apiKey, "/api/admin/tools", {
         method: "PATCH",
-        body: JSON.stringify({
-          id: tool.id,
-          tagline: f.tagline,
-          description: f.description || null,
-          pricingModel: f.pricingModel,
-          startingPrice: f.startingPrice || null,
-          pricingNote: f.pricingNote || null,
-          websiteUrl: f.websiteUrl,
-          githubUrl: f.githubUrl || null,
-          docsUrl: f.docsUrl || null,
-          twitterUrl: f.twitterUrl || null,
-          tags: f.tags,
-          status: f.status,
-          pinned: f.pinned,
-          editorsPick: f.editorsPick,
-          curated: f.curated,
-          claimed: f.claimed,
-          makerHandle: f.makerHandle,
-          categoryId: f.categoryId,
-        }),
+        body: JSON.stringify(payload),
       });
       const d = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !d.ok) {
@@ -1053,6 +1081,82 @@ function ListingEditor({
         ))}
       </div>
 
+      {/* Listing media (Task 34-c): uploaded logo + screenshot strip. */}
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <p className="flex items-center gap-1.5 font-mono text-xs tracking-[0.2em] text-ember uppercase">
+          <Images className="size-3.5" aria-hidden />
+          Listing media
+        </p>
+        <p className="mt-1 text-xs text-white/55">
+          Applies on “Save changes”. The logo replaces the emoji tile wherever
+          the listing renders.
+        </p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Logo image"
+            hint="Square tile. Leave empty to keep the emoji + gradient."
+          >
+            <ImageUploadField
+              value={logoUrl}
+              onChange={(url) => setLogoUrl(url)}
+              purpose="tool-logo"
+              endpoint="admin"
+              editorKey={apiKey}
+              square
+            />
+          </Field>
+          <div className="space-y-2">
+            <p className={labelCx}>Screenshots ({screenshots.length}/12)</p>
+            {screenshots.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {screenshots.map((url) => (
+                  <div
+                    key={url}
+                    className="relative size-20 overflow-hidden rounded-lg border border-white/10 bg-ink"
+                  >
+                    <img
+                      src={url}
+                      alt="Listing screenshot"
+                      loading="lazy"
+                      className="size-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Remove screenshot"
+                      onClick={() =>
+                        setScreenshots((p) => p.filter((u) => u !== url))
+                      }
+                      className="absolute right-1 top-1 rounded-md bg-black/60 p-1 text-white/85 transition-colors hover:text-red-300"
+                    >
+                      <X className="size-3" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {screenshots.length < 12 ? (
+              <ImageUploadField
+                value={null}
+                onChange={(url, result) => {
+                  if (url && result) {
+                    setScreenshots((p) => (p.includes(url) ? p : [...p, url]));
+                  }
+                }}
+                purpose="tool-screenshot"
+                endpoint="admin"
+                editorKey={apiKey}
+                label={screenshots.length > 0 ? "Add another" : "Add screenshot"}
+                hint="Uploads append to the strip; saving stores the whole list."
+              />
+            ) : (
+              <p className="text-xs text-white/55">
+                Screenshot cap reached (12). Remove one to add another.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Task 32: per-tool comparison matrix values. key= remounts when the
           category changes so rows re-seed from that category's axes. */}
       <FeaturesEditor
@@ -1182,7 +1286,17 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
               onClick={() => setExpanded(expanded === t.id ? null : t.id)}
               className="flex w-full items-center gap-3 p-3.5 text-left transition-colors hover:bg-white/[0.03]"
             >
-              <span aria-hidden className="text-lg">{t.logoEmoji}</span>
+              {t.logoUrl ? (
+                <img
+                  src={t.logoUrl}
+                  alt=""
+                  aria-hidden
+                  loading="lazy"
+                  className="size-8 shrink-0 rounded-lg border border-white/10 bg-ink object-contain p-0.5"
+                />
+              ) : (
+                <span aria-hidden className="text-lg">{t.logoEmoji}</span>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 truncate text-sm font-bold text-white">
                   {t.name}
@@ -1249,6 +1363,8 @@ type PostDraft = {
   tags: string;
   coverEmoji: string;
   coverGradient: string;
+  /** Uploaded cover image (Task 34): /api/media/{id} URL or null. */
+  coverUrl: string | null;
   author: string;
   status: string;
   seoTitle: string;
@@ -1265,6 +1381,7 @@ const EMPTY_POST: PostDraft = {
   tags: "",
   coverEmoji: "📝",
   coverGradient: GRADIENTS[0],
+  coverUrl: null,
   author: "Prother Editorial",
   status: "draft",
   seoTitle: "",
@@ -1300,6 +1417,7 @@ function PostEditor({
         tags: f.tags,
         coverEmoji: f.coverEmoji,
         coverGradient: f.coverGradient,
+        coverUrl: f.coverUrl || null,
         author: f.author,
         status: publishOverride ?? f.status,
         seoTitle: f.seoTitle || undefined,
@@ -1409,6 +1527,42 @@ function PostEditor({
               )}
             />
           ))}
+        </div>
+      </div>
+
+      {/* Cover image (Task 34-c): uploaded cover beats the emoji gradient. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label="Cover image"
+          hint="Shown instead of the emoji gradient wherever the post renders."
+        >
+          <ImageUploadField
+            value={f.coverUrl}
+            onChange={(url) => setF({ ...f, coverUrl: url })}
+            purpose="post-cover"
+            endpoint="admin"
+            editorKey={apiKey}
+          />
+        </Field>
+        <div className="space-y-1.5">
+          <span className={labelCx}>Preview</span>
+          {f.coverUrl ? (
+            <img
+              src={f.coverUrl}
+              alt="Post cover preview"
+              className="aspect-video w-full rounded-xl border border-white/10 bg-ink object-cover"
+            />
+          ) : (
+            <div
+              aria-hidden
+              className={cn(
+                "flex aspect-video w-full items-center justify-center rounded-xl bg-gradient-to-br text-3xl",
+                f.coverGradient
+              )}
+            >
+              {f.coverEmoji}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1565,7 +1719,17 @@ function BlogTab({
             key={p.id}
             className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
           >
-            <span aria-hidden className="text-lg">{p.coverEmoji}</span>
+            {p.coverUrl ? (
+              <img
+                src={p.coverUrl}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                className="h-9 w-14 shrink-0 rounded-lg border border-white/10 bg-ink object-cover"
+              />
+            ) : (
+              <span aria-hidden className="text-lg">{p.coverEmoji}</span>
+            )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-white">{p.title}</p>
               <p className="truncate font-mono text-xs text-white/60">
@@ -1606,6 +1770,7 @@ function BlogTab({
                   tags: p.tags,
                   coverEmoji: p.coverEmoji,
                   coverGradient: p.coverGradient,
+                  coverUrl: p.coverUrl ?? null,
                   author: p.author,
                   status: p.status,
                   seoTitle: p.seoTitle ?? "",
@@ -1961,6 +2126,12 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
         {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
         Save site copy
       </Button>
+
+      {/* API integrations (Task 34-c): self-contained credential manager,
+          saved with its own PUT, separate from the site-copy KV above. */}
+      <div className="border-t border-white/10 pt-4">
+        <IntegrationsModule apiKey={apiKey} />
+      </div>
     </div>
   );
 }
@@ -2619,6 +2790,7 @@ type SectionId =
   | "users"
   | "reports"
   | "journal"
+  | "media"
   | "ads"
   | "settings";
 
@@ -2639,7 +2811,10 @@ const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: 
   },
   {
     label: "Content",
-    items: [{ id: "journal", label: "Journal", icon: FileText }],
+    items: [
+      { id: "journal", label: "Journal", icon: FileText },
+      { id: "media", label: "Media", icon: Images },
+    ],
   },
   {
     label: "Growth",
@@ -2659,6 +2834,7 @@ const SECTION_TITLES: Record<SectionId, string> = {
   users: "Users",
   reports: "Reports",
   journal: "Journal",
+  media: "Media library",
   ads: "Advertising",
   settings: "Site settings",
 };
@@ -2671,6 +2847,7 @@ const SECTION_NOTES: Record<SectionId, string> = {
   users: "Community roster: roles, bans and activity. Sessions revoke on ban.",
   reports: "Community moderation queue: hide content, resolve or dismiss with a note.",
   journal: "SEO workhorse: markdown posts with drafts, SERP preview and views.",
+  media: "Uploaded images and videos: copy URLs, attach to listings or posts, delete safely.",
   ads: "Sponsored campaigns: placements, flights, budgets and CTR.",
   settings: "KV site copy: hero, announcement, footer, SEO defaults. No deploys.",
 };
@@ -3006,6 +3183,9 @@ export function AdminDashboard() {
                       onChanged={bumpOverview}
                       onPreview={previewPost}
                     />
+                  )}
+                  {section === "media" && (
+                    <AdminMediaTab apiKey={key} onChanged={bumpOverview} />
                   )}
                   {section === "ads" && (
                     <AdsTab apiKey={key} onChanged={bumpOverview} />

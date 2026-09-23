@@ -9,6 +9,7 @@ import { searchToolsForSerp } from "@/lib/search";
 import type { SerpToolRow } from "@/lib/search";
 import { commentCountsByTool } from "@/lib/discussion";
 import type { DirectoryRow } from "@/app/api/tools/route";
+import { toolMediaByIds } from "@/lib/media";
 import { placementEnabled } from "@/lib/ad-config";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +115,9 @@ async function directoryInitialRows(): Promise<{ rows: DirectoryRow[]; total: nu
 
   const commentCounts = await commentCountsByTool(tools.map((t) => t.id));
   const reviewCounts = await publishedReviewCounts(tools.map((t) => t.id));
+  // POST-boot media columns → raw SQL (lib/media.ts). NEVER select logoUrl
+  // through the ORM: a long-running dev server can hold a pre-v8 client.
+  const mediaMap = await toolMediaByIds(tools.map((t) => t.id));
 
   const rows: DirectoryRow[] = tools.map((t) => {
     const commentCount = commentCounts.get(t.id) ?? 0;
@@ -134,6 +138,7 @@ async function directoryInitialRows(): Promise<{ rows: DirectoryRow[]; total: nu
         hasApi: t.hasApi,
         openSource: t.pricingModel === "open_source",
       },
+      logoUrl: mediaMap.get(t.id)?.logoUrl ?? null,
       ...(commentCount > 0 ? { comments: commentCount } : {}),
       listedAt: t.createdAt.toISOString(),
       reviews: { count: reviewCounts.get(t.id) ?? 0 },

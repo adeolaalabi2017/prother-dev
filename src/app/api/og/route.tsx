@@ -19,9 +19,9 @@ export const dynamic = "force-dynamic";
  */
 
 const MONO =
-  '"Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace';
+  'ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace';
 const SANS =
-  '"Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif';
 
 async function getToolData(slug: string) {
   const tool = await db.tool.findUnique({

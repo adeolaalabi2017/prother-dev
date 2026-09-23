@@ -34,6 +34,10 @@ export type ToolDetailResponse = {
   websiteUrl: string;
   emoji: string;
   gradient: string;
+  /** Uploaded logo image URL; null → render the emoji tile (Task 34). */
+  logoUrl?: string | null;
+  /** Uploaded screenshots, newest first; empty when none (Task 34). */
+  screenshots?: string[];
   pricing: { model: string; price: string | null; note: string | null };
   category: { slug: string; name: string; emoji: string };
   maker: string;

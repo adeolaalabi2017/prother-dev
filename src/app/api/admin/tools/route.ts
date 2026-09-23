@@ -4,8 +4,19 @@ import { z } from "zod";
 import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
 import { setToolFeatures, toolFeaturesByIds } from "@/lib/features";
+import {
+  setToolLogo,
+  setToolScreenshots,
+  toolMediaByIds,
+} from "@/lib/media";
 
 export const dynamic = "force-dynamic";
+
+/** Media library URLs only — uploads must come from /api/media. */
+const MEDIA_URL = z
+  .string()
+  .regex(/^\/api\/media\/[A-Za-z0-9_-]+$/, "must be an uploaded media URL")
+  .max(200);
 
 /**
  * Admin listing management (PRD F-49/F-50 area) + CMS create (Task 32).
@@ -44,6 +55,10 @@ const patchSchema = z.object({
   features: z
     .record(z.string().min(1).max(60), z.string().max(120))
     .optional(),
+  /** Uploaded logo image (POST-boot column → raw SQL, lib/media.ts). */
+  logoUrl: MEDIA_URL.nullable().optional(),
+  /** Uploaded screenshots, 12 max (POST-boot column → raw SQL). */
+  screenshotUrls: z.array(MEDIA_URL).max(12).optional(),
   /** Sentinel: stamps verifiedAt = now (S-verification tick, PRD F-18 lite). */
   verify: z.literal(true).optional(),
 });
@@ -96,6 +111,9 @@ const createSchema = z.object({
   status: z.enum(["live", "draft"]).default("live"),
   editorsPick: z.boolean().default(false),
   curated: z.boolean().default(false),
+  /** Uploaded media (POST-boot columns → raw SQL after create). */
+  logoUrl: MEDIA_URL.nullable().optional(),
+  screenshotUrls: z.array(MEDIA_URL).max(12).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -176,34 +194,18 @@ export async function GET(req: NextRequest) {
   const commentCount = new Map(commentRows.map((r) => [r.toolId, Number(r.n)]));
   const reviewCount = new Map(reviewRows.map((r) => [r.toolId, Number(r.n)]));
   const featureMap = await toolFeaturesByIds(ids);
+  // POST-boot media columns → raw SQL (stale-PrismaClient rule).
+  const mediaMap = await toolMediaByIds(ids);
 
   return NextResponse.json({
     tools: tools.map((t) => ({
-      id: t.id,
-      slug: t.slug,
-      name: t.name,
-      tagline: t.tagline,
-      description: t.description,
-      websiteUrl: t.websiteUrl,
-      logoEmoji: t.logoEmoji,
-      logoGradient: t.logoGradient,
-      pricingModel: t.pricingModel,
-      startingPrice: t.startingPrice,
-      pricingNote: t.pricingNote,
-      hasApi: t.hasApi,
-      githubUrl: t.githubUrl,
-      docsUrl: t.docsUrl,
-      twitterUrl: t.twitterUrl,
-      tags: t.tags,
-      track: t.track,
-      status: t.status,
-      pinned: t.pinned,
-      editorsPick: t.editorsPick,
-      curated: t.curated,
-      claimed: t.claimed,
-      makerHandle: t.makerHandle,
-      verifiedAt: t.verifiedAt?.toISOString() ?? null,
+      // Base fields (name/slug/tagline/...): Task 34-c — the spread was
+      // accidentally dropped when the media fields below were added, which
+      // blanked every row in the Admin Listings table.
+      ...t,
       features: featureMap.get(t.id) ?? {},
+      logoUrl: mediaMap.get(t.id)?.logoUrl ?? null,
+      screenshotUrls: mediaMap.get(t.id)?.screenshotUrls ?? [],
       category: t.category,
       comments: commentCount.get(t.id) ?? 0,
       reviews: reviewCount.get(t.id) ?? 0,
@@ -260,6 +262,13 @@ export async function POST(req: NextRequest) {
       select: { id: true, slug: true },
     });
     logAudit("tool.create", "tool", tool.id, tool.slug);
+    // POST-boot media columns → raw SQL (stale-PrismaClient rule).
+    if (data.logoUrl !== undefined) {
+      await setToolLogo(tool.id, data.logoUrl);
+    }
+    if (data.screenshotUrls !== undefined) {
+      await setToolScreenshots(tool.id, data.screenshotUrls);
+    }
     return NextResponse.json({ ok: true, id: tool.id, slug: tool.slug });
   } catch {
     return NextResponse.json(
@@ -280,11 +289,16 @@ export async function PATCH(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { id, verify, features, ...data } = parsed.data;
+  const { id, verify, features, logoUrl, screenshotUrls, ...data } = parsed.data;
   if (verify) {
     (data as { verifiedAt?: Date }).verifiedAt = new Date();
   }
-  if (Object.keys(data).length === 0 && features === undefined) {
+  if (
+    Object.keys(data).length === 0 &&
+    features === undefined &&
+    logoUrl === undefined &&
+    screenshotUrls === undefined
+  ) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
@@ -308,11 +322,33 @@ export async function PATCH(req: NextRequest) {
         slug = row[0]?.slug ?? "";
       }
     }
+    // POST-boot media columns → raw SQL (stale-PrismaClient rule).
+    if (logoUrl !== undefined) {
+      await setToolLogo(id, logoUrl);
+      if (!slug) {
+        const row = await db.$queryRaw<{ slug: string }[]>`
+          SELECT slug FROM Tool WHERE id = ${id}`;
+        slug = row[0]?.slug ?? "";
+      }
+    }
+    if (screenshotUrls !== undefined) {
+      await setToolScreenshots(id, screenshotUrls);
+      if (!slug) {
+        const row = await db.$queryRaw<{ slug: string }[]>`
+          SELECT slug FROM Tool WHERE id = ${id}`;
+        slug = row[0]?.slug ?? "";
+      }
+    }
     logAudit(
       "tool.update",
       "tool",
       id,
-      `${slug}: ${[...Object.keys(data), ...(features !== undefined ? ["features"] : [])].join(", ")}`
+      `${slug}: ${[
+        ...Object.keys(data),
+        ...(features !== undefined ? ["features"] : []),
+        ...(logoUrl !== undefined ? ["logoUrl"] : []),
+        ...(screenshotUrls !== undefined ? ["screenshotUrls"] : []),
+      ].join(", ")}`
     );
     return NextResponse.json({ ok: true, slug });
   } catch {

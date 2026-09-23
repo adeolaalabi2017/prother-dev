@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { JournalIndex } from "@/components/prother/journal-index";
 import { AdSlot } from "@/components/prother/ad-slot";
 import { db } from "@/lib/prother";
+import { postCoversByIds } from "@/lib/media";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { placementEnabled } from "@/lib/ad-config";
 
@@ -50,6 +51,7 @@ export default async function JournalPage() {
     orderBy: { publishedAt: "desc" },
     take: 24,
     select: {
+      id: true,
       slug: true,
       title: true,
       excerpt: true,
@@ -63,10 +65,14 @@ export default async function JournalPage() {
     },
   });
 
+  const coverMap = await postCoversByIds(posts.map((p) => p.id));
+
   const cards = posts.map((p) => ({
     ...p,
     tags: p.tags ? p.tags.split("|").filter(Boolean) : [],
     publishedAt: p.publishedAt?.toISOString() ?? null,
+    // POST-boot column → raw SQL merge (lib/media.ts; never in the select).
+    coverUrl: coverMap.get(p.id) ?? null,
   }));
 
   // Blog JSON-LD — list of BlogPostings for crawlers.

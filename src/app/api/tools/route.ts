@@ -5,6 +5,7 @@ import type { Badge } from "@/lib/prother";
 import { blurbFor } from "@/lib/category-blurbs";
 import { trendingScores } from "@/lib/trending";
 import { commentCountsByTool } from "@/lib/discussion";
+import { toolMediaByIds } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,8 @@ export type DirectoryRow = {
   editorsPick: boolean;
   curated: boolean;
   badges: Badge;
+  /** Uploaded logo image, when the listing has one (falls back to emoji). */
+  logoUrl?: string | null;
   /** Present only when the listing has discussion (count > 0). */
   comments?: number;
   /** ISO date the tool was listed in the directory. */
@@ -187,10 +190,12 @@ export async function GET(req: Request) {
     });
   }
 
-  const [total, commentCounts, reviewCounts] = await Promise.all([
+  const [total, commentCounts, reviewCounts, mediaMap] = await Promise.all([
     db.tool.count({ where }),
     commentCountsByTool(pageTools.map((t) => t.id)),
     publishedReviewCounts(pageTools.map((t) => t.id)),
+    // POST-boot media columns → raw SQL (stale-PrismaClient rule).
+    toolMediaByIds(pageTools.map((t) => t.id)),
   ]);
 
   const rows: DirectoryRow[] = pageTools.map((t) => {
@@ -212,6 +217,7 @@ export async function GET(req: Request) {
         hasApi: t.hasApi,
         openSource: t.pricingModel === "open_source",
       },
+      logoUrl: mediaMap.get(t.id)?.logoUrl ?? null,
       ...(commentCount > 0 ? { comments: commentCount } : {}),
       listedAt: t.createdAt.toISOString(),
       reviews: { count: reviewCounts.get(t.id) ?? 0 },

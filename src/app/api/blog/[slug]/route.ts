@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/prother";
+import { postCoversByIds } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const post = await db.post.findUnique({
     where: { slug },
     select: {
+      id: true,
       slug: true,
       title: true,
       excerpt: true,
@@ -45,6 +47,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     orderBy: { publishedAt: "desc" },
     take: 3,
     select: {
+      id: true,
       slug: true,
       title: true,
       coverEmoji: true,
@@ -53,16 +56,25 @@ export async function GET(_req: NextRequest, { params }: Params) {
       category: true,
     },
   });
+  // POST-boot columns → raw SQL (stale-PrismaClient rule).
+  const [coverMap, relatedCoverMap] = await Promise.all([
+    postCoversByIds([post.id]),
+    postCoversByIds(related.map((r) => r.id)),
+  ]);
 
   return NextResponse.json(
     {
       post: {
         ...post,
+        coverUrl: coverMap.get(post.id) ?? null,
         tags: post.tags ? post.tags.split("|").filter(Boolean) : [],
         publishedAt: post.publishedAt?.toISOString() ?? null,
         updatedAt: post.updatedAt.toISOString(),
       },
-      related,
+      related: related.map((r) => ({
+        ...r,
+        coverUrl: relatedCoverMap.get(r.id) ?? null,
+      })),
     },
     { headers: { "Cache-Control": "no-store" } }
   );

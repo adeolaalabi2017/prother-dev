@@ -1,0 +1,1929 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+     4→import { useSession } from "next-auth/react";
+     5→import { motion } from "framer-motion";
+     6→import {
+     7→  ArrowUpRight,
+     8→  Bookmark,
+     9→  BookmarkCheck,
+    10→  Check,
+    11→  ChevronDown,
+    12→  CircleDashed,
+    13→  Copy,
+    14→  Flag,
+    15→  Heart,
+    16→  Link2,
+    17→  Loader2,
+    18→  MessageSquare,
+    19→  Plus,
+    20→  Scale,
+    21→  Send,
+    22→  ShieldCheck,
+    23→  Star,
+    24→} from "lucide-react";
+    25→import { Button } from "@/components/ui/button";
+    26→import { Input } from "@/components/ui/input";
+    27→import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+    28→import { Skeleton } from "@/components/ui/skeleton";
+    29→import { Textarea } from "@/components/ui/textarea";
+    30→import { AboutClamp } from "@/components/prother/about-clamp";
+    31→import {
+    32→  Collapsible,
+    33→  CollapsibleContent,
+    34→  CollapsibleTrigger,
+    35→} from "@/components/ui/collapsible";
+    36→import { useToast } from "@/hooks/use-toast";
+    37→import { cn } from "@/lib/utils";
+    38→import type { ToolDetailResponse } from "@/lib/prother";
+    39→import type { CommentRow } from "@/lib/discussion";
+    40→import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
+    41→import { useExplorer } from "./explorer-store";
+    42→import { useBookmark } from "./use-bookmarks";
+    43→import { ReportDialog } from "./report-dialog";
+    44→
+    45→// ── Types (additive fields per the tool-detail API contract) ─────────────
+    46→
+    47→type ReviewsAggregate = {
+    48→  count: number;
+    49→  ease: number;
+    50→  power: number;
+    51→  value: number;
+    52→  overall: number;
+    53→};
+    54→
+    55→type ToolViewer = {
+    56→  isMaker: boolean;
+    57→  following: boolean;
+    58→  claim: null | {
+    59→    id: string;
+    60→    status: string;
+    61→    method: string;
+    62→    token: string;
+    63→    note: string | null;
+    64→    createdAt: string;
+    65→    verifiedAt: string | null;
+    66→  };
+    67→  myReview: null | { id: string; ease: number; power: number; value: number; body: string; status: string };
+    68→  savedIn: { slug: string; name: string }[];
+    69→};
+    70→
+    71→type ToolFullDetail = ToolDetailResponse & {
+    72→  reviews?: { count: number; aggregate: ReviewsAggregate | null };
+    73→  viewer?: ToolViewer | null;
+    74→};
+    75→
+    76→type ReviewRow = {
+    77→  id: string;
+    78→  author: string;
+    79→  ease: number;
+    80→  power: number;
+    81→  value: number;
+    82→  body: string;
+    83→  status: string;
+    84→  createdAt: string;
+    85→  mine: boolean;
+    86→};
+    87→
+    88→type ReviewsResponse = {
+    89→  count: number;
+    90→  aggregate: ReviewsAggregate | null;
+    91→  reviews: ReviewRow[];
+    92→  /** My review (object) or null — defensively guarded below. */
+    93→  mine?: unknown;
+    94→  canReview: boolean;
+    95→  reason: null | "auth" | "maker";
+    96→};
+    97→
+    98→type CollectionRow = {
+    99→  id: string;
+   100→  slug: string;
+   101→  name: string;
+   102→  description: string | null;
+   103→  isPublic: boolean;
+   104→  itemCount: number;
+   105→  covers: string[];
+   106→};
+   107→
+   108→// ── Shared bits ───────────────────────────────────────────────────────────
+   109→
+   110→const MONO = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
+   111→const PANEL = "rounded-xl border border-white/10 bg-white/[0.02]";
+   112→
+   113→const PRICING_LABEL: Record<string, string> = {
+   114→  free: "Free",
+   115→  freemium: "Freemium",
+   116→  paid: "Paid",
+   117→  open_source: "Open Source",
+   118→};
+   119→
+   120→function fmtDay(iso: string | null): string {
+   121→  if (!iso) return "—";
+   122→  return new Date(iso).toLocaleDateString("en-US", {
+   123→    month: "short",
+   124→    day: "numeric",
+   125→    timeZone: "UTC",
+   126→  });
+   127→}
+   128→
+   129→function relTime(iso: string): string {
+   130→  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+   131→  if (s < 60) return "just now";
+   132→  const m = Math.floor(s / 60);
+   133→  if (m < 60) return `${m}m ago`;
+   134→  const h = Math.floor(m / 60);
+   135→  if (h < 24) return `${h}h ago`;
+   136→  return `${Math.floor(h / 24)}d ago`;
+   137→}
+   138→
+   139→/** Re-open the auth modal from anywhere (wired by the site header). */
+   140→function openAuth(): void {
+   141→  window.dispatchEvent(new CustomEvent("prother:auth-open"));
+   142→}
+   143→
+   144→function Stars({ value, size = 3.5 }: { value: number; size?: number }) {
+   145→  return (
+   146→    <span
+   147→      className="inline-flex items-center gap-0.5"
+   148→      role="img"
+   149→      aria-label={`${value.toFixed(1)} out of 5 stars`}
+   150→    >
+   151→      {[1, 2, 3, 4, 5].map((i) => (
+   152→        <Star
+   153→          key={i}
+   154→          aria-hidden
+   155→          style={{ width: size * 4, height: size * 4 }}
+   156→          className={cn(
+   157→            i <= Math.round(value) ? "fill-ember text-ember" : "text-white/55"
+   158→          )}
+   159→        />
+   160→      ))}
+   161→    </span>
+   162→  );
+   163→}
+   164→
+   165→function SectionHead({
+   166→  children,
+   167→  right,
+   168→}: {
+   169→  children: React.ReactNode;
+   170→  right?: React.ReactNode;
+   171→}) {
+   172→  return (
+   173→    <div className="flex flex-wrap items-center justify-between gap-2">
+   174→      <h2 className={MONO}>{children}</h2>
+   175→      {right}
+   176→    </div>
+   177→  );
+   178→}
+   179→
+   180→// ── Facts rail ────────────────────────────────────────────────────────────
+   181→
+   182→function Fact({
+   183→  label,
+   184→  children,
+   185→}: {
+   186→  label: string;
+   187→  children: React.ReactNode;
+   188→}) {
+   189→  return (
+   190→    <div className="min-w-0 lg:border-b lg:border-white/10 lg:py-3 lg:first:pt-0 lg:last:border-0">
+   191→      <dt className={MONO}>{label}</dt>
+   192→      <dd className="mt-1 text-sm leading-snug text-white/85">{children}</dd>
+   193→    </div>
+   194→  );
+   195→}
+   196→
+   197→function FactsRail({ detail }: { detail: ToolFullDetail }) {
+   198→  const openCategory = useExplorer((s) => s.openCategory);
+   199→  const claimVerifiedAt = detail.viewer?.claim?.verifiedAt ?? null;
+   200→  const verifiedDays =
+   201→    claimVerifiedAt !== null
+   202→      ? Math.max(
+   203→          1,
+   204→          Math.floor((Date.now() - new Date(claimVerifiedAt).getTime()) / 86_400_000)
+   205→        )
+   206→      : null;
+   207→  const verified =
+   208→    claimVerifiedAt !== null && verifiedDays !== null
+   209→      ? { label: `VERIFIED ${verifiedDays}D AGO ✓`, ok: true }
+   210→      : detail.verified
+   211→        ? { label: "VERIFIED ✓", ok: true }
+   212→        : { label: "UNCLAIMED", ok: false };
+   213→
+   214→  return (
+   215→    <aside aria-label="Key facts" className="lg:sticky lg:top-20 lg:self-start">
+   216→      <dl className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-1 lg:gap-y-0">
+   217→        <Fact label="Website">
+   218→          <a
+   219→            href={detail.websiteUrl}
+   220→            target="_blank"
+   221→            rel="noopener noreferrer nofollow"
+   222→            className="break-all text-ember transition-colors hover:text-ember-hot"
+   223→          >
+   224→            {detail.websiteUrl.replace(/^https?:\/\//, "")}
+   225→          </a>
+   226→        </Fact>
+   227→        <Fact label="Pricing">
+   228→          <span className="font-semibold text-white">
+   229→            {PRICING_LABEL[detail.pricing.model] ?? "Free"}
+   230→          </span>
+   231→          {detail.pricing.price && (
+   232→            <span className="ml-1.5 font-mono text-xs text-ember">
+   233→              {detail.pricing.price}
+   234→            </span>
+   235→          )}
+   236→          {detail.pricing.note && (
+   237→            <span className="mt-0.5 block text-xs text-white/60">
+   238→              {detail.pricing.note}
+   239→            </span>
+   240→          )}
+   241→        </Fact>
+   242→        <Fact label="Category">
+   243→          <button
+   244→            type="button"
+   245→            onClick={() => openCategory(detail.category.slug)}
+   246→            aria-label={`Browse the ${detail.category.name} category`}
+   247→            className="text-left transition-colors hover:text-ember"
+   248→          >
+   249→            {detail.category.emoji} {detail.category.name}
+   250→          </button>
+   251→        </Fact>
+   252→        <Fact label="Listed">
+   253→          {fmtDay(detail.submittedAt)}
+   254→        </Fact>
+   255→        {detail.badges.hasApi && (
+   256→          <Fact label="API">
+   257→            <span className="text-mint">✓ AVAILABLE</span>
+   258→          </Fact>
+   259→        )}
+   260→        {detail.badges.openSource && (
+   261→          <Fact label="Source">
+   262→            <span className="text-mint">✓ OPEN SOURCE</span>
+   263→          </Fact>
+   264→        )}
+   265→        <Fact label="Claimed">
+   266→          <span className={verified.ok ? "text-mint" : "text-white/55"}>
+   267→            {verified.label}
+   268→          </span>
+   269→        </Fact>
+   270→      </dl>
+   271→    </aside>
+   272→  );
+   273→}
+   274→
+   275→// ── Claim panel (PRD F-30) ────────────────────────────────────────────────
+   276→
+   277→type StartedClaim = {
+   278→  id: string;
+   279→  status: string;
+   280→  token: string;
+   281→  note: string | null;
+   282→  verifiedAt?: string | null;
+   283→};
+   284→
+   285→const DEFAULT_CLAIM_STEPS = [
+   286→  "Add the meta tag below to your site's <head> section.",
+   287→  "Deploy or save the change so the tag is live on your homepage.",
+   288→  "Hit VERIFY NOW: we fetch your page and look for the tag.",
+   289→];
+   290→
+   291→function ClaimPanel({
+   292→  slug,
+   293→  maker,
+   294→  claim,
+   295→  sessionStatus,
+   296→  onRefresh,
+   297→}: {
+   298→  slug: string;
+   299→  maker: string;
+   300→  claim: StartedClaim | null;
+   301→  sessionStatus: "loading" | "authenticated" | "unauthenticated";
+   302→  onRefresh: () => void;
+   303→}) {
+   304→  const { toast } = useToast();
+   305→  const [starting, setStarting] = useState(false);
+   306→  const [verifying, setVerifying] = useState(false);
+   307→  const [copied, setCopied] = useState(false);
+   308→  const [failReason, setFailReason] = useState<string | null>(null);
+   309→  const claimRef = useRef(claim);
+   310→  claimRef.current = claim;
+   311→
+   312→  const metaTag = claim
+   313→    ? `<meta name="prother-verify" content="${claim.token}" />`
+   314→    : "";
+   315→
+   316→  const startClaim = useCallback(async () => {
+   317→    setStarting(true);
+   318→    setFailReason(null);
+   319→    try {
+   320→      const res = await fetch("/api/claims", {
+   321→        method: "POST",
+   322→        headers: { "Content-Type": "application/json" },
+   323→        body: JSON.stringify({ toolSlug: slug }),
+   324→      });
+   325→      const data = (await res.json().catch(() => ({}))) as {
+   326→        claim?: StartedClaim;
+   327→        verified?: boolean;
+   328→        error?: string;
+   329→      };
+   330→      if (res.status === 409) {
+   331→        toast({ title: "This listing is already claimed." });
+   332→        onRefresh();
+   333→        return;
+   334→      }
+   335→      if (!res.ok || !data.claim) {
+   336→        toast({
+   337→          title: "Could not start the claim",
+   338→          description: data.error ?? "Please try again.",
+   339→          variant: "destructive",
+   340→        });
+   341→        return;
+   342→      }
+   343→      toast({ title: "Claim started: add the meta tag to your site." });
+   344→      onRefresh();
+   345→    } catch {
+   346→      toast({
+   347→        title: "Could not start the claim",
+   348→        description: "Please try again.",
+   349→        variant: "destructive",
+   350→      });
+   351→    } finally {
+   352→      setStarting(false);
+   353→    }
+   354→  }, [slug, toast, onRefresh]);
+   355→
+   356→  const onVerify = useCallback(async () => {
+   357→    const c = claimRef.current;
+   358→    if (!c) return;
+   359→    setVerifying(true);
+   360→    setFailReason(null);
+   361→    try {
+   362→      const res = await fetch(`/api/claims/${encodeURIComponent(c.id)}/verify`, {
+   363→        method: "POST",
+   364→      });
+   365→      const data = (await res.json().catch(() => ({}))) as {
+   366→        verified?: boolean;
+   367→        reason?: string;
+   368→        claim?: StartedClaim;
+   369→      };
+   370→      if (data.verified) {
+   371→        toast({
+   372→          title: "Ownership verified ✓",
+   373→          description: "This listing is yours.",
+   374→        });
+   375→        onRefresh();
+   376→      } else {
+   377→        setFailReason(data.reason ?? "We couldn't find the meta tag on your site yet.");
+   378→      }
+   379→    } catch {
+   380→      setFailReason("Verification request failed. Please try again.");
+   381→    } finally {
+   382→      setVerifying(false);
+   383→    }
+   384→  }, [toast, onRefresh]);
+   385→
+   386→  const onCopyTag = useCallback(async () => {
+   387→    try {
+   388→      await navigator.clipboard.writeText(metaTag);
+   389→      setCopied(true);
+   390→      window.setTimeout(() => setCopied(false), 1600);
+   391→    } catch {
+   392→      toast({ title: "Could not copy. Select the tag manually.", variant: "destructive" });
+   393→    }
+   394→  }, [metaTag, toast]);
+   395→
+   396→  // Anonymous: sign-in gate.
+   397→  if (sessionStatus === "unauthenticated") {
+   398→    return (
+   399→      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ember/30 bg-ember/[0.05] p-4">
+   400→        <p className="text-sm font-semibold text-white/85">
+   401→          Sign in to prove ownership of this listing.
+   402→        </p>
+   403→        <Button
+   404→          type="button"
+   405→          onClick={openAuth}
+   406→          className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+   407→        >
+   408→          SIGN IN TO CLAIM →
+   409→        </Button>
+   410→      </div>
+   411→    );
+   412→  }
+   413→
+   414→  // No claim yet (authenticated): start one.
+   415→  if (!claim) {
+   416→    return (
+   417→      <div className="rounded-xl border border-ember/30 bg-ember/[0.05] p-4">
+   418→        <p className="text-sm text-white/70">
+   419→          Start a claim: we&apos;ll generate a verification meta tag for{" "}
+   420→          <span className="text-white">{maker}</span> to place on the product
+   421→          site.
+   422→        </p>
+   423→        <Button
+   424→          type="button"
+   425→          onClick={() => void startClaim()}
+   426→          disabled={starting}
+   427→          className="mt-3 h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+   428→        >
+   429→          {starting ? (
+   430→            <>
+   431→              <Loader2 className="size-3.5 animate-spin" aria-hidden /> STARTING…
+   432→            </>
+   433→          ) : (
+   434→            "START CLAIM →"
+   435→          )}
+   436→        </Button>
+   437→      </div>
+   438→    );
+   439→  }
+   440→
+   441→  // Claim in progress / verified / failed.
+   442→  const verified = claim.status === "verified" || !!claim.verifiedAt;
+   443→  return (
+   444→    <div
+   445→      className={cn(
+   446→        "rounded-xl border p-4",
+   447→        verified ? "border-mint/40 bg-mint/[0.05]" : "border-ember/30 bg-ember/[0.05]"
+   448→      )}
+   449→      aria-live="polite"
+   450→    >
+   451→      <div className="flex flex-wrap items-center gap-2">
+   452→        <p className={MONO}>OWNERSHIP CLAIM</p>
+   453→        <span
+   454→          className={cn(
+   455→            "rounded-full border px-2 py-0.5 font-mono text-xs tracking-wider",
+   456→            verified
+   457→              ? "border-mint/40 bg-mint/10 text-mint"
+   458→              : claim.status === "failed"
+   459→                ? "border-red-500/40 bg-red-500/10 text-red-400"
+   460→                : "border-white/20 bg-white/5 text-white/70"
+   461→          )}
+   462→        >
+   463→          {verified ? "VERIFIED" : claim.status.toUpperCase()}
+   464→        </span>
+   465→      </div>
+   466→
+   467→      {verified ? (
+   468→        <p className="mt-2 text-sm text-mint">
+   469→          ✓ Verified: this listing is yours.
+   470→        </p>
+   471→      ) : (
+   472→        <>
+   473→          <ol className="mt-3 space-y-1.5">
+   474→            {DEFAULT_CLAIM_STEPS.map((step, i) => (
+   475→              <li key={i} className="flex gap-2 text-xs leading-relaxed text-white/65">
+   476→                <span className="font-mono text-ember">{i + 1}.</span>
+   477→                {step}
+   478→              </li>
+   479→            ))}
+   480→          </ol>
+   481→
+   482→          <div className="mt-3 flex items-start gap-2">
+   483→            <code className="min-w-0 flex-1 break-all rounded-lg border border-white/10 bg-black/40 p-2.5 font-mono text-xs text-white/80">
+   484→              {metaTag}
+   485→            </code>
+   486→            <Button
+   487→              type="button"
+   488→              variant="outline"
+   489→              size="icon"
+   490→              aria-label="Copy the verification meta tag"
+   491→              onClick={() => void onCopyTag()}
+   492→              className={cn(
+   493→                "bg-white/[0.03] hover:bg-white/[0.08] size-9 shrink-0 border-white/10",
+   494→                copied ? "text-mint" : "text-white/70 hover:border-ember/40 hover:text-ember"
+   495→              )}
+   496→            >
+   497→              {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+   498→            </Button>
+   499→          </div>
+   500→
+   501→          {failReason && (
+   502→            <p className="mt-3 rounded-lg border border-red-500/25 bg-red-500/[0.06] p-2.5 text-xs text-red-300">
+   503→              {failReason}
+   504→            </p>
+   505→          )}
+   506→
+   507→          <div className="mt-3 flex flex-wrap items-center gap-3">
+   508→            <Button
+   509→              type="button"
+   510→              onClick={() => void onVerify()}
+   511→              disabled={verifying}
+   512→              className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+   513→            >
+   514→              {verifying ? (
+   515→                <>
+   516→                  <Loader2 className="size-3.5 animate-spin" aria-hidden /> VERIFYING…
+   517→                </>
+   518→              ) : (
+   519→                "VERIFY NOW"
+   520→              )}
+   521→            </Button>
+   522→            <p className="font-mono text-xs uppercase tracking-[0.2em] text-white/55">
+   523→              False claims fail by design · disputes → editor arbitration
+   524→            </p>
+   525→          </div>
+   526→        </>
+   527→      )}
+   528→    </div>
+   529→  );
+   530→}
+   531→
+   532→// ── Reviews (PRD F-16) ────────────────────────────────────────────────────
+   533→
+   534→function StarPicker({
+   535→  label,
+   536→  value,
+   537→  onChange,
+   538→}: {
+   539→  label: string;
+   540→  value: number;
+   541→  onChange: (n: number) => void;
+   542→}) {
+   543→  return (
+   544→    <div className="flex items-center justify-between gap-3">
+   545→      <span className={MONO}>{label}</span>
+   546→      <div className="flex items-center gap-0.5" role="radiogroup" aria-label={`${label} rating`}>
+   547→        {[1, 2, 3, 4, 5].map((n) => (
+   548→          <button
+   549→            key={n}
+   550→            type="button"
+   551→            role="radio"
+   552→            aria-checked={value === n}
+   553→            aria-label={`${label}: ${n} of 5`}
+   554→            onClick={() => onChange(n)}
+   555→            className="grid size-10 place-items-center rounded-lg transition-colors hover:bg-white/5"
+   556→          >
+   557→            <Star
+   558→              aria-hidden
+   559→              className={cn(
+   560→                "size-5",
+   561→                n <= value ? "fill-ember text-ember" : "text-white/55"
+   562→              )}
+   563→            />
+   564→          </button>
+   565→        ))}
+   566→      </div>
+   567→    </div>
+   568→  );
+   569→}
+   570→
+   571→function DimBar({ label, value }: { label: string; value: number }) {
+   572→  return (
+   573→    <div className="flex items-center gap-3">
+   574→      <span className="w-12 shrink-0 font-mono text-xs tracking-[0.2em] text-white/60">
+   575→        {label}
+   576→      </span>
+   577→      <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+   578→        <div
+   579→          className="h-full rounded-full bg-ember"
+   580→          style={{ width: `${Math.max(4, Math.min(100, (value / 5) * 100))}%` }}
+   581→        />
+   582→      </div>
+   583→      <span className="w-7 shrink-0 text-right font-mono text-xs tabular-nums text-white/70">
+   584→        {value.toFixed(1)}
+   585→      </span>
+   586→    </div>
+   587→  );
+   588→}
+   589→
+   590→const REVIEW_BODY_MIN = 20;
+   591→const REVIEW_BODY_MAX = 2000;
+   592→
+   593→function ReviewsSection({
+   594→  slug,
+   595→  isMaker,
+   596→  sessionStatus,
+   597→  viewerMyReview,
+   598→  onRefreshTool,
+   599→}: {
+   600→  slug: string;
+   601→  isMaker: boolean;
+   602→  sessionStatus: "loading" | "authenticated" | "unauthenticated";
+   603→  viewerMyReview: ToolViewer["myReview"];
+   604→  onRefreshTool: () => void;
+   605→}) {
+   606→  const { toast } = useToast();
+   607→  const [data, setData] = useState<ReviewsResponse | null>(null);
+   608→  const [loading, setLoading] = useState(true);
+   609→  const [loadErr, setLoadErr] = useState(false);
+   610→  const [ease, setEase] = useState(0);
+   611→  const [power, setPower] = useState(0);
+   612→  const [value, setValue] = useState(0);
+   613→  const [body, setBody] = useState("");
+   614→  const [submitting, setSubmitting] = useState(false);
+   615→  const [errors, setErrors] = useState<string[]>([]);
+   616→  const prefilled = useRef(false);
+   617→
+   618→  const load = useCallback(async () => {
+   619→    setLoading(true);
+   620→    setLoadErr(false);
+   621→    try {
+   622→      const res = await fetch(`/api/reviews?tool=${encodeURIComponent(slug)}`);
+   623→      if (!res.ok) throw new Error("failed");
+   624→      const json = (await res.json()) as ReviewsResponse;
+   625→      setData(json);
+   626→      if (!prefilled.current) {
+   627→        prefilled.current = true;
+   628→        const mine = json.mine;
+   629→        const mineObj =
+   630→          mine && typeof mine === "object" && "ease" in (mine as object)
+   631→            ? (mine as { ease: number; power: number; value: number; body: string })
+   632→            : viewerMyReview;
+   633→        if (mineObj) {
+   634→          setEase(mineObj.ease);
+   635→          setPower(mineObj.power);
+   636→          setValue(mineObj.value);
+   637→          setBody(mineObj.body);
+   638→        }
+   639→      }
+   640→    } catch {
+   641→      setLoadErr(true);
+   642→    } finally {
+   643→      setLoading(false);
+   644→    }
+   645→  }, [slug, viewerMyReview]);
+   646→
+   647→  useEffect(() => {
+   648→    prefilled.current = false;
+   649→    void load();
+   650→  }, [load]);
+   651→
+   652→  const count = data?.count ?? 0;
+   653→  const aggregate = data?.aggregate ?? null;
+   654→  const isUpdate = !!viewerMyReview || !!(data?.mine && typeof data.mine === "object");
+   655→
+   656→  const submit = useCallback(async () => {
+   657→    const localErrors: string[] = [];
+   658→    if (ease < 1 || power < 1 || value < 1)
+   659→      localErrors.push("Rate all three dimensions (1–5 stars).");
+   660→    if (body.trim().length < REVIEW_BODY_MIN)
+   661→      localErrors.push(`Review needs ${REVIEW_BODY_MIN}+ characters.`);
+   662→    if (body.trim().length > REVIEW_BODY_MAX)
+   663→      localErrors.push(`Review is capped at ${REVIEW_BODY_MAX} characters.`);
+   664→    setErrors(localErrors);
+   665→    if (localErrors.length > 0) return;
+   666→
+   667→    setSubmitting(true);
+   668→    try {
+   669→      const res = await fetch("/api/reviews", {
+   670→        method: "POST",
+   671→        headers: { "Content-Type": "application/json" },
+   672→        body: JSON.stringify({
+   673→          toolSlug: slug,
+   674→          ease,
+   675→          power,
+   676→          value,
+   677→          body: body.trim(),
+   678→        }),
+   679→      });
+   680→      const json = (await res.json().catch(() => ({}))) as
+   681→        | (ReviewsResponse & { review?: ReviewRow })
+   682→        | { error?: string };
+   683→      if (res.status === 201) {
+   684→        const ok = json as ReviewsResponse & { review?: ReviewRow };
+   685→        setData((prev) =>
+   686→          prev
+   687→            ? {
+   688→                ...prev,
+   689→                count: ok.count ?? prev.count,
+   690→                aggregate: ok.aggregate ?? prev.aggregate,
+   691→                reviews: ok.review
+   692→                  ? [ok.review, ...prev.reviews.filter((r) => !r.mine)]
+   693→                  : prev.reviews,
+   694→              }
+   695→            : prev
+   696→        );
+   697→        toast({ title: isUpdate ? "Review updated" : "Review posted. Thanks!" });
+   698→        onRefreshTool();
+   699→      } else if (res.status === 401) {
+   700→        openAuth();
+   701→      } else if (res.status === 403) {
+   702→        toast({
+   703→          title: "Makers can't review their own product",
+   704→          variant: "destructive",
+   705→        });
+   706→      } else {
+   707→        const msg =
+   708→          (json as { error?: string }).error ?? "Fix the highlighted fields and try again.";
+   709→        setErrors([msg]);
+   710→      }
+   711→    } catch {
+   712→      setErrors(["Could not submit the review. Please try again."]);
+   713→    } finally {
+   714→      setSubmitting(false);
+   715→    }
+   716→  }, [body, ease, power, value, slug, toast, isUpdate, onRefreshTool]);
+   717→
+   718→  const counterTone =
+   719→    body.length >= REVIEW_BODY_MAX
+   720→      ? "text-red-400"
+   721→      : body.length >= REVIEW_BODY_MAX * 0.8
+   722→        ? "text-ember"
+   723→        : "text-white/55";
+   724→
+   725→  return (
+   726→    <section aria-label="Reviews" className="space-y-4">
+   727→      <SectionHead right={<span className="font-mono text-xs text-white/55">MODERATED · HONEST ONLY</span>}>
+   728→        Reviews ({count})
+   729→      </SectionHead>
+   730→
+   731→      {/* Aggregate */}
+   732→      {loading && <Skeleton className="h-24 w-full rounded-xl bg-white/5" />}
+   733→      {!loading && !loadErr && aggregate && (
+   734→        <div className={cn(PANEL, "flex flex-col gap-5 p-5 sm:flex-row sm:items-center")}>
+   735→          <div className="text-center sm:w-32">
+   736→            <p className="text-4xl font-black tabular-nums text-white">
+   737→              {aggregate.overall.toFixed(1)}
+   738→            </p>
+   739→            <div className="mt-1 flex justify-center">
+   740→              <Stars value={aggregate.overall} />
+   741→            </div>
+   742→            <p className="mt-1 font-mono text-xs text-white/60">
+   743→              {aggregate.count} REVIEWS
+   744→            </p>
+   745→          </div>
+   746→          <div className="min-w-0 flex-1 space-y-2.5">
+   747→            <DimBar label="EASE" value={aggregate.ease} />
+   748→            <DimBar label="POWER" value={aggregate.power} />
+   749→            <DimBar label="VALUE" value={aggregate.value} />
+   750→          </div>
+   751→        </div>
+   752→      )}
+   753→      {!loading && !loadErr && !aggregate && (
+   754→        <p className={cn(PANEL, "p-4 font-mono text-xs uppercase tracking-[0.2em] text-white/60")}>
+   755→          {count === 0
+   756→            ? "No reviews yet. Be the first after you've tried it."
+   757→            : `Ratings unlock at 3 reviews · ${count} so far`}
+   758→        </p>
+   759→      )}
+   760→      {!loading && loadErr && (
+   761→        <p className="rounded-lg border border-red-500/25 bg-red-500/[0.04] p-3 text-xs text-red-300">
+   762→          Couldn&apos;t load reviews right now.
+   763→        </p>
+   764→      )}
+   765→
+   766→      {/* Review list */}
+   767→      {(data?.reviews.length ?? 0) > 0 && (
+   768→        <ul
+   769→          className={cn(
+   770→            "space-y-2",
+   771→            (data?.reviews.length ?? 0) > 4 && "max-h-96 overflow-y-auto pr-1"
+   772→          )}
+   773→          aria-label="Review list"
+   774→        >
+   775→          {data!.reviews.map((r) => (
+   776→            <li key={r.id} className={cn(PANEL, "p-3.5")}>
+   777→              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+   778→                <span className="font-mono text-xs font-semibold text-white/90">
+   779→                  {r.author}
+   780→                </span>
+   781→                {r.status === "filtered" && r.mine && (
+   782→                  <span className="rounded-full border border-white/20 bg-white/5 px-1.5 py-px font-mono text-xs tracking-wider text-white/50">
+   783→                    IN MODERATION
+   784→                  </span>
+   785→                )}
+   786→                <span className="ml-auto font-mono text-xs text-white/55">
+   787→                  {fmtDay(r.createdAt)}
+   788→                </span>
+   789→              </div>
+   790→              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+   791→                <span className="inline-flex items-center gap-1.5">
+   792→                  <span className="font-mono text-xs tracking-widest text-white/55">EASE</span>
+   793→                  <Stars value={r.ease} size={2.5} />
+   794→                </span>
+   795→                <span className="inline-flex items-center gap-1.5">
+   796→                  <span className="font-mono text-xs tracking-widest text-white/55">POWER</span>
+   797→                  <Stars value={r.power} size={2.5} />
+   798→                </span>
+   799→                <span className="inline-flex items-center gap-1.5">
+   800→                  <span className="font-mono text-xs tracking-widest text-white/55">VALUE</span>
+   801→                  <Stars value={r.value} size={2.5} />
+   802→                </span>
+   803→              </div>
+   804→              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/75">
+   805→                {r.body}
+   806→              </p>
+   807→            </li>
+   808→          ))}
+   809→        </ul>
+   810→      )}
+   811→
+   812→      {/* Write / update a review */}
+   813→      {data?.reason === "auth" || (sessionStatus === "unauthenticated" && !data?.reason) ? (
+   814→        <div className={cn(PANEL, "flex flex-wrap items-center justify-between gap-3 p-4")}>
+   815→          <p className="text-sm text-white/70">Been using {slugToName(slug)}? Rate it honestly.</p>
+   816→          <Button
+   817→            type="button"
+   818→            onClick={openAuth}
+   819→            className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+   820→          >
+   821→            SIGN IN TO REVIEW →
+   822→          </Button>
+   823→        </div>
+   824→      ) : data?.reason === "maker" || isMaker ? (
+   825→        <p className={cn(PANEL, "p-4 font-mono text-xs uppercase tracking-[0.2em] text-white/60")}>
+   826→          Makers can&apos;t review their own product
+   827→        </p>
+   828→      ) : data?.canReview ? (
+   829→        <div className={cn(PANEL, "space-y-4 p-4")}>
+   830→          <StarPicker label="EASE" value={ease} onChange={setEase} />
+   831→          <StarPicker label="POWER" value={power} onChange={setPower} />
+   832→          <StarPicker label="VALUE" value={value} onChange={setValue} />
+   833→          <div>
+   834→            <label htmlFor="review-body" className="sr-only">
+   835→              Your review
+   836→            </label>
+   837→            <Textarea
+   838→              id="review-body"
+   839→              value={body}
+   840→              onChange={(e) => setBody(e.target.value.slice(0, REVIEW_BODY_MAX))}
+   841→              rows={4}
+   842→              placeholder="Honest, specific, useful: what does this tool actually do well or badly?"
+   843→              className="resize-none border-white/10 bg-transparent text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50"
+   844→            />
+   845→            <div className="mt-1 flex items-center justify-between">
+   846→              <span className="font-mono text-xs text-white/55">
+   847→                {REVIEW_BODY_MIN}–{REVIEW_BODY_MAX} CHARS
+   848→              </span>
+   849→              <span className={cn("font-mono text-xs tabular-nums", counterTone)} aria-live="polite">
+   850→                {body.length}/{REVIEW_BODY_MAX}
+   851→              </span>
+   852→            </div>
+   853→          </div>
+   854→          {errors.length > 0 && (
+   855→            <ul className="space-y-1 rounded-lg border border-red-500/25 bg-red-500/[0.06] p-3" aria-live="polite">
+   856→              {errors.map((e, i) => (
+   857→                <li key={i} className="text-xs text-red-300">
+   858→                  {e}
+   859→                </li>
+   860→              ))}
+   861→            </ul>
+   862→          )}
+   863→          <Button
+   864→            type="button"
+   865→            onClick={() => void submit()}
+   866→            disabled={submitting}
+   867→            className="h-11 w-full bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot sm:w-auto"
+   868→          >
+   869→            {submitting ? (
+   870→              <>
+   871→                <Loader2 className="size-3.5 animate-spin" aria-hidden /> SENDING…
+   872→              </>
+   873→            ) : isUpdate ? (
+   874→              "UPDATE REVIEW"
+   875→            ) : (
+   876→              "POST REVIEW"
+   877→            )}
+   878→          </Button>
+   879→        </div>
+   880→      ) : null}
+   881→    </section>
+   882→  );
+   883→}
+   884→
+   885→function slugToName(slug: string): string {
+   886→  return slug
+   887→    .split("-")
+   888→    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+   889→    .join(" ");
+   890→}
+   891→
+   892→// ── Discussion (ported from the legacy modal — same API shapes) ──────────
+   893→
+   894→const COMMENT_BODY_MAX = 280;
+   895→const COMMENT_BODY_WARN = 224;
+   896→const COMMENT_NAME_MAX = 24;
+   897→const COMMENT_NAME_STORAGE = "prother_comment_name";
+   898→
+   899→const AVATAR_GRADIENTS = [
+   900→  "from-orange-400 to-rose-600",
+   901→  "from-amber-400 to-orange-600",
+   902→  "from-emerald-400 to-teal-600",
+   903→  "from-rose-400 to-red-600",
+   904→  "from-yellow-400 to-amber-600",
+   905→  "from-lime-400 to-green-600",
+   906→  "from-fuchsia-400 to-purple-600",
+   907→  "from-red-400 to-orange-600",
+   908→] as const;
+   909→
+   910→function avatarGradient(author: string): string {
+   911→  let h = 0;
+   912→  for (let i = 0; i < author.length; i++) h = (h * 31 + author.charCodeAt(i)) >>> 0;
+   913→  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]!;
+   914→}
+   915→
+   916→function Discussion({
+   917→  slug,
+   918→  makerHandle,
+   919→}: {
+   920→  slug: string;
+   921→  makerHandle: string;
+   922→}) {
+   923→  const { toast } = useToast();
+   924→  const [items, setItems] = useState<CommentRow[] | null>(null);
+   925→  const [loading, setLoading] = useState(true);
+   926→  const [loadError, setLoadError] = useState(false);
+   927→  const [name, setName] = useState("");
+   928→  const [body, setBody] = useState("");
+   929→  const [posting, setPosting] = useState(false);
+   930→
+   931→  useEffect(() => {
+   932→    let alive = true;
+   933→    setLoading(true);
+   934→    setLoadError(false);
+   935→    setItems(null);
+   936→    fetch(`/api/tools/${encodeURIComponent(slug)}/comments`)
+   937→      .then(async (res) => {
+   938→        if (!res.ok) throw new Error("Failed to load discussion");
+   939→        return (await res.json()) as { items: CommentRow[] };
+   940→      })
+   941→      .then((data) => {
+   942→        if (alive) setItems(data.items);
+   943→      })
+   944→      .catch(() => {
+   945→        if (alive) setLoadError(true);
+   946→      })
+   947→      .finally(() => {
+   948→        if (alive) setLoading(false);
+   949→      });
+   950→    return () => {
+   951→      alive = false;
+   952→    };
+   953→  }, [slug]);
+   954→
+   955→  useEffect(() => {
+   956→    setName(window.localStorage.getItem(COMMENT_NAME_STORAGE) ?? "");
+   957→  }, []);
+   958→
+   959→  const canPost = name.trim().length >= 2 && body.trim().length >= 4 && !posting;
+   960→
+   961→  const onPost = useCallback(async () => {
+   962→    if (!canPost) return;
+   963→    setPosting(true);
+   964→    try {
+   965→      const res = await fetch(`/api/tools/${encodeURIComponent(slug)}/comments`, {
+   966→        method: "POST",
+   967→        headers: { "Content-Type": "application/json" },
+   968→        body: JSON.stringify({ author: name.trim(), body: body.trim() }),
+   969→      });
+   970→      const data = (await res.json()) as CommentRow & { error?: string };
+   971→      if (!res.ok) throw new Error(data.error ?? "Could not post. Please try again.");
+   972→      setItems((prev) => [...(prev ?? []), data]);
+   973→      setBody("");
+   974→      window.localStorage.setItem(COMMENT_NAME_STORAGE, name.trim());
+   975→      toast({ title: "Comment posted" });
+   976→    } catch (err) {
+   977→      toast({
+   978→        title: "Could not post comment",
+   979→        description: err instanceof Error ? err.message : "Please try again.",
+   980→        variant: "destructive",
+   981→      });
+   982→    } finally {
+   983→      setPosting(false);
+   984→    }
+   985→  }, [canPost, slug, name, body, toast]);
+   986→
+   987→  const count = items?.length ?? 0;
+   988→  const counterTone =
+   989→    body.length >= COMMENT_BODY_MAX
+   990→      ? "text-red-400"
+   991→      : body.length >= COMMENT_BODY_WARN
+   992→        ? "text-ember"
+   993→        : "text-white/55";
+   994→
+   995→  return (
+   996→    <section aria-label="Discussion" className="space-y-3">
+   997→      <SectionHead
+   998→        right={
+   999→          <span className="font-mono text-xs tracking-wider text-white/55">
+  1000→            MODERATED PER S6
+  1001→          </span>
+  1002→        }
+  1003→      >
+  1004→        Discussion ({count})
+  1005→      </SectionHead>
+  1006→
+  1007→      <div
+  1008→        className="max-h-96 space-y-2 overflow-y-auto pr-1"
+  1009→        aria-live="polite"
+  1010→        aria-label={`Discussion for this tool, ${count} comments`}
+  1011→      >
+  1012→        {loading && (
+  1013→          <>
+  1014→            <Skeleton className="h-16 w-full rounded-xl bg-white/5" />
+  1015→            <Skeleton className="h-16 w-5/6 rounded-xl bg-white/5" />
+  1016→          </>
+  1017→        )}
+  1018→
+  1019→        {!loading && loadError && (
+  1020→          <p className="rounded-lg border border-red-500/25 bg-red-500/[0.04] p-3 text-xs text-red-300">
+  1021→            Couldn&apos;t load the discussion. It will appear next time you open
+  1022→            this listing.
+  1023→          </p>
+  1024→        )}
+  1025→
+  1026→        {!loading && !loadError && count === 0 && (
+  1027→          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-white/15 p-6 text-center">
+  1028→            <MessageSquare className="size-4 text-white/55" aria-hidden />
+  1029→            <p className="text-sm text-white/70">No comments yet.</p>
+  1030→            <p className="text-xs text-white/60">
+  1031→              Start the discussion: ask {makerHandle} anything.
+  1032→            </p>
+  1033→          </div>
+  1034→        )}
+  1035→
+  1036→        {items?.map((c) => (
+  1037→          <motion.div
+  1038→            key={c.id}
+  1039→            initial={{ opacity: 0, y: 8 }}
+  1040→            animate={{ opacity: 1, y: 0 }}
+  1041→            transition={{ duration: 0.25, ease: "easeOut" }}
+  1042→            className={cn(PANEL, "p-3.5 transition-colors hover:border-ember/25")}
+  1043→          >
+  1044→            <div className="flex gap-3">
+  1045→              <span
+  1046→                aria-hidden
+  1047→                className={cn(
+  1048→                  "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-coal",
+  1049→                  avatarGradient(c.author)
+  1050→                )}
+  1051→              >
+  1052→                {c.author.replace(/^@/, "").charAt(0).toUpperCase()}
+  1053→              </span>
+  1054→              <div className="min-w-0 flex-1">
+  1055→                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+  1056→                  <span className="text-sm font-semibold text-white/90">{c.author}</span>
+  1057→                  {c.isMaker && (
+  1058→                    <span className="rounded-full border border-ember/40 bg-ember/15 px-1.5 py-px font-mono text-xs tracking-wider text-ember">
+  1059→                      MAKER
+  1060→                    </span>
+  1061→                  )}
+  1062→                  <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-xs text-white/55">
+  1063→                    {relTime(c.createdAt)}
+  1064→                  </span>
+  1065→                </div>
+  1066→                <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-white/75">
+  1067→                  {c.body}
+  1068→                </p>
+  1069→              </div>
+  1070→            </div>
+  1071→          </motion.div>
+  1072→        ))}
+  1073→      </div>
+  1074→
+  1075→      {/* Composer */}
+  1076→      <div className={cn(PANEL, "p-3 transition-colors focus-within:border-ember/40")}>
+  1077→        <label htmlFor={`fp-c-name-${slug}`} className="sr-only">
+  1078→          Your display name
+  1079→        </label>
+  1080→        <Input
+  1081→          id={`fp-c-name-${slug}`}
+  1082→          value={name}
+  1083→          onChange={(e) => setName(e.target.value.slice(0, COMMENT_NAME_MAX))}
+  1084→          placeholder="Your name"
+  1085→          maxLength={COMMENT_NAME_MAX}
+  1086→          autoComplete="name"
+  1087→          className="border-0 border-b border-white/10 bg-transparent px-0 font-mono text-sm focus-visible:border-ember/60 focus-visible:ring-0"
+  1088→        />
+  1089→        <label htmlFor={`fp-c-body-${slug}`} className="sr-only">
+  1090→          Write a comment
+  1091→        </label>
+  1092→        <textarea
+  1093→          id={`fp-c-body-${slug}`}
+  1094→          value={body}
+  1095→          onChange={(e) => setBody(e.target.value.slice(0, COMMENT_BODY_MAX))}
+  1096→          onKeyDown={(e) => {
+  1097→            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+  1098→              e.preventDefault();
+  1099→              void onPost();
+  1100→            }
+  1101→          }}
+  1102→          placeholder="Add to the discussion…"
+  1103→          rows={3}
+  1104→          maxLength={COMMENT_BODY_MAX}
+  1105→          aria-label="Write a comment"
+  1106→          className={cn(
+  1107→            "mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-white placeholder:text-white/55 focus:outline-none",
+  1108→            body.length >= COMMENT_BODY_MAX && "text-red-300"
+  1109→          )}
+  1110→        />
+  1111→        <div className="mt-2 flex items-center justify-between gap-3">
+  1112→          <p className="font-mono text-xs text-white/55">⌘↵ TO POST · BE CONSTRUCTIVE (S6)</p>
+  1113→          <div className="flex items-center gap-3">
+  1114→            <span className={cn("font-mono text-xs tabular-nums", counterTone)} aria-live="polite">
+  1115→              {body.length}/{COMMENT_BODY_MAX}
+  1116→            </span>
+  1117→            <Button
+  1118→              type="button"
+  1119→              onClick={() => void onPost()}
+  1120→              disabled={!canPost}
+  1121→              aria-label="Post comment"
+  1122→              className="h-9 rounded-lg bg-ember px-3 text-sm font-semibold text-[#0A0A0A] hover:bg-ember-hot disabled:opacity-40"
+  1123→            >
+  1124→              {posting ? (
+  1125→                <>
+  1126→                  <Loader2 className="size-3.5 animate-spin" aria-hidden /> Posting…
+  1127→                </>
+  1128→              ) : (
+  1129→                <>
+  1130→                  <Send className="size-3.5" aria-hidden /> Post
+  1131→                </>
+  1132→              )}
+  1133→            </Button>
+  1134→          </div>
+  1135→        </div>
+  1136→      </div>
+  1137→    </section>
+  1138→  );
+  1139→}
+  1140→
+  1141→// ── Save popover (collections) ────────────────────────────────────────────
+  1142→
+  1143→function SavePopover({
+  1144→  slug,
+  1145→  toolName,
+  1146→  savedIn,
+  1147→  onSavedChange,
+  1148→  children,
+  1149→}: {
+  1150→  slug: string;
+  1151→  toolName: string;
+  1152→  savedIn: { slug: string; name: string }[];
+  1153→  onSavedChange: (saved: { slug: string; name: string }[]) => void;
+  1154→  children: React.ReactNode;
+  1155→}) {
+  1156→  const { toast } = useToast();
+  1157→  const { status } = useSession();
+  1158→  const [open, setOpen] = useState(false);
+  1159→  const [colls, setColls] = useState<CollectionRow[] | null>(null);
+  1160→  const [newName, setNewName] = useState("");
+  1161→  const [busySlug, setBusySlug] = useState<string | null>(null);
+  1162→  const [creating, setCreating] = useState(false);
+  1163→
+  1164→  const savedSet = useMemo(() => new Set(savedIn.map((s) => s.slug)), [savedIn]);
+  1165→
+  1166→  const onOpenChange = useCallback(
+  1167→    (next: boolean) => {
+  1168→      if (next && status === "unauthenticated") {
+  1169→        openAuth();
+  1170→        toast({ title: "Sign in to save tools to collections." });
+  1171→        return;
+  1172→      }
+  1173→      setOpen(next);
+  1174→      if (next) {
+  1175→        setColls(null);
+  1176→        fetch("/api/collections")
+  1177→          .then(async (res) => {
+  1178→            if (!res.ok) throw new Error("failed");
+  1179→            return (await res.json()) as { mine: CollectionRow[] };
+  1180→          })
+  1181→          .then((data) => setColls(data.mine ?? []))
+  1182→          .catch(() => setColls([]));
+  1183→      }
+  1184→    },
+  1185→    [status, toast]
+  1186→  );
+  1187→
+  1188→  const toggle = useCallback(
+  1189→    async (c: CollectionRow) => {
+  1190→      setBusySlug(c.slug);
+  1191→      try {
+  1192→        const res = await fetch(`/api/collections/${encodeURIComponent(c.slug)}/items`, {
+  1193→          method: "POST",
+  1194→          headers: { "Content-Type": "application/json" },
+  1195→          body: JSON.stringify({ toolSlug: slug }),
+  1196→        });
+  1197→        if (res.status === 401) {
+  1198→          openAuth();
+  1199→          return;
+  1200→        }
+  1201→        const data = (await res.json().catch(() => ({}))) as { inCollection?: boolean };
+  1202→        const nowIn = !!data.inCollection;
+  1203→        const next = nowIn
+  1204→          ? [...savedIn, { slug: c.slug, name: c.name }]
+  1205→          : savedIn.filter((s) => s.slug !== c.slug);
+  1206→        onSavedChange(next);
+  1207→        toast({
+  1208→          title: nowIn ? `Saved to ${c.name}` : `Removed from ${c.name}`,
+  1209→        });
+  1210→      } catch {
+  1211→        toast({ title: "Could not update the collection", variant: "destructive" });
+  1212→      } finally {
+  1213→        setBusySlug(null);
+  1214→      }
+  1215→    },
+  1216→    [slug, savedIn, onSavedChange, toast]
+  1217→  );
+  1218→
+  1219→  const create = useCallback(async () => {
+  1220→    const nameTrimmed = newName.trim();
+  1221→    if (nameTrimmed.length < 2 || creating) return;
+  1222→    setCreating(true);
+  1223→    try {
+  1224→      const res = await fetch("/api/collections", {
+  1225→        method: "POST",
+  1226→        headers: { "Content-Type": "application/json" },
+  1227→        body: JSON.stringify({ name: nameTrimmed }),
+  1228→      });
+  1229→      if (res.status === 401) {
+  1230→        openAuth();
+  1231→        return;
+  1232→      }
+  1233→      const data = (await res.json().catch(() => ({}))) as { collection?: CollectionRow };
+  1234→      if (!res.ok || !data.collection) {
+  1235→        toast({ title: "Could not create the collection", variant: "destructive" });
+  1236→        return;
+  1237→      }
+  1238→      setColls((prev) => [data.collection!, ...(prev ?? [])]);
+  1239→      setNewName("");
+  1240→      // Auto-save the tool into the fresh collection.
+  1241→      const c = data.collection;
+  1242→      try {
+  1243→        const itemRes = await fetch(`/api/collections/${encodeURIComponent(c.slug)}/items`, {
+  1244→          method: "POST",
+  1245→          headers: { "Content-Type": "application/json" },
+  1246→          body: JSON.stringify({ toolSlug: slug }),
+  1247→        });
+  1248→        if (itemRes.ok) {
+  1249→          onSavedChange([...savedIn, { slug: c.slug, name: c.name }]);
+  1250→        }
+  1251→      } catch {
+  1252→        /* collection exists; saving is best-effort */
+  1253→      }
+  1254→      toast({ title: `Collection "${c.name}" created` });
+  1255→    } catch {
+  1256→      toast({ title: "Could not create the collection", variant: "destructive" });
+  1257→    } finally {
+  1258→      setCreating(false);
+  1259→    }
+  1260→  }, [newName, creating, slug, savedIn, onSavedChange, toast]);
+  1261→
+  1262→  return (
+  1263→    <Popover open={open} onOpenChange={onOpenChange}>
+  1264→      <PopoverTrigger asChild>{children}</PopoverTrigger>
+  1265→      <PopoverContent
+  1266→        align="end"
+  1267→        sideOffset={8}
+  1268→        className="w-72 border-white/10 bg-coal p-3 text-white"
+  1269→        aria-label={`Save ${toolName} to a collection`}
+  1270→      >
+  1271→        <p className={MONO}>Save to collection</p>
+  1272→        <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+  1273→          {colls === null && (
+  1274→            <>
+  1275→              <Skeleton className="h-10 w-full rounded-lg bg-white/5" />
+  1276→              <Skeleton className="h-10 w-5/6 rounded-lg bg-white/5" />
+  1277→            </>
+  1278→          )}
+  1279→          {colls !== null && colls.length === 0 && (
+  1280→            <p className="px-1 py-2 text-xs text-white/60">
+  1281→              No collections yet. Create your first one below.
+  1282→            </p>
+  1283→          )}
+  1284→          {colls?.map((c) => {
+  1285→            const saved = savedSet.has(c.slug);
+  1286→            return (
+  1287→              <button
+  1288→                key={c.id}
+  1289→                type="button"
+  1290→                onClick={() => void toggle(c)}
+  1291→                disabled={busySlug === c.slug}
+  1292→                aria-pressed={saved}
+  1293→                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/5"
+  1294→              >
+  1295→                <span className="min-w-0 flex-1 truncate text-sm text-white/85">{c.name}</span>
+  1296→                <span className="font-mono text-xs text-white/55">{c.itemCount}</span>
+  1297→                <span
+  1298→                  aria-hidden
+  1299→                  className={cn(
+  1300→                    "flex size-5 items-center justify-center rounded border",
+  1301→                    saved ? "border-ember bg-ember/15 text-ember" : "border-white/20 text-transparent"
+  1302→                  )}
+  1303→                >
+  1304→                  <Check className="size-3" />
+  1305→                </span>
+  1306→              </button>
+  1307→            );
+  1308→          })}
+  1309→        </div>
+  1310→        <div className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2.5">
+  1311→          <label htmlFor="new-collection-name" className="sr-only">
+  1312→            New collection name
+  1313→          </label>
+  1314→          <Input
+  1315→            id="new-collection-name"
+  1316→            value={newName}
+  1317→            onChange={(e) => setNewName(e.target.value.slice(0, 40))}
+  1318→            onKeyDown={(e) => {
+  1319→              if (e.key === "Enter") {
+  1320→                e.preventDefault();
+  1321→                void create();
+  1322→              }
+  1323→            }}
+  1324→            placeholder="+ New collection"
+  1325→            className="h-9 border-white/10 bg-transparent text-sm focus-visible:border-ember/50 focus-visible:ring-0"
+  1326→          />
+  1327→          <Button
+  1328→            type="button"
+  1329→            size="icon"
+  1330→            variant="outline"
+  1331→            aria-label="Create collection"
+  1332→            onClick={() => void create()}
+  1333→            disabled={newName.trim().length < 2 || creating}
+  1334→            className="bg-white/[0.03] hover:bg-white/[0.08] size-9 shrink-0 border-white/10 text-ember hover:border-ember/40 hover:bg-ember/10"
+  1335→          >
+  1336→            {creating ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />}
+  1337→          </Button>
+  1338→        </div>
+  1339→      </PopoverContent>
+  1340→    </Popover>
+  1341→  );
+  1342→}
+  1343→
+  1344→// ── Main page ─────────────────────────────────────────────────────────────
+  1345→
+  1346→export function ToolFullPage() {
+  1347→  const { toast } = useToast();
+  1348→  const { status: sessionStatus } = useSession();
+  1349→  const slug = useExplorer((s) => s.slug);
+  1350→  const closeTool = useExplorer((s) => s.closeTool);
+  1351→  const openTool = useExplorer((s) => s.openTool);
+  1352→  const addCompare = useExplorer((s) => s.addCompare);
+  1353→  const removeCompare = useExplorer((s) => s.removeCompare);
+  1354→  const compareSlugs = useExplorer((s) => s.compare);
+  1355→
+  1356→  const [detail, setDetail] = useState<ToolFullDetail | null>(null);
+  1357→  const [loading, setLoading] = useState(true);
+  1358→  const [notFound, setNotFound] = useState(false);
+  1359→  const [loadErr, setLoadErr] = useState(false);
+  1360→  const [following, setFollowing] = useState(false);
+  1361→  const [savedLocal, setSavedLocal] = useState<{ slug: string; name: string }[] | null>(null);
+  1362→  const [copied, setCopied] = useState(false);
+  1363→  const [reportOpen, setReportOpen] = useState(false);
+  1364→
+  1365→  // Bookmark (Task 23) — personal saved list, anon visitorKey or session scope.
+  1366→  const {
+  1367→    bookmarked: toolBookmarked,
+  1368→    pending: bookmarkPending,
+  1369→    toggle: toggleToolBookmark,
+  1370→  } = useBookmark("tool", slug);
+  1371→
+  1372→  const load = useCallback(async () => {
+  1373→    if (!slug) return;
+  1374→    setLoading(true);
+  1375→    setNotFound(false);
+  1376→    setLoadErr(false);
+  1377→    setSavedLocal(null);
+  1378→    try {
+  1379→      const res = await fetch(`/api/tools/${encodeURIComponent(slug)}`);
+  1380→      if (res.status === 404) {
+  1381→        setNotFound(true);
+  1382→        return;
+  1383→      }
+  1384→      if (!res.ok) throw new Error("failed");
+  1385→      const data = (await res.json()) as ToolFullDetail;
+  1386→      setDetail(data);
+  1387→      setFollowing(data.viewer?.following ?? false);
+  1388→    } catch {
+  1389→      setLoadErr(true);
+  1390→    } finally {
+  1391→      setLoading(false);
+  1392→    }
+  1393→  }, [slug]);
+  1394→
+  1395→  useEffect(() => {
+  1396→    setDetail(null);
+  1397→    void load();
+  1398→  }, [load]);
+  1399→
+  1400→  const onFollow = useCallback(async () => {
+  1401→    if (!detail) return;
+  1402→    const next = !following;
+  1403→    setFollowing(next);
+  1404→    try {
+  1405→      const res = await fetch("/api/follows", {
+  1406→        method: "POST",
+  1407→        headers: { "Content-Type": "application/json" },
+  1408→        body: JSON.stringify({
+  1409→          targetType: "tool",
+  1410→          targetId: slug,
+  1411→          targetLabel: detail.name,
+  1412→        }),
+  1413→      });
+  1414→      if (res.status === 401) {
+  1415→        setFollowing(!next);
+  1416→        openAuth();
+  1417→        toast({ title: "Sign in to follow tools." });
+  1418→        return;
+  1419→      }
+  1420→      const data = (await res.json()) as { following?: boolean };
+  1421→      setFollowing(!!data.following);
+  1422→      toast({ title: data.following ? "Following. You'll see updates." : "Unfollowed" });
+  1423→    } catch {
+  1424→      setFollowing(!next);
+  1425→      toast({ title: "Could not update follow", variant: "destructive" });
+  1426→    }
+  1427→  }, [detail, following, slug, toast]);
+  1428→
+  1429→  const shareUrl =
+  1430→    typeof window !== "undefined"
+  1431→      ? `${window.location.origin}/?tool=${encodeURIComponent(slug ?? "")}`
+  1432→      : `/?tool=${encodeURIComponent(slug ?? "")}`;
+  1433→
+  1434→  const onCopyLink = useCallback(async () => {
+  1435→    try {
+  1436→      await navigator.clipboard.writeText(shareUrl);
+  1437→      setCopied(true);
+  1438→      window.setTimeout(() => setCopied(false), 1600);
+  1439→      toast({ title: "Link copied" });
+  1440→    } catch {
+  1441→      toast({ title: "Could not copy the link", description: shareUrl, variant: "destructive" });
+  1442→    }
+  1443→  }, [shareUrl, toast]);
+  1444→
+  1445→  const savedIn = savedLocal ?? detail?.viewer?.savedIn ?? [];
+  1446→  const savedSet = useMemo(() => new Set(savedIn.map((s) => s.slug)), [savedIn]);
+  1447→
+  1448→  const inCompare = slug ? compareSlugs.includes(slug) : false;
+  1449→  const compareFull = compareSlugs.length >= 2 && !inCompare;
+  1450→
+  1451→  const onCompare = useCallback(() => {
+  1452→    if (!slug) return;
+  1453→    if (inCompare) removeCompare(slug);
+  1454→    else if (!compareFull) addCompare(slug);
+  1455→  }, [slug, inCompare, compareFull, addCompare, removeCompare]);
+  1456→
+  1457→  const claim: StartedClaim | null = detail?.viewer?.claim
+  1458→    ? {
+  1459→        id: detail.viewer.claim.id,
+  1460→        status: detail.viewer.claim.status,
+  1461→        token: detail.viewer.claim.token,
+  1462→        note: detail.viewer.claim.note,
+  1463→        verifiedAt: detail.viewer.claim.verifiedAt,
+  1464→      }
+  1465→    : null;
+  1466→  const claimed = detail ? !detail.badges.unclaimed : false;
+  1467→  const passedCount = detail?.standards.filter((s) => s.passed).length ?? 0;
+  1468→
+  1469→  // ── States ──
+  1470→  if (!slug) return null;
+  1471→
+  1472→  if (loading) {
+  1473→    return (
+  1474→      <FullPageShell
+  1475→        kicker="Tool"
+  1476→        breadcrumb={[{ label: "Home" }]}
+  1477→        onClose={closeTool}
+  1478→        wide
+  1479→        ariaLabel={detail?.name ? `${detail.name} details` : "Tool details"}
+  1480→      >
+  1481→        <PageSkeleton />
+  1482→      </FullPageShell>
+  1483→    );
+  1484→  }
+  1485→
+  1486→  if (notFound) {
+  1487→    return (
+  1488→      <PageError
+  1489→        title="TOOL NOT FOUND"
+  1490→        message="This listing doesn't exist (or was removed)."
+  1491→        action={
+  1492→          <Button
+  1493→            type="button"
+  1494→            variant="outline"
+  1495→            onClick={() => closeTool()}
+  1496→            className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+  1497→          >
+  1498→            ← CLOSE
+  1499→          </Button>
+  1500→        }
+  1501→      />
+  1502→    );
+  1503→  }
+  1504→
+  1505→  if (loadErr || !detail) {
+  1506→    return (
+  1507→      <PageError
+  1508→        title="COULDN'T LOAD THIS TOOL"
+  1509→        message="The listing service didn't respond. Try again in a moment."
+  1510→        action={
+  1511→          <div className="flex items-center gap-2">
+  1512→            <Button
+  1513→              type="button"
+  1514→              variant="outline"
+  1515→              onClick={() => void load()}
+  1516→              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+  1517→            >
+  1518→              RETRY
+  1519→            </Button>
+  1520→            <Button
+  1521→              type="button"
+  1522→              variant="outline"
+  1523→              onClick={() => closeTool()}
+  1524→              className="bg-white/[0.03] hover:bg-white/[0.08] h-10 border-white/15 font-mono text-sm tracking-wider text-white/70 hover:border-ember/40 hover:text-ember"
+  1525→            >
+  1526→              ← CLOSE
+  1527→            </Button>
+  1528→          </div>
+  1529→        }
+  1530→      />
+  1531→    );
+  1532→  }
+  1533→
+  1534→  const name = detail.name;
+  1535→
+  1536→  return (
+  1537→    <FullPageShell
+  1538→      kicker="Tool"
+  1539→      breadcrumb={[{ label: "Home", onClick: closeTool }]}
+  1540→      onClose={closeTool}
+  1541→      shareUrl={shareUrl}
+  1542→      wide
+  1543→      ariaLabel={`${name}, full listing`}
+  1544→    >
+  1545→      <div className="space-y-10">
+  1546→        {/* a. Header */}
+  1547→        <header className="space-y-5">
+  1548→          <div className="flex items-start gap-4 sm:gap-5">
+  1549→            <span
+  1550→              aria-hidden
+  1551→              className={cn(
+  1552→                "grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
+  1553→                detail.gradient
+  1554→              )}
+  1555→            >
+  1556→              {detail.emoji}
+  1557→            </span>
+  1558→            <div className="min-w-0 flex-1">
+  1559→              <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+  1560→                {name}
+  1561→              </h1>
+  1562→              <p className="mt-1 text-base text-white/65 sm:text-lg">{detail.tagline}</p>
+  1563→            </div>
+  1564→          </div>
+  1565→
+  1566→          {/* Badge chips */}
+  1567→          <ul className="flex flex-wrap items-center gap-1.5" aria-label="Badges">
+  1568→            {detail.badges.editorsPick && (
+  1569→              <li className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember">
+  1570→                <Star className="size-3" aria-hidden /> EDITORS PICK
+  1571→              </li>
+  1572→            )}
+  1573→            {detail.badges.curated && (
+  1574→              <li className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 font-mono text-xs tracking-wider text-yellow-500">
+  1575→                CURATED
+  1576→              </li>
+  1577→            )}
+  1578→            {detail.badges.unclaimed && (
+  1579→              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
+  1580→                UNCLAIMED
+  1581→              </li>
+  1582→            )}
+  1583→            {detail.badges.hasApi && (
+  1584→              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
+  1585→                API ✓
+  1586→              </li>
+  1587→            )}
+  1588→            {detail.badges.openSource && (
+  1589→              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
+  1590→                OPEN SOURCE
+  1591→              </li>
+  1592→            )}
+  1593→            <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
+  1594→              {detail.track === "editor_seed" ? "SEED" : "SUBMITTED"}
+  1595→            </li>
+  1596→          </ul>
+  1597→
+  1598→          {/* Rating summary — shown whenever the review aggregate exists */}
+  1599→          {detail.reviews?.aggregate && (
+  1600→            <div className={cn(PANEL, "flex flex-wrap items-center gap-x-5 gap-y-3 p-4")} aria-label="Rating summary">
+  1601→              <span className="inline-flex items-center gap-2">
+  1602→                <Star className="size-5 fill-ember text-ember" aria-hidden />
+  1603→                <span className="text-2xl font-black tabular-nums text-white">
+  1604→                  {detail.reviews.aggregate.overall.toFixed(1)}
+  1605→                  <span className="text-sm text-white/55">/5</span>
+  1606→                </span>
+  1607→              </span>
+  1608→              <span className="grid min-w-0 flex-1 gap-1.5 sm:max-w-xs">
+  1609→                <DimBar label="EASE" value={detail.reviews.aggregate.ease} />
+  1610→                <DimBar label="POWER" value={detail.reviews.aggregate.power} />
+  1611→                <DimBar label="VALUE" value={detail.reviews.aggregate.value} />
+  1612→              </span>
+  1613→              <span className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
+  1614→                {detail.reviews.aggregate.count} reviews
+  1615→              </span>
+  1616→            </div>
+  1617→          )}
+  1618→
+  1619→          {/* Actions row: primary outbound + secondary icon buttons */}
+  1620→          <div className="flex flex-wrap items-center gap-2">
+  1621→            <Button
+  1622→              asChild
+  1623→              className="h-11 rounded-full bg-ember px-6 text-sm font-black tracking-wide text-[#0A0A0A] hover:bg-ember-hot"
+  1624→            >
+  1625→              <a
+  1626→                href={detail.websiteUrl}
+  1627→                target="_blank"
+  1628→                rel="noopener noreferrer"
+  1629→                aria-label={`Visit ${name} website`}
+  1630→              >
+  1631→                Visit website
+  1632→                <ArrowUpRight className="size-4" aria-hidden />
+  1633→              </a>
+  1634→            </Button>
+  1635→
+  1636→            <Button
+  1637→              type="button"
+  1638→              variant="outline"
+  1639→              size="icon"
+  1640→              aria-label="Copy link to this tool"
+  1641→              onClick={() => void onCopyLink()}
+  1642→              className={cn(
+  1643→                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1644→                copied ? "text-mint" : "text-white/70 hover:text-ember"
+  1645→              )}
+  1646→            >
+  1647→              {copied ? <Check className="size-4" aria-hidden /> : <Link2 className="size-4" aria-hidden />}
+  1648→            </Button>
+  1649→
+  1650→            <Button
+  1651→              type="button"
+  1652→              variant="outline"
+  1653→              size="icon"
+  1654→              aria-label={following ? `Unfollow ${name}` : `Follow ${name}`}
+  1655→              aria-pressed={following}
+  1656→              onClick={() => void onFollow()}
+  1657→              className={cn(
+  1658→                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1659→                following ? "text-ember" : "text-white/70 hover:text-ember"
+  1660→              )}
+  1661→            >
+  1662→              <Heart className={cn("size-4", following && "fill-ember")} aria-hidden />
+  1663→            </Button>
+  1664→
+  1665→            <SavePopover
+  1666→              slug={slug}
+  1667→              toolName={name}
+  1668→              savedIn={savedIn}
+  1669→              onSavedChange={(next) => setSavedLocal(next)}
+  1670→            >
+  1671→              <Button
+  1672→                type="button"
+  1673→                variant="outline"
+  1674→                size="icon"
+  1675→                aria-label={
+  1676→                  savedSet.size > 0
+  1677→                    ? `Saved in ${savedSet.size} collection${savedSet.size === 1 ? "" : "s"}: manage`
+  1678→                    : `Save ${name} to a collection`
+  1679→                }
+  1680→                aria-pressed={savedSet.size > 0}
+  1681→                className={cn(
+  1682→                  "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1683→                  savedSet.size > 0 ? "text-ember" : "text-white/70 hover:text-ember"
+  1684→                )}
+  1685→              >
+  1686→                <Bookmark
+  1687→                  className={cn("size-4", savedSet.size > 0 && "fill-ember")}
+  1688→                  aria-hidden
+  1689→                />
+  1690→              </Button>
+  1691→            </SavePopover>
+  1692→
+  1693→            {/* Bookmark for later (Task 23) — the Saved overlay lists these */}
+  1694→            <Button
+  1695→              type="button"
+  1696→              variant="outline"
+  1697→              size="icon"
+  1698→              aria-label={
+  1699→                toolBookmarked ? `Remove ${name} from saved` : `Save ${name} for later`
+  1700→              }
+  1701→              aria-pressed={toolBookmarked}
+  1702→              disabled={bookmarkPending}
+  1703→              onClick={() =>
+  1704→                void toggleToolBookmark({ label: name, href: `/?tool=${slug}` })
+  1705→              }
+  1706→              className={cn(
+  1707→                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1708→                toolBookmarked ? "text-ember" : "text-white/70 hover:text-ember"
+  1709→              )}
+  1710→            >
+  1711→              {toolBookmarked ? (
+  1712→                <BookmarkCheck className="size-4 fill-ember" aria-hidden />
+  1713→              ) : (
+  1714→                <Bookmark className="size-4" aria-hidden />
+  1715→              )}
+  1716→            </Button>
+  1717→
+  1718→            <Button
+  1719→              type="button"
+  1720→              variant="outline"
+  1721→              size="icon"
+  1722→              aria-label={
+  1723→                inCompare
+  1724→                  ? `Remove ${name} from comparison`
+  1725→                  : compareFull
+  1726→                    ? "Comparison is full. Remove a tool first."
+  1727→                    : `Add ${name} to comparison`
+  1728→              }
+  1729→              aria-pressed={inCompare}
+  1730→              disabled={compareFull}
+  1731→              onClick={onCompare}
+  1732→              className={cn(
+  1733→                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+  1734→                inCompare ? "text-ember" : "text-white/70 hover:text-ember",
+  1735→                compareFull && "opacity-40"
+  1736→              )}
+  1737→            >
+  1738→              <Scale className="size-4" aria-hidden />
+  1739→            </Button>
+  1740→
+  1741→            {detail.links.github && (
+  1742→              <Button
+  1743→                asChild
+  1744→                variant="outline"
+  1745→                size="icon"
+  1746→                className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/70 hover:border-ember/40 hover:text-ember"
+  1747→              >
+  1748→                <a
+  1749→                  href={detail.links.github}
+  1750→                  target="_blank"
+  1751→                  rel="noopener noreferrer"
+  1752→                  aria-label={`${name} on GitHub`}
+  1753→                >
+  1754→                  <svg viewBox="0 0 24 24" className="size-4 fill-current" aria-hidden>
+  1755→                    <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.15c-3.2.69-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.26.72-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.04.77 2.1v3.11c0 .3.21.67.8.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+  1756→                  </svg>
+  1757→                </a>
+  1758→              </Button>
+  1759→            )}
+  1760→
+  1761→            {/* Report listing (Task 23) — moderators review every report */}
+  1762→            <Button
+  1763→              type="button"
+  1764→              variant="outline"
+  1765→              size="icon"
+  1766→              aria-label={`Report ${name}`}
+  1767→              onClick={() => setReportOpen(true)}
+  1768→              className="bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 text-white/60 hover:border-ember/40 hover:text-ember"
+  1769→            >
+  1770→              <Flag className="size-4" aria-hidden />
+  1771→            </Button>
+  1772→          </div>
+  1773→        </header>
+  1774→
+  1775→        <ReportDialog
+  1776→          open={reportOpen}
+  1777→          onOpenChange={setReportOpen}
+  1778→          targetType="tool"
+  1779→          targetId={slug}
+  1780→          targetLabel={name}
+  1781→        />
+  1782→
+  1783→        {/* b–i: main column + facts rail */}
+  1784→        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-10">
+  1785→          <div className="min-w-0 space-y-10">
+  1786→            {/* c. About */}
+  1787→            {detail.description && (
+  1788→              <section aria-label="About" className="space-y-3">
+  1789→                <SectionHead>About</SectionHead>
+  1790→                <AboutClamp text={detail.description} />
+  1791→              </section>
+  1792→            )}
+  1793→
+  1794→            {/* d. Claim banner (F-30) */}
+  1795→            <section aria-label="Ownership claim" className="space-y-3">
+  1796→              <SectionHead>Ownership</SectionHead>
+  1797→              {claimed ? (
+  1798→                <div className="flex items-center gap-2 rounded-xl border border-mint/40 bg-mint/[0.05] p-4">
+  1799→                  <ShieldCheck className="size-4 shrink-0 text-mint" aria-hidden />
+  1800→                  <p className="text-sm font-semibold text-mint">
+  1801→                    ✓ Claimed by {detail.maker}
+  1802→                  </p>
+  1803→                </div>
+  1804→              ) : detail.viewer?.claim ? (
+  1805→                <ClaimPanel
+  1806→                  slug={slug}
+  1807→                  maker={detail.maker}
+  1808→                  claim={claim}
+  1809→                  sessionStatus={sessionStatus}
+  1810→                  onRefresh={() => void load()}
+  1811→                />
+  1812→              ) : (
+  1813→                <ClaimPanel
+  1814→                  slug={slug}
+  1815→                  maker={detail.maker}
+  1816→                  claim={null}
+  1817→                  sessionStatus={sessionStatus}
+  1818→                  onRefresh={() => void load()}
+  1819→                />
+  1820→              )}
+  1821→            </section>
+  1822→
+  1823→            {/* e. Reviews (F-16) */}
+  1824→            <ReviewsSection
+  1825→              slug={slug}
+  1826→              isMaker={detail.viewer?.isMaker ?? false}
+  1827→              sessionStatus={sessionStatus}
+  1828→              viewerMyReview={detail.viewer?.myReview ?? null}
+  1829→              onRefreshTool={() => void load()}
+  1830→            />
+  1831→
+  1832→            {/* f. Discussion */}
+  1833→            <Discussion slug={detail.slug} makerHandle={detail.maker} />
+  1834→
+  1835→            {/* g. Related */}
+  1836→            {detail.related && detail.related.length > 0 && (
+  1837→              <section aria-label="More like this" className="space-y-3">
+  1838→                <SectionHead>More like this</SectionHead>
+  1839→                <div className="grid gap-3 sm:grid-cols-3">
+  1840→                  {detail.related.slice(0, 3).map((r) => (
+  1841→                    <button
+  1842→                      key={r.slug}
+  1843→                      type="button"
+  1844→                      onClick={() => openTool(r.slug)}
+  1845→                      aria-label={`Open ${r.name} details`}
+  1846→                      className={cn(PANEL, "p-4 text-left transition-colors hover:border-ember/40 hover:bg-ember/[0.04]")}
+  1847→                    >
+  1848→                      <span
+  1849→                        aria-hidden
+  1850→                        className={cn(
+  1851→                          "grid size-10 place-items-center rounded-lg bg-gradient-to-br text-lg",
+  1852→                          r.gradient
+  1853→                        )}
+  1854→                      >
+  1855→                        {r.emoji}
+  1856→                      </span>
+  1857→                      <span className="mt-2.5 flex items-center justify-between gap-2">
+  1858→                        <span className="truncate text-sm font-bold text-white/90">{r.name}</span>
+  1859→                        {r.editorsPick && (
+  1860→                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase">
+  1861→                            <Star className="size-2.5 fill-current" aria-hidden />
+  1862→                            Pick
+  1863→                          </span>
+  1864→                        )}
+  1865→                      </span>
+  1866→                      <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
+  1867→                        {r.tagline}
+  1868→                      </span>
+  1869→                    </button>
+  1870→                  ))}
+  1871→                </div>
+  1872→              </section>
+  1873→            )}
+  1874→
+  1875→            {/* i. Standards */}
+  1876→            <section aria-label="Quality bar" className="space-y-3">
+  1877→              <Collapsible>
+  1878→                <CollapsibleTrigger
+  1879→                  className={cn(
+  1880→                    "group flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition-colors hover:border-ember/40"
+  1881→                  )}
+  1882→                >
+  1883→                  <span className={MONO}>
+  1884→                    Quality bar: {passedCount}/{detail.standards.length} passed
+  1885→                  </span>
+  1886→                  <ChevronDown
+  1887→                    className="size-4 text-white/50 transition-transform group-data-[state=open]:rotate-180"
+  1888→                    aria-hidden
+  1889→                  />
+  1890→                </CollapsibleTrigger>
+  1891→                <CollapsibleContent>
+  1892→                  <ul className="mt-2 space-y-2">
+  1893→                    {detail.standards.map((s) => (
+  1894→                      <li key={s.id} className={cn(PANEL, "flex items-start gap-2.5 p-3")}>
+  1895→                        <span
+  1896→                          className={cn(
+  1897→                            "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full",
+  1898→                            s.passed ? "bg-mint/15 text-mint" : "bg-white/10 text-white/60"
+  1899→                          )}
+  1900→                        >
+  1901→                          {s.passed ? (
+  1902→                            <Check className="size-2.5" aria-hidden />
+  1903→                          ) : (
+  1904→                            <CircleDashed className="size-2.5" aria-hidden />
+  1905→                          )}
+  1906→                        </span>
+  1907→                        <div className="min-w-0">
+  1908→                          <p className="text-xs font-semibold text-white/85">
+  1909→                            <span className="mr-1.5 font-mono text-ember">{s.id}</span>
+  1910→                            {s.title}
+  1911→                          </p>
+  1912→                          <p className="mt-0.5 text-xs leading-snug text-white/60">{s.blurb}</p>
+  1913→                        </div>
+  1914→                      </li>
+  1915→                    ))}
+  1916→                  </ul>
+  1917→                </CollapsibleContent>
+  1918→              </Collapsible>
+  1919→            </section>
+  1920→          </div>
+  1921→
+  1922→          {/* b. Facts rail */}
+  1923→          <FactsRail detail={detail} />
+  1924→        </div>
+  1925→      </div>
+  1926→    </FullPageShell>
+  1927→  );
+  1928→}
+  1929→

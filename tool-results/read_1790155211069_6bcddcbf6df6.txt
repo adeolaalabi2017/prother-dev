@@ -1,0 +1,804 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useCallback, useEffect, useState } from "react";
+     4→     4→import {
+     5→     5→  KeyRound,
+     6→     6→  Loader2,
+     7→     7→  Pencil,
+     8→     8→  Plus,
+     9→     9→  Save,
+    10→    10→  Trash2,
+    11→    11→  X,
+    12→    12→} from "lucide-react";
+    13→    13→import { Button } from "@/components/ui/button";
+    14→    14→import { Input } from "@/components/ui/input";
+    15→    15→import { Label } from "@/components/ui/label";
+    16→    16→import {
+    17→    17→  Select,
+    18→    18→  SelectContent,
+    19→    19→  SelectItem,
+    20→    20→  SelectTrigger,
+    21→    21→  SelectValue,
+    22→    22→} from "@/components/ui/select";
+    23→    23→import { Switch } from "@/components/ui/switch";
+    24→    24→import { Textarea } from "@/components/ui/textarea";
+    25→    25→import { useToast } from "@/hooks/use-toast";
+    26→    26→import { cn } from "@/lib/utils";
+    27→    27→import {
+    28→    28→  Age,
+    29→    29→  adminFetch,
+    30→    30→  inputCx,
+    31→    31→  labelCx,
+    32→    32→  LoadError,
+    33→    33→  Panel,
+    34→    34→} from "./admin-shared";
+    35→    35→
+    36→    36→/**
+    37→    37→ * Admin — API integrations module (Task 34-c), rendered inside Settings.
+    38→    38→ * Stored credentials (AI providers, payment, storage/CDN, email, analytics)
+    39→    39→ * backed by GET/PUT/DELETE /api/admin/integrations.
+    40→    40→ *
+    41→    41→ * Secret handling: the server masks secret-looking fields in every response
+    42→    42→ * (sentinel + last 4 chars), and a write that echoes the mask keeps the
+    43→    43→ * stored value. This UI therefore never renders a real secret: masked values
+    44→    44→ * render as empty password inputs ("Stored: keep or replace"), and a blank
+    45→    45→ * secret field is sent back as the mask so saving never destroys a key.
+    46→    46→ */
+    47→    47→
+    48→    48→type IntegrationRow = {
+    49→    49→  id: string;
+    50→    50→  key: string;
+    51→    51→  name: string;
+    52→    52→  category: string;
+    53→    53→  enabled: boolean;
+    54→    54→  /** Masked config: secret values arrive as "__MASKED__…" sentinels. */
+    55→    55→  config: Record<string, string>;
+    56→    56→  notes: string;
+    57→    57→  updatedAt: string;
+    58→    58→  createdAt: string;
+    59→    59→};
+    60→    60→
+    61→    61→// Client-side mirrors of lib/integrations.ts (that module is server-only:
+    62→    62→// it imports Prisma, so the browser bundle must not pull it in).
+    63→    63→const SECRET_SENTINEL = "__MASKED__";
+    64→    64→const SECRET_FIELD_RE = /secret|token|api[-_]?key|api[-_]?id|password|private/i;
+    65→    65→const looksSecret = (field: string) => SECRET_FIELD_RE.test(field);
+    66→    66→const isMaskedValue = (v: string) =>
+    67→    67→  v === SECRET_SENTINEL || v.startsWith(`${SECRET_SENTINEL}:`);
+    68→    68→
+    69→    69→type Template = {
+    70→    70→  key: string;
+    71→    71→  name: string;
+    72→    72→  category: string;
+    73→    73→  fields: { name: string; secret?: boolean; placeholder?: string; value?: string }[];
+    74→    74→};
+    75→    75→
+    76→    76→/** Built-in prefills for the add form (never injected anywhere automatically). */
+    77→    77→const TEMPLATES: Template[] = [
+    78→    78→  {
+    79→    79→    key: "openai",
+    80→    80→    name: "OpenAI",
+    81→    81→    category: "ai",
+    82→    82→    fields: [
+    83→    83→      { name: "apiKey", secret: true, placeholder: "sk-…" },
+    84→    84→      { name: "baseUrl", placeholder: "https://api.openai.com/v1", value: "https://api.openai.com/v1" },
+    85→    85→      { name: "defaultModel", placeholder: "gpt-4o-mini" },
+    86→    86→    ],
+    87→    87→  },
+    88→    88→  {
+    89→    89→    key: "anthropic",
+    90→    90→    name: "Anthropic",
+    91→    91→    category: "ai",
+    92→    92→    fields: [
+    93→    93→      { name: "apiKey", secret: true, placeholder: "sk-ant-…" },
+    94→    94→      { name: "model", placeholder: "claude-sonnet-4" },
+    95→    95→    ],
+    96→    96→  },
+    97→    97→  {
+    98→    98→    key: "stripe",
+    99→    99→    name: "Stripe",
+   100→   100→    category: "payment",
+   101→   101→    fields: [
+   102→   102→      { name: "secretKey", secret: true, placeholder: "sk_live_…" },
+   103→   103→      { name: "publishableKey", placeholder: "pk_live_…" },
+   104→   104→      { name: "webhookSecret", secret: true, placeholder: "whsec_…" },
+   105→   105→    ],
+   106→   106→  },
+   107→   107→  {
+   108→   108→    key: "paypal",
+   109→   109→    name: "PayPal",
+   110→   110→    category: "payment",
+   111→   111→    fields: [
+   112→   112→      { name: "clientId", placeholder: "live / sandbox client id" },
+   113→   113→      { name: "clientSecret", secret: true },
+   114→   114→      { name: "mode", placeholder: "sandbox | live" },
+   115→   115→    ],
+   116→   116→  },
+   117→   117→  {
+   118→   118→    key: "cloudflare-r2",
+   119→   119→    name: "Cloudflare R2",
+   120→   120→    category: "storage",
+   121→   121→    fields: [
+   122→   122→      { name: "accountId", placeholder: "R2 account id" },
+   123→   123→      { name: "accessKeyId", secret: true },
+   124→   124→      { name: "secretAccessKey", secret: true },
+   125→   125→      { name: "bucket", placeholder: "bucket name" },
+   126→   126→    ],
+   127→   127→  },
+   128→   128→  {
+   129→   129→    key: "cloudflare-cdn",
+   130→   130→    name: "Cloudflare CDN",
+   131→   131→    category: "cdn",
+   132→   132→    fields: [
+   133→   133→      { name: "apiToken", secret: true },
+   134→   134→      { name: "zoneId", placeholder: "zone id" },
+   135→   135→    ],
+   136→   136→  },
+   137→   137→  {
+   138→   138→    key: "resend",
+   139→   139→    name: "Resend",
+   140→   140→    category: "email",
+   141→   141→    fields: [
+   142→   142→      { name: "apiKey", secret: true, placeholder: "re_…" },
+   143→   143→      { name: "fromEmail", placeholder: "hello@prother.dev" },
+   144→   144→    ],
+   145→   145→  },
+   146→   146→  {
+   147→   147→    key: "plausible",
+   148→   148→    name: "Plausible",
+   149→   149→    category: "analytics",
+   150→   150→    fields: [
+   151→   151→      { name: "siteId", placeholder: "prother.dev" },
+   152→   152→      { name: "apiBase", placeholder: "https://plausible.io" },
+   153→   153→    ],
+   154→   154→  },
+   155→   155→  { key: "custom", name: "Custom", category: "other", fields: [] },
+   156→   156→];
+   157→   157→
+   158→   158→const CATEGORIES: { value: string; label: string }[] = [
+   159→   159→  { value: "ai", label: "AI" },
+   160→   160→  { value: "payment", label: "Payment" },
+   161→   161→  { value: "cdn", label: "CDN" },
+   162→   162→  { value: "storage", label: "Storage" },
+   163→   163→  { value: "email", label: "Email" },
+   164→   164→  { value: "analytics", label: "Analytics" },
+   165→   165→  { value: "other", label: "Other" },
+   166→   166→];
+   167→   167→
+   168→   168→const KEY_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+   169→   169→
+   170→   170→type FormState = {
+   171→   171→  key: string;
+   172→   172→  name: string;
+   173→   173→  category: string;
+   174→   174→  enabled: boolean;
+   175→   175→  config: Record<string, string>;
+   176→   176→  /** Field order: template fields + stored keys + custom rows. */
+   177→   177→  fields: string[];
+   178→   178→  /** Masked stored values echoed back on save (blank input keeps them). */
+   179→   179→  masked: Record<string, string>;
+   180→   180→  notes: string;
+   181→   181→  /** Templates lock the key; custom rows let the editor pick one. */
+   182→   182→  keyLocked: boolean;
+   183→   183→};
+   184→   184→
+   185→   185→function formFromTemplate(tpl: Template): FormState {
+   186→   186→  return {
+   187→   187→    key: tpl.key === "custom" ? "" : tpl.key,
+   188→   188→    name: tpl.key === "custom" ? "" : tpl.name,
+   189→   189→    category: tpl.category,
+   190→   190→    enabled: true,
+   191→   191→    config: Object.fromEntries(tpl.fields.map((f) => [f.name, f.value ?? ""])),
+   192→   192→    fields: tpl.fields.map((f) => f.name),
+   193→   193→    masked: {},
+   194→   194→    notes: "",
+   195→   195→    keyLocked: tpl.key !== "custom",
+   196→   196→  };
+   197→   197→}
+   198→   198→
+   199→   199→function formFromRow(row: IntegrationRow): FormState {
+   200→   200→  const config: Record<string, string> = {};
+   201→   201→  const masked: Record<string, string> = {};
+   202→   202→  for (const [field, value] of Object.entries(row.config)) {
+   203→   203→    if (isMaskedValue(value)) {
+   204→   204→      masked[field] = value;
+   205→   205→      config[field] = "";
+   206→   206→    } else {
+   207→   207→      config[field] = value;
+   208→   208→    }
+   209→   209→  }
+   210→   210→  return {
+   211→   211→    key: row.key,
+   212→   212→    name: row.name,
+   213→   213→    category: row.category,
+   214→   214→    enabled: row.enabled,
+   215→   215→    config,
+   216→   216→    fields: Object.keys(row.config),
+   217→   217→    masked,
+   218→   218→    notes: row.notes,
+   219→   219→    keyLocked: true,
+   220→   220→  };
+   221→   221→}
+   222→   222→
+   223→   223→function fieldIsSecret(field: string, tpl?: Template): boolean {
+   224→   224→  return tpl?.fields.find((f) => f.name === field)?.secret === true || looksSecret(field);
+   225→   225→}
+   226→   226→
+   227→   227→function IntegrationForm({
+   228→   228→  apiKey,
+   229→   229→  state,
+   230→   230→  onStateChange,
+   231→   231→  onDone,
+   232→   232→}: {
+   233→   233→  apiKey: string;
+   234→   234→  state: FormState;
+   235→   235→  onStateChange: (next: FormState) => void;
+   236→   236→  onDone: (rows: IntegrationRow[]) => void;
+   237→   237→}) {
+   238→   238→  const { toast } = useToast();
+   239→   239→  const [busy, setBusy] = useState(false);
+   240→   240→  const [newField, setNewField] = useState("");
+   241→   241→
+   242→   242→  const set = (patch: Partial<FormState>) => onStateChange({ ...state, ...patch });
+   243→   243→  const setField = (field: string, value: string) =>
+   244→   244→    set({ config: { ...state.config, [field]: value } });
+   245→   245→
+   246→   246→  const addField = () => {
+   247→   247→    const name = newField.trim().slice(0, 60);
+   248→   248→    if (!name || state.fields.includes(name)) return;
+   249→   249→    set({
+   250→   250→      fields: [...state.fields, name],
+   251→   251→      config: { ...state.config, [name]: "" },
+   252→   252→    });
+   253→   253→    setNewField("");
+   254→   254→  };
+   255→   255→
+   256→   256→  const removeField = (field: string) => {
+   257→   257→    const config = { ...state.config };
+   258→   258→    delete config[field];
+   259→   259→    set({
+   260→   260→      fields: state.fields.filter((f) => f !== field),
+   261→   261→      config,
+   262→   262→      masked: Object.fromEntries(
+   263→   263→        Object.entries(state.masked).filter(([k]) => k !== field)
+   264→   264→      ),
+   265→   265→    });
+   266→   266→  };
+   267→   267→
+   268→   268→  const save = async () => {
+   269→   269→    setBusy(true);
+   270→   270→    try {
+   271→   271→      // Only send filled fields + echoed masks: an emptied non-secret drops
+   272→   272→      // from the config (whole-object replace), a blank secret echoes its
+   273→   273→      // mask so the stored value survives the round trip.
+   274→   274→      const config: Record<string, string> = {};
+   275→   275→      for (const field of state.fields) {
+   276→   276→        const v = (state.config[field] ?? "").trim();
+   277→   277→        if (v) config[field] = v;
+   278→   278→        else if (state.masked[field]) config[field] = state.masked[field];
+   279→   279→      }
+   280→   280→      const res = await adminFetch(apiKey, "/api/admin/integrations", {
+   281→   281→        method: "PUT",
+   282→   282→        body: JSON.stringify({
+   283→   283→          key: state.key.trim().toLowerCase(),
+   284→   284→          name: state.name.trim(),
+   285→   285→          category: state.category,
+   286→   286→          enabled: state.enabled,
+   287→   287→          config,
+   288→   288→          notes: state.notes.trim(),
+   289→   289→        }),
+   290→   290→      });
+   291→   291→      const d = (await res.json()) as {
+   292→   292→        integrations?: IntegrationRow[];
+   293→   293→        error?: string;
+   294→   294→      };
+   295→   295→      if (!res.ok || !d.integrations) {
+   296→   296→        toast({ title: d.error ?? "Save failed", variant: "destructive" });
+   297→   297→        return;
+   298→   298→      }
+   299→   299→      toast({
+   300→   300→        title: "Integration saved",
+   301→   301→        description: `${state.name.trim()} (${state.category}) stored server-side.`,
+   302→   302→      });
+   303→   303→      onDone(d.integrations);
+   304→   304→    } catch {
+   305→   305→      toast({ title: "Network error", variant: "destructive" });
+   306→   306→    } finally {
+   307→   307→      setBusy(false);
+   308→   308→    }
+   309→   309→  };
+   310→   310→
+   311→   311→  const valid =
+   312→   312→    KEY_RE.test(state.key.trim().toLowerCase()) && state.name.trim().length >= 2;
+   313→   313→
+   314→   314→  return (
+   315→   315→    <div className="space-y-3 rounded-xl border border-ember/25 bg-ember/[0.04] p-3.5">
+   316→   316→      <div className="grid gap-3 sm:grid-cols-2">
+   317→   317→        <div className="space-y-1.5">
+   318→   318→          <Label className={labelCx}>Key</Label>
+   319→   319→          <Input
+   320→   320→            value={state.key}
+   321→   321→            readOnly={state.keyLocked}
+   322→   322→            onChange={(e) =>
+   323→   323→              set({ key: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })
+   324→   324→            }
+   325→   325→            placeholder="openai"
+   326→   326→            aria-label="Integration key"
+   327→   327→            className={cn(inputCx, "font-mono", state.keyLocked && "opacity-70")}
+   328→   328→          />
+   329→   329→          <p className="text-xs text-white/55">
+   330→   330→            {state.keyLocked
+   331→   331→              ? "Fixed by the template. Server code reads config via this key."
+   332→   332→              : "2 to 41 chars: a-z, 0-9, dashes. Server code reads config via this key."}
+   333→   333→          </p>
+   334→   334→        </div>
+   335→   335→        <div className="space-y-1.5">
+   336→   336→          <Label className={labelCx}>Display name</Label>
+   337→   337→          <Input
+   338→   338→            value={state.name}
+   339→   339→            onChange={(e) => set({ name: e.target.value })}
+   340→   340→            placeholder="OpenAI"
+   341→   341→            aria-label="Integration display name"
+   342→   342→            className={inputCx}
+   343→   343→          />
+   344→   344→        </div>
+   345→   345→        <div className="space-y-1.5">
+   346→   346→          <Label className={labelCx}>Category</Label>
+   347→   347→          <Select
+   348→   348→            value={state.category}
+   349→   349→            onValueChange={(v) => set({ category: v })}
+   350→   350→          >
+   351→   351→            <SelectTrigger aria-label="Integration category" className={inputCx}>
+   352→   352→              <SelectValue />
+   353→   353→            </SelectTrigger>
+   354→   354→            <SelectContent className="border-white/10 bg-coal text-white">
+   355→   355→              {CATEGORIES.map((c) => (
+   356→   356→                <SelectItem key={c.value} value={c.value}>
+   357→   357→                  {c.label}
+   358→   358→                </SelectItem>
+   359→   359→              ))}
+   360→   360→            </SelectContent>
+   361→   361→          </Select>
+   362→   362→        </div>
+   363→   363→        <div className="space-y-1.5">
+   364→   364→          <Label className={labelCx}>Status</Label>
+   365→   365→          <label className="flex min-h-11 items-center gap-2 text-sm text-white/70">
+   366→   366→            <Switch
+   367→   367→              checked={state.enabled}
+   368→   368→              onCheckedChange={(v) => set({ enabled: v })}
+   369→   369→              className="data-[state=checked]:bg-ember"
+   370→   370→              aria-label="Integration enabled"
+   371→   371→            />
+   372→   372→            {state.enabled ? "Enabled" : "Disabled"}
+   373→   373→          </label>
+   374→   374→        </div>
+   375→   375→      </div>
+   376→   376→
+   377→   377→      <div className="space-y-2.5">
+   378→   378→        <p className={labelCx}>Configured fields</p>
+   379→   379→        {state.fields.map((field) => {
+   380→   380→          const secret = fieldIsSecret(field);
+   381→   381→          const wasMasked = Boolean(state.masked[field]);
+   382→   382→          return (
+   383→   383→            <div key={field} className="flex items-end gap-2">
+   384→   384→              <div className="w-40 shrink-0 pb-2.5">
+   385→   385→                <span
+   386→   386→                  className="block truncate font-mono text-xs text-white/70"
+   387→   387→                  title={field}
+   388→   388→                >
+   389→   389→                  {field}
+   390→   390→                </span>
+   391→   391→                {secret && (
+   392→   392→                  <span className="font-mono text-xs tracking-wider text-ember uppercase">
+   393→   393→                    secret
+   394→   394→                  </span>
+   395→   395→                )}
+   396→   396→              </div>
+   397→   397→              <div className="min-w-0 flex-1">
+   398→   398→                <Input
+   399→   399→                  type={secret ? "password" : "text"}
+   400→   400→                  value={state.config[field] ?? ""}
+   401→   401→                  onChange={(e) => setField(field, e.target.value)}
+   402→   402→                  placeholder={
+   403→   403→                    wasMasked
+   404→   404→                      ? "Stored: keep or replace"
+   405→   405→                      : secret
+   406→   406→                        ? "Value is stored server-side"
+   407→   407→                        : field
+   408→   408→                  }
+   409→   409→                  autoComplete="off"
+   410→   410→                  aria-label={`Value for ${field}`}
+   411→   411→                  className={cn(inputCx, secret && "font-mono")}
+   412→   412→                />
+   413→   413→              </div>
+   414→   414→              <button
+   415→   415→                type="button"
+   416→   416→                aria-label={`Remove field ${field}`}
+   417→   417→                onClick={() => removeField(field)}
+   418→   418→                className="mb-0.5 rounded-lg p-2.5 text-white/60 transition-colors hover:text-red-400"
+   419→   419→              >
+   420→   420→                <X className="size-3.5" aria-hidden />
+   421→   421→              </button>
+   422→   422→            </div>
+   423→   423→          );
+   424→   424→        })}
+   425→   425→        {state.fields.length === 0 && (
+   426→   426→          <p className="text-xs text-white/55">
+   427→   427→            No fields yet. Add the keys this integration needs below.
+   428→   428→          </p>
+   429→   429→        )}
+   430→   430→        <div className="flex items-center gap-2 pt-1">
+   431→   431→          <Input
+   432→   432→            value={newField}
+   433→   433→            onChange={(e) => setNewField(e.target.value)}
+   434→   434→            placeholder="Custom field name"
+   435→   435→            aria-label="Custom field name"
+   436→   436→            maxLength={60}
+   437→   437→            className={cn(inputCx, "w-44")}
+   438→   438→          />
+   439→   439→          <Button
+   440→   440→            size="sm"
+   441→   441→            variant="outline"
+   442→   442→            onClick={addField}
+   443→   443→            disabled={!newField.trim()}
+   444→   444→            className="rounded-lg border-white/15 text-white/70 hover:bg-white/5"
+   445→   445→          >
+   446→   446→            <Plus className="size-3.5" aria-hidden />
+   447→   447→            Add field
+   448→   448→          </Button>
+   449→   449→        </div>
+   450→   450→      </div>
+   451→   451→
+   452→   452→      <div className="space-y-1.5">
+   453→   453→        <Label className={labelCx}>Notes</Label>
+   454→   454→        <Textarea
+   455→   455→          value={state.notes}
+   456→   456→          rows={2}
+   457→   457→          onChange={(e) => set({ notes: e.target.value })}
+   458→   458→          placeholder="Where this integration is used, rotation dates…"
+   459→   459→          aria-label="Integration notes"
+   460→   460→          className={inputCx}
+   461→   461→        />
+   462→   462→      </div>
+   463→   463→
+   464→   464→      <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
+   465→   465→        <Button
+   466→   466→          disabled={busy || !valid}
+   467→   467→          onClick={() => void save()}
+   468→   468→          className="rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
+   469→   469→        >
+   470→   470→          {busy ? (
+   471→   471→            <Loader2 className="size-4 animate-spin" aria-hidden />
+   472→   472→          ) : (
+   473→   473→            <Save className="size-4" aria-hidden />
+   474→   474→          )}
+   475→   475→          Save integration
+   476→   476→        </Button>
+   477→   477→        <p className="text-xs text-white/55">
+   478→   478→          Secrets never leave the server verbatim: they are returned masked
+   479→   479→          (last 4 characters only). Leave a secret blank to keep the stored
+   480→   480→          value.
+   481→   481→        </p>
+   482→   482→      </div>
+   483→   483→    </div>
+   484→   484→  );
+   485→   485→}
+   486→   486→
+   487→   487→export function IntegrationsModule({ apiKey }: { apiKey: string }) {
+   488→   488→  const { toast } = useToast();
+   489→   489→  const [rows, setRows] = useState<IntegrationRow[] | null>(null);
+   490→   490→  const [error, setError] = useState(false);
+   491→   491→  const [adding, setAdding] = useState(false);
+   492→   492→  const [tplKey, setTplKey] = useState("");
+   493→   493→  const [draft, setDraft] = useState<FormState | null>(null);
+   494→   494→  const [editingKey, setEditingKey] = useState<string | null>(null);
+   495→   495→  const [editState, setEditState] = useState<FormState | null>(null);
+   496→   496→  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+   497→   497→  const [busyKey, setBusyKey] = useState<string | null>(null);
+   498→   498→
+   499→   499→  const load = useCallback(() => {
+   500→   500→    adminFetch(apiKey, "/api/admin/integrations")
+   501→   501→      .then((r) => {
+   502→   502→        if (!r.ok) throw new Error(String(r.status));
+   503→   503→        return r.json() as Promise<{ integrations: IntegrationRow[] }>;
+   504→   504→      })
+   505→   505→      .then((d) => {
+   506→   506→        setRows(d.integrations);
+   507→   507→        setError(false);
+   508→   508→      })
+   509→   509→      .catch(() => setError(true));
+   510→   510→  }, [apiKey]);
+   511→   511→
+   512→   512→  useEffect(load, [load]);
+   513→   513→
+   514→   514→  const retry = useCallback(() => {
+   515→   515→    setRows(null);
+   516→   516→    setError(false);
+   517→   517→    load();
+   518→   518→  }, [load]);
+   519→   519→
+   520→   520→  const pickTemplate = (key: string) => {
+   521→   521→    setTplKey(key);
+   522→   522→    const tpl = TEMPLATES.find((t) => t.key === key);
+   523→   523→    setDraft(tpl ? formFromTemplate(tpl) : null);
+   524→   524→  };
+   525→   525→
+   526→   526→  const toggleEnabled = useCallback(
+   527→   527→    async (row: IntegrationRow) => {
+   528→   528→      setBusyKey(row.key);
+   529→   529→      try {
+   530→   530→        // Masked config echoes back: the server keeps stored secrets.
+   531→   531→        const res = await adminFetch(apiKey, "/api/admin/integrations", {
+   532→   532→          method: "PUT",
+   533→   533→          body: JSON.stringify({
+   534→   534→            key: row.key,
+   535→   535→            name: row.name,
+   536→   536→            category: row.category,
+   537→   537→            enabled: !row.enabled,
+   538→   538→            config: row.config,
+   539→   539→            notes: row.notes,
+   540→   540→          }),
+   541→   541→        });
+   542→   542→        const d = (await res.json()) as {
+   543→   543→          integrations?: IntegrationRow[];
+   544→   544→          error?: string;
+   545→   545→        };
+   546→   546→        if (!res.ok || !d.integrations) {
+   547→   547→          toast({ title: d.error ?? "Update failed", variant: "destructive" });
+   548→   548→          return;
+   549→   549→        }
+   550→   550→        setRows(d.integrations);
+   551→   551→        toast({
+   552→   552→          title: `${row.name} ${!row.enabled ? "enabled" : "disabled"}`,
+   553→   553→          description: !row.enabled
+   554→   554→            ? "Server code can read its credentials again."
+   555→   555→            : "Disabled integrations are ignored server-side.",
+   556→   556→        });
+   557→   557→      } catch {
+   558→   558→        toast({ title: "Network error", variant: "destructive" });
+   559→   559→      } finally {
+   560→   560→        setBusyKey(null);
+   561→   561→      }
+   562→   562→    },
+   563→   563→    [apiKey, toast]
+   564→   564→  );
+   565→   565→
+   566→   566→  const deleteRow = useCallback(
+   567→   567→    async (row: IntegrationRow) => {
+   568→   568→      setBusyKey(row.key);
+   569→   569→      try {
+   570→   570→        const res = await adminFetch(
+   571→   571→          apiKey,
+   572→   572→          `/api/admin/integrations?key=${encodeURIComponent(row.key)}`,
+   573→   573→          { method: "DELETE" }
+   574→   574→        );
+   575→   575→        const d = (await res.json()) as {
+   576→   576→          integrations?: IntegrationRow[];
+   577→   577→          error?: string;
+   578→   578→        };
+   579→   579→        if (!res.ok || !d.integrations) {
+   580→   580→          toast({ title: d.error ?? "Delete failed", variant: "destructive" });
+   581→   581→          return;
+   582→   582→        }
+   583→   583→        setRows(d.integrations);
+   584→   584→        setConfirmDelete(null);
+   585→   585→        if (editingKey === row.key) {
+   586→   586→          setEditingKey(null);
+   587→   587→          setEditState(null);
+   588→   588→        }
+   589→   589→        toast({ title: "Integration deleted", description: row.name });
+   590→   590→      } catch {
+   591→   591→        toast({ title: "Network error", variant: "destructive" });
+   592→   592→      } finally {
+   593→   593→        setBusyKey(null);
+   594→   594→      }
+   595→   595→    },
+   596→   596→    [apiKey, editingKey, toast]
+   597→   597→  );
+   598→   598→
+   599→   599→  const configuredCount = (row: IntegrationRow) =>
+   600→   600→    Object.values(row.config).filter((v) => v !== "").length;
+   601→   601→
+   602→   602→  return (
+   603→   603→    <div className="space-y-3">
+   604→   604→      <div className="flex flex-wrap items-end gap-2">
+   605→   605→        <div className="min-w-0">
+   606→   606→          <p className="flex items-center gap-1.5 font-mono text-xs tracking-[0.2em] text-ember uppercase">
+   607→   607→            <KeyRound className="size-3.5" aria-hidden />
+   608→   608→            API integrations
+   609→   609→          </p>
+   610→   610→          <p className="mt-0.5 text-sm text-white/60">
+   611→   611→            External service credentials: AI, payment, storage, CDN, email,
+   612→   612→            analytics. Stored server-side, masked in every response.
+   613→   613→          </p>
+   614→   614→        </div>
+   615→   615→        <Button
+   616→   616→          size="sm"
+   617→   617→          onClick={() => {
+   618→   618→            setAdding((v) => !v);
+   619→   619→            setEditingKey(null);
+   620→   620→            setEditState(null);
+   621→   621→          }}
+   622→   622→          aria-expanded={adding}
+   623→   623→          className="ml-auto rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
+   624→   624→        >
+   625→   625→          <Plus className="size-4" aria-hidden />
+   626→   626→          Add integration
+   627→   627→        </Button>
+   628→   628→      </div>
+   629→   629→
+   630→   630→      {adding && (
+   631→   631→        <Panel>
+   632→   632→          <div className="space-y-3">
+   633→   633→            <div className="max-w-xs space-y-1.5">
+   634→   634→              <Label className={labelCx}>Start from a template</Label>
+   635→   635→              <Select value={tplKey} onValueChange={pickTemplate}>
+   636→   636→                <SelectTrigger aria-label="Integration template" className={inputCx}>
+   637→   637→                  <SelectValue placeholder="Pick a template" />
+   638→   638→                </SelectTrigger>
+   639→   639→                <SelectContent className="border-white/10 bg-coal text-white">
+   640→   640→                  {TEMPLATES.map((t) => (
+   641→   641→                    <SelectItem key={t.key} value={t.key}>
+   642→   642→                      {t.name}
+   643→   643→                    </SelectItem>
+   644→   644→                  ))}
+   645→   645→                </SelectContent>
+   646→   646→              </Select>
+   647→   647→              <p className="text-xs text-white/55">
+   648→   648→                Templates only prefill the form below. Nothing is stored until
+   649→   649→                you save.
+   650→   650→              </p>
+   651→   651→            </div>
+   652→   652→            {draft && (
+   653→   653→              <IntegrationForm
+   654→   654→                apiKey={apiKey}
+   655→   655→                state={draft}
+   656→   656→                onStateChange={setDraft}
+   657→   657→                onDone={(fresh) => {
+   658→   658→                  setRows(fresh);
+   659→   659→                  setAdding(false);
+   660→   660→                  setDraft(null);
+   661→   661→                  setTplKey("");
+   662→   662→                }}
+   663→   663→              />
+   664→   664→            )}
+   665→   665→          </div>
+   666→   666→        </Panel>
+   667→   667→      )}
+   668→   668→
+   669→   669→      {error ? (
+   670→   670→        <LoadError label="Integrations" onRetry={retry} />
+   671→   671→      ) : rows === null ? (
+   672→   672→        <p className="py-6 text-center text-sm text-white/55">Loading…</p>
+   673→   673→      ) : rows.length === 0 ? (
+   674→   674→        <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
+   675→   675→          <p className="font-mono text-sm text-white/60">
+   676→   676→            No integrations saved yet.
+   677→   677→          </p>
+   678→   678→          <p className="mt-1 text-xs text-white/55">
+   679→   679→            Add one from a template above.
+   680→   680→          </p>
+   681→   681→        </div>
+   682→   682→      ) : (
+   683→   683→        <div className="space-y-2">
+   684→   684→          {rows.map((row) => {
+   685→   685→            const tpl = TEMPLATES.find((t) => t.key === row.key);
+   686→   686→            return (
+   687→   687→              <Panel key={row.id} className="p-4">
+   688→   688→                <div className="flex flex-wrap items-center gap-2.5">
+   689→   689→                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 font-mono text-xs text-ember">
+   690→   690→                    {row.name.slice(0, 2).toUpperCase()}
+   691→   691→                  </span>
+   692→   692→                  <div className="min-w-0 flex-1">
+   693→   693→                    <p className="truncate text-sm font-bold text-white">
+   694→   694→                      {row.name}
+   695→   695→                      <span className="ml-2 font-mono text-xs font-normal text-white/55">
+   696→   696→                        {row.key}
+   697→   697→                      </span>
+   698→   698→                    </p>
+   699→   699→                    <p className="font-mono text-xs text-white/55">
+   700→   700→                      {configuredCount(row)} field
+   701→   701→                      {configuredCount(row) === 1 ? "" : "s"} configured ·
+   702→   702→                      updated <Age iso={row.updatedAt} />
+   703→   703→                    </p>
+   704→   704→                  </div>
+   705→   705→                  <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs tracking-wider text-white/60 uppercase">
+   706→   706→                    {row.category}
+   707→   707→                  </span>
+   708→   708→                  <Switch
+   709→   709→                    checked={row.enabled}
+   710→   710→                    disabled={busyKey === row.key}
+   711→   711→                    onCheckedChange={() => void toggleEnabled(row)}
+   712→   712→                    className="data-[state=checked]:bg-ember"
+   713→   713→                    aria-label={`${row.enabled ? "Disable" : "Enable"} ${row.name}`}
+   714→   714→                  />
+   715→   715→                  <Button
+   716→   716→                    size="sm"
+   717→   717→                    variant="outline"
+   718→   718→                    onClick={() => {
+   719→   719→                      setEditingKey(editingKey === row.key ? null : row.key);
+   720→   720→                      setEditState(
+   721→   721→                        editingKey === row.key ? null : formFromRow(row)
+   722→   722→                      );
+   723→   723→                      setAdding(false);
+   724→   724→                      setDraft(null);
+   725→   725→                      setConfirmDelete(null);
+   726→   726→                    }}
+   727→   727→                    aria-expanded={editingKey === row.key}
+   728→   728→                    className="h-8 rounded-lg border-white/15 text-white/70 hover:bg-white/5 hover:text-white"
+   729→   729→                  >
+   730→   730→                    <Pencil className="size-3.5" aria-hidden />
+   731→   731→                    Edit
+   732→   732→                  </Button>
+   733→   733→                  {confirmDelete === row.key ? (
+   734→   734→                    <span className="flex shrink-0 items-center gap-1">
+   735→   735→                      <Button
+   736→   736→                        size="sm"
+   737→   737→                        disabled={busyKey === row.key}
+   738→   738→                        onClick={() => void deleteRow(row)}
+   739→   739→                        className="h-8 rounded-lg bg-red-500 text-white shadow-none hover:bg-red-400"
+   740→   740→                      >
+   741→   741→                        {busyKey === row.key ? (
+   742→   742→                          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+   743→   743→                        ) : (
+   744→   744→                          <Trash2 className="size-3.5" aria-hidden />
+   745→   745→                        )}
+   746→   746→                        Confirm delete
+   747→   747→                      </Button>
+   748→   748→                      <Button
+   749→   749→                        size="sm"
+   750→   750→                        variant="ghost"
+   751→   751→                        onClick={() => setConfirmDelete(null)}
+   752→   752→                        className="h-8 rounded-lg text-white/60 hover:text-white"
+   753→   753→                      >
+   754→   754→                        Keep
+   755→   755→                      </Button>
+   756→   756→                    </span>
+   757→   757→                  ) : (
+   758→   758→                    <Button
+   759→   759→                      size="sm"
+   760→   760→                      variant="ghost"
+   761→   761→                      onClick={() => setConfirmDelete(row.key)}
+   762→   762→                      aria-label={`Delete ${row.name}`}
+   763→   763→                      className="h-8 rounded-lg text-red-400 hover:bg-red-400/10 hover:text-red-300"
+   764→   764→                    >
+   765→   765→                      <Trash2 className="size-3.5" aria-hidden />
+   766→   766→                    </Button>
+   767→   767→                  )}
+   768→   768→                </div>
+   769→   769→
+   770→   770→                {row.notes && (
+   771→   771→                  <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-white/55">
+   772→   772→                    {row.notes}
+   773→   773→                  </p>
+   774→   774→                )}
+   775→   775→
+   776→   776→                {editingKey === row.key && editState && (
+   777→   777→                  <div className="mt-3">
+   778→   778→                    <IntegrationForm
+   779→   779→                      apiKey={apiKey}
+   780→   780→                      state={editState}
+   781→   781→                      onStateChange={setEditState}
+   782→   782→                      onDone={(fresh) => {
+   783→   783→                        setRows(fresh);
+   784→   784→                        setEditingKey(null);
+   785→   785→                        setEditState(null);
+   786→   786→                      }}
+   787→   787→                    />
+   788→   788→                  </div>
+   789→   789→                )}
+   790→   790→              </Panel>
+   791→   791→            );
+   792→   792→          })}
+   793→   793→        </div>
+   794→   794→      )}
+   795→   795→
+   796→   796→      <p className="font-mono text-xs leading-relaxed text-white/55">
+   797→   797→        SECRET FIELDS (KEYS, TOKENS, PASSWORDS) ARE MASKED IN EVERY RESPONSE:
+   798→   798→        ONLY THE LAST 4 CHARACTERS ARE SHOWN. SAVE WITH A BLANK SECRET TO KEEP
+   799→   799→        THE STORED VALUE. DISABLED INTEGRATIONS ARE IGNORED SERVER-SIDE.
+   800→   800→      </p>
+   801→   801→    </div>
+   802→   802→  );
+   803→   803→}
+   804→   804→

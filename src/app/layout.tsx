@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -24,15 +23,12 @@ import { BackToTop } from "@/components/prother/back-to-top";
 import { AnalyticsPing } from "@/components/prother/analytics-ping";
 import { siteUrl } from "@/lib/site-url";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+/**
+ * Typography: the SF Pro family. SF Pro is Apple's system font, so instead of
+ * a webfont download we point --font-sans (globals.css @theme) at the native
+ * SF Pro stack: Apple devices render SF Pro Display/Text, other platforms get
+ * their tuned system equivalent. See globals.css --font-sans/--font-mono.
+ */
 
 /**
  * Root metadata reads the CMS-managed SEO defaults (SiteSetting KV, Task 32)
@@ -105,9 +101,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
+      <body className="antialiased bg-background text-foreground">
         {/* Dark is the brand default; the header toggle flips to the warm
             paper light theme (globals.css html.light token remap). The
             class is set pre-hydration by next-themes' inline script, so

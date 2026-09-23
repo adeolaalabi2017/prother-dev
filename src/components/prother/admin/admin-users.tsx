@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Ban, Search, ShieldCheck } from "lucide-react";
+import { Ban, ImagePlus, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { ImageUploadField } from "@/components/prother/image-upload-field";
 import { adminFetch, inputCx, LoadError, MiniStat } from "./admin-shared";
 
 /**
@@ -75,6 +76,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   const [role, setRole] = useState("all");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [avatarOpen, setAvatarOpen] = useState<string | null>(null);
 
   const load = useCallback(() => {
     adminFetch(
@@ -123,6 +125,36 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
       }
     },
     [apiKey]
+  );
+
+  const setAvatar = useCallback(
+    async (u: AdminUser, image: string | null) => {
+      setBusy(u.id);
+      try {
+        const res = await adminFetch(apiKey, `/api/admin/users/${u.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ image }),
+        });
+        const d = (await res.json()) as { ok?: boolean; error?: string };
+        if (!res.ok || !d.ok) {
+          toast({ title: d.error ?? "Avatar update failed", variant: "destructive" });
+          return;
+        }
+        // Local state update: the roster payload already carries `image`.
+        setUsers((cur) =>
+          cur?.map((x) => (x.id === u.id ? { ...x, image } : x)) ?? cur
+        );
+        toast({
+          title: image ? "Avatar updated" : "Avatar cleared",
+          description: atHandle(u.handle),
+        });
+      } catch {
+        toast({ title: "Network error", variant: "destructive" });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [apiKey, toast]
   );
 
   const toggleBan = useCallback(
@@ -248,17 +280,29 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                 key={u.id}
                 className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
               >
-                <span
-                  aria-hidden
-                  className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-xl border text-sm font-black",
-                    u.status === "banned"
-                      ? "border-red-400/30 bg-red-400/10 text-red-300"
-                      : "border-white/10 bg-white/5 text-white/70"
-                  )}
-                >
-                  {initial}
-                </span>
+                {u.image ? (
+                  <img
+                    src={u.image}
+                    alt=""
+                    loading="lazy"
+                    className={cn(
+                      "size-9 shrink-0 rounded-full border object-cover",
+                      u.status === "banned" ? "border-red-400/30" : "border-white/10"
+                    )}
+                  />
+                ) : (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-xl border text-sm font-black",
+                      u.status === "banned"
+                        ? "border-red-400/30 bg-red-400/10 text-red-300"
+                        : "border-white/10 bg-white/5 text-white/70"
+                    )}
+                  >
+                    {initial}
+                  </span>
+                )}
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-white">
@@ -309,6 +353,24 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                   </SelectContent>
                 </Select>
 
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy === u.id}
+                  aria-expanded={avatarOpen === u.id}
+                  aria-label={`Avatar for ${atHandle(u.handle)}`}
+                  onClick={() => setAvatarOpen(avatarOpen === u.id ? null : u.id)}
+                  className={cn(
+                    "h-8 shrink-0 rounded-lg",
+                    avatarOpen === u.id
+                      ? "bg-white/5 text-ember"
+                      : "text-white/60 hover:text-white"
+                  )}
+                >
+                  <ImagePlus className="size-3.5" aria-hidden />
+                  <span className="hidden lg:inline">Avatar</span>
+                </Button>
+
                 {u.status === "active" ? (
                   <Button
                     size="sm"
@@ -331,6 +393,23 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                     <ShieldCheck className="size-3.5" aria-hidden />
                     Unban
                   </Button>
+                )}
+
+                {avatarOpen === u.id && (
+                  <div className="w-full border-t border-white/10 pt-3">
+                    <ImageUploadField
+                      value={u.image}
+                      onChange={(url) => void setAvatar(u, url)}
+                      purpose="avatar"
+                      endpoint="admin"
+                      editorKey={apiKey}
+                      label="Avatar image"
+                      hint={u.image
+                        ? "Replace it, or Remove to clear the avatar."
+                        : "Square image works best. Saved instantly, no extra step."}
+                      disabled={busy === u.id}
+                    />
+                  </div>
                 )}
               </div>
             );

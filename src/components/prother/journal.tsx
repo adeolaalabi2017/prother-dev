@@ -20,6 +20,8 @@ type PostCard = {
   tags: string[];
   coverEmoji: string;
   coverGradient: string;
+  /** Uploaded cover image; when set it replaces the emoji tile (Task 34). */
+  coverUrl?: string | null;
   author: string;
   readingMinutes: number;
   publishedAt: string | null;
@@ -173,17 +175,36 @@ export function Journal() {
                 onClick={() => openPost(p.slug)}
                 className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-1 hover:border-ember/40 hover:bg-white/[0.04]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div
-                    aria-hidden
-                    className={cn(
-                      "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
-                      p.coverGradient
-                    )}
-                  >
-                    {p.coverEmoji}
+                {/* Uploaded cover art (Task 34) — emoji tile stays as fallback */}
+                {p.coverUrl && (
+                  <div className="overflow-hidden rounded-xl border border-white/10">
+                    <img
+                      src={p.coverUrl}
+                      alt={`${p.title} cover`}
+                      loading="lazy"
+                      className="aspect-video w-full object-cover"
+                    />
                   </div>
-                  <span className="rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
+                )}
+
+                <div
+                  className={cn(
+                    "flex items-start justify-between gap-3",
+                    p.coverUrl && "mt-4"
+                  )}
+                >
+                  {!p.coverUrl && (
+                    <div
+                      aria-hidden
+                      className={cn(
+                        "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
+                        p.coverGradient
+                      )}
+                    >
+                      {p.coverEmoji}
+                    </div>
+                  )}
+                  <span className="ml-auto rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
                     {p.category}
                   </span>
                 </div>

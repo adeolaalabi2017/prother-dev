@@ -4,6 +4,7 @@ import { STANDARD_DEFS } from "@/lib/standards";
 import type { RelatedToolRow, ToolDetailResponse } from "@/lib/prother";
 import { getAuthUser } from "@/lib/auth";
 import { commentCountsByTool } from "@/lib/discussion";
+import { toolMediaByIds } from "@/lib/media";
 import {
   isFollowing,
   latestClaimFor,
@@ -85,11 +86,13 @@ export async function GET(
   // ── Community layer (F-16 / F-35 / F-30 / F-39 / F-41) ─────────────────
   // NOTE: toolCommunityFields goes through $queryRaw — makerEmail is a
   // post-boot column the cached PrismaClient doesn't know.
-  const [stats, fields, commentCounts, user] = await Promise.all([
+  const [stats, fields, commentCounts, user, mediaMap] = await Promise.all([
     reviewStats(tool.id),
     toolCommunityFields(tool.id),
     commentCountsByTool([tool.id]),
     getAuthUser(),
+    // POST-boot media columns → raw SQL (stale-PrismaClient rule).
+    toolMediaByIds([tool.id]),
   ]);
 
   let viewer: ViewerState | null = null;
@@ -135,6 +138,10 @@ export async function GET(
     websiteUrl: tool.websiteUrl,
     emoji: tool.logoEmoji,
     gradient: tool.logoGradient,
+    // Uploaded media (POST-boot columns → raw SQL, lib/media.ts). The logo
+    // falls back to the emoji tile when null; screenshots power the gallery.
+    logoUrl: mediaMap.get(tool.id)?.logoUrl ?? null,
+    screenshots: mediaMap.get(tool.id)?.screenshotUrls ?? [],
     pricing: {
       model: tool.pricingModel,
       price: tool.startingPrice,

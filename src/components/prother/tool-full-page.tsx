@@ -1547,13 +1547,21 @@ export function ToolFullPage() {
         <header className="space-y-5">
           <div className="flex items-start gap-4 sm:gap-5">
             <span
-              aria-hidden
+              aria-hidden={!detail.logoUrl}
               className={cn(
-                "grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
+                "grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
                 detail.gradient
               )}
             >
-              {detail.emoji}
+              {detail.logoUrl ? (
+                <img
+                  src={detail.logoUrl}
+                  alt={`${name} logo`}
+                  className="size-full object-contain"
+                />
+              ) : (
+                <span aria-hidden>{detail.emoji}</span>
+              )}
             </span>
             <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
@@ -1788,6 +1796,26 @@ export function ToolFullPage() {
               <section aria-label="About" className="space-y-3">
                 <SectionHead>About</SectionHead>
                 <AboutClamp text={detail.description} />
+              </section>
+            )}
+
+            {/* c2. Screenshots (Task 34) — uploaded gallery strip; hidden when
+                the listing has none. Sits between About/Standards and the
+                discussion so media reads before community content. */}
+            {detail.screenshots && detail.screenshots.length > 0 && (
+              <section aria-label="Screenshots" className="space-y-3">
+                <SectionHead>Screenshots</SectionHead>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {detail.screenshots.map((src, i) => (
+                    <img
+                      key={`${src}-${i}`}
+                      src={src}
+                      alt={`${name} screenshot ${i + 1}`}
+                      loading="lazy"
+                      className="h-40 w-auto shrink-0 rounded-xl border border-white/10 object-cover sm:h-52"
+                    />
+                  ))}
+                </div>
               </section>
             )}
 

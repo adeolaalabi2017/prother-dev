@@ -143,12 +143,14 @@ export async function listManagedUsers(opts: {
 
 export async function updateUserModeration(
   id: string,
-  patch: { role?: ManagedRole; status?: ManagedStatus }
+  patch: { role?: ManagedRole; status?: ManagedStatus; image?: string | null }
 ): Promise<{ ok: true } | { ok: false; error: "not_found" }> {
   const keys: string[] = [];
   const values: unknown[] = [];
   if (patch.role) { keys.push('"role" = ?'); values.push(patch.role); }
   if (patch.status) { keys.push('"status" = ?'); values.push(patch.status); }
+  // Avatar media URL (Task 34) — validated by the route's MEDIA_URL schema.
+  if (patch.image !== undefined) { keys.push('"image" = ?'); values.push(patch.image); }
   if (keys.length === 0) return { ok: true };
 
   const res = await db.$executeRawUnsafe(

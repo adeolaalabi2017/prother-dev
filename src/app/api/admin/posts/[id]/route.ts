@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
+import { setPostCover } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
+
+/** Media library URLs only — uploads must come from /api/media. */
+const MEDIA_URL = z
+  .string()
+  .regex(/^\/api\/media\/[A-Za-z0-9_-]+$/, "must be an uploaded media URL")
+  .max(200);
 
 /**
  * Single-post admin operations:
@@ -29,6 +36,8 @@ const patchSchema = z.object({
   seoTitle: z.string().max(70).nullable().optional(),
   seoDescription: z.string().max(170).nullable().optional(),
   keywords: z.string().max(200).nullable().optional(),
+  /** Uploaded cover image (POST-boot column → raw SQL, lib/media.ts). */
+  coverUrl: MEDIA_URL.nullable().optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };
@@ -42,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
-  const { body, ...rest } = parsed.data;
+  const { body, coverUrl, ...rest } = parsed.data;
   const data: Parameters<typeof db.post.update>[0]["data"] = { ...rest };
   if (body) {
     data.readingMinutes = Math.max(1, Math.round(body.split(/\s+/).length / 220));
@@ -61,6 +70,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   try {
     const post = await db.post.update({ where: { id }, data });
+    // POST-boot column → raw SQL (stale-PrismaClient rule).
+    if (coverUrl !== undefined) {
+      await setPostCover(id, coverUrl);
+    }
     logAudit(
       data.status === "draft" ? "post.unpublish" : "post.update",
       "post",

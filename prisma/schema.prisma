@@ -30,6 +30,13 @@ model Tool {
   websiteUrl    String
   logoEmoji     String    @default("⬡")
   logoGradient  String    @default("from-orange-500 to-amber-700")
+  /** Uploaded logo image URL (/api/media/{id}/file). POST-boot column:
+   *  read/written ONLY via raw SQL (see lib/media.ts + stale-PrismaClient
+   *  note in lib/features.ts). Falls back to emoji tile when null. */
+  logoUrl       String?
+  /** Uploaded screenshots, pipe-separated /api/media/{id}/file URLs.
+   *  POST-boot column: raw SQL only (lib/media.ts). */
+  screenshotUrls String   @default("")
   pricingModel  String // free | freemium | paid | open_source
   startingPrice String?
   pricingNote   String?
@@ -128,6 +135,9 @@ model Post {
   body           String // markdown
   coverEmoji     String    @default("📝")
   coverGradient  String    @default("from-orange-500 to-amber-700")
+  /** Uploaded cover image URL (/api/media/{id}/file). POST-boot column:
+   *  raw SQL only (lib/media.ts). Falls back to emoji/gradient when null. */
+  coverUrl      String?
   category       String    @default("Playbooks") // editorial bucket label
   tags           String    @default("") // pipe-separated free labels
   status         String    @default("draft") // draft | published
@@ -491,4 +501,52 @@ model PageViewDaily {
 
   @@unique([path, day])
   @@index([day])
+}
+
+// ── Media library (Task 34) — local uploads served via /api/media ───────
+// Files live in <projectRoot>/uploads/ (outside public/, served by the
+// GET /api/media/[id] route with immutable caching). Images are compressed
+// client-side to ≤2MB (browser-image-compression) and videos are capped at
+// 5MB before the request is made; the server re-enforces both limits.
+// Raw-SQL only (stale-PrismaClient rule — see lib/media.ts).
+model Media {
+  id           String   @id @default(cuid())
+  /** image | video */
+  kind         String
+  mimeType     String
+  /** Bytes on disk (after client-side compression for images). */
+  size         Int
+  originalName String
+  /** Generated disk filename inside uploads/ (never user-controlled). */
+  storedName   String   @unique
+  width        Int?
+  height       Int?
+  /** tool-logo | tool-screenshot | post-cover | avatar | gallery */
+  purpose      String   @default("gallery")
+  /** "admin" | "user:{email}" — who owns the upload. */
+  ownerKey     String   @default("")
+  createdAt    DateTime @default(now())
+
+  @@index([kind, createdAt])
+  @@index([purpose, createdAt])
+}
+
+// ── API integrations (Task 34) — external service credentials the site —
+// will call from server code: AI providers, payment, CDN/storage, email.
+// Secrets are stored in configJson and NEVER returned verbatim by the admin
+// API (masked with a sentinel; writes of the sentinel keep the stored value).
+// Raw-SQL only (stale-PrismaClient rule — see lib/integrations.ts).
+model Integration {
+  id         String   @id @default(cuid())
+  /** Stable slug: openai | stripe | cloudflare-r2 | custom-<slug> … */
+  key        String   @unique
+  name       String
+  /** ai | payment | cdn | storage | email | analytics | other */
+  category   String   @default("other")
+  enabled    Boolean  @default(false)
+  /** JSON object: field name → value (may contain secrets). */
+  configJson String   @default("{}")
+  notes      String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
 }
