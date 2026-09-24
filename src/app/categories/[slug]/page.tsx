@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, Compass, Scale, Star } from "lucide-react";
-import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { blurbFor } from "@/lib/category-blurbs";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { AdSlot } from "@/components/prother/ad-slot";
 import { placementEnabled } from "@/lib/ad-config";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowCategoryDetail } from "@/lib/data";
 
 /**
  * /categories/[slug] — the real, crawlable category page (Task 25).
@@ -23,45 +24,24 @@ type Params = { params: Promise<{ slug: string }> };
 
 const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
 
-const PRICING_LABEL: Record<string, string> = {
-  free: "Free",
-  freemium: "Freemium",
-  paid: "Paid",
-  open_source: "Open Source",
-};
-
-function pricingChip(model: string, price: string | null): string {
-  const label = PRICING_LABEL[model] ?? "Free";
-  if ((model === "paid" || model === "freemium") && price) {
-    return `${label} ${price}`;
-  }
-  return label;
-}
-
 // ── Metadata ──────────────────────────────────────────────────────────────
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  const category = await db.category.findUnique({
-    where: { slug },
-    include: {
-      _count: {
-        select: { tools: { where: { status: "live" } } },
-      },
-    },
-  });
-  if (!category) notFound();
-
-  const blurb = blurbFor(category.slug, category.name);
-  const count = category._count.tools;
-  const title = `${category.name} · AI tools | Prother`;
+  // Convex-only (categories cutover).
+  const res = await shadowCategoryDetail(createServerConvexClient()!, slug);
+  if ("error" in res) notFound();
+  const name = res.category.name;
+  const count = res.category.toolCount;
+  const blurb = blurbFor(slug, name!);
+  const title = `${name} · AI tools | Prother`;
   const description = clamp(`${blurb} ${count} ${count === 1 ? "tool" : "tools"} listed.`, 200);
 
   return {
     title,
     description,
     keywords: [
-      `${category.name} AI tools`,
+      `${name} AI tools`,
       "AI tools",
       "AI tools directory",
       "AI tool discovery",
@@ -87,43 +67,22 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function CategoryPage({ params }: Params) {
   const { slug } = await params;
-  const category = await db.category.findUnique({
-    where: { slug },
-    include: {
-      tools: {
-        where: { status: "live" },
-        // Explicit select — a stale cached PrismaClient in a long-running dev
-        // server references dropped columns on full-row Tool selects.
-        select: {
-          slug: true,
-          name: true,
-          tagline: true,
-          logoEmoji: true,
-          logoGradient: true,
-          pricingModel: true,
-          startingPrice: true,
-          editorsPick: true,
-          createdAt: true,
-        },
-        // Featured ordering (mirrors GET /api/tools, sort=featured):
-        // pinned listings first, then Editor's Picks, then newest.
-        orderBy: [
-          { pinned: "desc" },
-          { editorsPick: "desc" },
-          { createdAt: "desc" },
-        ],
-      },
-    },
-  });
-  if (!category) notFound();
-
-  const tools = category.tools.map((t) => ({
+  // Convex-only (categories cutover): pinned/picks/newest order + live count.
+  const res = await shadowCategoryDetail(createServerConvexClient()!, slug);
+  if ("error" in res) notFound();
+  const category = {
+    slug: res.category.slug,
+    name: res.category.name,
+    emoji: res.category.emoji,
+    toolCount: res.category.toolCount,
+  };
+  const tools = res.tools.map((t) => ({
     slug: t.slug,
     name: t.name,
     tagline: t.tagline,
-    emoji: t.logoEmoji,
-    gradient: t.logoGradient,
-    pricing: pricingChip(t.pricingModel, t.startingPrice),
+    emoji: t.emoji,
+    gradient: t.gradient,
+    pricing: t.pricing,
     editorsPick: t.editorsPick,
   }));
 

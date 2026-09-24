@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
-import { buildCompareMatrix } from "@/lib/compare";
 import type { CompareMatrix } from "@/lib/compare";
 import { CompareMatrixView } from "@/components/prother/compare-matrix";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowCompareCategories, shadowCompareMatrix } from "@/lib/data";
 
 /**
  * /compare — category-scoped feature comparison (Task 32).
@@ -44,27 +44,26 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     "Pick a category, choose 2 to 4 AI tools, and see pricing, ratings, API access, and the features that matter side by side.";
 
   if (category) {
-    const cat = await db.category.findUnique({
-      where: { slug: category },
-      select: { name: true, _count: { select: { tools: { where: { status: "live" } } } } },
-    });
+    // Convex-only (compare cutover): category name + live count from the
+    // categories list; head-to-head names from the matrix rows.
+    const client = createServerConvexClient()!;
+    const cats = await shadowCompareCategories(client).catch(() => []);
+    const cat = cats.find((c) => c.slug === category);
     if (cat) {
       title = `${cat.name}: compare AI tools | Prother`;
-      const n = cat._count.tools;
+      const n = cat.toolCount;
       description = `Compare ${n} ${cat.name} tools side by side: pricing, ratings, API access, and the features that matter for this category.`;
 
       // Head-to-head deep link: name both tools when exactly two resolve.
       if (toolSlugs.length === 2) {
-        const found = await db.tool.findMany({
-          where: { slug: { in: toolSlugs }, status: "live" },
-          select: { slug: true, name: true },
-        });
-        if (found.length === 2) {
-          const names = toolSlugs.map((s) => found.find((f) => f.slug === s)?.name);
-          if (names[0] && names[1]) {
-            title = `${names[0]} vs ${names[1]} · Feature comparison | Prother`;
-            description = `Compare ${names[0]} and ${names[1]} side by side: pricing, ratings, API access, and the ${cat.name} features that matter.`;
-          }
+        const matrix = await shadowCompareMatrix(client, category, toolSlugs).catch(() => null);
+        const rows =
+          matrix && !("error" in matrix)
+            ? toolSlugs.map((s) => matrix.tools.find((t) => t.slug === s)?.name)
+            : [];
+        if (rows[0] && rows[1]) {
+          title = `${rows[0]} vs ${rows[1]} · Feature comparison | Prother`;
+          description = `Compare ${rows[0]} and ${rows[1]} side by side: pricing, ratings, API access, and the ${cat.name} features that matter.`;
         }
       }
     }
@@ -99,53 +98,60 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 
 // ── Page ──────────────────────────────────────────────────────────────────
 
+/** Convex-only categories (never throws — [] on failure). */
+async function getCategories(): Promise<
+  { slug: string; name: string; emoji: string; toolCount: number }[]
+> {
+  try {
+    return await shadowCompareCategories(createServerConvexClient()!);
+  } catch {
+    return [];
+  }
+}
+
+/** Convex-only matrix (null on failure / unknown category). */
+async function getMatrix(
+  category: string,
+  slugs: string[],
+): Promise<CompareMatrix | null> {
+  try {
+    const res = await shadowCompareMatrix(
+      createServerConvexClient()!,
+      category,
+      slugs,
+    );
+    if (!("error" in res)) return res as CompareMatrix;
+  } catch {
+    // fall through to null
+  }
+  return null;
+}
+
 export default async function ComparePage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const category = firstParam(sp.category).trim();
   const requestedTools = toolSlugsFrom(firstParam(sp.tools));
 
   let categories: { slug: string; name: string; emoji: string; toolCount: number }[] = [];
-  try {
-    const rows = await db.category.findMany({
-      orderBy: { sortOrder: "asc" },
-      select: {
-        slug: true,
-        name: true,
-        emoji: true,
-        _count: { select: { tools: { where: { status: "live" } } } },
-      },
-    });
-    categories = rows.map((c) => ({
-      slug: c.slug,
-      name: c.name,
-      emoji: c.emoji,
-      toolCount: c._count.tools,
-    }));
-  } catch {
-    categories = [];
-  }
+  categories = await getCategories();
 
   let initialMatrix: CompareMatrix | null = null;
   let initialTools: string[] = [];
   if (category) {
-    try {
-      const matrix = await buildCompareMatrix(category, requestedTools);
-      if (matrix) {
-        initialMatrix = matrix;
-        initialTools = requestedTools;
-        // No explicit tools in the URL: feature the top 2 live options
-        // (featured-first) so the matrix paints fully formed.
-        if (
-          requestedTools.length === 0 &&
-          matrix.tools.length === 0 &&
-          matrix.options.length >= 2
-        ) {
-          initialTools = matrix.options.slice(0, 2).map((o) => o.slug);
-          initialMatrix = (await buildCompareMatrix(category, initialTools)) ?? matrix;
-        }
+    const matrix = await getMatrix(category, requestedTools);
+    if (matrix) {
+      initialMatrix = matrix;
+      initialTools = requestedTools;
+      // No explicit tools in the URL: feature the top 2 live options
+      // (featured-first) so the matrix paints fully formed.
+      if (
+        requestedTools.length === 0 &&
+        matrix.tools.length === 0 &&
+        matrix.options.length >= 2
+      ) {
+        initialTools = matrix.options.slice(0, 2).map((o) => o.slug);
+        initialMatrix = (await getMatrix(category, initialTools)) ?? matrix;
       }
-    } catch {
-      initialMatrix = null;
     }
   }
 

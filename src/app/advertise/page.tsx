@@ -12,8 +12,9 @@ import {
   SquareStack,
   Tag,
 } from "lucide-react";
-import { db } from "@/lib/prother";
 import { CATEGORIES } from "@/components/prother/categories";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowAdvertiseStats } from "@/lib/data";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/advertise" },
@@ -23,19 +24,10 @@ export const metadata: Metadata = {
 };
 
 async function getStats() {
+  // Convex-only (advertise cutover): pitch stats, zeros on failure.
   try {
-    const [tools, reviews, posts] = await Promise.all([
-      db.tool.count({ where: { status: "live" } }),
-      db.$queryRaw<{ n: number }[]>`
-        SELECT COUNT(*) as n FROM Review WHERE status = 'published'`,
-      db.post.count({ where: { status: "published" } }),
-    ]);
-    return {
-      tools,
-      reviews: Number(reviews[0]?.n ?? 0),
-      posts,
-      categories: CATEGORIES.length,
-    };
+    const res = await shadowAdvertiseStats(createServerConvexClient()!);
+    return { ...res, categories: CATEGORIES.length };
   } catch {
     return { tools: 0, reviews: 0, posts: 0, categories: CATEGORIES.length };
   }
