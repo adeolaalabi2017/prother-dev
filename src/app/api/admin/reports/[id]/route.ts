@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guard, logAudit } from "@/lib/admin";
-import { resolveReport } from "@/lib/reports";
+import { convexReportResolve } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -44,13 +45,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   try {
-    const res = await resolveReport(id, {
-      status: status ?? "resolved",
-      note,
-      hideTarget,
-    });
-    if (!res.ok) {
-      return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    // Convex-only (admin cutover): resolve + hide-target cascade in Convex.
+    // The mutation throws "not_found" for unknown ids (no ok:false shape).
+    let res;
+    try {
+      res = await convexReportResolve(createServerConvexClient()!, {
+        reportLegacyId: id,
+        status: status ?? "resolved",
+        note,
+        hideTarget,
+        nowMs: Date.now(),
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("not_found")) {
+        return NextResponse.json({ error: "Report not found" }, { status: 404 });
+      }
+      throw err;
     }
     logAudit(
       "report.resolve",
