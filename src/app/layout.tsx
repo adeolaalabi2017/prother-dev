@@ -7,7 +7,8 @@ import { ConvexClientProvider } from "@/components/prother/convex-provider";
 import { ScrollProgress } from "@/components/prother/scroll-progress";
 import { SiteHeader } from "@/components/prother/site-header";
 import { SiteFooter } from "@/components/prother/site-footer";
-import { ToolExplorer } from "@/components/prother/tool-explorer";
+// Client-only overlay: tool-explorer subscribes via convex/react (see
+// convex-provider.tsx for why it must not enter the SSR graph).
 import { SubmitWizard } from "@/components/prother/submit-wizard";
 import { StatusTracker } from "@/components/prother/status-tracker";
 import { EditorConsole } from "@/components/prother/editor-console";
@@ -22,6 +23,7 @@ import { PostFullPage } from "@/components/prother/post-full-page";
 import { ToolFullPage } from "@/components/prother/tool-full-page";
 import { BackToTop } from "@/components/prother/back-to-top";
 import { AnalyticsPing } from "@/components/prother/analytics-ping";
+import { ToolExplorerHost } from "@/components/prother/tool-explorer-host";
 import { siteUrl } from "@/lib/site-url";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowSite } from "@/lib/data";
@@ -129,7 +131,7 @@ export default function RootLayout({
             <SiteHeader />
             <main className="flex-1">{children}</main>
             <SiteFooter />
-            <ToolExplorer />
+            <ToolExplorerHost />
             <SubmitWizard />
             <StatusTracker />
             <EditorConsole />

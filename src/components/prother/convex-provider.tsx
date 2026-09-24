@@ -1,27 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
+import dynamic from "next/dynamic";
 
 /**
- * Realtime Convex context (Phase 4 step 2: live for search surfaces).
+ * Client-only mount for the Convex realtime provider.
  *
- * The provider ALWAYS mounts so `useQuery` never throws: without a
- * configured URL it holds an inert placeholder client that never connects
- * (every query passes "skip" in that mode — see CONVEX_LIVE in the search
- * components, which keep their /api fetch fallback). With a URL, subscribed
- * components update live over websocket.
+ * `convex/react` evaluates the `ws` Node WebSocket client at module load,
+ * which throws on the Workers runtime — so the implementation
+ * (./convex-provider-client) must never be statically imported from the
+ * server-render graph. This wrapper is the only export the layout uses.
  */
-export function ConvexClientProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const client = useMemo(() => {
-    const url =
-      process.env.NEXT_PUBLIC_CONVEX_URL?.trim() || "https://convex.invalid";
-    return new ConvexReactClient(url);
-  }, []);
-
-  return <ConvexProvider client={client}>{children}</ConvexProvider>;
-}
+export const ConvexClientProvider = dynamic(
+  () =>
+    import("./convex-provider-client").then((m) => ({
+      default: m.ConvexClientProviderInner,
+    })),
+  { ssr: false },
+);

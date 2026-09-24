@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import GatewayFlow from "@/components/ui/gateway-flow";
-import { HeroSearch } from "./hero-search";
+
+// Client-only: hero-search subscribes via convex/react, whose module
+// evaluation pulls the `ws` Node client and throws on Workers (see
+// convex-provider.tsx). The search box hydrates after mount; SSR keeps
+// the static hero copy.
+const HeroSearch = dynamic(
+  () => import("./hero-search").then((m) => ({ default: m.HeroSearch })),
+  { ssr: false },
+);
 
 type SiteStats = { tools: number; categories: number; reviews: number; comments: number };
 
