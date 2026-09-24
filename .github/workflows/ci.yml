@@ -82,6 +82,10 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Generate Prisma client
+        # Same as verify: uncommitted generated client is needed at build time.
+        run: bunx prisma generate
+
       - name: Build and deploy to Cloudflare Workers
         # NEXT_PUBLIC_* bake into client JS at build time; runtime secrets
         # (ADMIN_KEY, NEXTAUTH_*, RESEND_*, GOOGLE_*) live in wrangler secrets.
