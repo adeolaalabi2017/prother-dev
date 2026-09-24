@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guard, logAudit } from "@/lib/admin";
-import { AD_PLACEMENTS, AD_STATUSES, deleteCampaign, updateCampaign } from "@/lib/ads";
+import { AD_PLACEMENTS, AD_STATUSES } from "@/lib/ads";
+import { convexCampaignDelete, convexCampaignPatch } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +48,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
+  // Convex-only (admin cutover): the mutation throws not_found.
+  const client = createServerConvexClient()!;
+  const convexErr = (err: unknown): string =>
+    err instanceof Error ? err.message : String(err);
   try {
-    const res = await updateCampaign(id, parsed.data);
-    if (!res.ok) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
-    }
+    await convexCampaignPatch(client, {
+      campaignLegacyId: id,
+      patch: parsed.data,
+      nowMs: Date.now(),
+    });
     logAudit(
       "ad.update",
       "campaign",
@@ -59,6 +66,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (convexErr(err).includes("not_found")) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    }
     console.error("[api:admin/ads] PATCH failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
@@ -69,14 +79,18 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (denied) return denied;
 
   const { id } = await params;
+  // Convex-only (admin cutover): the mutation throws not_found.
   try {
-    const res = await deleteCampaign(id);
-    if (!res.ok) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
-    }
+    await convexCampaignDelete(createServerConvexClient()!, {
+      campaignLegacyId: id,
+    });
     logAudit("ad.delete", "campaign", id);
     return NextResponse.json({ ok: true });
   } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("not_found")) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    }
     console.error("[api:admin/ads] DELETE failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
