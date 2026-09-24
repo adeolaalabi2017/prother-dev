@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/prother";
 import { getAuthUser } from "@/lib/auth";
 import { logAudit } from "@/lib/admin";
-import {
-  approveClaimAndTransfer,
-  claimById,
-  serializeClaim,
-  setClaimStatus,
-  toolCommunityFields,
-} from "@/lib/community";
+import { convexClaimSettle, shadowClaimById } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -30,37 +24,39 @@ export async function POST(
     return NextResponse.json({ error: "auth_required" }, { status: 401 });
   }
 
-  const claim = await claimById(id);
-  if (!claim) {
+  // Convex-only (claims cutover): claim + tool resolve in one query; every
+  // outcome settles atomically via claimSettle.
+  const client = createServerConvexClient()!;
+  const loaded = await shadowClaimById(client, id);
+  if (!loaded) {
     return NextResponse.json({ error: "claim_not_found" }, { status: 404 });
   }
+  const { claim, tool } = loaded;
   if (claim.userEmail !== user.email) {
     return NextResponse.json({ error: "not_your_claim" }, { status: 403 });
   }
 
   // Already verified — idempotent replay.
   if (claim.status === "verified") {
-    return NextResponse.json({ verified: true, claim: serializeClaim(claim) });
+    return NextResponse.json({ verified: true, claim });
   }
 
-  const tool = await db.tool.findUnique({
-    where: { id: claim.toolId },
-    select: { id: true, slug: true, name: true, websiteUrl: true, claimed: true },
-  });
   if (!tool) {
     return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
   }
 
   // Someone else claimed the listing while this claim was pending.
-  // (makerEmail is a post-boot column — read it raw, stale-client note.)
-  const fields = await toolCommunityFields(tool.id);
-  if (tool.claimed && fields.makerEmail !== user.email) {
-    await setClaimStatus(claim.id, "failed", "listing_already_claimed");
-    const updated = await claimById(claim.id);
+  if (tool.claimed && tool.makerEmail !== user.email) {
+    const updated = await convexClaimSettle(client, {
+      claimLegacyId: claim.id,
+      status: "failed",
+      note: "listing_already_claimed",
+      nowMs: Date.now(),
+    });
     return NextResponse.json({
       verified: false,
       reason: "listing_already_claimed",
-      claim: updated ? serializeClaim(updated) : serializeClaim(claim),
+      claim: updated,
     });
   }
 
@@ -84,33 +80,48 @@ export async function POST(
   }
 
   if (fetchError) {
-    await setClaimStatus(claim.id, "failed", `site_unreachable: ${fetchError.slice(0, 200)}`);
-    const updated = await claimById(claim.id);
+    const reason = `site_unreachable: ${fetchError.slice(0, 200)}`;
+    const updated = await convexClaimSettle(client, {
+      claimLegacyId: claim.id,
+      status: "failed",
+      note: reason,
+      nowMs: Date.now(),
+    });
     return NextResponse.json({
       verified: false,
-      reason: `site_unreachable: ${fetchError.slice(0, 200)}`,
-      claim: updated ? serializeClaim(updated) : serializeClaim(claim),
+      reason,
+      claim: updated,
     });
   }
 
   const tokenFound = findClaimToken(html, claim.token);
 
   if (tokenFound) {
-    await approveClaimAndTransfer(claim.id, tool.id, user);
+    const nowMs = Date.now();
+    const updated = await convexClaimSettle(client, {
+      claimLegacyId: claim.id,
+      status: "verified",
+      verifiedAt: nowMs,
+      transfer: { email: user.email, handle: user.handle },
+      nowMs,
+    });
     logAudit("claim.verified", "tool", tool.slug, `meta_tag verified by ${user.email}`);
-    const updated = await claimById(claim.id);
     return NextResponse.json({
       verified: true,
-      claim: updated ? serializeClaim(updated) : serializeClaim(claim),
+      claim: updated,
     });
   }
 
-  await setClaimStatus(claim.id, "failed", "token_not_found");
-  const updated = await claimById(claim.id);
+  const updated = await convexClaimSettle(client, {
+    claimLegacyId: claim.id,
+    status: "failed",
+    note: "token_not_found",
+    nowMs: Date.now(),
+  });
   return NextResponse.json({
     verified: false,
     reason: "token_not_found",
-    claim: updated ? serializeClaim(updated) : serializeClaim(claim),
+    claim: updated,
   });
 }
 
