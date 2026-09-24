@@ -4,9 +4,9 @@ import { getAuthUser } from "@/lib/auth";
 import {
   BOOKMARK_TARGET_TYPES,
   bookmarkOwnerKey,
-  listBookmarks,
-  toggleBookmark,
 } from "@/lib/bookmarks";
+import { convexBookmarkToggle, shadowBookmarks } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +33,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ items: [], owner: null });
   }
   try {
-    const payload = await listBookmarks(owner);
-    return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
+    const payload = await shadowBookmarks(createServerConvexClient()!, owner);
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    });
   } catch (err) {
     console.error("[api:bookmarks] GET failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
@@ -57,7 +59,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const res = await toggleBookmark(owner, parsed.data);
+    const res = await convexBookmarkToggle(createServerConvexClient()!, {
+      id: crypto.randomUUID(),
+      ownerKey: owner,
+      targetType: parsed.data.targetType,
+      targetId: parsed.data.targetId,
+      action: parsed.data.action,
+      createdAt: Date.now(),
+    });
     return NextResponse.json(res, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[api:bookmarks] POST failed:", err);

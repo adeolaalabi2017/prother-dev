@@ -13,6 +13,18 @@ import {
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
 import type { SearchResponse } from "@/app/api/search/route";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api.js";
+
+/**
+ * Phase 4 step 2: realtime search. When a Convex URL is baked in at build
+ * time, trending + results subscribe via useQuery (live updates, no
+ * polling); otherwise the /api fetch fallback below serves. The index
+ * counts footer always uses /api/search (cheap, single mount request).
+ */
+const CONVEX_LIVE =
+  typeof process.env.NEXT_PUBLIC_CONVEX_URL === "string" &&
+  process.env.NEXT_PUBLIC_CONVEX_URL.length > 0;
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -68,6 +80,7 @@ function pricingChip(model: string, price: string | null): string {
 
 export function HeroSearch() {
   const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<{ q: string; data: SearchResponse } | null>(null);
   const [trending, setTrending] = useState<TrendRow[]>([]);
@@ -121,16 +134,20 @@ export function HeroSearch() {
     setOpen(true);
   }, [loadRecents, computeMaxH]);
 
+  // Realtime subscriptions (no-op "skip" without a Convex URL — the
+  // provider always mounts, so these hooks never throw).
+  const liveTrending = useQuery(
+    api.trending.list,
+    CONVEX_LIVE ? { window: "week", limit: 5 } : "skip",
+  );
+  const liveSearch = useQuery(
+    api.search.search,
+    CONVEX_LIVE && debouncedQ ? { q: debouncedQ } : "skip",
+  );
+
   useEffect(() => {
+    // Index counts always ride /api/search (one mount request).
     let alive = true;
-    fetch("/api/trending?window=week&limit=5")
-      .then((r) => r.json() as Promise<{ rows?: TrendRow[] }>)
-      .then((d) => {
-        if (alive) setTrending(d.rows ?? []);
-      })
-      .catch(() => {
-        /* empty state hides the trending group */
-      });
     fetch("/api/search")
       .then((r) => r.json() as Promise<SearchResponse>)
       .then((d) => {
@@ -139,15 +156,36 @@ export function HeroSearch() {
       .catch(() => {
         /* footer falls back to a static label */
       });
+    // Trending fallback only when Convex is unavailable.
+    if (!CONVEX_LIVE) {
+      fetch("/api/trending?window=week&limit=5")
+        .then((r) => r.json() as Promise<{ rows?: TrendRow[] }>)
+        .then((d) => {
+          if (alive) setTrending(d.rows ?? []);
+        })
+        .catch(() => {
+          /* empty state hides the trending group */
+        });
+    }
     return () => {
       alive = false;
     };
   }, []);
 
   // ── Debounced live search (180ms) ─────────────────────────────────────
+  // The debounce feeds useQuery when live, or the /api fetch fallback.
   useEffect(() => {
     const q = query.trim();
-    if (!q) return;
+    if (!q) {
+      // Deferred (not synchronous) so the effect never triggers a cascading
+      // render pass — behavior unchanged, it still clears on the next tick.
+      const t = window.setTimeout(() => setDebouncedQ(""), 0);
+      return () => window.clearTimeout(t);
+    }
+    if (CONVEX_LIVE) {
+      const t = window.setTimeout(() => setDebouncedQ(q), 180);
+      return () => window.clearTimeout(t);
+    }
     const ctrl = new AbortController();
     const t = window.setTimeout(() => {
       fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
@@ -221,7 +259,17 @@ export function HeroSearch() {
 
   // ── Derived state (no stale clears — everything is computed) ──────────
   const q = query.trim();
-  const shown = results && results.q === q ? results.data : null;
+  // Live subscription wins when present; the fetch fallback covers the
+  // no-Convex build and the brief window before first subscription data.
+  // A live payload whose q no longer matches is stale — ignore it exactly
+  // like the fetch path does (results.q === q).
+  const liveShown =
+    liveSearch && (liveSearch as SearchResponse).q === q
+      ? (liveSearch as SearchResponse)
+      : null;
+  const fetchShown = results && results.q === q ? results.data : null;
+  const shown = CONVEX_LIVE ? (liveShown ?? fetchShown) : fetchShown;
+  const trendingRows = CONVEX_LIVE ? (liveTrending?.rows ?? []) : trending;
   const loading = q.length > 0 && shown === null;
 
   const groups = useMemo<Group[]>(() => {
@@ -241,7 +289,7 @@ export function HeroSearch() {
       );
       push(
         "Trending now",
-        trending.map<Item>((t) => ({
+        trendingRows.map<Item>((t) => ({
           kind: "tool",
           slug: t.slug,
           name: t.name,
@@ -305,7 +353,7 @@ export function HeroSearch() {
       }))
     );
     return out;
-  }, [q, shown, trending, recents]);
+  }, [q, shown, trendingRows, recents]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
   const activeIdx = active && active.q === q && active.i < flat.length ? active.i : -1;
@@ -618,12 +666,12 @@ export function HeroSearch() {
       </div>
 
       {/* Trending quick-query chips (always visible under the bar) */}
-      {trending.length > 0 && (
+      {trendingRows.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/55">
             Try:
           </span>
-          {trending.slice(0, 4).map((t) => (
+          {trendingRows.slice(0, 4).map((t) => (
             <button
               key={t.slug}
               type="button"

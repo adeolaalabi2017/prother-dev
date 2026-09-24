@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db, slugifyName } from "@/lib/prother";
+import { slugifyName } from "@/lib/prother";
 import { getAuthUser } from "@/lib/auth";
-import {
-  decorateCollections,
-  insertCollection,
-  serializeCollection,
-  uniqueCollectionSlug,
-} from "@/lib/community";
-import type { CollectionRow } from "@/lib/community";
+import { convexCollectionCreate, shadowCollectionsMine } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +25,16 @@ type CollectionCard = {
   ownerName?: string;
 };
 
-function toCard(c: Awaited<ReturnType<typeof decorateCollections>>[number]): CollectionCard {
+function toCard(c: {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  isPublic: boolean;
+  itemCount: number;
+  covers: string[];
+  ownerName?: string;
+}): CollectionCard {
   const card: CollectionCard = {
     id: c.id,
     slug: c.slug,
@@ -40,7 +44,7 @@ function toCard(c: Awaited<ReturnType<typeof decorateCollections>>[number]): Col
     itemCount: c.itemCount,
     covers: c.covers,
   };
-  if (c.isPublic) card.ownerName = c.ownerName;
+  if (c.isPublic && c.ownerName) card.ownerName = c.ownerName;
   return card;
 }
 
@@ -51,38 +55,22 @@ function toCard(c: Awaited<ReturnType<typeof decorateCollections>>[number]): Col
 export async function GET() {
   const user = await getAuthUser();
 
-  const [mineRows, featuredRows] = await Promise.all([
-    user
-      ? db.$queryRaw<CollectionRow[]>`
-          SELECT id, slug, name, description, isPublic, ownerEmail, ownerName, createdAt
-          FROM Collection
-          WHERE ownerEmail = ${user.email}
-          ORDER BY createdAt DESC
-          LIMIT 100`
-      : Promise.resolve([] as CollectionRow[]),
-    db.$queryRaw<CollectionRow[]>`
-      SELECT id, slug, name, description, isPublic, ownerEmail, ownerName, createdAt
-      FROM Collection
-      WHERE isPublic = 1
-      ORDER BY createdAt DESC
-      LIMIT 24`,
-  ]);
-
-  const [mineDeco, featuredDeco] = await Promise.all([
-    decorateCollections(mineRows),
-    decorateCollections(featuredRows),
-  ]);
-
-  // Featured = the six fullest public collections (newest as tiebreak).
-  const featured = [...featuredDeco]
-    .sort((a, b) => b.itemCount - a.itemCount || b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 6)
-    .map(toCard);
-
-  return NextResponse.json(
-    { mine: mineDeco.map(toCard), featured },
-    { headers: { "Cache-Control": "no-store" } }
-  );
+  try {
+    const res = await shadowCollectionsMine(
+      createServerConvexClient()!,
+      user?.email
+    );
+    return NextResponse.json(
+      {
+        mine: res.mine.map(toCard),
+        featured: res.featured.map(toCard),
+      },
+      { headers: { "Cache-Control": "no-store", "x-data-backend": "convex" } }
+    );
+  } catch (err) {
+    console.error("[api:collections] GET failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
 
 /**
@@ -108,30 +96,44 @@ export async function POST(req: Request) {
 
   const { name, isPublic } = parsed.data;
   const description = parsed.data.description ?? "";
-  const slug = await uniqueCollectionSlug(slugifyName(name));
 
-  const row = await insertCollection({
-    slug,
-    name,
-    description,
-    isPublic,
-    ownerEmail: user.email,
-    ownerName: user.name,
-  });
+  const client = createServerConvexClient()!;
+  // Slug from the name with -2/-3 suffixes on collision.
+  const base = slugifyName(name);
+  let slug = base;
+  for (let i = 2; i < 50; i++) {
+    const existing = await shadowCollectionDetail(client, slug).catch(() => null);
+    if (!existing || "error" in existing) break;
+    slug = `${base}-${i}`;
+  }
 
-  const c = serializeCollection(row);
-  return NextResponse.json(
-    {
-      collection: {
-        id: c.id,
-        slug: c.slug,
-        name: c.name,
-        description: c.description,
-        isPublic: c.isPublic,
-        itemCount: 0,
-        covers: [],
+  try {
+    const c = await convexCollectionCreate(client, {
+      id: crypto.randomUUID(),
+      slug,
+      name,
+      description,
+      isPublic,
+      ownerEmail: user.email,
+      ownerName: user.name,
+      createdAt: Date.now(),
+    });
+    return NextResponse.json(
+      {
+        collection: {
+          id: c.id,
+          slug: c.slug,
+          name: c.name,
+          description: c.description,
+          isPublic: c.isPublic,
+          itemCount: 0,
+          covers: [],
+        },
       },
-    },
-    { status: 201 }
-  );
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("[api:collections] POST failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }

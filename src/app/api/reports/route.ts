@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
-import { REPORT_REASONS, REPORT_TARGET_TYPES, createReport } from "@/lib/reports";
+import { REPORT_REASONS, REPORT_TARGET_TYPES } from "@/lib/reports";
+import { convexReportCreate } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -31,13 +33,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const res = await createReport({
+    const res = await convexReportCreate(createServerConvexClient()!, {
+      id: crypto.randomUUID(),
       targetType: parsed.data.targetType,
       targetId: parsed.data.targetId,
       reason: parsed.data.reason,
       details: parsed.data.details,
-      reporterEmail: user?.email ?? null,
-      reporterKey: user ? null : parsed.data.visitorKey ?? null,
+      reporterEmail: user?.email,
+      reporterKey: user ? undefined : parsed.data.visitorKey,
+      createdAt: Date.now(),
     });
     if (!res.ok) {
       return NextResponse.json({ error: "invalid_target" }, { status: 404 });

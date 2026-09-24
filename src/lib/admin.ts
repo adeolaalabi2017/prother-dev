@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, EDITOR_KEY } from "@/lib/prother";
+import { createServerConvexClient } from "@/lib/convex";
+import { api } from "../../convex/_generated/api.js";
 
 /**
  * Admin auth + audit helpers for the Admin Console APIs.
@@ -19,16 +21,36 @@ export function guard(req: Request): NextResponse | null {
   return isAdmin(req) ? null : unauthorized();
 }
 
-/** Fire-and-forget audit trail write (PRD §16 — moderation_decisions analog). */
+/** Fire-and-forget audit trail write (PRD §16 — moderation_decisions analog).
+ *  Phase 4 step 7: appends to Convex first (the admin overview reads it from
+ *  there when flagged), Prisma mirror second. Failures never break the
+ *  request path. entityId carries the Prisma cuid (= Convex legacyId). */
 export function logAudit(
   action: string,
   entity: string,
   entityId = "",
   meta = ""
 ): void {
-  db.auditLog
-    .create({ data: { action, entity, entityId, meta } })
-    .catch(() => {
+  void (async () => {
+    try {
+      const client = createServerConvexClient();
+      if (client) {
+        await client.mutation(api.admin.appendAudit, {
+          action,
+          entity,
+          entityId,
+          meta,
+          actor: undefined,
+          createdAt: Date.now(),
+        });
+      }
+    } catch {
+      // fall through to Prisma
+    }
+    try {
+      await db.auditLog.create({ data: { action, entity, entityId, meta } });
+    } catch {
       /* audit must never break the request path */
-    });
+    }
+  })();
 }

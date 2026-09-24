@@ -72,6 +72,11 @@ export async function createComment(input: {
   author: string;
   body: string;
   isMaker: boolean;
+  /** Dual-write override (Phase 4 step 3): shared id/timestamp. Stored as
+   *  INTEGER ms-epoch to match the Comment table's existing rows (mixed
+   *  storage types break SQLite ordering — see step 6 notes). */
+  id?: string;
+  createdAt?: number;
 }): Promise<CommentRow> {
   const rows = await db.$queryRaw<{
     id: string;
@@ -82,8 +87,8 @@ export async function createComment(input: {
   }[]>`
     INSERT INTO Comment (id, toolId, author, body, isMaker, createdAt)
     VALUES (
-      ${crypto.randomUUID()}, ${input.toolId}, ${input.author}, ${input.body},
-      ${input.isMaker ? 1 : 0}, ${new Date().toISOString()}
+      ${input.id ?? crypto.randomUUID()}, ${input.toolId}, ${input.author}, ${input.body},
+      ${input.isMaker ? 1 : 0}, ${input.createdAt ?? Date.now()}
     )
     RETURNING id, author, body, isMaker, createdAt`;
   const r = rows[0]!;

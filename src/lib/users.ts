@@ -8,6 +8,9 @@
  * restart. Raw SQL works before and after.
  */
 import { db } from "@/lib/db";
+import { aq, axUnsafe } from "@/lib/authdb";
+import { createServerConvexClient } from "@/lib/convex";
+import { api } from "../../convex/_generated/api.js";
 
 export type ManagedRole = "member" | "moderator" | "admin";
 export type ManagedStatus = "active" | "banned";
@@ -102,7 +105,9 @@ export async function listManagedUsers(opts: {
     WHERE (${q} = '' OR u.name LIKE ${like} OR u.email LIKE ${like} OR u.handle LIKE ${like})
       AND (${status} = '' OR u.status = ${status})
       AND (${role} = '' OR u.role = ${role})
-    ORDER BY u.createdAt DESC
+    -- Deterministic tiebreak: SQLite leaves equal-createdAt rows in planner
+    -- order, so both backends order ties by id (Phase 4 parity).
+    ORDER BY u.createdAt DESC, u.id ASC
     LIMIT 300`;
 
   const lastActivity = await lastActivityMap(rows.map((r) => r.id));
@@ -153,7 +158,8 @@ export async function updateUserModeration(
   if (patch.image !== undefined) { keys.push('"image" = ?'); values.push(patch.image); }
   if (keys.length === 0) return { ok: true };
 
-  const res = await db.$executeRawUnsafe(
+  // Phase 5: user storage lives in the micro-SQLite auth db (same SQL).
+  const res = axUnsafe(
     `UPDATE "User" SET ${keys.join(", ")} WHERE "id" = ?`,
     ...values, id
   );
@@ -161,14 +167,32 @@ export async function updateUserModeration(
 
   // Banning revokes live sessions immediately.
   if (patch.status === "banned") {
-    await db.$executeRawUnsafe(`DELETE FROM "Session" WHERE "userId" = ?`, id).catch(() => {});
+    try {
+      axUnsafe(`DELETE FROM "Session" WHERE "userId" = ?`, id);
+    } catch {
+      // best effort
+    }
   }
   return { ok: true };
 }
 
-/** True when the account is banned — checked by every community write route. */
+/** True when the account is banned — checked by every community write route.
+ *  Phase 4 step 7: resolves via the Convex identity bridge first (kept fresh
+ *  by NextAuth sign-in events); falls back to the micro-SQLite auth db when
+ *  the bridge has no record yet or Convex is unreachable. */
 export async function isUserBanned(userId: string): Promise<boolean> {
-  const rows = await db.$queryRaw<{ status: string }[]>`
+  try {
+    const client = createServerConvexClient();
+    if (client) {
+      const state = await client.query(api.users.authState, {
+        externalAuthId: userId,
+      });
+      if (state) return state.banned;
+    }
+  } catch {
+    // fall through to the auth db
+  }
+  const rows = aq<{ status: string }>`
     SELECT status FROM "User" WHERE id = ${userId} LIMIT 1`;
   return rows[0]?.status === "banned";
 }

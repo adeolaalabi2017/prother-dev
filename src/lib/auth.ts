@@ -28,7 +28,53 @@ import type {
   AdapterUser,
   VerificationToken as AdapterVerificationToken,
 } from "next-auth/adapters";
-import { db } from "@/lib/db";
+import { aq, aqUnsafe, ax, axUnsafe } from "@/lib/authdb";
+import { createServerConvexClient } from "@/lib/convex";
+import { api } from "../../convex/_generated/api.js";
+
+// ── Convex identity bridge (Phase 4 step 7, plan §3.5) ───────────────────
+// NextAuth stays authoritative for sessions. These fire-and-forget syncs
+// keep the Convex users table fresh (admin roster, ban checks) without ever
+// blocking sign-in: a Convex outage must never break auth.
+
+type BridgeUser = {
+  id?: string;
+  email?: string | null;
+  name?: string | null;
+  image?: string | null;
+  handle?: string | null;
+  bio?: string | null;
+  createdAt?: Date | string | null;
+};
+
+function syncUserToConvex(user: BridgeUser): void {
+  const id = user.id;
+  if (!id) return;
+  void (async () => {
+    try {
+      const client = createServerConvexClient();
+      if (!client) return;
+      const createdAtRaw = user.createdAt;
+      const createdAt =
+        createdAtRaw instanceof Date
+          ? createdAtRaw.getTime()
+          : typeof createdAtRaw === "string" && !Number.isNaN(new Date(createdAtRaw).getTime())
+            ? new Date(createdAtRaw).getTime()
+            : Date.now();
+      await client.mutation(api.users.ensureFromAuth, {
+        id,
+        email: user.email ?? undefined,
+        name: user.name ?? undefined,
+        handle: user.handle ?? undefined,
+        image: user.image ?? undefined,
+        bio: user.bio ?? undefined,
+        createdAt,
+      });
+    } catch (err) {
+      console.error("[auth-bridge] user sync failed:", id, err);
+    }
+  })();
+}
 
 // ── Dev magic-link inbox (sandbox stand-in for SMTP) ─────────────────────
 type InboxEntry = { url: string; at: number };
@@ -91,7 +137,7 @@ async function deriveHandle(email: string | null): Promise<string | null> {
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "")
       .slice(0, 24) || "maker";
-  const taken = await db.$queryRaw<{ handle: string }[]>`
+  const taken = await aq<{ handle: string }>`
     SELECT handle FROM "User" WHERE handle LIKE ${base + "%"} LIMIT 500`;
   const used = new Set(taken.map((t) => t.handle));
   if (!used.has(base)) return base;
@@ -100,7 +146,7 @@ async function deriveHandle(email: string | null): Promise<string | null> {
 }
 
 async function rawGetUserById(id: string): Promise<AdapterUser | null> {
-  const rows = await db.$queryRaw<RawUserRow[]>`
+  const rows = await aq<RawUserRow>`
     SELECT id, name, email, emailVerified, image, handle, bio, createdAt
     FROM "User" WHERE id = ${id} LIMIT 1`;
   return rows[0] ? mapUser(rows[0]) : null;
@@ -110,7 +156,7 @@ async function rawGetUserById(id: string): Promise<AdapterUser | null> {
 const prismaAdapter: Adapter = {
   async createUser(user) {
     const handle = await deriveHandle(user.email ?? null);
-    const rows = await db.$queryRaw<RawUserRow[]>`
+    const rows = await aq<RawUserRow>`
       INSERT INTO "User" (id, name, email, emailVerified, image, handle, bio, createdAt)
       VALUES (
         ${crypto.randomUUID()}, ${sql(user.name ?? null)}, ${sql(user.email ?? null)},
@@ -124,13 +170,13 @@ const prismaAdapter: Adapter = {
     return rawGetUserById(id);
   },
   async getUserByEmail(email) {
-    const rows = await db.$queryRaw<RawUserRow[]>`
+    const rows = await aq<RawUserRow>`
       SELECT id, name, email, emailVerified, image, handle, bio, createdAt
       FROM "User" WHERE email = ${email} LIMIT 1`;
     return rows[0] ? mapUser(rows[0]) : null;
   },
   async getUserByAccount({ provider, providerAccountId }) {
-    const rows = await db.$queryRaw<RawUserRow[]>`
+    const rows = await aq<RawUserRow>`
       SELECT u.id, u.name, u.email, u.emailVerified, u.image, u.handle, u.bio, u.createdAt
       FROM "Account" a JOIN "User" u ON u.id = a.userId
       WHERE a.provider = ${provider} AND a.providerAccountId = ${providerAccountId}
@@ -145,7 +191,7 @@ const prismaAdapter: Adapter = {
     }
     const keys = Object.keys(patch);
     if (keys.length > 0) {
-      await db.$executeRawUnsafe(
+      await axUnsafe(
         `UPDATE "User" SET ${keys.map((k) => `"${k}" = ?`).join(", ")} WHERE "id" = ?`,
         ...keys.map((k) => patch[k]),
         id
@@ -154,7 +200,7 @@ const prismaAdapter: Adapter = {
     return (await rawGetUserById(id)) as AdapterUser;
   },
   async linkAccount(account) {
-    await db.$executeRaw`
+    await ax`
       INSERT INTO "Account" (
         id, userId, type, provider, providerAccountId, refresh_token,
         access_token, expires_at, token_type, scope, id_token, session_state
@@ -168,13 +214,13 @@ const prismaAdapter: Adapter = {
       )`;
   },
   async createSession(session) {
-    await db.$executeRaw`
+    await ax`
       INSERT INTO "Session" (id, sessionToken, userId, expires)
       VALUES (${crypto.randomUUID()}, ${session.sessionToken}, ${session.userId}, ${sql(session.expires)})`;
     return session as AdapterSession;
   },
   async getSessionAndUser(sessionToken) {
-    const rows = await db.$queryRaw<
+    const rows = await aq<
       {
         sessionToken: string;
         userId: string;
@@ -187,7 +233,7 @@ const prismaAdapter: Adapter = {
         handle: string | null;
         bio: string | null;
         createdAt: string;
-      }[]
+      }
     >`
       SELECT s.sessionToken, s.userId, s.expires,
              u.id, u.name, u.email, u.emailVerified, u.image, u.handle, u.bio, u.createdAt
@@ -209,8 +255,8 @@ const prismaAdapter: Adapter = {
     if ("expires" in data) patch.expires = sql((data as { expires?: Date }).expires);
     const keys = Object.keys(patch);
     if (keys.length > 0) {
-      const rows = await db.$queryRawUnsafe<
-        { sessionToken: string; userId: string; expires: string }[]
+      const rows = await aqUnsafe<
+        { sessionToken: string; userId: string; expires: string }
       >(
         `UPDATE "Session" SET ${keys.map((k) => `"${k}" = ?`).join(", ")}
          WHERE "sessionToken" = ?
@@ -229,17 +275,17 @@ const prismaAdapter: Adapter = {
     return undefined;
   },
   async deleteSession(sessionToken) {
-    await db.$executeRaw`DELETE FROM "Session" WHERE sessionToken = ${sessionToken}`;
+    await ax`DELETE FROM "Session" WHERE sessionToken = ${sessionToken}`;
   },
   async createVerificationToken(token) {
-    await db.$executeRaw`
+    await ax`
       INSERT INTO "VerificationToken" (identifier, token, expires)
       VALUES (${token.identifier}, ${token.token}, ${sql(token.expires)})`;
     return token as AdapterVerificationToken;
   },
   async useVerificationToken({ identifier, token }) {
     // Atomic consume: DELETE … RETURNING keeps find-then-delete semantics.
-    const rows = await db.$queryRaw<{ identifier: string; token: string; expires: string }[]>`
+    const rows = await aq<{ identifier: string; token: string; expires: string }>`
       DELETE FROM "VerificationToken"
       WHERE identifier = ${identifier} AND token = ${token}
       RETURNING identifier, token, expires`;
@@ -298,6 +344,17 @@ export const authOptions: NextAuthOptions = {
         session.user.createdAt = user.createdAt;
       }
       return session;
+    },
+  },
+  events: {
+    // Identity bridge (Phase 4 step 7): keep Convex users in sync on every
+    // signup and sign-in (also backfills pre-bridge rows via externalAuthId).
+    // Fire-and-forget — sync failures only log.
+    async createUser({ user }) {
+      syncUserToConvex(user as BridgeUser);
+    },
+    async signIn({ user }) {
+      syncUserToConvex(user as BridgeUser);
     },
   },
 };

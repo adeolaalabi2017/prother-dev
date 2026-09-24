@@ -1,8 +1,8 @@
-import { Prisma } from "@prisma/client";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { db } from "@/lib/prother";
+import { createServerConvexClient } from "@/lib/convex";
+import { api } from "../../convex/_generated/api.js";
 import { extForMime } from "@/lib/media-limits";
 
 // Re-export the pure limit constants/type guards so server consumers import
@@ -117,16 +117,13 @@ function toIso(v: number | string | Date | null): string {
   return new Date(0).toISOString();
 }
 
-type RawMediaRow = Omit<MediaRow, "createdAt"> & {
-  createdAt: number | string | Date;
-};
-
-function mapRaw(r: RawMediaRow): MediaRow {
-  return { ...r, createdAt: toIso(r.createdAt) };
-}
-
 const MEDIA_COLS =
   "id, kind, mimeType, size, originalName, storedName, width, height, purpose, ownerKey, createdAt";
+
+/** Convex client or null when unconfigured (all callers are server-side). */
+function cx() {
+  return createServerConvexClient();
+}
 
 /** Persist a Media row after the bytes are already on disk. */
 export async function createMediaRow(input: {
@@ -140,26 +137,28 @@ export async function createMediaRow(input: {
   purpose?: string;
   ownerKey?: string;
 }): Promise<MediaRow> {
+  const client = cx()!;
   const id = `m_${randomUUID()}`;
   const createdAt = Date.now();
-  await db.$executeRaw`
-    INSERT INTO Media
-      (id, kind, mimeType, size, originalName, storedName, width, height,
-       purpose, ownerKey, createdAt)
-    VALUES
-      (${id}, ${input.kind}, ${input.mimeType}, ${input.size},
-       ${input.originalName}, ${input.storedName}, ${input.width ?? null},
-       ${input.height ?? null}, ${input.purpose ?? "gallery"},
-       ${input.ownerKey ?? ""}, ${createdAt})`;
-  const row = await getMediaById(id);
-  if (!row) throw new Error("Media row vanished immediately after insert");
-  return row;
+  const row = await client.mutation(api.media.mediaCreate, {
+    id,
+    kind: input.kind,
+    mimeType: input.mimeType,
+    size: input.size,
+    originalName: input.originalName,
+    storedName: input.storedName,
+    width: input.width ?? null,
+    height: input.height ?? null,
+    purpose: input.purpose ?? "gallery",
+    ownerKey: input.ownerKey ?? "",
+    createdAt,
+  });
+  return { ...row, createdAt: toIso(row.createdAt) };
 }
 
 export async function getMediaById(id: string): Promise<MediaRow | null> {
-  const rows = await db.$queryRaw<RawMediaRow[]>`
-    SELECT ${Prisma.raw(MEDIA_COLS)} FROM Media WHERE id = ${id} LIMIT 1`;
-  return rows[0] ? mapRaw(rows[0]) : null;
+  const row = await cx()!.query(api.media.mediaById, { id });
+  return row ? { ...row, createdAt: toIso(row.createdAt) } : null;
 }
 
 /** Newest-first library listing with optional filters. */
@@ -169,32 +168,30 @@ export async function listMedia(opts: {
   take?: number;
 }): Promise<MediaRow[]> {
   const take = Math.min(Math.max(opts.take ?? 120, 1), 500);
-  const conditions: Prisma.Sql[] = [];
-  if (opts.kind) conditions.push(Prisma.sql`kind = ${opts.kind}`);
-  if (opts.purpose) conditions.push(Prisma.sql`purpose = ${opts.purpose}`);
-  const where = conditions.length
-    ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
-    : Prisma.empty;
-  const rows = await db.$queryRaw<RawMediaRow[]>`
-    SELECT ${Prisma.raw(MEDIA_COLS)} FROM Media ${where}
-    ORDER BY createdAt DESC LIMIT ${take}`;
-  return rows.map(mapRaw);
+  const res = await cx()!.query(api.media.mediaTable, {
+    kind: opts.kind ?? undefined,
+    purpose: opts.purpose ?? undefined,
+    take,
+  });
+  return res.media.map((r) => ({ ...r, createdAt: toIso(r.createdAt) }));
 }
 
 /** Delete the row + its bytes. Returns false when the id is unknown. */
 export async function deleteMedia(id: string): Promise<boolean> {
   const row = await getMediaById(id);
   if (!row) return false;
-  await db.$executeRaw`DELETE FROM Media WHERE id = ${id}`;
+  await cx()!.mutation(api.media.mediaDeleteFull, { id });
   await deleteUploadFile(row.storedName);
   return true;
 }
 
 /** Total bytes on disk across the library (quota surface for the gallery). */
 export async function totalMediaBytes(): Promise<number> {
-  const rows = await db.$queryRaw<{ total: number | null }[]>`
-    SELECT COALESCE(SUM(size), 0) AS total FROM Media`;
-  return Number(rows[0]?.total ?? 0);
+  const res = await cx()!.query(
+    api.media.mediaTable,
+    { take: 1 }
+  );
+  return res.totalBytes;
 }
 
 // ── Tool / Post media columns (POST-boot: raw SQL only) ──────────────────
@@ -216,37 +213,44 @@ export function parseMediaUrls(raw: string | null | undefined): string[] {
 /** logoUrl + screenshotUrls for the given tool ids: Map<toolId, ToolMedia>. */
 export async function toolMediaByIds(ids: string[]): Promise<Map<string, ToolMedia>> {
   if (ids.length === 0) return new Map();
-  const rows = await db.$queryRaw<{
-    id: string;
-    logoUrl: string | null;
-    screenshotUrls: string | null;
-  }[]>`
-    SELECT id, logoUrl, screenshotUrls FROM Tool WHERE id IN (${Prisma.join(ids)})`;
+  const rows = await cx()!.query(api.media.toolMediaBatch, { legacyIds: ids });
   return new Map(
     rows.map((r) => [
       r.id,
-      { logoUrl: r.logoUrl, screenshotUrls: parseMediaUrls(r.screenshotUrls) },
+      { logoUrl: r.logoUrl, screenshotUrls: r.screenshotUrls },
     ])
   );
 }
 
 export async function setToolLogo(id: string, url: string | null): Promise<void> {
-  await db.$executeRaw`UPDATE Tool SET logoUrl = ${url} WHERE id = ${id}`;
+  await cx()!.mutation(api.adminCrud.toolPatch, {
+    toolLegacyId: id,
+    data: {},
+    logoUrl: url,
+    nowMs: Date.now(),
+  });
 }
 
 export async function setToolScreenshots(id: string, urls: string[]): Promise<void> {
-  await db.$executeRaw`
-    UPDATE Tool SET screenshotUrls = ${urls.join("|")} WHERE id = ${id}`;
+  await cx()!.mutation(api.adminCrud.toolPatch, {
+    toolLegacyId: id,
+    data: {},
+    screenshotUrls: urls,
+    nowMs: Date.now(),
+  });
 }
 
 /** coverUrl for the given post ids: Map<postId, string | null>. */
 export async function postCoversByIds(ids: string[]): Promise<Map<string, string | null>> {
   if (ids.length === 0) return new Map();
-  const rows = await db.$queryRaw<{ id: string; coverUrl: string | null }[]>`
-    SELECT id, coverUrl FROM Post WHERE id IN (${Prisma.join(ids)})`;
+  const rows = await cx()!.query(api.media.postCoversBatch, { legacyIds: ids });
   return new Map(rows.map((r) => [r.id, r.coverUrl]));
 }
 
 export async function setPostCover(id: string, url: string | null): Promise<void> {
-  await db.$executeRaw`UPDATE Post SET coverUrl = ${url} WHERE id = ${id}`;
+  await cx()!.mutation(api.adminCrud.postPatch, {
+    postLegacyId: id,
+    data: { updatedAt: Date.now() },
+    coverUrl: url,
+  });
 }

@@ -130,8 +130,13 @@ export async function countSubmissionsSince(
 }
 
 export async function createSubmission(
-  data: SubmissionInsert
+  data: SubmissionInsert & {
+    /** Dual-write overrides (Phase 4 step 4) — shared id/timestamp. */
+    id?: string;
+    createdAt?: number;
+  }
 ): Promise<{ id: string }> {
+  const now = new Date(data.createdAt ?? Date.now()).toISOString();
   const rows = await db.$queryRaw<{ id: string }[]>`
     INSERT INTO Submission (
       id, email, websiteUrl, domain, name, tagline, description,
@@ -139,13 +144,13 @@ export async function createSubmission(
       hasApi, githubUrl, docsUrl, twitterUrl, logoEmoji, logoGradient,
       isOwner, confirmedLive, agreedStandards, status, createdAt
     ) VALUES (
-      ${crypto.randomUUID()}, ${data.email}, ${data.websiteUrl}, ${data.domain},
+      ${data.id ?? crypto.randomUUID()}, ${data.email}, ${data.websiteUrl}, ${data.domain},
       ${data.name}, ${data.tagline}, ${data.description}, ${data.categorySlug},
       ${data.tags}, ${data.pricingModel}, ${data.startingPrice}, ${data.pricingNote},
       ${data.hasApi ? 1 : 0}, ${data.githubUrl}, ${data.docsUrl}, ${data.twitterUrl},
       ${data.logoEmoji}, ${data.logoGradient}, ${data.isOwner ? 1 : 0},
       ${data.confirmedLive ? 1 : 0}, ${data.agreedStandards ? 1 : 0},
-      'pending', ${new Date().toISOString()}
+      'pending', ${now}
     )
     RETURNING id`;
   return rows[0]!;

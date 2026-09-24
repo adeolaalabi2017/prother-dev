@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/prother";
-import {
-  createComment,
-  lastCommentAgeSec,
-  listComments,
-  type CommentsResponse,
-} from "@/lib/discussion";
+import { convexCommentAdd, shadowComments, shadowCommentsLastAge } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -34,32 +29,42 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const tool = await db.tool.findUnique({
-    where: { slug },
-    select: { id: true },
-  });
-  if (!tool) {
-    return NextResponse.json({ error: "Tool not found" }, { status: 404 });
+  try {
+    const res = await shadowComments(createServerConvexClient()!, slug);
+    if ("error" in res) {
+      return NextResponse.json(res, {
+        status: 404,
+        headers: { "x-data-backend": "convex" },
+      });
+    }
+    return NextResponse.json(res, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    });
+  } catch (err) {
+    console.error("[api:comments] GET failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-  const items = await listComments(tool.id);
-  const body: CommentsResponse = { items, count: items.length };
-  return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
 }
 
 /** POST /api/tools/[slug]/comments — post a comment (auth-lite display name).
- *  isMaker is derived server-side: author matching the makerHandle (with or
- *  without the leading @, case-insensitive) gets the MAKER badge. */
+ *  isMaker is derived inside the mutation: author matching the makerHandle
+ *  (with or without the leading @, case-insensitive) gets the MAKER badge. */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const tool = await db.tool.findUnique({
-    where: { slug },
-    select: { id: true, makerHandle: true },
-  });
-  if (!tool) {
-    return NextResponse.json({ error: "Tool not found" }, { status: 404 });
+
+  // Unknown slugs 404 before validation (mirrors the original order).
+  const client = createServerConvexClient()!;
+  try {
+    const existing = await shadowComments(client, slug);
+    if ("error" in existing) {
+      return NextResponse.json(existing, { status: 404 });
+    }
+  } catch (err) {
+    console.error("[api:comments] lookup failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
   let payload: unknown;
@@ -68,6 +73,7 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
+
   const parsed = postSchema.safeParse(payload);
   if (!parsed.success) {
     return NextResponse.json(
@@ -76,23 +82,31 @@ export async function POST(
     );
   }
 
-  const author = parsed.data.author;
-  const age = await lastCommentAgeSec(tool.id, author);
-  if (age !== null && age < 15) {
-    return NextResponse.json(
-      { error: "Slow down. Try again in a few seconds." },
-      { status: 429 }
-    );
+  try {
+    const { ageSec } = await shadowCommentsLastAge(client, slug, parsed.data.author);
+    if (ageSec !== null && ageSec < 15) {
+      return NextResponse.json(
+        { error: "Slow down. Try again in a few seconds." },
+        { status: 429 }
+      );
+    }
+  } catch (err) {
+    console.error("[api:comments] rate-limit check failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
-  const norm = (s: string) => s.replace(/^@/, "").toLowerCase();
-  const isMaker = norm(author) === norm(tool.makerHandle);
-
-  const comment = await createComment({
-    toolId: tool.id,
-    author,
-    body: parsed.data.body,
-    isMaker,
-  });
-  return NextResponse.json(comment, { status: 201 });
+  const author = parsed.data.author;
+  try {
+    const comment = await convexCommentAdd(client, {
+      id: crypto.randomUUID(),
+      toolSlug: slug,
+      author,
+      body: parsed.data.body,
+      createdAt: Date.now(),
+    });
+    return NextResponse.json(comment, { status: 201 });
+  } catch (err) {
+    console.error("[api:comments] POST failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }

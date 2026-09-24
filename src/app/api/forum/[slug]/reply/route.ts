@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
 import { isUserBanned } from "@/lib/users";
-import { createForumReply, getForumThreadIdBySlug } from "@/lib/forum";
+import { convexReplyCreate } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -43,20 +44,20 @@ export async function POST(
   const { slug } = await ctx.params;
 
   try {
-    const threadId = await getForumThreadIdBySlug(slug);
-    if (!threadId) {
-      return NextResponse.json({ error: "thread_not_found" }, { status: 404 });
-    }
-
-    const reply = await createForumReply({
-      threadId,
+    const reply = await convexReplyCreate(createServerConvexClient()!, {
+      id: crypto.randomUUID(),
+      threadSlug: slug,
       author: `@${user.handle}`,
       authorId: user.id,
       body: parsed.data.body,
+      createdAt: Date.now(),
     });
-
     return NextResponse.json({ reply }, { status: 201 });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("thread_not_found")) {
+      return NextResponse.json({ error: "thread_not_found" }, { status: 404 });
+    }
     console.error("[api:forum] reply failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }

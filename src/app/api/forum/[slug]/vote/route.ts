@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getForumThreadIdBySlug, toggleForumThreadVote } from "@/lib/forum";
+import { convexVoteToggle } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +11,9 @@ const bodySchema = z.object({
 
 /**
  * POST /api/forum/[slug]/vote — anonymous toggle (1 vote per visitor per
- * thread). Same voterKey scheme as POST /api/vote: the key lives in
- * localStorage ("prother_voter_key"), uniqueness enforced by the
- * @@unique([threadId, voterKey]) index. Returns { voted, votes }.
+ * thread). The key lives in localStorage ("prother_voter_key"); uniqueness
+ * is enforced transactionally, so double-votes are impossible even under
+ * concurrency. Returns { voted, votes }.
  */
 export async function POST(
   req: Request,
@@ -33,14 +34,16 @@ export async function POST(
   const { slug } = await ctx.params;
 
   try {
-    const threadId = await getForumThreadIdBySlug(slug);
-    if (!threadId) {
-      return NextResponse.json({ error: "Thread not found" }, { status: 404 });
-    }
-
-    const result = await toggleForumThreadVote(threadId, voterKey);
+    const result = await convexVoteToggle(createServerConvexClient()!, {
+      threadSlug: slug,
+      voterKey,
+    });
     return NextResponse.json(result);
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("thread_not_found")) {
+      return NextResponse.json({ error: "Thread not found" }, { status: 404 });
+    }
     console.error("[api:forum] vote failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }

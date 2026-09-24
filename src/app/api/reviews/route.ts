@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/prother";
 import { getAuthUser } from "@/lib/auth";
 import { isUserBanned } from "@/lib/users";
-import {
-  isReviewMaker,
-  listPublishedReviews,
-  reviewByUser,
-  reviewStats,
-  serializeReview,
-  toolCommunityFields,
-  upsertReviewRow,
-} from "@/lib/community";
+import { isReviewMaker } from "@/lib/community";
+import { convexReviewUpsert, shadowReviewsData } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -33,63 +26,60 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "tool_required" }, { status: 400 });
   }
 
-  const tool = await db.tool.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      claimed: true,
-      websiteUrl: true,
-    },
-  });
-  if (!tool) {
-    return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
+  const client = createServerConvexClient()!;
+  const user = await getAuthUser();
+
+  try {
+    const res = await shadowReviewsData(client, slug, user?.id);
+    if ("error" in res) {
+      return NextResponse.json(res, {
+        status: 404,
+        headers: { "x-data-backend": "convex" },
+      });
+    }
+    // Published reviews for everyone; the viewer's own (even a filtered one)
+    // is merged in and flagged mine=true.
+    const rows = [...res.published];
+    if (res.mineRow && !rows.some((r) => r.id === res.mineRow!.id)) {
+      rows.unshift(res.mineRow);
+    }
+    const reviews = rows.map(({ userId, ...r }) => ({
+      ...r,
+      mine: userId === user?.id,
+    }));
+
+    // Eligibility: anon → auth; maker → maker. Reviews are open immediately
+    // for any live listing — no launch-day gating.
+    let canReview = true;
+    let reason: null | "auth" | "maker" = null;
+    if (!user) {
+      canReview = false;
+      reason = "auth";
+    } else if (
+      isReviewMaker(
+        { claimed: res.tool.claimed, makerEmail: res.tool.makerEmail, websiteUrl: res.tool.websiteUrl },
+        user
+      )
+    ) {
+      canReview = false;
+      reason = "maker";
+    }
+
+    return NextResponse.json(
+      {
+        count: res.stats.count,
+        aggregate: res.stats.aggregate,
+        reviews,
+        mine: res.mineRow != null,
+        canReview,
+        reason,
+      },
+      { headers: { "Cache-Control": "no-store", "x-data-backend": "convex" } }
+    );
+  } catch (err) {
+    console.error("[api:reviews] GET failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-
-  const [user, published, stats, fields] = await Promise.all([
-    getAuthUser(),
-    listPublishedReviews(tool.id),
-    reviewStats(tool.id),
-    toolCommunityFields(tool.id),
-  ]);
-
-  // Published reviews for everyone; the viewer's own (even a filtered one)
-  // is merged in and flagged mine=true.
-  const mineRow = user ? await reviewByUser(tool.id, user.id) : null;
-  const rows = [...published];
-  if (mineRow && !rows.some((r) => r.id === mineRow.id)) {
-    rows.unshift(mineRow);
-  }
-  const reviews = rows.map((r) => serializeReview(r, r.userId === user?.id));
-
-  // Eligibility: anon → auth; maker → maker. Reviews are open immediately
-  // for any live listing — no launch-day gating.
-  // (makerEmail is a post-boot column — compare the raw-fetched value.)
-  let canReview = true;
-  let reason: null | "auth" | "maker" = null;
-  if (!user) {
-    canReview = false;
-    reason = "auth";
-  } else if (
-    isReviewMaker(
-      { claimed: tool.claimed, makerEmail: fields.makerEmail, websiteUrl: tool.websiteUrl },
-      user
-    )
-  ) {
-    canReview = false;
-    reason = "maker";
-  }
-
-  return NextResponse.json(
-    {
-      count: stats.count,
-      aggregate: stats.aggregate,
-      reviews,
-      mine: mineRow != null,
-      canReview,
-      reason,
-    },
-    { headers: { "Cache-Control": "no-store" } }
-  );
 }
 
 /**
@@ -122,46 +112,54 @@ export async function POST(req: Request) {
     );
   }
 
-  const tool = await db.tool.findUnique({
-    where: { slug: toolSlug },
-    select: {
-      id: true,
-      claimed: true,
-      websiteUrl: true,
-    },
-  });
-  if (!tool) {
-    return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
+  const client = createServerConvexClient()!;
+  try {
+    const lookup = await shadowReviewsData(client, toolSlug);
+    if ("error" in lookup) {
+      return NextResponse.json(lookup, { status: 404 });
+    }
+    if (
+      isReviewMaker(
+        {
+          claimed: lookup.tool.claimed,
+          makerEmail: lookup.tool.makerEmail,
+          websiteUrl: lookup.tool.websiteUrl,
+        },
+        user
+      )
+    ) {
+      return NextResponse.json({ error: "maker_self" }, { status: 403 });
+    }
+
+    // <48h accounts → soft-moderation filter (P3 policy).
+    const accountAgeMs = Date.now() - new Date(user.createdAt).getTime();
+    const status = accountAgeMs < 48 * 3_600_000 ? "filtered" : "published";
+
+    const now = Date.now();
+    const res = await convexReviewUpsert(client, {
+      id: crypto.randomUUID(),
+      toolSlug,
+      userId: user.id,
+      author: `@${user.handle}`,
+      ease,
+      power,
+      value,
+      body,
+      status,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return NextResponse.json(
+      {
+        review: { ...res.review, mine: true },
+        count: res.count,
+        aggregate: res.aggregate,
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("[api:reviews] POST failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-  const fields = await toolCommunityFields(tool.id);
-  if (
-    isReviewMaker(
-      { claimed: tool.claimed, makerEmail: fields.makerEmail, websiteUrl: tool.websiteUrl },
-      user
-    )
-  ) {
-    return NextResponse.json({ error: "maker_self" }, { status: 403 });
-  }
-
-  // <48h accounts → soft-moderation filter (P3 policy).
-  const accountAgeMs = Date.now() - new Date(user.createdAt).getTime();
-  const status = accountAgeMs < 48 * 3_600_000 ? "filtered" : "published";
-
-  const row = await upsertReviewRow({
-    toolId: tool.id,
-    userId: user.id,
-    author: `@${user.handle}`,
-    ease,
-    power,
-    value,
-    body,
-    status,
-  });
-
-  const stats = await reviewStats(tool.id);
-
-  return NextResponse.json(
-    { review: serializeReview(row, true), count: stats.count, aggregate: stats.aggregate },
-    { status: 201 }
-  );
 }

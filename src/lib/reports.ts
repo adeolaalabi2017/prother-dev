@@ -252,6 +252,9 @@ export async function createReport(input: {
   details?: string;
   reporterEmail?: string | null;
   reporterKey?: string | null;
+  /** Dual-write overrides (Phase 4 step 3) — shared id/timestamp. */
+  id?: string;
+  createdAt?: number;
 }): Promise<
   | { ok: true; already: boolean; id: string }
   | { ok: false; error: "invalid_target" }
@@ -301,13 +304,13 @@ export async function createReport(input: {
     LIMIT 1`;
   if (existing[0]) return { ok: true, already: true, id: existing[0].id };
 
-  const newId = crypto.randomUUID();
+  const newId = input.id ?? crypto.randomUUID();
   await db.$executeRaw`
     INSERT INTO Report (id, reporterEmail, reporterKey, targetType, targetId,
                         targetLabel, reason, details, status, createdAt)
     VALUES (${newId}, ${ownerEmail}, ${ownerKey}, ${t}, ${storedId},
             ${label.slice(0, 120)}, ${input.reason}, ${input.details ?? null},
-            'open', ${new Date().toISOString()})`;
+            'open', ${new Date(input.createdAt ?? Date.now()).toISOString()})`;
   return { ok: true, already: false, id: newId };
 }
 

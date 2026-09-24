@@ -155,6 +155,10 @@ export async function upsertIntegration(input: {
   /** Incoming (possibly masked) config from the admin form. */
   config: Record<string, string>;
   notes?: string;
+  /** Dual-write override (Phase 4 step 6) — shared row id. */
+  id?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }): Promise<void> {
   const key = input.key.trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(key)) {
@@ -192,10 +196,10 @@ export async function upsertIntegration(input: {
     INSERT INTO Integration
       (id, key, name, category, enabled, configJson, notes, createdAt, updatedAt)
     VALUES
-      (${`int_${crypto.randomUUID()}`}, ${key}, ${input.name},
+      (${input.id ?? `int_${crypto.randomUUID()}`}, ${key}, ${input.name},
        ${input.category}, ${input.enabled ? 1 : 0},
        ${JSON.stringify(input.config)}, ${input.notes ?? ""},
-       ${Date.now()}, ${Date.now()})`;
+       ${input.createdAt ?? Date.now()}, ${input.updatedAt ?? Date.now()})`;
 }
 
 export async function deleteIntegration(key: string): Promise<boolean> {

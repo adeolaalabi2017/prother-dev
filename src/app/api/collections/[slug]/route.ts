@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/prother";
 import { getAuthUser } from "@/lib/auth";
 import {
-  collectionBySlug,
-  listCollectionItems,
-  serializeCollection,
-} from "@/lib/community";
+  convexCollectionDelete,
+  convexCollectionUpdate,
+  shadowCollectionDetail,
+} from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -25,79 +25,27 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const collection = await collectionBySlug(slug);
-  if (!collection) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-
   const user = await getAuthUser();
-  const isOwner = user != null && collection.ownerEmail === user.email;
-  if (!collection.isPublic && !isOwner) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  try {
+    const res = await shadowCollectionDetail(
+      createServerConvexClient()!,
+      slug,
+      user?.email
+    );
+    if ("error" in res) {
+      return NextResponse.json(res, {
+        status: 404,
+        headers: { "x-data-backend": "convex" },
+      });
+    }
+    return NextResponse.json(res, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    });
+  } catch (err) {
+    console.error("[api:collections/[slug]] GET failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-
-  // Items in manual order; tools hydrated through the ORM (old model).
-  const itemRows = await listCollectionItems(collection.id);
-  const toolIds = itemRows.map((i) => i.toolId);
-  const tools = toolIds.length
-    ? await db.tool.findMany({
-        where: { id: { in: toolIds } },
-        // Explicit select — stale cached clients SELECT dropped columns on full-row reads.
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          tagline: true,
-          logoEmoji: true,
-          logoGradient: true,
-          pricingModel: true,
-          startingPrice: true,
-          editorsPick: true,
-          category: { select: { slug: true, name: true, emoji: true } },
-        },
-      })
-    : [];
-  const toolById = new Map(tools.map((t) => [t.id, t]));
-
-  const items = itemRows.flatMap((item) => {
-    const t = toolById.get(item.toolId);
-    if (!t) return [];
-    return [
-      {
-        id: item.id,
-        position: item.position,
-        tool: {
-          slug: t.slug,
-          name: t.name,
-          tagline: t.tagline,
-          emoji: t.logoEmoji,
-          gradient: t.logoGradient,
-          pricing: { model: t.pricingModel, price: t.startingPrice },
-          category: t.category,
-          editorsPick: t.editorsPick,
-        },
-      },
-    ];
-  });
-
-  const base = serializeCollection(collection);
-  return NextResponse.json(
-    {
-      collection: {
-        id: base.id,
-        slug: base.slug,
-        name: base.name,
-        description: base.description,
-        isPublic: base.isPublic,
-        ownerName: base.ownerName,
-        ...(isOwner ? { ownerEmail: base.ownerEmail } : {}),
-        isOwner,
-        createdAt: base.createdAt,
-        items,
-      },
-    },
-    { headers: { "Cache-Control": "no-store" } }
-  );
 }
 
 /**
@@ -125,29 +73,49 @@ export async function PATCH(
   if (!user) {
     return NextResponse.json({ error: "auth_required" }, { status: 401 });
   }
-  const collection = await collectionBySlug(slug);
-  if (!collection) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-  if (collection.ownerEmail !== user.email) {
-    return NextResponse.json({ error: "not_owner" }, { status: 403 });
-  }
 
-  const { name, description, isPublic } = parsed.data;
-  if (name !== undefined || description !== undefined || isPublic !== undefined) {
-    await db.$executeRaw`
-      UPDATE Collection
-      SET name = ${name ?? collection.name},
-          description = ${description ?? collection.description},
-          isPublic = ${isPublic === undefined ? (collection.isPublic ? 1 : 0) : isPublic ? 1 : 0}
-      WHERE id = ${collection.id}`;
-  }
+  const client = createServerConvexClient()!;
+  try {
+    // Ownership is enforced inside the detail read: private collections
+    // 404 for non-owners before any write lands.
+    const existing = await shadowCollectionDetail(client, slug, user.email);
+    if ("error" in existing || !existing.collection.isOwner) {
+      const status = "error" in existing ? 404 : 403;
+      const error = "error" in existing ? existing : { error: "not_owner" };
+      return NextResponse.json(error, { status });
+    }
 
-  const updated = await collectionBySlug(slug);
-  const base = serializeCollection(updated ?? collection);
-  return NextResponse.json({
-    collection: { ...base, isOwner: true, ownerEmail: base.ownerEmail },
-  });
+    const { name, description, isPublic } = parsed.data;
+    if (
+      name === undefined &&
+      description === undefined &&
+      isPublic === undefined
+    ) {
+      // No-op patch still returns the collection (mirrors the original,
+      // which skips the UPDATE but re-reads and responds).
+    } else {
+      await convexCollectionUpdate(client, {
+        slug,
+        ...(name !== undefined ? { name } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(isPublic !== undefined ? { isPublic } : {}),
+      });
+    }
+
+    const updated = await shadowCollectionDetail(client, slug, user.email);
+    if ("error" in updated) {
+      return NextResponse.json(updated, { status: 404 });
+    }
+    // PATCH responds with the bare collection (no items array).
+    const { items: _items, ...base } = updated.collection;
+    void _items;
+    return NextResponse.json({
+      collection: { ...base, ownerEmail: user.email },
+    });
+  } catch (err) {
+    console.error("[api:collections/[slug]] PATCH failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
 
 /** DELETE /api/collections/[slug] — owner-only; 204 on success. */
@@ -161,15 +129,20 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: "auth_required" }, { status: 401 });
   }
-  const collection = await collectionBySlug(slug);
-  if (!collection) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-  if (collection.ownerEmail !== user.email) {
-    return NextResponse.json({ error: "not_owner" }, { status: 403 });
-  }
 
-  await db.$executeRaw`DELETE FROM CollectionItem WHERE collectionId = ${collection.id}`;
-  await db.$executeRaw`DELETE FROM Collection WHERE id = ${collection.id}`;
-  return new NextResponse(null, { status: 204 });
+  const client = createServerConvexClient()!;
+  try {
+    const existing = await shadowCollectionDetail(client, slug, user.email);
+    if ("error" in existing) {
+      return NextResponse.json(existing, { status: 404 });
+    }
+    if (!existing.collection.isOwner) {
+      return NextResponse.json({ error: "not_owner" }, { status: 403 });
+    }
+    await convexCollectionDelete(client, { slug });
+    return new NextResponse(null, { status: 204 });
+  } catch (err) {
+    console.error("[api:collections/[slug]] DELETE failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }

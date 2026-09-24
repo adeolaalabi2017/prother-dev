@@ -192,9 +192,13 @@ export async function upsertReviewRow(input: {
   value: number;
   body: string;
   status: string;
+  /** Dual-write overrides (Phase 4 step 3) — shared id/timestamps. */
+  id?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }): Promise<ReviewRow> {
   const existing = await reviewByUser(input.toolId, input.userId);
-  const now = Date.now();
+  const now = input.updatedAt ?? Date.now();
   if (existing) {
     await db.$executeRaw`
       UPDATE Review
@@ -202,11 +206,12 @@ export async function upsertReviewRow(input: {
           body = ${input.body}, status = ${input.status}, updatedAt = ${now}
       WHERE id = ${existing.id}`;
   } else {
+    const created = input.createdAt ?? now;
     await db.$executeRaw`
       INSERT INTO Review (id, toolId, userId, author, ease, power, value, body, status, createdAt, updatedAt)
-      VALUES (${crypto.randomUUID()}, ${input.toolId}, ${input.userId}, ${input.author},
+      VALUES (${input.id ?? crypto.randomUUID()}, ${input.toolId}, ${input.userId}, ${input.author},
               ${input.ease}, ${input.power}, ${input.value}, ${input.body}, ${input.status},
-              ${now}, ${now})`;
+              ${created}, ${now})`;
   }
   return (await reviewByUser(input.toolId, input.userId))!;
 }
@@ -293,9 +298,12 @@ export async function insertClaim(input: {
   status: "pending" | "verified" | "failed";
   note: string | null;
   verifiedNow: boolean;
+  /** Dual-write overrides (Phase 5) — shared id/timestamps. */
+  id?: string;
+  createdAt?: number;
 }): Promise<ClaimRow> {
-  const now = Date.now();
-  const id = crypto.randomUUID();
+  const now = input.createdAt ?? Date.now();
+  const id = input.id ?? crypto.randomUUID();
   await db.$executeRaw`
     INSERT INTO Claim (id, toolId, userEmail, userName, method, token, status, note, createdAt, verifiedAt)
     VALUES (${id}, ${input.toolId}, ${input.userEmail}, ${input.userName}, ${input.method},
@@ -436,11 +444,14 @@ export async function insertCollection(input: {
   isPublic: boolean;
   ownerEmail: string;
   ownerName: string;
+  /** Dual-write overrides (Phase 4 step 3) — shared id/timestamp. */
+  id?: string;
+  createdAt?: number;
 }): Promise<CollectionRow> {
   await db.$executeRaw`
     INSERT INTO Collection (id, slug, name, description, isPublic, ownerEmail, ownerName, createdAt)
-    VALUES (${crypto.randomUUID()}, ${input.slug}, ${input.name}, ${input.description},
-            ${input.isPublic ? 1 : 0}, ${input.ownerEmail}, ${input.ownerName}, ${Date.now()})`;
+    VALUES (${input.id ?? crypto.randomUUID()}, ${input.slug}, ${input.name}, ${input.description},
+            ${input.isPublic ? 1 : 0}, ${input.ownerEmail}, ${input.ownerName}, ${input.createdAt ?? Date.now()})`;
   return (await collectionBySlug(input.slug))!;
 }
 

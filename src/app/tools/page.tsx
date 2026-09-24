@@ -1,17 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Prisma } from "@prisma/client";
 import { ArrowUpRight, ChevronLeft, ChevronRight, Compass, SearchX, Star } from "lucide-react";
 import { ToolsDirectory } from "@/components/prother/tools-directory";
 import { AdSlot } from "@/components/prother/ad-slot";
-import { db } from "@/lib/prother";
-import { searchToolsForSerp } from "@/lib/search";
-import type { SerpToolRow } from "@/lib/search";
-import { commentCountsByTool } from "@/lib/discussion";
 import type { DirectoryRow } from "@/app/api/tools/route";
-import { toolMediaByIds } from "@/lib/media";
 import { placementEnabled } from "@/lib/ad-config";
 import { cn } from "@/lib/utils";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowSerp, shadowToolsDirectory } from "@/lib/data";
+
+/** One scored result row on the /tools?q= SERP. */
+export type SerpToolRow = {
+  slug: string;
+  name: string;
+  tagline: string;
+  emoji: string;
+  gradient: string;
+  editorsPick: boolean;
+  pricingModel: string;
+  startingPrice: string | null;
+  category: { slug: string; name: string; emoji: string };
+  /** ISO date the tool was added to the directory. */
+  listedAt: string;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -80,83 +91,17 @@ function isNewListing(iso: string): boolean {
  * client fetch, then handed to <ToolsDirectory /> as its initial state.
  */
 async function directoryInitialRows(): Promise<{ rows: DirectoryRow[]; total: number }> {
-  const [tools, total] = await Promise.all([
-    db.tool.findMany({
-      where: { status: "live" },
-      // Explicit select — a long-running dev server can hold a pre-generation
-      // PrismaClient whose full-row selects reference dropped columns.
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        tagline: true,
-        logoEmoji: true,
-        logoGradient: true,
-        pricingModel: true,
-        startingPrice: true,
-        pricingNote: true,
-        editorsPick: true,
-        curated: true,
-        claimed: true,
-        hasApi: true,
-        createdAt: true,
-        category: { select: { slug: true, name: true, emoji: true } },
-      },
-      orderBy: [
-        { pinned: "desc" },
-        { editorsPick: "desc" },
-        { curated: "desc" },
-        { createdAt: "desc" },
-      ],
-      take: DIRECTORY_PAGE_LIMIT,
-    }),
-    db.tool.count({ where: { status: "live" } }),
-  ]);
-
-  const commentCounts = await commentCountsByTool(tools.map((t) => t.id));
-  const reviewCounts = await publishedReviewCounts(tools.map((t) => t.id));
-  // POST-boot media columns → raw SQL (lib/media.ts). NEVER select logoUrl
-  // through the ORM: a long-running dev server can hold a pre-v8 client.
-  const mediaMap = await toolMediaByIds(tools.map((t) => t.id));
-
-  const rows: DirectoryRow[] = tools.map((t) => {
-    const commentCount = commentCounts.get(t.id) ?? 0;
-    return {
-      slug: t.slug,
-      name: t.name,
-      tagline: t.tagline,
-      emoji: t.logoEmoji,
-      gradient: t.logoGradient,
-      pricing: { model: t.pricingModel, price: t.startingPrice, note: t.pricingNote },
-      category: t.category,
-      editorsPick: t.editorsPick,
-      curated: t.curated,
-      badges: {
-        editorsPick: t.editorsPick,
-        curated: t.curated,
-        unclaimed: !t.claimed,
-        hasApi: t.hasApi,
-        openSource: t.pricingModel === "open_source",
-      },
-      logoUrl: mediaMap.get(t.id)?.logoUrl ?? null,
-      ...(commentCount > 0 ? { comments: commentCount } : {}),
-      listedAt: t.createdAt.toISOString(),
-      reviews: { count: reviewCounts.get(t.id) ?? 0 },
-    };
+  const res = await shadowToolsDirectory(createServerConvexClient()!, {
+    categorySlug: null,
+    q: null,
+    pricing: null,
+    tag: null,
+    sort: "featured",
+    page: 1,
+    pageSize: DIRECTORY_PAGE_LIMIT,
   });
-
-  return { rows, total };
-}
-
-/** Published review counts per tool id (Review is a post-boot model → raw). */
-async function publishedReviewCounts(toolIds: string[]): Promise<Map<string, number>> {
-  if (toolIds.length === 0) return new Map();
-  const rows = await db.$queryRaw<{ toolId: string; n: number }[]>`
-    SELECT toolId, COUNT(*) as n
-    FROM Review
-    WHERE status = 'published' AND toolId IN (${Prisma.join(toolIds)})
-    GROUP BY toolId`;
-  return new Map(rows.map((r) => [r.toolId, Number(r.n)]));
+  if ("error" in res) throw new Error(res.error);
+  return { rows: res.rows as DirectoryRow[], total: res.total };
 }
 
 /** One scored SERP result card — name is the real anchor text; the stretched
@@ -326,7 +271,11 @@ export default async function ToolsPage({
 
   // ── SERP: ?q= is present — render scored results server-side ──────────
   if (q) {
-    const serp = await searchToolsForSerp(q, page, SERP_PAGE_SIZE);
+    const serp = await shadowSerp(createServerConvexClient()!, {
+      q,
+      page,
+      pageSize: SERP_PAGE_SIZE,
+    });
 
     const serpJsonLd = {
       "@context": "https://schema.org",

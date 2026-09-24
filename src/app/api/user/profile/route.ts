@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { db } from "@/lib/prother";
+import { aq, axUnsafe } from "@/lib/authdb";
+import { createServerConvexClient } from "@/lib/convex";
+import { api } from "../../../../../convex/_generated/api.js";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/user/profile — the signed-in user's editable profile
- * (name, @handle, bio, avatar image URL).
+ * (name, @handle, bio, avatar image URL). Phase 5: identity store is the
+ * micro-SQLite auth db (same columns, same shapes).
  */
 export async function GET() {
   const user = await getAuthUser();
@@ -14,18 +17,18 @@ export async function GET() {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
   try {
-    const row = await db.user.findUnique({
-      where: { id: user.id },
-      select: {
-        id: true,
-        name: true,
-        handle: true,
-        bio: true,
-        image: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+    const rows = aq<{
+      id: string;
+      name: string | null;
+      handle: string | null;
+      bio: string | null;
+      image: string | null;
+      role: string;
+      createdAt: string;
+    }>`
+      SELECT id, name, handle, bio, image, role, createdAt
+      FROM "User" WHERE id = ${user.id} LIMIT 1`;
+    const row = rows[0];
     if (!row) {
       return NextResponse.json({ error: "Account not found." }, { status: 404 });
     }
@@ -92,13 +95,8 @@ export async function PATCH(req: Request) {
         { status: 400 }
       );
     }
-    const clash = await db.user.findUnique({ where: { handle } });
-    if (clash && clash.id !== user.id) {
-      return NextResponse.json(
-        { error: `The handle @${handle} is already taken.` },
-        { status: 409 }
-      );
-    }
+    // Uniqueness is re-checked against the identity store at write time
+    // below (kept separate so validation errors stay ordered).
     data.handle = handle;
   }
 
@@ -130,19 +128,65 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const updated = await db.user.update({
-      where: { id: user.id },
-      data,
-      select: {
-        id: true,
-        name: true,
-        handle: true,
-        bio: true,
-        image: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+    // Handle uniqueness is enforced in the identity store.
+    if (data.handle !== undefined) {
+      const clash = aq<{ id: string }>`
+        SELECT id FROM "User" WHERE handle = ${data.handle} LIMIT 1`;
+      if (clash[0] && clash[0].id !== user.id) {
+        return NextResponse.json(
+          { error: `The handle @${data.handle} is already taken.` },
+          { status: 409 }
+        );
+      }
+    }
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    if (data.name !== undefined) {
+      sets.push(`"name" = ?`);
+      values.push(data.name);
+    }
+    if (data.handle !== undefined) {
+      sets.push(`"handle" = ?`);
+      values.push(data.handle);
+    }
+    if (data.bio !== undefined) {
+      sets.push(`"bio" = ?`);
+      values.push(data.bio);
+    }
+    if (data.image !== undefined) {
+      sets.push(`"image" = ?`);
+      values.push(data.image);
+    }
+    axUnsafe(`UPDATE "User" SET ${sets.join(", ")} WHERE "id" = ?`, ...values, user.id);
+    // Sync the directory profile immediately (same fields the sign-in
+    // bridge patches — no waiting for the next login).
+    try {
+      const client = createServerConvexClient();
+      if (client) {
+        await client.mutation(api.users.ensureFromAuth, {
+          id: user.id,
+          email: user.email,
+          name: data.name,
+          handle: data.handle,
+          image: data.image,
+          bio: data.bio,
+          createdAt: Date.now(),
+        });
+      }
+    } catch (err) {
+      console.error("[profile] convex sync failed:", user.id, err);
+    }
+    const updated = aq<{
+      id: string;
+      name: string | null;
+      handle: string | null;
+      bio: string | null;
+      image: string | null;
+      role: string;
+      createdAt: string;
+    }>`
+      SELECT id, name, handle, bio, image, role, createdAt
+      FROM "User" WHERE id = ${user.id} LIMIT 1`[0];
     return NextResponse.json({ profile: updated });
   } catch (err) {
     console.error("[api/user/profile] patch failed", err);

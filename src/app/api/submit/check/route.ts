@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, findActiveSubmissionByDomain } from "@/lib/prother";
 import { domainOf } from "@/lib/submit";
+import { shadowSubmitCheck } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,15 @@ export async function GET(req: NextRequest) {
   }
 
   // Existing tool with the same domain wins the check.
+  try {
+    const res = await shadowSubmitCheck(createServerConvexClient()!, domain);
+    return NextResponse.json(res, {
+      headers: { "x-data-backend": "convex" },
+    });
+  } catch (err) {
+    console.error("[api:submit/check] failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
   const tools = await db.tool.findMany({
     select: { websiteUrl: true, name: true, slug: true, makerHandle: true },
   });

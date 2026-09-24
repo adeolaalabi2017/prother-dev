@@ -218,16 +218,20 @@ export async function createForumThread(input: {
   topic: ForumTopic;
   author: string;
   authorId: string | null;
+  /** Dual-write overrides (Phase 4 step 3) — shared id/timestamps. */
+  id?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }): Promise<ForumThreadRow> {
-  const now = Date.now();
+  const now = input.createdAt ?? Date.now();
   const rows = await db.$queryRaw<RawThread[]>`
     INSERT INTO ForumThread (
       id, slug, title, body, topic, author, authorId,
       pinned, baseUpvotes, createdAt, updatedAt
     ) VALUES (
-      ${crypto.randomUUID()}, ${input.slug}, ${input.title}, ${input.body},
+      ${input.id ?? crypto.randomUUID()}, ${input.slug}, ${input.title}, ${input.body},
       ${input.topic}, ${input.author}, ${input.authorId},
-      0, 0, ${now}, ${now}
+      0, 0, ${now}, ${input.updatedAt ?? now}
     )
     RETURNING id, slug, title, body, topic, author, pinned, baseUpvotes, createdAt`;
   return toRow(rows[0]!, 0, 0, false);
@@ -238,6 +242,9 @@ export async function createForumReply(input: {
   author: string;
   authorId: string | null;
   body: string;
+  /** Dual-write overrides (Phase 4 step 3) — shared id/timestamp. */
+  id?: string;
+  createdAt?: number;
 }): Promise<ForumReplyRow> {
   const rows = await db.$queryRaw<{
     id: string;
@@ -246,8 +253,8 @@ export async function createForumReply(input: {
     createdAt: number | string;
   }[]>`
     INSERT INTO ForumReply (id, threadId, author, authorId, body, createdAt)
-    VALUES (${crypto.randomUUID()}, ${input.threadId}, ${input.author},
-            ${input.authorId}, ${input.body}, ${Date.now()})
+    VALUES (${input.id ?? crypto.randomUUID()}, ${input.threadId}, ${input.author},
+            ${input.authorId}, ${input.body}, ${input.createdAt ?? Date.now()})
     RETURNING id, author, body, createdAt`;
   const r = rows[0]!;
   return {

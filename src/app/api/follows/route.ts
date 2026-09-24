@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
-import { listFollows, toggleFollow } from "@/lib/community";
+import { convexFollowToggle, shadowFollows } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,15 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ follows: [] }, { headers: { "Cache-Control": "no-store" } });
   }
-  const follows = await listFollows(user.email);
-  return NextResponse.json({ follows }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const payload = await shadowFollows(createServerConvexClient()!, user.email);
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    });
+  } catch (err) {
+    console.error("[api:follows] GET failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
 
 /**
@@ -46,6 +54,16 @@ export async function POST(req: Request) {
   }
 
   const { targetType, targetId, targetLabel } = parsed.data;
-  const following = await toggleFollow(user.email, targetType, targetId, targetLabel);
-  return NextResponse.json({ following });
+  try {
+    const res = await convexFollowToggle(createServerConvexClient()!, {
+      userEmail: user.email,
+      targetType,
+      targetId,
+      targetLabel,
+    });
+    return NextResponse.json(res);
+  } catch (err) {
+    console.error("[api:follows] POST failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }

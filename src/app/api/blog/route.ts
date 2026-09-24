@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/prother";
-import { postCoversByIds } from "@/lib/media";
+import { shadowBlog } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -14,39 +14,13 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(24, Math.max(1, Number(sp.get("limit") ?? 12)));
   const category = sp.get("category");
 
-  const posts = await db.post.findMany({
-    where: {
-      status: "published",
-      ...(category ? { category } : {}),
-    },
-    orderBy: { publishedAt: "desc" },
-    take: limit,
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      category: true,
-      tags: true,
-      coverEmoji: true,
-      coverGradient: true,
-      author: true,
-      readingMinutes: true,
-      publishedAt: true,
-    },
-  });
-
-  // POST-boot column → raw SQL (stale-PrismaClient rule).
-  const coverMap = await postCoversByIds(posts.map((p) => p.id));
-  return NextResponse.json(
-    {
-      posts: posts.map((p) => ({
-        ...p,
-        coverUrl: coverMap.get(p.id) ?? null,
-        tags: p.tags ? p.tags.split("|").filter(Boolean) : [],
-        publishedAt: p.publishedAt?.toISOString() ?? null,
-      })),
-    },
-    { headers: { "Cache-Control": "no-store" } }
-  );
+  try {
+    const payload = await shadowBlog(createServerConvexClient()!, limit, category);
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    });
+  } catch (err) {
+    console.error("[api:blog] failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }

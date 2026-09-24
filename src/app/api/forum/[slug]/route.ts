@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getForumThreadDetail } from "@/lib/forum";
+import { shadowForumThread } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,17 @@ export async function GET(
   }
 
   try {
-    const payload = await getForumThreadDetail(slug, voterKey);
+    const payload = await shadowForumThread(createServerConvexClient()!, slug, voterKey);
     if (!payload) {
       return NextResponse.json({ error: "thread_not_found" }, { status: 404 });
     }
-    return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
+    if ("hidden" in payload) {
+      // Moderated threads stay hidden — same 404 as a missing thread.
+      return NextResponse.json({ error: "thread_not_found" }, { status: 404 });
+    }
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    });
   } catch (err) {
     console.error("[api:forum] GET [slug] failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/prother";
 import { getAuthUser } from "@/lib/auth";
-import { collectionBySlug, listCollectionItems } from "@/lib/community";
+import {
+  convexCollectionItemToggle,
+  shadowCollectionDetail,
+} from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -36,41 +39,30 @@ export async function POST(
     return NextResponse.json({ error: "auth_required" }, { status: 401 });
   }
 
-  const collection = await collectionBySlug(slug);
-  if (!collection) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  const client = createServerConvexClient()!;
+  try {
+    // Ownership + existence gate through the detail read (404/403 parity).
+    const existing = await shadowCollectionDetail(client, slug, user.email);
+    if ("error" in existing) {
+      return NextResponse.json(existing, { status: 404 });
+    }
+    if (!existing.collection.isOwner) {
+      return NextResponse.json({ error: "not_owner" }, { status: 403 });
+    }
+
+    const res = await convexCollectionItemToggle(client, {
+      id: crypto.randomUUID(),
+      collectionSlug: slug,
+      toolSlug: parsed.data.toolSlug,
+      createdAt: Date.now(),
+    });
+    return NextResponse.json(res);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("tool_not_found")) {
+      return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
+    }
+    console.error("[api:collections/[slug]/items] POST failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-  if (collection.ownerEmail !== user.email) {
-    return NextResponse.json({ error: "not_owner" }, { status: 403 });
-  }
-
-  const tool = await db.tool.findUnique({
-    where: { slug: parsed.data.toolSlug },
-    select: { id: true },
-  });
-  if (!tool) {
-    return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
-  }
-
-  const existing = (await listCollectionItems(collection.id)).find(
-    (i) => i.toolId === tool.id
-  );
-
-  if (existing) {
-    await db.$executeRaw`DELETE FROM CollectionItem WHERE id = ${existing.id}`;
-  } else {
-    const items = await listCollectionItems(collection.id);
-    const position = items.length;
-    await db.$executeRaw`
-      INSERT INTO CollectionItem (id, collectionId, toolId, position, createdAt)
-      VALUES (${crypto.randomUUID()}, ${collection.id}, ${tool.id}, ${position}, ${Date.now()})`;
-  }
-
-  const [{ n: itemCount }] = await db.$queryRaw<{ n: number }[]>`
-    SELECT COUNT(*) as n FROM CollectionItem WHERE collectionId = ${collection.id}`;
-
-  return NextResponse.json({
-    inCollection: !existing,
-    itemCount: Number(itemCount),
-  });
 }

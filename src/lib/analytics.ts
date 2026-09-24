@@ -74,7 +74,7 @@ export async function getTrafficReadout(): Promise<TrafficResponse> {
       FROM PageViewDaily
       WHERE day >= ${days[0]}
       GROUP BY path
-      ORDER BY views DESC
+      ORDER BY views DESC, path ASC
       LIMIT 8`;
   } catch {
     byDay = [];

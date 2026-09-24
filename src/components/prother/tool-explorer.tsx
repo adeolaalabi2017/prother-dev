@@ -22,6 +22,17 @@ import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
 import { useExplorer } from "./explorer-store";
 import type { SearchToolHit } from "@/app/api/search/route";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api.js";
+
+/**
+ * Phase 4 step 2: realtime palette. With a Convex URL baked in, trending
+ * and results subscribe via useQuery; otherwise the /api fetch fallback
+ * serves (same shapes — the shadow harness pins them equal).
+ */
+const CONVEX_LIVE =
+  typeof process.env.NEXT_PUBLIC_CONVEX_URL === "string" &&
+  process.env.NEXT_PUBLIC_CONVEX_URL.length > 0;
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -55,9 +66,22 @@ function CommandPalette() {
   const [trending, setTrending] = useState<TrendingRow[]>([]);
   const [results, setResults] = useState<{ q: string; tools: SearchToolHit[] } | null>(null);
   const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+
+  // Realtime subscriptions (no-op "skip" without a Convex URL).
+  const liveTrending = useQuery(
+    api.trending.list,
+    CONVEX_LIVE && searchOpen ? { window: "week", limit: 6 } : "skip",
+  );
+  const liveSearch = useQuery(
+    api.search.search,
+    CONVEX_LIVE && debouncedQ.trim().length >= 2 ? { q: debouncedQ.trim() } : "skip",
+  );
 
   useEffect(() => {
     if (!searchOpen) return;
+    if (CONVEX_LIVE) return; // subscription above owns trending
+    // Trending rows load once per open (async setState in the fetch callback).
     // Trending rows load once per open (async setState in the fetch callback).
     // Input/results reset happens in the dialog's onOpenChange close handler —
     // synchronous setState inside an effect body is a cascading-render hazard.
@@ -78,9 +102,17 @@ function CommandPalette() {
   // ── Debounced live search (180ms, ≥2 chars) ───────────────────────────
   // Results carry the query they answered, so stale rows self-invalidate via
   // the `results.q === q` derivation below — no synchronous clearing needed.
+  // When live, the debounce feeds the subscription; otherwise the fetch.
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) return;
+    if (q.length < 2) {
+      setDebouncedQ("");
+      return;
+    }
+    if (CONVEX_LIVE) {
+      const t = window.setTimeout(() => setDebouncedQ(q), 180);
+      return () => window.clearTimeout(t);
+    }
     const ctrl = new AbortController();
     const t = window.setTimeout(() => {
       fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
@@ -115,7 +147,16 @@ function CommandPalette() {
   );
 
   const q = query.trim();
-  const shownResults = results && results.q === q ? results.tools : null;
+  // Live subscription wins when its answer matches the current input;
+  // the fetch fallback covers the no-Convex build.
+  const liveTools =
+    liveSearch && liveSearch.q === q ? liveSearch.tools : null;
+  const shownResults = CONVEX_LIVE
+    ? (liveTools ?? (results && results.q === q ? results.tools : null))
+    : results && results.q === q
+      ? results.tools
+      : null;
+  const trendingRows = CONVEX_LIVE ? (liveTrending?.rows ?? []) : trending;
 
   return (
     <CommandDialog
@@ -125,6 +166,7 @@ function CommandPalette() {
         // Closing the palette starts a fresh session next time it opens.
         if (!o) {
           setQuery("");
+          setDebouncedQ("");
           setResults(null);
         }
       }}
@@ -139,9 +181,9 @@ function CommandPalette() {
           No results. Try &quot;chatbot&quot; or &quot;video&quot;.
         </CommandEmpty>
 
-        {q.length < 2 && trending.length > 0 && (
+        {q.length < 2 && trendingRows.length > 0 && (
           <CommandGroup heading="Trending now">
-            {trending.map((r) => (
+            {trendingRows.map((r) => (
               <CommandItem
                 key={r.slug}
                 value={`${r.name} ${r.tagline} ${r.category.name}`}
@@ -169,7 +211,7 @@ function CommandPalette() {
 
         {shownResults && shownResults.length > 0 && (
           <>
-            {q.length < 2 && trending.length > 0 && <CommandSeparator />}
+            {q.length < 2 && trendingRows.length > 0 && <CommandSeparator />}
             <CommandGroup heading="Results">
               {shownResults.map((r) => (
                 <CommandItem

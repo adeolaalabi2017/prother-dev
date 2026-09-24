@@ -183,8 +183,13 @@ export async function createCampaign(input: {
   totalBudgetCents?: number;
   dailyBudgetCents?: number;
   status?: AdStatus;
+  /** Dual-write overrides (Phase 4 step 6) — shared id/timestamps. */
+  id?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }): Promise<{ id: string }> {
-  const id = crypto.randomUUID();
+  const id = input.id ?? crypto.randomUUID();
+  const now = new Date().toISOString();
   await db.$executeRaw`
     INSERT INTO AdCampaign (
       id, name, advertiser, placement, status, headline, body, clickUrl,
@@ -198,7 +203,7 @@ export async function createCampaign(input: {
       ${input.targetCategory ?? null}, ${input.weight ?? 1},
       ${input.startsAt ?? null}, ${input.endsAt ?? null},
       ${input.totalBudgetCents ?? 0}, ${input.dailyBudgetCents ?? 0},
-      0, 0, ${new Date().toISOString()}, ${new Date().toISOString()}
+      0, 0, ${input.createdAt ? new Date(input.createdAt).toISOString() : now}, ${input.updatedAt ? new Date(input.updatedAt).toISOString() : now}
     )`;
   return { id };
 }

@@ -3,7 +3,9 @@ import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
 import { isUserBanned } from "@/lib/users";
 import { FORUM_TOPICS } from "@/lib/forum-topics";
-import { createForumThread, forumListPayload, uniqueForumSlug } from "@/lib/forum";
+import { slugifyName } from "@/lib/prother";
+import { convexThreadCreate, shadowForumList } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -35,12 +37,15 @@ export async function GET(req: Request) {
   }
 
   try {
-    const payload = await forumListPayload(
+    const payload = await shadowForumList(
+      createServerConvexClient()!,
       parsed.data.topic,
       parsed.data.sort,
       parsed.data.voterKey
     );
-    return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    });
   } catch (err) {
     console.error("[api:forum] GET failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
@@ -75,20 +80,33 @@ export async function POST(req: Request) {
   }
 
   const { title, body, topic } = parsed.data;
+  const client = createServerConvexClient()!;
 
-  try {
-    const slug = await uniqueForumSlug(title);
-    const thread = await createForumThread({
-      slug,
-      title,
-      body,
-      topic,
-      author: `@${user.handle}`,
-      authorId: user.id,
-    });
-    return NextResponse.json({ thread }, { status: 201 });
-  } catch (err) {
-    console.error("[api:forum] POST failed:", err);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  // Slug from the title + a short random suffix, unique-checked.
+  const base = slugifyName(title);
+  let slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+  for (let i = 0; i < 8; i++) {
+    try {
+      const thread = await convexThreadCreate(client, {
+        id: crypto.randomUUID(),
+        slug,
+        title,
+        body,
+        topic,
+        author: `@${user.handle}`,
+        authorId: user.id,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      return NextResponse.json({ thread }, { status: 201 });
+    } catch (err) {
+      if (String(err).includes("slug_taken")) {
+        slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+        continue;
+      }
+      console.error("[api:forum] POST failed:", err);
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
+    }
   }
+  return NextResponse.json({ error: "server_error" }, { status: 500 });
 }

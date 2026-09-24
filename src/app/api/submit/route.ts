@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import {
-  countSubmissionsSince,
-  createSubmission,
-  db,
-  findActiveSubmissionByDomain,
-  pendingQueuePosition,
-} from "@/lib/prother";
 import { TAG_VOCAB, domainOf } from "@/lib/submit";
 import { CATEGORIES } from "@/components/prother/categories";
+import {
+  convexSubmissionCreate,
+  shadowSubmissionCountSince,
+  shadowSubmitCheck,
+} from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic"; 
 
@@ -101,38 +100,33 @@ export async function POST(req: NextRequest) {
   }
 
   // Rate limit 1: one submission per domain (PRD §11).
-  const tools = await db.tool.findMany({
-    select: { websiteUrl: true, name: true, slug: true, makerHandle: true },
-  });
-  const toolHit = tools.find((t) => domainOf(t.websiteUrl) === domain);
-  if (toolHit) {
+  const dup = await shadowSubmitCheck(createServerConvexClient()!, domain);
+  if (dup.duplicate?.kind === "tool") {
     return NextResponse.json(
       {
         error: "A tool with this domain is already listed/pending review",
-        duplicate: {
-          kind: "tool",
-          name: toolHit.name,
-          slug: toolHit.slug,
-          maker: toolHit.makerHandle,
-        },
+        duplicate: dup.duplicate,
       },
       { status: 409 }
     );
   }
-  const subHit = await findActiveSubmissionByDomain(domain);
-  if (subHit) {
+  if (dup.duplicate) {
     return NextResponse.json(
       {
         error: "A submission for this domain is already in the queue",
-        duplicate: { kind: "submission", name: subHit.name },
+        duplicate: dup.duplicate,
       },
       { status: 409 }
     );
   }
 
   // Rate limit 2: 3 submissions per email per 7 days (PRD §11).
-  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
-  const recentCount = await countSubmissionsSince(data.email.toLowerCase(), weekAgo);
+  const weekAgoMs = Date.now() - 7 * 86_400_000;
+  const recentCount = await shadowSubmissionCountSince(
+    createServerConvexClient()!,
+    data.email.toLowerCase(),
+    weekAgoMs,
+  );
   if (recentCount >= 3) {
     return NextResponse.json(
       { error: "Weekly limit reached: 3 submissions per email per 7 days." },
@@ -155,31 +149,40 @@ export async function POST(req: NextRequest) {
     ? data.websiteUrl
     : `https://${data.websiteUrl}`;
 
-  const submission = await createSubmission({
-    email: data.email.toLowerCase(),
-    websiteUrl: cleanUrl,
-    domain,
-    name: data.name,
-    tagline: data.tagline,
-    description: data.description,
-    categorySlug: data.categorySlug,
-    tags: data.tags.join("|"),
-    pricingModel: data.pricingModel,
-    startingPrice: data.startingPrice || null,
-    pricingNote: data.pricingNote || null,
-    hasApi: data.hasApi,
-    githubUrl: data.githubUrl || null,
-    docsUrl: data.docsUrl || null,
-    twitterUrl: data.twitterUrl || null,
-    logoEmoji: data.logoEmoji,
-    logoGradient: data.logoGradient,
-    isOwner: data.isOwner,
-    confirmedLive: data.confirmedLive,
-    agreedStandards: data.agreedStandards,
-  });
-
-  return NextResponse.json(
-    { ok: true, id: submission.id, position: await pendingQueuePosition(submission.id) },
-    { status: 201 }
-  );
+  // One id + timestamp for the insert; position resolves post-insert.
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  try {
+    const res = await convexSubmissionCreate(createServerConvexClient()!, {
+      id,
+      email: data.email.toLowerCase(),
+      websiteUrl: cleanUrl,
+      domain,
+      name: data.name,
+      tagline: data.tagline,
+      description: data.description,
+      categorySlug: data.categorySlug,
+      tags: data.tags,
+      pricingModel: data.pricingModel,
+      startingPrice: data.startingPrice || undefined,
+      pricingNote: data.pricingNote || undefined,
+      hasApi: data.hasApi,
+      githubUrl: data.githubUrl || undefined,
+      docsUrl: data.docsUrl || undefined,
+      twitterUrl: data.twitterUrl || undefined,
+      logoEmoji: data.logoEmoji,
+      logoGradient: data.logoGradient,
+      isOwner: data.isOwner,
+      confirmedLive: data.confirmedLive,
+      agreedStandards: data.agreedStandards,
+      createdAt: now,
+    });
+    return NextResponse.json(
+      { ok: true, id: res.id, position: res.position },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("[api:submit] POST failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
