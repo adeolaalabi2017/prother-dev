@@ -944,6 +944,10 @@ export function convexAuthHandlesTaken(c: Client) {
   return c.query(api.authStore.authHandlesTaken, {});
 }
 
+export function convexAuthUserByHandle(c: Client, handle: string) {
+  return c.query(api.authStore.authUserByHandle, { handle });
+}
+
 export function convexAuthUserCreate(
   c: Client,
   args: {

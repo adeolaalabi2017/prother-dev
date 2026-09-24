@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guard, logAudit } from "@/lib/admin";
-import { updateUserModeration } from "@/lib/users";
-import { convexUserModerate } from "@/lib/data";
+import { convexAuthSessionsDeleteByUser, convexUserModerate } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
@@ -45,36 +44,38 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
-  // Dual-write stays until the Auth phase (plan §6): user rows + sessions
-  // live in the micro-SQLite auth db (see lib/users.ts); Convex is the
-  // bridge mirror. Session revocation on ban stays SQLite-side.
+  // Convex-only (Auth phase): the shared users row is moderated here;
+  // banning revokes live Convex sessions immediately.
+  const client = createServerConvexClient()!;
   try {
-    await convexUserModerate(createServerConvexClient()!, {
+    await convexUserModerate(client, {
       userLegacyId: id,
       role,
       status,
       image,
     });
   } catch (err) {
-    console.error("[dual-write] convex userModerate failed:", id, err);
-  }
-
-  try {
-    const res = await updateUserModeration(id, { role, status, image });
-    if (!res.ok) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("not_found")) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    logAudit(
-      "user.moderate",
-      "user",
-      id,
-      [role ? `role→${role}` : null, status ? `status→${status}` : null, image !== undefined ? "avatar" : null]
-        .filter(Boolean)
-        .join(", ")
-    );
-    return NextResponse.json({ ok: true, role, status, image });
-  } catch (err) {
     console.error("[api:admin/users] PATCH failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
+  if (status === "banned") {
+    try {
+      await convexAuthSessionsDeleteByUser(client, id);
+    } catch (err) {
+      console.error("[api:admin/users] session revocation failed:", id, err);
+    }
+  }
+  logAudit(
+    "user.moderate",
+    "user",
+    id,
+    [role ? `role→${role}` : null, status ? `status→${status}` : null, image !== undefined ? "avatar" : null]
+      .filter(Boolean)
+      .join(", ")
+  );
+  return NextResponse.json({ ok: true, role, status, image });
 }

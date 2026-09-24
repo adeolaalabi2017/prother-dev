@@ -37,6 +37,8 @@ function serializeUser(u: {
   image?: string;
   handle?: string;
   bio?: string;
+  role?: string;
+  status?: string;
   createdAt: number;
 }) {
   return {
@@ -47,6 +49,10 @@ function serializeUser(u: {
     image: u.image ?? null,
     handle: u.handle ?? null,
     bio: u.bio ?? null,
+    // Role/status travel for profile + moderation reads (ignored by the
+    // NextAuth adapter mapping, which only takes the AdapterUser fields).
+    role: u.role ?? "member",
+    status: u.status ?? "active",
     createdAt: isoFromMs(u.createdAt),
   };
 }
@@ -95,6 +101,19 @@ export const authHandlesTaken = query({
   handler: async (ctx) => {
     const users = await ctx.db.query("users").collect();
     return users.map((u) => u.handle).filter((h): h is string => !!h);
+  },
+});
+
+/** Profile reads and handle-clash checks by @handle. */
+export const authUserByHandle = query({
+  args: { handle: v.string() },
+  handler: async (ctx, { handle }) => {
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_handle", (i) => i.eq("handle", handle))
+      .collect();
+    const u = users[0];
+    return u ? serializeUser(u) : null;
   },
 });
 

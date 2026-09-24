@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { aq, axUnsafe } from "@/lib/authdb";
+import { convexAuthUserByHandle, convexAuthUserById, convexAuthUserPatch } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
-import { api } from "../../../../../convex/_generated/api.js";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/user/profile — the signed-in user's editable profile
- * (name, @handle, bio, avatar image URL). Phase 5: identity store is the
- * micro-SQLite auth db (same columns, same shapes).
+ * (name, @handle, bio, avatar image URL). Auth phase (option C): the
+ * identity store is the shared Convex `users` table (same row the admin
+ * roster and ban checks read).
  */
 export async function GET() {
   const user = await getAuthUser();
@@ -17,22 +17,12 @@ export async function GET() {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
   try {
-    const rows = aq<{
-      id: string;
-      name: string | null;
-      handle: string | null;
-      bio: string | null;
-      image: string | null;
-      role: string;
-      createdAt: string;
-    }>`
-      SELECT id, name, handle, bio, image, role, createdAt
-      FROM "User" WHERE id = ${user.id} LIMIT 1`;
-    const row = rows[0];
-    if (!row) {
+    const profile = await convexAuthUserById(createServerConvexClient()!, user.id);
+    if (!profile) {
       return NextResponse.json({ error: "Account not found." }, { status: 404 });
     }
-    return NextResponse.json({ profile: row });
+    const { id, name, handle, bio, image, role, createdAt } = profile;
+    return NextResponse.json({ profile: { id, name, handle, bio, image, role, createdAt } });
   } catch (err) {
     console.error("[api/user/profile] get failed", err);
     return NextResponse.json(
@@ -128,66 +118,28 @@ export async function PATCH(req: Request) {
   }
 
   try {
+    const client = createServerConvexClient()!;
     // Handle uniqueness is enforced in the identity store.
     if (data.handle !== undefined) {
-      const clash = aq<{ id: string }>`
-        SELECT id FROM "User" WHERE handle = ${data.handle} LIMIT 1`;
-      if (clash[0] && clash[0].id !== user.id) {
+      const clash = await convexAuthUserByHandle(client, data.handle);
+      if (clash && clash.id !== user.id) {
         return NextResponse.json(
           { error: `The handle @${data.handle} is already taken.` },
           { status: 409 }
         );
       }
     }
-    const sets: string[] = [];
-    const values: unknown[] = [];
-    if (data.name !== undefined) {
-      sets.push(`"name" = ?`);
-      values.push(data.name);
-    }
-    if (data.handle !== undefined) {
-      sets.push(`"handle" = ?`);
-      values.push(data.handle);
-    }
-    if (data.bio !== undefined) {
-      sets.push(`"bio" = ?`);
-      values.push(data.bio);
-    }
-    if (data.image !== undefined) {
-      sets.push(`"image" = ?`);
-      values.push(data.image);
-    }
-    axUnsafe(`UPDATE "User" SET ${sets.join(", ")} WHERE "id" = ?`, ...values, user.id);
-    // Sync the directory profile immediately (same fields the sign-in
-    // bridge patches — no waiting for the next login).
-    try {
-      const client = createServerConvexClient();
-      if (client) {
-        await client.mutation(api.users.ensureFromAuth, {
-          id: user.id,
-          email: user.email,
-          name: data.name,
-          handle: data.handle,
-          image: data.image,
-          bio: data.bio,
-          createdAt: Date.now(),
-        });
-      }
-    } catch (err) {
-      console.error("[profile] convex sync failed:", user.id, err);
-    }
-    const updated = aq<{
-      id: string;
-      name: string | null;
-      handle: string | null;
-      bio: string | null;
-      image: string | null;
-      role: string;
-      createdAt: string;
-    }>`
-      SELECT id, name, handle, bio, image, role, createdAt
-      FROM "User" WHERE id = ${user.id} LIMIT 1`[0];
-    return NextResponse.json({ profile: updated });
+    const updated = await convexAuthUserPatch(client, {
+      id: user.id,
+      name: data.name,
+      handle: data.handle,
+      bio: data.bio,
+      image: data.image,
+    });
+    // The users row IS the directory profile (shared table) — no bridge
+    // sync needed; the admin roster and ban checks read this same row.
+    const { id, name, handle, bio, image, role, createdAt } = updated;
+    return NextResponse.json({ profile: { id, name, handle, bio, image, role, createdAt } });
   } catch (err) {
     console.error("[api/user/profile] patch failed", err);
     return NextResponse.json(
