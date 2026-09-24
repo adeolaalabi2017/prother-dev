@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
 import {
-  categoryFeaturesByIds,
-  parseFeatureAxes,
-  setCategoryFeatures,
-} from "@/lib/features";
+  convexCategoryDelete,
+  convexCategoryUpsert,
+  shadowAdminCategories,
+} from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -32,22 +32,10 @@ export async function GET(req: Request) {
   const denied = guard(req);
   if (denied) return denied;
 
-  const categories = await db.category.findMany({
-    orderBy: { sortOrder: "asc" },
-    include: { _count: { select: { tools: true } } },
-  });
-  // POST-boot column → raw SQL merge (stale-PrismaClient rule).
-  const featureMap = await categoryFeaturesByIds(categories.map((c) => c.id));
-  return NextResponse.json({
-    categories: categories.map((c) => ({
-      id: c.id,
-      slug: c.slug,
-      name: c.name,
-      emoji: c.emoji,
-      sortOrder: c.sortOrder,
-      toolCount: c._count.tools,
-      features: (featureMap.get(c.id) ?? []).join("|"),
-    })),
+  // Convex-only (admin cutover).
+  const res = await shadowAdminCategories(createServerConvexClient()!);
+  return NextResponse.json(res, {
+    headers: { "x-data-backend": "convex" },
   });
 }
 
@@ -60,30 +48,61 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
   const { id, features, ...data } = parsed.data;
+  const client = createServerConvexClient()!;
+  const convexErr = (err: unknown): string =>
+    err instanceof Error ? err.message : String(err);
   if (id) {
+    // Convex-only: verify the row exists first (the mutation's upsert
+    // would otherwise create on unknown ids; Prisma returned 400).
     try {
-      const cat = await db.category.update({ where: { id }, data });
-      if (features !== undefined) {
-        // POST-boot column → raw SQL (stale-PrismaClient rule).
-        await setCategoryFeatures(id, parseFeatureAxes(features));
+      const table = await shadowAdminCategories(client);
+      const existing = table.categories.find((c) => c.id === id);
+      if (!existing) {
+        return NextResponse.json({ error: "Update failed" }, { status: 400 });
       }
-      logAudit("category.update", "category", id, `${cat.slug} → ${cat.name}${features !== undefined ? " + features" : ""}`);
-      return NextResponse.json({ ok: true, id: cat.id });
-    } catch {
+      await convexCategoryUpsert(client, {
+        legacyId: id,
+        slug: data.slug,
+        name: data.name,
+        emoji: data.emoji,
+        sortOrder: data.sortOrder,
+        featuresPipe: features,
+      });
+      logAudit("category.update", "category", id, `${data.slug} → ${data.name}${features !== undefined ? " + features" : ""}`);
+      return NextResponse.json({ ok: true, id });
+    } catch (err) {
+      const m = convexErr(err);
+      if (m.includes("slug_taken")) {
+        return NextResponse.json({ error: "Update failed" }, { status: 400 });
+      }
+      console.error("[api:admin/categories] update failed:", id, err);
       return NextResponse.json({ error: "Update failed" }, { status: 400 });
     }
   }
-  const max = await db.category.aggregate({ _max: { sortOrder: true } });
+  // Create path: shared id + max+1 sortOrder resolved from the Convex table.
+  const sharedId = crypto.randomUUID();
   try {
-    const cat = await db.category.create({
-      data: { ...data, sortOrder: data.sortOrder ?? (max._max.sortOrder ?? 0) + 1 },
+    const table = await shadowAdminCategories(client);
+    const maxSort = table.categories.reduce((m, c) => Math.max(m, c.sortOrder), 0);
+    const res = await convexCategoryUpsert(client, {
+      legacyId: sharedId,
+      slug: data.slug,
+      name: data.name,
+      emoji: data.emoji,
+      sortOrder: data.sortOrder ?? maxSort + 1,
+      featuresPipe: features,
     });
-    if (features !== undefined) {
-      await setCategoryFeatures(cat.id, parseFeatureAxes(features));
+    logAudit("category.create", "category", res.id, data.slug);
+    return NextResponse.json({ ok: true, id: res.id });
+  } catch (err) {
+    const m = convexErr(err);
+    if (m.includes("slug_taken")) {
+      return NextResponse.json(
+        { error: "Slug already exists" },
+        { status: 409 }
+      );
     }
-    logAudit("category.create", "category", cat.id, cat.slug);
-    return NextResponse.json({ ok: true, id: cat.id });
-  } catch {
+    console.error("[api:admin/categories] create failed:", data.slug, err);
     return NextResponse.json(
       { error: "Slug already exists" },
       { status: 409 }
@@ -98,15 +117,24 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  const count = await db.tool.count({ where: { categoryId: id } });
-  if (count > 0) {
-    return NextResponse.json(
-      { error: `${count} tool${count === 1 ? "" : "s"} still use this category` },
-      { status: 409 }
-    );
+  // Convex-only: the mutation enforces the attached-tools guard itself.
+  try {
+    const res = await convexCategoryDelete(createServerConvexClient()!, { legacyId: id });
+    logAudit("category.delete", "category", id, res.slug);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("has_tools:")) {
+      const count = Number(m.split(":")[1] ?? 0);
+      return NextResponse.json(
+        { error: `${count} tool${count === 1 ? "" : "s"} still use this category` },
+        { status: 409 }
+      );
+    }
+    if (m.includes("not_found")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    console.error("[api:admin/categories] delete failed:", id, err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-  const cat = await db.category.delete({ where: { id } }).catch(() => null);
-  if (!cat) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  logAudit("category.delete", "category", id, cat.slug);
-  return NextResponse.json({ ok: true });
 }
