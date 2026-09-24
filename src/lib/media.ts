@@ -16,18 +16,10 @@ export {
 } from "@/lib/media-limits";
 
 /**
- * Media library helpers (Task 34).
+ * Media library helpers (Task 34) — metadata rows plus Convex file storage.
  *
- * Media and the Tool.logoUrl / Tool.screenshotUrls / Post.coverUrl columns are
- * POST-boot schema: the long-running dev server can hold a cached pre-v8
- * PrismaClient that does not know them, so EVERY read/write here goes through
- * raw SQL (same rule as Category.features — see lib/features.ts and the
- * stale-PrismaClient note in lib/forum.ts). Standalone scripts may use the
- * ORM freely.
- *
- * Files live in <projectRoot>/uploads/ (outside public/, gitignored) and are
- * served by GET /api/media/[id] so the storage layout never leaks and cache
- * headers stay under our control.
+ * Tool logo/screenshot and post cover references are plain /api/media/{id}
+ * URLs served by GET /api/media/[id] (307 to the storage object).
  */
 
 // ── Limits (client + server enforced; Task 34 brief) ─────────────────────

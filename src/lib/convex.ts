@@ -1,16 +1,15 @@
 /**
- * Convex client plumbing (Phase 1 of the Convex migration).
+ * Convex client plumbing.
  *
  * - Server components / route handlers: `createServerConvexClient()` returns
  *   a fetch-based `ConvexHttpClient` (Workers-safe, no Node APIs). Returns
- *   null when `NEXT_PUBLIC_CONVEX_URL` is unset so call sites can fall back
- *   to the Prisma path during the dual-run phases.
+ *   null when `NEXT_PUBLIC_CONVEX_URL` is unset.
  * - Client components: `<ConvexClientProvider>` (in
  *   components/prother/convex-provider.tsx) mounts the realtime
  *   `ConvexReactClient` behind a no-op until components opt into `useQuery`.
  *
- * Nothing reads Convex yet — Prisma remains the source of truth until
- * the Phase 4 route-by-route cutover. See docs/convex-migration-plan.md.
+ * Convex is the source of truth for reads and writes (cutover complete);
+ * micro-SQLite auth.db remains for NextAuth sessions only (Auth phase).
  */
 import { ConvexHttpClient } from "convex/browser";
 

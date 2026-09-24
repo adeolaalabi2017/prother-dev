@@ -24,8 +24,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const denied = guard(req);
   if (denied) return denied;
-  // Convex-only read (admin cutover). Writes stay dual-write until the
-  // secrets slice: sentinel-echo merging needs the Prisma-stored secrets.
+  // Convex-only read (admin cutover).
   const res = await shadowAdminIntegrations(createServerConvexClient()!);
   return NextResponse.json(res, {
     headers: { "x-data-backend": "convex" },

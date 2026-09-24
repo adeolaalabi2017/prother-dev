@@ -11,9 +11,9 @@ import { shadowSitemapData } from "@/lib/data";
  * honest lastmod dates from their listing date; posts from
  * publishedAt/updatedAt.
  *
- * ORDER NOTE (Phase 4 step 7): the tool block follows each backend's
- * unordered scan order (SQLite rowid vs Convex index) — the two sequences
- * differ but the URL SET is identical (verified). Sitemap order is
+ * ORDER NOTE: the tool block follows the Convex index scan order, which
+ * differs from the old SQLite rowid order — but the URL SET is identical
+ * (verified during the cutover). Sitemap order is
  * non-contractual for crawlers, so this is whitelisted, not normalized.
  */
 export const dynamic = "force-dynamic";
