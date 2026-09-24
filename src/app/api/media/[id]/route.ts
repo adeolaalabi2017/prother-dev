@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { guard, logAudit } from "@/lib/admin";
 import {
-  deleteMedia,
+  deleteUploadFile,
   getMediaById,
   mediaUrl,
-  parseMediaUrls,
   readUploadFile,
-  setToolScreenshots,
-  toolMediaByIds,
 } from "@/lib/media";
-import { db } from "@/lib/prother";
+import { axUnsafe } from "@/lib/authdb";
+import { convexMediaDeleteFull } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -68,35 +67,16 @@ export async function DELETE(req: Request, ctx: RouteContext) {
     }
     const url = mediaUrl(row.id);
 
-    // Clear Tool.logoUrl + Post.coverUrl references.
-    await db.$executeRaw`UPDATE Tool SET logoUrl = NULL WHERE logoUrl = ${url}`;
-    await db.$executeRaw`UPDATE Post SET coverUrl = NULL WHERE coverUrl = ${url}`;
-
-    // Drop the url from any Tool.screenshotUrls pipe.
-    const tools = await db.$queryRaw<{
-      id: string;
-      screenshotUrls: string | null;
-    }[]>`
-      SELECT id, screenshotUrls FROM Tool
-      WHERE screenshotUrls LIKE ${"%" + url + "%"}`;
-    if (tools.length > 0) {
-      const mediaMap = await toolMediaByIds(tools.map((t) => t.id));
-      for (const t of tools) {
-        const remaining = parseMediaUrls(t.screenshotUrls).filter(
-          (u) => u !== url
-        );
-        await setToolScreenshots(t.id, remaining);
-      }
-      void mediaMap;
+    // Phase 5: tool/post references clear transactionally in Convex; avatar
+    // references clear in the identity store; bytes delete from disk.
+    await convexMediaDeleteFull(createServerConvexClient()!, { id });
+    try {
+      axUnsafe(`UPDATE "User" SET image = NULL WHERE image = ?`, url);
+    } catch {
+      // best effort
     }
+    await deleteUploadFile(row.storedName).catch(() => null);
 
-    // Remove avatar references on users.
-    await db.user.updateMany({ data: { image: null }, where: { image: url } });
-
-    const ok = await deleteMedia(id);
-    if (!ok) {
-      return NextResponse.json({ error: "Media not found." }, { status: 404 });
-    }
     logAudit("media.delete", "media", id, row.originalName);
     return NextResponse.json({ ok: true });
   } catch (err) {

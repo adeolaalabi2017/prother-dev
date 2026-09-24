@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { buildCompareMatrix, MAX_COMPARE_TOOLS } from "@/lib/compare";
+import { shadowCompareMatrix } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
+
+/** Max tools per comparison (mirrors lib/compare MAX_COMPARE_TOOLS). */
+const MAX_COMPARE_TOOLS = 4;
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +27,21 @@ export async function GET(req: Request) {
     .filter(Boolean)
     .slice(0, MAX_COMPARE_TOOLS);
 
+  // Convex-only (compare cutover).
   try {
-    const matrix = await buildCompareMatrix(category, tools);
-    if (!matrix) {
-      return NextResponse.json({ error: "category_not_found" }, { status: 404 });
+    const res = await shadowCompareMatrix(
+      createServerConvexClient()!,
+      category,
+      tools,
+    );
+    if ("error" in res) {
+      return NextResponse.json(res, {
+        status: res.error === "category_required" ? 400 : 404,
+        headers: { "x-data-backend": "convex" },
+      });
     }
-    return NextResponse.json(matrix, {
-      headers: { "Cache-Control": "no-store" },
+    return NextResponse.json(res, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
     });
   } catch {
     return NextResponse.json({ error: "matrix_failed" }, { status: 500 });
