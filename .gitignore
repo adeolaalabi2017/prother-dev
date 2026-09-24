@@ -68,3 +68,6 @@ db/auth.db-shm
 # (.env* already covers .env.local). NOTE: convex/_generated IS committed
 # on purpose — CI has no Convex deployment to regenerate it, and the
 # typecheck + Next build need it present.
+
+# Wrangler local preview vars (machine-specific URLs — never commit)
+.dev.vars

@@ -48,6 +48,10 @@ bun run cf:deploy           # build + deploy → https://prother.<account>.worke
 - Local dev with real bindings: `NEXT_CF_DEV=1 bun run dev`.
 - Local dev against Convex: `npx convex dev` + `.env.local` with
   `NEXT_PUBLIC_CONVEX_URL` (and `AUTH_STORE=convex` for the Convex session store).
+- Local Worker preview caveat: workerd cannot reach host-loopback URLs, so
+  `.dev.vars` must use a LAN-reachable Convex URL (e.g.
+  `http://192.168.x.x:3210`, not `http://127.0.0.1:3210`). The same applies
+  to any private-IP backend behind `global_fetch_strictly_public`.
 - Windows shells don't support the `VAR=value cmd` prefix used by the `cf:*`
   scripts — run under WSL/Git Bash, or set `NEXT_OUTPUT=cloudflare` manually.
 
