@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
+import { convexSettingsPut, shadowAdminSettings } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -22,12 +24,10 @@ export async function GET(req: Request) {
   const denied = guard(req);
   if (denied) return denied;
 
-  const rows = await db.siteSetting.findMany({ orderBy: { key: "asc" } });
-  return NextResponse.json({
-    settings: Object.fromEntries(rows.map((r) => [r.key, r.value])),
-    updatedAt: Object.fromEntries(
-      rows.map((r) => [r.key, r.updatedAt.toISOString()])
-    ),
+  // Convex-only read (admin cutover).
+  const res = await shadowAdminSettings(createServerConvexClient()!);
+  return NextResponse.json(res, {
+    headers: { "x-data-backend": "convex" },
   });
 }
 
@@ -50,6 +50,17 @@ export async function PUT(req: NextRequest) {
       update: { value },
       create: { key, value },
     });
+  }
+  // Dual-write stays until the flag reader migrates (plan §5): Prisma is
+  // authoritative for backend.* flags (backend-flags.ts queries SQLite
+  // directly), Convex is mirrored best-effort and unconditionally so the
+  // mirror never goes stale.
+  try {
+    await convexSettingsPut(createServerConvexClient()!, {
+      entries: entries.map(([key, value]) => ({ key, value })),
+    });
+  } catch (err) {
+    console.error("[dual-write] convex settingsPut failed:", entries.map(([k]) => k).join(","), err);
   }
   logAudit("settings.update", "settings", "", entries.map(([k]) => k).join(", "));
   return NextResponse.json({ ok: true, updated: entries.length });
