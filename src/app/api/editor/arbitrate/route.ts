@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { EDITOR_KEY } from "@/lib/prother";
+import { editorKey } from "@/lib/prother";
 import { logAudit } from "@/lib/admin";
 import { convexArbitrateClaim, convexArbitrateReview, shadowEditorQueue } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
@@ -29,7 +29,8 @@ const schema = z.discriminatedUnion("type", [
  * - review spam   → remove the review outright
  */
 export async function POST(req: NextRequest) {
-  if (req.headers.get("x-editor-key") !== EDITOR_KEY) {
+  const key = editorKey();
+  if (key == null || req.headers.get("x-editor-key") !== key) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

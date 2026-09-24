@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { EDITOR_KEY, slugifyName } from "@/lib/prother";
+import { editorKey, slugifyName } from "@/lib/prother";
 import { convexEditorDecide, shadowEditorQueue } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
@@ -28,7 +28,8 @@ const bodySchema = z.discriminatedUnion("decision", [
 ]);
 
 export async function POST(req: NextRequest) {
-  if (req.headers.get("x-editor-key") !== EDITOR_KEY) {
+  const key = editorKey();
+  if (key == null || req.headers.get("x-editor-key") !== key) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

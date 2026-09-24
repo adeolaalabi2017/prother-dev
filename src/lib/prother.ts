@@ -65,8 +65,19 @@ export type ToolDetailResponse = {
   contentUpdatedAt?: string | null;
 };
 
-/** Demo stand-in for real auth (NextAuth ships in the stack for Phase 2). */
-export const EDITOR_KEY = "ember-dev";
+/**
+ * Admin/editor gate key. `ADMIN_KEY` (fallback: legacy `EDITOR_KEY`) must be
+ * set in production — when it is absent there is NO valid key and every
+ * guarded route 401s (fail closed). Local dev falls back to "ember-dev"
+ * so the console works without extra setup. Never commit a real key:
+ * production sets it via `wrangler secret put` / server env.
+ */
+export function editorKey(): string | null {
+  const v = (process.env.ADMIN_KEY ?? process.env.EDITOR_KEY ?? "").trim();
+  if (v) return v;
+  if (process.env.NODE_ENV === "production") return null;
+  return "ember-dev";
+}
 
 /** Unique slug for an approved tool (name → slug, -2/-3 on collision). */
 export function slugifyName(name: string): string {

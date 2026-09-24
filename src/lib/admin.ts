@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { db, EDITOR_KEY } from "@/lib/prother";
+import { editorKey } from "@/lib/prother";
 import { createServerConvexClient } from "@/lib/convex";
 import { api } from "../../convex/_generated/api.js";
 
 /**
  * Admin auth + audit helpers for the Admin Console APIs.
- * Same demo-key scheme as the editor desk (EDITOR_KEY + `x-editor-key`
- * header) until NextAuth lands in Phase 2 — one gate, one key, everywhere.
+ * Single gate everywhere: the `x-editor-key` header must equal the
+ * server-side admin key (ADMIN_KEY env; fail-closed in production).
  */
 export function isAdmin(req: Request): boolean {
-  return req.headers.get("x-editor-key") === EDITOR_KEY;
+  const key = editorKey();
+  return key != null && req.headers.get("x-editor-key") === key;
 }
 
 export function unauthorized() {
@@ -22,9 +23,8 @@ export function guard(req: Request): NextResponse | null {
 }
 
 /** Fire-and-forget audit trail write (PRD §16 — moderation_decisions analog).
- *  Phase 4 step 7: appends to Convex first (the admin overview reads it from
- *  there when flagged), Prisma mirror second. Failures never break the
- *  request path. entityId carries the Prisma cuid (= Convex legacyId). */
+ *  Convex-only: the admin overview reads the trail from there. Failures
+ *  never break the request path. entityId carries the legacy cuid. */
 export function logAudit(
   action: string,
   entity: string,
@@ -44,13 +44,8 @@ export function logAudit(
           createdAt: Date.now(),
         });
       }
-    } catch {
-      // fall through to Prisma
-    }
-    try {
-      await db.auditLog.create({ data: { action, entity, entityId, meta } });
-    } catch {
-      /* audit must never break the request path */
+    } catch (err) {
+      console.error("[audit] append failed:", action, entity, err);
     }
   })();
 }
