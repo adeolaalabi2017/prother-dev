@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 import { guard, logAudit } from "@/lib/admin";
 import {
   INTEGRATION_CATEGORIES,
-  deleteIntegration,
-  listIntegrations,
-  upsertIntegration,
+  SECRET_SENTINEL,
+  isSecretField,
+  parseIntegrationConfig,
   type IntegrationCategory,
 } from "@/lib/integrations";
+import {
+  convexIntegrationDelete,
+  convexIntegrationUpsert,
+  shadowAdminIntegrationRaw,
+  shadowAdminIntegrations,
+} from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -17,16 +24,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const denied = guard(req);
   if (denied) return denied;
-  try {
-    const integrations = await listIntegrations();
-    return NextResponse.json({ integrations, categories: INTEGRATION_CATEGORIES });
-  } catch (err) {
-    console.error("[api/admin/integrations] list failed", err);
-    return NextResponse.json(
-      { error: "Could not load integrations." },
-      { status: 500 }
-    );
-  }
+  // Convex-only read (admin cutover). Writes stay dual-write until the
+  // secrets slice: sentinel-echo merging needs the Prisma-stored secrets.
+  const res = await shadowAdminIntegrations(createServerConvexClient()!);
+  return NextResponse.json(res, {
+    headers: { "x-data-backend": "convex" },
+  });
 }
 
 type PutBody = {
@@ -80,13 +83,36 @@ export async function PUT(req: Request) {
   }
 
   try {
-    await upsertIntegration({
+    const client = createServerConvexClient()!;
+    // Convex-only (admin cutover): sentinel echoes merge against the
+    // Convex-stored secrets (mirrors lib/integrations upsertIntegration).
+    // Masked round-trips never destroy credentials: echoed masks keep the
+    // stored value, and stored secrets absent from the form are preserved.
+    const sharedId = `int_${crypto.randomUUID()}`;
+    const raw = await shadowAdminIntegrationRaw(client, key);
+    const stored = parseIntegrationConfig(raw?.configJson ?? "{}");
+    const isMasked = (v: string) =>
+      v === SECRET_SENTINEL || v.startsWith(`${SECRET_SENTINEL}:`);
+    const merged: Record<string, string> = {};
+    for (const [field, value] of Object.entries(config)) {
+      merged[field] = isMasked(value) ? (stored[field] ?? "") : value;
+    }
+    for (const [field, value] of Object.entries(stored)) {
+      if (!(field in merged) && isSecretField(field) && value) {
+        merged[field] = value;
+      }
+    }
+    const nowMs = Date.now();
+    await convexIntegrationUpsert(client, {
+      legacyId: sharedId,
       key,
       name: name.slice(0, 60),
       category,
       enabled: body.enabled === true,
-      config,
+      configJson: JSON.stringify(merged),
       notes: typeof body.notes === "string" ? body.notes.slice(0, 500) : "",
+      createdAt: nowMs,
+      updatedAt: nowMs,
     });
     logAudit(
       "integration.save",
@@ -94,8 +120,10 @@ export async function PUT(req: Request) {
       key,
       `${name} (${category}${body.enabled === true ? ", enabled" : ""})`
     );
-    const integrations = await listIntegrations();
-    return NextResponse.json({ integrations, categories: INTEGRATION_CATEGORIES });
+    const res = await shadowAdminIntegrations(client);
+    return NextResponse.json(res, {
+      headers: { "x-data-backend": "convex" },
+    });
   } catch (err) {
     const message =
       err instanceof Error && /key must be/.test(err.message)
@@ -117,18 +145,23 @@ export async function DELETE(req: Request) {
       { status: 400 }
     );
   }
+  // Convex-only (admin cutover): the mutation throws not_found.
   try {
-    const ok = await deleteIntegration(key);
-    if (!ok) {
+    const client = createServerConvexClient()!;
+    await convexIntegrationDelete(client, { key });
+    logAudit("integration.delete", "integration", key, "");
+    const res = await shadowAdminIntegrations(client);
+    return NextResponse.json(res, {
+      headers: { "x-data-backend": "convex" },
+    });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("not_found")) {
       return NextResponse.json(
         { error: "Integration not found." },
         { status: 404 }
       );
     }
-    logAudit("integration.delete", "integration", key, "");
-    const integrations = await listIntegrations();
-    return NextResponse.json({ integrations, categories: INTEGRATION_CATEGORIES });
-  } catch (err) {
     console.error("[api/admin/integrations] delete failed", err);
     return NextResponse.json(
       { error: "Could not delete the integration." },

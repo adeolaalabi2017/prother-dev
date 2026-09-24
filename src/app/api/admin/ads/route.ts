@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guard, logAudit } from "@/lib/admin";
-import { AD_PLACEMENTS, AD_STATUSES, createCampaign, listCampaigns } from "@/lib/ads";
-import { getPlacementMeasurement } from "@/lib/ad-measure";
+import { AD_PLACEMENTS, AD_STATUSES } from "@/lib/ads";
+import { convexCampaignCreate, shadowAdminAds, shadowPlacementMeasurement } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -33,18 +34,18 @@ export async function GET(req: NextRequest) {
   const denied = guard(req);
   if (denied) return denied;
 
-  try {
-    const payload = await listCampaigns();
-    // Task 28: 7-day fill/viewability accounting for the Measurement card.
-    const measurement = await getPlacementMeasurement();
-    return NextResponse.json(
-      { ...payload, measurement },
-      { headers: { "Cache-Control": "no-store" } }
-    );
-  } catch (err) {
-    console.error("[api:admin/ads] GET failed:", err);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
-  }
+  // Convex-only (admin cutover).
+  const client = createServerConvexClient()!;
+  const [table, measurement] = await Promise.all([
+    shadowAdminAds(client),
+    shadowPlacementMeasurement(client),
+  ]);
+  return NextResponse.json(
+    { ...table, measurement },
+    {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    },
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -60,14 +61,36 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { id } = await createCampaign(parsed.data);
+    // Convex-only: one id + timestamps for the insert.
+    const sharedId = crypto.randomUUID();
+    const nowMs = Date.now();
+    const res = await convexCampaignCreate(createServerConvexClient()!, {
+      id: sharedId,
+      name: parsed.data.name,
+      advertiser: parsed.data.advertiser,
+      placement: parsed.data.placement,
+      headline: parsed.data.headline,
+      body: parsed.data.body,
+      clickUrl: parsed.data.clickUrl,
+      emoji: parsed.data.emoji,
+      gradient: parsed.data.gradient,
+      targetCategory: parsed.data.targetCategory,
+      weight: parsed.data.weight,
+      startsAt: parsed.data.startsAt ? new Date(parsed.data.startsAt).getTime() : null,
+      endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt).getTime() : null,
+      totalBudgetCents: parsed.data.totalBudgetCents,
+      dailyBudgetCents: parsed.data.dailyBudgetCents,
+      status: parsed.data.status,
+      createdAt: nowMs,
+      updatedAt: nowMs,
+    });
     logAudit(
       "ad.create",
       "campaign",
-      id,
+      res.id,
       `${parsed.data.name} (${parsed.data.placement}, ${parsed.data.status})`
     );
-    return NextResponse.json({ ok: true, id }, { status: 201 });
+    return NextResponse.json({ ok: true, id: res.id }, { status: 201 });
   } catch (err) {
     console.error("[api:admin/ads] POST failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
