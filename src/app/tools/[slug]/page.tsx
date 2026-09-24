@@ -247,6 +247,7 @@ export default async function ToolPage({ params }: Params) {
   const bundle = await getConvexBundle(slug);
   if (!bundle || !bundle.tool || bundle.tool.status !== "live") notFound();
   const tool = bundle.tool;
+  const name = tool.name;
 
   // ── Full live listing — everything below is server-rendered ────────────
   const [stats, reviews, threads, relatedRows, mediaMap, editorialMap, categoryToolCount] =

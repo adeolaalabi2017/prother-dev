@@ -51,10 +51,9 @@ export async function PUT(req: NextRequest) {
       create: { key, value },
     });
   }
-  // Dual-write stays until the flag reader migrates (plan §5): Prisma is
-  // authoritative for backend.* flags (backend-flags.ts queries SQLite
-  // directly), Convex is mirrored best-effort and unconditionally so the
-  // mirror never goes stale.
+  // Dual-write: Prisma stays as the settings backup (it also fed the
+  // retired per-route backend.* flag reader); Convex is mirrored
+  // unconditionally so the mirror never goes stale.
   try {
     await convexSettingsPut(createServerConvexClient()!, {
       entries: entries.map(([key, value]) => ({ key, value })),
