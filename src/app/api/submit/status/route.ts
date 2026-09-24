@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { listSubmissionsByEmail } from "@/lib/prother";
+import { shadowSubmissionsByEmail } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,12 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const items = await listSubmissionsByEmail(parsed.data.email);
-  return NextResponse.json(
-    { items },
-    { headers: { "Cache-Control": "no-store" } }
+  // Convex-only (submit cutover): maker status from the Convex read.
+  const res = await shadowSubmissionsByEmail(
+    createServerConvexClient()!,
+    parsed.data.email,
   );
+  return NextResponse.json(res, {
+    headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+  });
 }
