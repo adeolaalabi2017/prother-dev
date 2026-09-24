@@ -29,6 +29,7 @@ import type {
   VerificationToken as AdapterVerificationToken,
 } from "next-auth/adapters";
 import { aq, aqUnsafe, ax, axUnsafe } from "@/lib/authdb";
+import { convexAdapter, isConvexAuthStoreEnabled } from "@/lib/auth-convex-adapter";
 import { createServerConvexClient } from "@/lib/convex";
 import { api } from "../../convex/_generated/api.js";
 
@@ -305,7 +306,9 @@ const googleConfigured = Boolean(
 );
 
 export const authOptions: NextAuthOptions = {
-  adapter: prismaAdapter,
+  // Auth phase (option C): AUTH_STORE=convex serves sessions from Convex
+  // (default sqlite keeps the micro-SQLite adapter until verified).
+  adapter: isConvexAuthStoreEnabled() ? convexAdapter : prismaAdapter,
   session: { strategy: "database", maxAge: 30 * 24 * 3600 },
   pages: {}, // default pages; the header opens its own sign-in popover that posts to /api/auth/*
   providers: [
