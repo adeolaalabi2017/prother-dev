@@ -18,6 +18,18 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // The `convex` package ships a Node variant of its browser entry
+  // (`index-node.js` → `simple_client-node.js`, which inlines the `ws`
+  // Node WebSocket client + native addon shims) selected via the `node`
+  // export condition. That graph throws at module evaluation on workerd,
+  // and our server paths only ever need the fetch-based ConvexHttpClient
+  // — so resolve `convex/browser` straight at the browser entry, whose
+  // transitive imports are all Workers-safe.
+  turbopack: {
+    resolveAlias: {
+      "convex/browser": "./node_modules/convex/dist/esm/browser/index.js",
+    },
+  },
 };
 
 export default nextConfig;
