@@ -64,6 +64,7 @@ db/auth.db
 db/auth.db-wal
 db/auth.db-shm
 
-# Convex (Phase 1 migration): codegen regenerates on `npx convex dev`;
-# local deployment credentials stay out of git (.env* already covers .env.local)
-convex/_generated/
+# Convex (Phase 1 migration): local deployment credentials stay out of git
+# (.env* already covers .env.local). NOTE: convex/_generated IS committed
+# on purpose — CI has no Convex deployment to regenerate it, and the
+# typecheck + Next build need it present.
