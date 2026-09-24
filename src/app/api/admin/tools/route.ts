@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
-import { setToolFeatures, toolFeaturesByIds } from "@/lib/features";
+import { validateEditorialPatch, type ToolEditorialPatch } from "@/lib/tool-editorial";
 import {
-  setToolLogo,
-  setToolScreenshots,
-  toolMediaByIds,
-} from "@/lib/media";
-import {
-  applyToolEditorial,
-  editorialByToolIds,
-  validateEditorialPatch,
-  type ToolEditorialPatch,
-} from "@/lib/tool-editorial";
+  convexToolCreate,
+  convexToolPatch,
+  convexToolRemove,
+  shadowAdminTools,
+} from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -136,17 +130,14 @@ function slugifyName(name: string): string {
   return base;
 }
 
-async function uniqueSlug(base: string): Promise<string> {
-  let candidate = base;
-  for (let i = 2; i < 60; i++) {
-    const exists = await db.tool.findUnique({
-      where: { slug: candidate },
-      select: { id: true },
-    });
-    if (!exists) return candidate;
-    candidate = `${base}-${i}`;
-  }
-  return `${base}-${Date.now().toString(36)}`;
+/** Slug candidates for listing names (uniqueness resolves by retrying the
+ *  create on the mutation's slug_taken error). */
+function slugCandidates(base: string): string[] {
+  return [
+    base,
+    ...Array.from({ length: 58 }, (_, i) => `${base}-${i + 2}`),
+    `${base}-${Date.now().toString(36)}`,
+  ];
 }
 
 const createSchema = z.object({
@@ -189,109 +180,10 @@ export async function GET(req: NextRequest) {
   const status = sp.get("status") ?? "";
   const category = sp.get("category") ?? "";
 
-  const where: Prisma.ToolWhereInput = {};
-  if (q) {
-    where.OR = [
-      { name: { contains: q } },
-      { tagline: { contains: q } },
-      { slug: { contains: q } },
-    ];
-  }
-  if (status && status !== "all") where.status = status;
-  if (category) where.categoryId = category;
-
-  const tools = await db.tool.findMany({
-    where,
-    // Explicit select — full-row Tool reads break on a stale pre-v6 cached
-    // PrismaClient (it still SELECTs the dropped relaunch columns).
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      tagline: true,
-      description: true,
-      websiteUrl: true,
-      logoEmoji: true,
-      logoGradient: true,
-      pricingModel: true,
-      startingPrice: true,
-      pricingNote: true,
-      hasApi: true,
-      githubUrl: true,
-      docsUrl: true,
-      twitterUrl: true,
-      tags: true,
-      track: true,
-      status: true,
-      pinned: true,
-      editorsPick: true,
-      curated: true,
-      claimed: true,
-      makerHandle: true,
-      verifiedAt: true,
-      createdAt: true,
-      category: { select: { id: true, name: true, emoji: true, slug: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
-
-  // Per-tool discussion/review counts — raw SQL (Comment joins are cheap;
-  // Review is a post-boot model → $queryRaw per the lib/community note).
-  const ids = tools.map((t) => t.id);
-  const [commentRows, reviewRows] = await Promise.all([
-    ids.length
-      ? db.$queryRaw<{ toolId: string; n: number }[]>`
-          SELECT toolId, COUNT(*) as n
-          FROM Comment
-          WHERE toolId IN (${Prisma.join(ids)})
-          GROUP BY toolId`
-      : Promise.resolve([] as { toolId: string; n: number }[]),
-    ids.length
-      ? db.$queryRaw<{ toolId: string; n: number }[]>`
-          SELECT toolId, COUNT(*) as n
-          FROM Review
-          WHERE status = 'published' AND toolId IN (${Prisma.join(ids)})
-          GROUP BY toolId`
-      : Promise.resolve([] as { toolId: string; n: number }[]),
-  ]);
-  const commentCount = new Map(commentRows.map((r) => [r.toolId, Number(r.n)]));
-  const reviewCount = new Map(reviewRows.map((r) => [r.toolId, Number(r.n)]));
-  const featureMap = await toolFeaturesByIds(ids);
-  // POST-boot media columns → raw SQL (stale-PrismaClient rule).
-  const mediaMap = await toolMediaByIds(ids);
-  // POST-boot editorial columns → raw SQL (lib/tool-editorial.ts).
-  const editorialMap = await editorialByToolIds(ids);
-
-  return NextResponse.json({
-    tools: tools.map((t) => {
-      const ed = editorialMap.get(t.id);
-      return {
-        // Base fields (name/slug/tagline/...): Task 34-c — the spread was
-        // accidentally dropped when the media fields below were added, which
-        // blanked every row in the Admin Listings table.
-        ...t,
-        features: featureMap.get(t.id) ?? {},
-        logoUrl: mediaMap.get(t.id)?.logoUrl ?? null,
-        screenshotUrls: mediaMap.get(t.id)?.screenshotUrls ?? [],
-        // Editorial enrichment (Task 35) — arrays pre-parsed for the console.
-        longDescription: ed?.longDescription ?? null,
-        useCases: ed?.useCases ?? [],
-        pros: ed?.pros ?? [],
-        cons: ed?.cons ?? [],
-        alternatives: ed?.alternativeSlugs ?? [],
-        pricingCheckedAt: ed?.pricingCheckedAt
-          ? ed.pricingCheckedAt.toISOString()
-          : null,
-        contentUpdatedAt: ed?.contentUpdatedAt
-          ? ed.contentUpdatedAt.toISOString()
-          : null,
-        category: t.category,
-        comments: commentCount.get(t.id) ?? 0,
-        reviews: reviewCount.get(t.id) ?? 0,
-        createdAt: t.createdAt.toISOString(),
-      };
-    }),
+  // Convex-only (admin cutover).
+  const res = await shadowAdminTools(createServerConvexClient()!, q, status, category);
+  return NextResponse.json(res, {
+    headers: { "x-data-backend": "convex" },
   });
 }
 
@@ -310,63 +202,68 @@ export async function POST(req: NextRequest) {
   const data = parsed.data;
 
   // Editorial enrichment (Task 35) — validated up front so an invalid patch
-  // never creates a half-listing; applied AFTER create (raw SQL below).
-  const editorialPatch = editorialPatchOf(data);
-  const editorialError = editorialErrorResponse(editorialPatch);
+  // never creates a half-listing.
+  const editorialError = editorialErrorResponse(editorialPatchOf(data));
   if (editorialError) return editorialError;
 
-  // The category must exist and stay attached (FK).
-  const category = await db.category
-    .findUnique({ where: { id: data.categoryId }, select: { id: true } })
-    .catch(() => null);
-  if (!category) {
-    return NextResponse.json({ error: "Category not found" }, { status: 400 });
-  }
-
-  const slug = await uniqueSlug(data.slug?.trim() || slugifyName(data.name));
-  try {
-    const tool = await db.tool.create({
-      data: {
+  const slugBase = data.slug?.trim() || slugifyName(data.name);
+  // Convex-only: one id + timestamp for the insert; slug candidates retry
+  // on the mutation's slug_taken error (atomic check-and-insert).
+  const toolId = crypto.randomUUID();
+  const nowMs = Date.now();
+  const client = createServerConvexClient()!;
+  for (const slug of slugCandidates(slugBase)) {
+    try {
+      const res = await convexToolCreate(client, {
+        id: toolId,
         slug,
         name: data.name,
         tagline: data.tagline,
-        description: data.description || null,
+        description: data.description || undefined,
         websiteUrl: data.websiteUrl,
-        categoryId: data.categoryId,
+        categoryLegacyId: data.categoryId,
         pricingModel: data.pricingModel,
-        startingPrice: data.startingPrice || null,
-        pricingNote: data.pricingNote || null,
+        startingPrice: data.startingPrice || undefined,
+        pricingNote: data.pricingNote || undefined,
         hasApi: data.hasApi,
         logoEmoji: data.logoEmoji || "⬡",
         logoGradient: data.logoGradient || "from-orange-500 to-amber-700",
-        tags: data.tags,
+        tagsPipe: data.tags,
         makerHandle: data.makerHandle,
         status: data.status,
         editorsPick: data.editorsPick,
         curated: data.curated,
-        track: "editor_seed",
-      },
-      select: { id: true, slug: true },
-    });
-    logAudit("tool.create", "tool", tool.id, tool.slug);
-    // POST-boot media columns → raw SQL (stale-PrismaClient rule).
-    if (data.logoUrl !== undefined) {
-      await setToolLogo(tool.id, data.logoUrl);
+        logoUrl: data.logoUrl,
+        screenshotUrls: data.screenshotUrls,
+        editorial: {
+          longDescription: data.longDescription,
+          useCases: data.useCases,
+          pros: data.pros,
+          cons: data.cons,
+          alternatives: data.alternatives,
+          pricingChecked: data.pricingChecked,
+        },
+        createdAt: nowMs,
+      });
+      logAudit("tool.create", "tool", res.id, res.slug);
+      return NextResponse.json({ ok: true, id: res.id, slug: res.slug });
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      if (m.includes("slug_taken")) continue;
+      if (m.includes("category_not_found")) {
+        return NextResponse.json({ error: "Category not found" }, { status: 400 });
+      }
+      console.error("[api:admin/tools] create failed:", data.name, err);
+      return NextResponse.json(
+        { error: "Create failed (slug conflict?)" },
+        { status: 409 }
+      );
     }
-    if (data.screenshotUrls !== undefined) {
-      await setToolScreenshots(tool.id, data.screenshotUrls);
-    }
-    // POST-boot editorial columns → raw SQL (stale-PrismaClient rule).
-    if (Object.keys(editorialPatch).length > 0) {
-      await applyToolEditorial(tool.id, editorialPatch);
-    }
-    return NextResponse.json({ ok: true, id: tool.id, slug: tool.slug });
-  } catch {
-    return NextResponse.json(
-      { error: "Create failed (slug conflict?)" },
-      { status: 409 }
-    );
   }
+  return NextResponse.json(
+    { error: "Create failed (slug conflict?)" },
+    { status: 409 }
+  );
 }
 
 export async function PATCH(req: NextRequest) {
@@ -416,57 +313,34 @@ export async function PATCH(req: NextRequest) {
   const editorialError = editorialErrorResponse(editorialPatch);
   if (editorialError) return editorialError;
 
+  // Convex-only: single-transaction patch (media, features, editorial all
+  // included). verifiedAt travels as epoch ms.
+  const nowMs = Date.now();
   try {
-    let slug = "";
-    if (Object.keys(data).length > 0) {
-      const tool = await db.tool.update({
-        where: { id },
-        data,
-        // Narrow return — stale cached clients SELECT dropped columns on full-row returns.
-        select: { slug: true },
-      });
-      slug = tool.slug;
-    }
-    if (features !== undefined) {
-      // POST-boot column → raw SQL (stale-PrismaClient rule).
-      await setToolFeatures(id, features);
-      if (!slug) {
-        const row = await db.$queryRaw<{ slug: string }[]>`
-          SELECT slug FROM Tool WHERE id = ${id}`;
-        slug = row[0]?.slug ?? "";
-      }
-    }
-    // POST-boot media columns → raw SQL (stale-PrismaClient rule).
-    if (logoUrl !== undefined) {
-      await setToolLogo(id, logoUrl);
-      if (!slug) {
-        const row = await db.$queryRaw<{ slug: string }[]>`
-          SELECT slug FROM Tool WHERE id = ${id}`;
-        slug = row[0]?.slug ?? "";
-      }
-    }
-    if (screenshotUrls !== undefined) {
-      await setToolScreenshots(id, screenshotUrls);
-      if (!slug) {
-        const row = await db.$queryRaw<{ slug: string }[]>`
-          SELECT slug FROM Tool WHERE id = ${id}`;
-        slug = row[0]?.slug ?? "";
-      }
-    }
-    // POST-boot editorial columns → raw SQL (stale-PrismaClient rule).
-    if (Object.keys(editorialPatch).length > 0) {
-      await applyToolEditorial(id, editorialPatch);
-      if (!slug) {
-        const row = await db.$queryRaw<{ slug: string }[]>`
-          SELECT slug FROM Tool WHERE id = ${id}`;
-        slug = row[0]?.slug ?? "";
-      }
-    }
+    // verifiedAt travels as epoch ms (the patch schema holds a Date).
+    const { categoryId, ...convexRest } = data as Record<string, unknown> & {
+      categoryId?: string;
+      verifiedAt?: Date;
+    };
+    delete convexRest.verifiedAt;
+    const res = await convexToolPatch(createServerConvexClient()!, {
+      toolLegacyId: id,
+      data: {
+        ...convexRest,
+        ...(categoryId ? { categoryLegacyId: categoryId } : {}),
+        ...(verify ? { verifiedAt: nowMs } : {}),
+      },
+      features,
+      logoUrl,
+      screenshotUrls,
+      editorial: editorialPatch,
+      nowMs,
+    });
     logAudit(
       "tool.update",
       "tool",
       id,
-      `${slug}: ${[
+      `${res.slug}: ${[
         ...Object.keys(data),
         ...(features !== undefined ? ["features"] : []),
         ...(logoUrl !== undefined ? ["logoUrl"] : []),
@@ -474,9 +348,14 @@ export async function PATCH(req: NextRequest) {
         ...Object.keys(editorialPatch),
       ].join(", ")}`
     );
-    return NextResponse.json({ ok: true, slug });
-  } catch {
-    return NextResponse.json({ error: "Tool not found" }, { status: 404 });
+    return NextResponse.json({ ok: true, slug: res.slug });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("not_found")) {
+      return NextResponse.json({ error: "Tool not found" }, { status: 404 });
+    }
+    console.error("[api:admin/tools] PATCH failed:", id, err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
 
@@ -487,14 +366,17 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  // Soft delete per PRD §16 — history/reviews survive, soft-404 UX.
-  const tool = await db.tool.update({
-    where: { id },
-    data: { status: "removed" },
-    select: { slug: true },
-  }).catch(() => null);
-  if (!tool) return NextResponse.json({ error: "Tool not found" }, { status: 404 });
-
-  logAudit("tool.remove", "tool", id, tool.slug);
-  return NextResponse.json({ ok: true, slug: tool.slug });
+  // Convex-only soft-remove (status → removed, PRD §16).
+  try {
+    const res = await convexToolRemove(createServerConvexClient()!, { toolLegacyId: id });
+    logAudit("tool.remove", "tool", id, res.slug);
+    return NextResponse.json({ ok: true, slug: res.slug });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("not_found")) {
+      return NextResponse.json({ error: "Tool not found" }, { status: 404 });
+    }
+    console.error("[api:admin/tools] DELETE failed:", id, err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
