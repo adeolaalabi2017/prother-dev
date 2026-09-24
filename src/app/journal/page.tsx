@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { JournalIndex } from "@/components/prother/journal-index";
 import { AdSlot } from "@/components/prother/ad-slot";
-import { db } from "@/lib/prother";
-import { postCoversByIds } from "@/lib/media";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { placementEnabled } from "@/lib/ad-config";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowJournalList } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -46,33 +46,13 @@ export const metadata: Metadata = {
 
 /** /journal — the index. Real routes (not overlays) for crawlable articles. */
 export default async function JournalPage() {
-  const posts = await db.post.findMany({
-    where: { status: "published" },
-    orderBy: { publishedAt: "desc" },
-    take: 24,
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      category: true,
-      tags: true,
-      coverEmoji: true,
-      coverGradient: true,
-      author: true,
-      readingMinutes: true,
-      publishedAt: true,
-    },
-  });
-
-  const coverMap = await postCoversByIds(posts.map((p) => p.id));
-
-  const cards = posts.map((p) => ({
+  // Convex-only (journal cutover): published-desc order + cover merge.
+  const res = await shadowJournalList(createServerConvexClient()!, 24);
+  const cards = res.posts.map((p) => ({
     ...p,
-    tags: p.tags ? p.tags.split("|").filter(Boolean) : [],
-    publishedAt: p.publishedAt?.toISOString() ?? null,
-    // POST-boot column → raw SQL merge (lib/media.ts; never in the select).
-    coverUrl: coverMap.get(p.id) ?? null,
+    id: p.id ?? p.slug,
+    tags: p.tags,
+    publishedAt: p.publishedAt,
   }));
 
   // Blog JSON-LD — list of BlogPostings for crawlers.

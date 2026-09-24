@@ -2,24 +2,31 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Clock3, Feather } from "lucide-react";
-import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
-import { postCoversByIds } from "@/lib/media";
 import { renderMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { PostViewPing } from "@/components/prother/post-view-ping";
 import { AdSlot } from "@/components/prother/ad-slot";
 import { placementEnabled } from "@/lib/ad-config";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowBlogDetail } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ slug: string }> };
 
 async function getPublishedPost(slug: string) {
-  const post = await db.post.findUnique({ where: { slug } });
-  if (!post || post.status !== "published") return null;
-  return post;
+  // Convex-only (journal cutover): Prisma-shaped bundle (pipe tags + Dates).
+  const res = await shadowBlogDetail(createServerConvexClient()!, slug);
+  if ("error" in res) return null;
+  const p = res.post;
+  return {
+    ...p,
+    tags: p.tags.join("|"),
+    publishedAt: p.publishedAt ? new Date(p.publishedAt) : null,
+    updatedAt: new Date(p.updatedAt),
+  };
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -74,8 +81,8 @@ export default async function JournalArticlePage({ params }: Params) {
   const html = renderMarkdown(post.body);
   const tags = post.tags ? post.tags.split("|").filter(Boolean) : [];
   const journalBarOn = await placementEnabled("journal_bar");
-  // POST-boot cover column → raw SQL merge (lib/media.ts; never in a select).
-  const coverUrl = (await postCoversByIds([post.id])).get(post.id) ?? null;
+  // Cover ships on the Convex post row (no raw-SQL merge needed).
+  const coverUrl = post.coverUrl ?? null;
 
   const jsonLd = {
     "@context": "https://schema.org",
