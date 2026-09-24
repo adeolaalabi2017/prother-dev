@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pin, ShieldX } from "lucide-react";
-import { getForumThreadDetail, isForumThreadHidden } from "@/lib/forum";
 import { clamp } from "@/lib/og";
 import { FORUM_TOPIC_LABELS } from "@/lib/forum-topics";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowForumThread } from "@/lib/data";
 import {
   ForumThreadActions,
   ForumTime,
@@ -15,12 +16,48 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ slug: string }> };
 
+/**
+ * Convex-only thread detail (hidden-aware): null = missing (404),
+ * { hidden } = moderated notice (200 + noindex).
+ */
+async function getDetail(slug: string): Promise<{
+  detail: {
+    thread: {
+      id: string;
+      slug: string;
+      title: string;
+      body: string;
+      topic: keyof typeof FORUM_TOPIC_LABELS;
+      author: string;
+      pinned: boolean;
+      votes: number;
+      createdAt: string;
+      updatedAt: string;
+    };
+    replies: { id: string; author: string; body: string; createdAt: string }[];
+    voted: boolean;
+  } | null;
+  hidden: boolean;
+}> {
+  const res = await shadowForumThread(createServerConvexClient()!, slug);
+  if (!res) return { detail: null, hidden: false };
+  if ("hidden" in res) return { detail: null, hidden: true };
+  return {
+    detail: {
+      thread: res.thread,
+      replies: res.replies,
+      voted: res.voted,
+    },
+    hidden: false,
+  };
+}
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  const detail = await getForumThreadDetail(slug);
+  const { detail, hidden } = await getDetail(slug);
   if (!detail) {
     // Hidden threads keep the URL alive (200 + noindex) with a generic title.
-    if (await isForumThreadHidden(slug)) {
+    if (hidden) {
       return {
         title: "Thread removed | Prother Forums",
         robots: { index: false, follow: false },
@@ -56,11 +93,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 /** /forums/[slug] — the real, crawlable thread page (server-fetched via db). */
 export default async function ForumThreadPage({ params }: Params) {
   const { slug } = await params;
-  const detail = await getForumThreadDetail(slug);
+  const { detail, hidden } = await getDetail(slug);
   if (!detail) {
     // Moderated thread: stay 200 + noindex (metadata above), show a notice
     // instead of the body/replies. Never leak the removed content.
-    if (await isForumThreadHidden(slug)) {
+    if (hidden) {
       return (
         <div className="bg-ink pb-16 md:pb-0">
           <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">

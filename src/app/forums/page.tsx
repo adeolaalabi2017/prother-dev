@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { ForumIndex } from "@/components/prother/forum-index";
 import { AdSlot } from "@/components/prother/ad-slot";
-import { forumListPayload } from "@/lib/forum";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { siteUrl } from "@/lib/site-url";
 import { placementEnabled } from "@/lib/ad-config";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowForumList } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,13 @@ export const metadata: Metadata = {
 export default async function ForumsPage() {
   // SSR the default view (all topics, hot) so the first paint has content;
   // the client shell re-fetches with the viewer's voterKey after mount.
-  const initial = await forumListPayload("all", "hot");
+  // Convex-only (forum cutover).
+  const initial = await shadowForumList(
+    createServerConvexClient()!,
+    "all",
+    "hot",
+    undefined,
+  );
 
   // ItemList over the SSR'd hot threads — gives crawlers thread discovery
   // straight from the index page (thread pages carry DiscussionForumPosting).
