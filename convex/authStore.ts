@@ -341,6 +341,43 @@ export const authVerificationTokenConsume = mutation({
   },
 });
 
+/** Full account erasure (GDPR-style): user row + accounts, sessions, and
+ *  verification tokens keyed by email or legacy id. Returns what was removed.
+ *  Throws user_not_found when no user row matches. */
+export const authUserDeleteFull = mutation({
+  args: { id: v.string() },
+  handler: async (ctx, { id }) => {
+    const users = await ctx.db.query("users").collect();
+    const u = users.find((x) => docId(x) === id || x.email === id);
+    if (!u) throw new Error("user_not_found");
+    const uid = docId(u);
+    const [accounts, sessions, tokens] = await Promise.all([
+      ctx.db.query("authAccounts").collect(),
+      ctx.db.query("authSessions").collect(),
+      ctx.db.query("authVerificationTokens").collect(),
+    ]);
+    const ownedSessions = sessions.filter((s) => s.userLegacyId === uid);
+    const ownedTokens = tokens.filter(
+      (t) => u.email != null && t.identifier === u.email,
+    );
+    const ownedAccounts = accounts.filter((r) => r.userLegacyId === uid);
+    await Promise.all([
+      ...ownedAccounts.map((r) => ctx.db.delete(r._id)),
+      ...ownedSessions.map((s) => ctx.db.delete(s._id)),
+      ...ownedTokens.map((t) => ctx.db.delete(t._id)),
+    ]);
+    await ctx.db.delete(u._id);
+    return {
+      ok: true as const,
+      removed: {
+        accounts: ownedAccounts.length,
+        sessions: ownedSessions.length,
+        tokens: ownedTokens.length,
+      },
+    };
+  },
+});
+
 // ── One-time backfill (auth.db → Convex; run via script, then delete) ────
 
 export const authBackfill = mutation({

@@ -1078,3 +1078,20 @@ export const settingsPut = mutation({
     return { ok: true as const, updated: entries.length };
   },
 });
+
+/** Remove settings keys (admin cleanup — complements settingsPut). */
+export const settingsRemove = mutation({
+  args: { keys: v.array(v.string()) },
+  handler: async (ctx, { keys }) => {
+    const rows = await ctx.db.query("siteSettings").collect();
+    const wanted = new Set(keys);
+    let removed = 0;
+    for (const r of rows) {
+      if (wanted.has(r.key)) {
+        await ctx.db.delete(r._id);
+        removed++;
+      }
+    }
+    return { ok: true as const, removed };
+  },
+});
