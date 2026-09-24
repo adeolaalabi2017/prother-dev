@@ -5,7 +5,6 @@ import {
   kindForMime,
   maxBytesForMime,
   mediaUrl,
-  saveUploadFile,
 } from "@/lib/media";
 import {
   FAVICON_MAX_BYTES,
@@ -45,13 +44,15 @@ function fail(status: number, error: string) {
 
 export async function handleMediaUpload(
   req: Request,
-  opts: { ownerKey: string; allowedPurposes: string[] }
+  opts: { ownerKey: string; allowedPurposes: string[]; form?: FormData }
 ): Promise<NextResponse> {
-  let form: FormData;
-  try {
-    form = await req.formData();
-  } catch {
-    return fail(400, "Expected multipart form data with a file field.");
+  let form = opts.form;
+  if (!form) {
+    try {
+      form = await req.formData();
+    } catch {
+      return fail(400, "Expected multipart form data with a file field.");
+    }
   }
 
   const file = form.get("file");
@@ -107,17 +108,17 @@ export async function handleMediaUpload(
     Number.isInteger(height) && height > 0 && height <= 20000 ? height : null;
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const storedName = await saveUploadFile(bytes, mime);
   const row = await createMediaRow({
     kind,
     mimeType: mime,
     size: bytes.byteLength,
     originalName: file.name.slice(0, 180) || "upload",
-    storedName,
     width: kind === "image" ? w : null,
     height: kind === "image" ? h : null,
     purpose,
     ownerKey: opts.ownerKey,
+    // Bytes go straight to Convex storage (Workers-safe).
+    bytes,
   });
 
   const result: UploadResult = {

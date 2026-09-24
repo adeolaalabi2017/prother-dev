@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 import { guard, logAudit } from "@/lib/admin";
-import {
-  deleteUploadFile,
-  getMediaById,
-  mediaUrl,
-  readUploadFile,
-} from "@/lib/media";
+import { getMediaById, mediaUrl } from "@/lib/media";
 import { axUnsafe } from "@/lib/authdb";
-import { convexMediaDeleteFull } from "@/lib/data";
+import { convexMediaDeleteFull, shadowMediaServeUrl } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
@@ -15,40 +10,30 @@ export const dynamic = "force-dynamic";
 type RouteContext = { params: Promise<{ id: string }> };
 
 /**
- * GET /api/media/[id] — stream the stored bytes (public read; images and
- * videos are referenced from public pages). Immutable caching: media ids are
- * never reused, so browsers cache for a year.
+ * GET /api/media/[id] — serve the stored bytes (public read; images and
+ * videos are referenced from public pages). Storage-first: rows with a
+ * Convex storage object 307-redirect to it (immutable, year-cached —
+ * media ids are never reused). Pre-migration disk-only rows stream from
+ * disk as before. The /api/media/{id} URL contract never changes, so all
+ * existing logo/screenshot/cover/avatar references keep working.
  */
 export async function GET(_req: Request, ctx: RouteContext) {
   const { id } = await ctx.params;
-  try {
-    const row = await getMediaById(id);
-    if (!row) {
-      return NextResponse.json({ error: "Media not found." }, { status: 404 });
-    }
-    const bytes = await readUploadFile(row.storedName);
-    if (!bytes) {
-      return NextResponse.json(
-        { error: "Media file is missing from storage." },
-        { status: 404 }
-      );
-    }
-    return new Response(new Uint8Array(bytes), {
-      status: 200,
-      headers: {
-        "Content-Type": row.mimeType,
-        "Content-Length": String(bytes.byteLength),
-        "Cache-Control": "public, max-age=31536000, immutable",
-        ETag: `"${row.id}"`,
-      },
+  const client = createServerConvexClient()!;
+  // Storage-only serve (cutover complete): redirect to the Convex object,
+  // else 404. Pre-migration disk-only rows have no bytes anymore — the
+  // message tells editors to re-upload.
+  const serve = await shadowMediaServeUrl(client, id).catch(() => null);
+  if (serve) {
+    return NextResponse.redirect(serve.url, {
+      status: 307,
+      headers: { "Cache-Control": "public, max-age=31536000, immutable" },
     });
-  } catch (err) {
-    console.error("[api/media/[id]] read failed", err);
-    return NextResponse.json(
-      { error: "Could not read the media file." },
-      { status: 500 }
-    );
   }
+  return NextResponse.json(
+    { error: "Media file is missing from storage." },
+    { status: 404 }
+  );
 }
 
 /**
@@ -67,15 +52,14 @@ export async function DELETE(req: Request, ctx: RouteContext) {
     }
     const url = mediaUrl(row.id);
 
-    // Phase 5: tool/post references clear transactionally in Convex; avatar
-    // references clear in the identity store; bytes delete from disk.
+    // Storage object + references clear transactionally in Convex; avatar
+    // references clear in the identity store.
     await convexMediaDeleteFull(createServerConvexClient()!, { id });
     try {
       axUnsafe(`UPDATE "User" SET image = NULL WHERE image = ?`, url);
     } catch {
       // best effort
     }
-    await deleteUploadFile(row.storedName).catch(() => null);
 
     logAudit("media.delete", "media", id, row.originalName);
     return NextResponse.json({ ok: true });

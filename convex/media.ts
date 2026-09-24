@@ -110,12 +110,17 @@ export const mediaCreate = mutation({
     mimeType: v.string(),
     size: v.number(),
     originalName: v.string(),
-    storedName: v.string(),
+    // Pre-migration label only (no bytes behind it since the storage
+    // cutover — new rows omit it).
+    storedName: v.optional(v.string()),
     width: v.optional(v.union(v.number(), v.null())),
     height: v.optional(v.union(v.number(), v.null())),
     purpose: v.string(),
     ownerKey: v.string(),
     createdAt: v.number(),
+    // Convex file storage id (Workers-safe bytes). Absent for pre-migration
+    // rows whose bytes only ever lived on disk (see lib/media.ts).
+    storageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, a) => {
     const id = await ctx.db.insert("media", {
@@ -128,6 +133,7 @@ export const mediaCreate = mutation({
       height: a.height ?? undefined,
       purpose: a.purpose,
       ownerKey: a.ownerKey,
+      storageId: a.storageId,
       legacyId: a.id,
       createdAt: a.createdAt,
     });
@@ -135,7 +141,33 @@ export const mediaCreate = mutation({
   },
 });
 
-/** Delete the row + clear tool/post references (avatars + bytes: route). */
+/** Short-lived upload URL for route-side direct-to-storage puts. The
+ *  route POSTs the validated bytes there, then passes the returned
+ *  storage id to mediaCreate (dual-written to disk during transition). */
+export const mediaUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/** Public serve URL for a row's storage bytes. Null when the row has no
+ *  storage object yet (pre-migration disk-only rows) — the route falls
+ *  back to disk, then 404s. */
+export const mediaServeUrl = query({
+  args: { id: v.string() },
+  handler: async (ctx, { id }) => {
+    const rows = await ctx.db.query("media").collect();
+    const row = rows.find((r) => docId(r) === id);
+    if (!row?.storageId) return null;
+    const url = await ctx.storage.getUrl(row.storageId);
+    return url ? { url } : null;
+  },
+});
+
+/** Delete the row + clear tool/post references (avatars + bytes: route).
+ *  The storage object goes with the row when present; disk bytes are
+ *  removed route-side during the transition (see lib/media.ts). */
 export const mediaDeleteFull = mutation({
   args: { id: v.string() },
   handler: async (ctx, { id }) => {
@@ -157,6 +189,9 @@ export const mediaDeleteFull = mutation({
     }
     for (const p of posts) {
       if (p.coverUrl === url) await ctx.db.patch(p._id, { coverUrl: undefined });
+    }
+    if (row.storageId) {
+      await ctx.storage.delete(row.storageId);
     }
     await ctx.db.delete(row._id);
     return serialize(row);

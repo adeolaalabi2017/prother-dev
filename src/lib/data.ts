@@ -274,6 +274,16 @@ export function shadowMediaById(c: Client, id: string) {
   return c.query(api.media.mediaById, { id });
 }
 
+/** Short-lived direct-to-storage upload URL (route PUTs validated bytes). */
+export function convexMediaUploadUrl(c: Client) {
+  return c.mutation(api.media.mediaUploadUrl, {});
+}
+
+/** Public serve URL for a row's storage bytes (null = disk fallback). */
+export function shadowMediaServeUrl(c: Client, id: string) {
+  return c.query(api.media.mediaServeUrl, { id });
+}
+
 export function convexMediaCreate(
   c: Client,
   args: {
