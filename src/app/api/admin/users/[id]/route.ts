@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guard, logAudit } from "@/lib/admin";
 import { updateUserModeration } from "@/lib/users";
+import { convexUserModerate } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { role, status, image } = parsed.data;
   if (!role && !status && image === undefined) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
+  // Dual-write stays until the Auth phase (plan §6): user rows + sessions
+  // live in the micro-SQLite auth db (see lib/users.ts); Convex is the
+  // bridge mirror. Session revocation on ban stays SQLite-side.
+  try {
+    await convexUserModerate(createServerConvexClient()!, {
+      userLegacyId: id,
+      role,
+      status,
+      image,
+    });
+  } catch (err) {
+    console.error("[dual-write] convex userModerate failed:", id, err);
   }
 
   try {
