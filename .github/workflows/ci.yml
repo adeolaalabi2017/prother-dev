@@ -1,10 +1,14 @@
-# CI — lint, typecheck, and production build on every push / PR to main.
+# CI/CD — verify on every push/PR; deploy backend then frontend on main.
 #
 # Lint scope note: `eslint .` is not gated here because
 # src/components/prother/* carries pre-existing hook-rule debt in files
 # unrelated to the Convex migration (fails identically at the migration
 # base). The gated paths below are clean; widen the scope once that debt
 # is paid down.
+#
+# Deploy order matters: the worker build bakes NEXT_PUBLIC_CONVEX_URL and
+# must never ship against a failed backend push, so deploy-convex runs
+# first and deploy-worker needs them both green (plus verify).
 
 name: CI
 
@@ -44,3 +48,49 @@ jobs:
 
       - name: Production build
         run: bun run build
+
+  deploy-convex:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Deploy Convex functions
+        run: bunx convex deploy --yes
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+  deploy-worker:
+    needs: [verify, deploy-convex]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build and deploy to Cloudflare Workers
+        # NEXT_PUBLIC_* bake into client JS at build time; runtime secrets
+        # (ADMIN_KEY, NEXTAUTH_*, RESEND_*, GOOGLE_*) live in wrangler secrets.
+        run: |
+          NEXT_OUTPUT=cloudflare \
+          NEXT_PUBLIC_CONVEX_URL='${{ secrets.NEXT_PUBLIC_CONVEX_URL }}' \
+          NEXT_PUBLIC_SITE_URL='https://prother.dev' \
+          bunx opennextjs-cloudflare build
+          bunx opennextjs-cloudflare deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
