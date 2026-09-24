@@ -337,8 +337,27 @@ export const authOptions: NextAuthOptions = {
         if (DEV_LINKS_ENABLED) {
           devInbox.set(identifier.toLowerCase(), { url, at: Date.now() });
         }
-        // Real SMTP hook — replace this block with a Resend/Nodemailer call.
-        console.log(`[prother:auth] magic link for ${identifier}: ${url}`);
+        // Production transport: Resend (requires RESEND_API_KEY; the
+        // sending-restricted key is enough). Failures log loud but never
+        // break sign-in — the dev inbox still holds the link when enabled.
+        const apiKey = (process.env.RESEND_API_KEY ?? "").trim();
+        if (apiKey) {
+          try {
+            const { Resend } = await import("resend");
+            const { error } = await new Resend(apiKey).emails.send({
+              from:
+                process.env.EMAIL_FROM || "Prother <noreply@prother.dev>",
+              to: identifier,
+              subject: "Sign in to Prother",
+              html: `<p>Click the link below to sign in to Prother. It expires in 15 minutes.</p><p><a href="${url}">Sign in to Prother</a></p><p>If you didn't request this, you can ignore this email.</p>`,
+            });
+            if (error) throw new Error(`${error.name}: ${error.message}`);
+          } catch (err) {
+            console.error("[prother:auth] resend send failed:", identifier, err);
+          }
+        } else {
+          console.log(`[prother:auth] magic link for ${identifier}: ${url}`);
+        }
       },
       // Shorter than the default 24h — magic links should be short-lived.
       maxAge: 15 * 60,
