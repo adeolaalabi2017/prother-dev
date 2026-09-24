@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db, EDITOR_KEY } from "@/lib/prother";
+import { EDITOR_KEY } from "@/lib/prother";
 import { logAudit } from "@/lib/admin";
-import { approveClaimAndTransfer } from "@/lib/community";
+import { convexArbitrateClaim, convexArbitrateReview, shadowEditorQueue } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -43,81 +44,100 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_input" }, { status: 422 });
   }
 
+  const client = createServerConvexClient()!;
+  const convexErr = (err: unknown): string =>
+    err instanceof Error ? err.message : String(err);
+
   if (parsed.data.type === "claim") {
-    const claim = await db.$queryRaw<
-      { id: string; toolId: string; userEmail: string; userName: string }[]
-    >`
-      SELECT id, toolId, userEmail, userName FROM Claim
-      WHERE id = ${parsed.data.id} LIMIT 1`;
-    const row = claim[0];
+    // Convex-only (editor cutover): the mutation owns the claim→tool
+    // transfer atomically. Owner contact resolves from the queue read.
+    const queue = await shadowEditorQueue(client);
+    const row = queue.claims.find((c) => c.id === parsed.data.id);
     if (!row) {
       return NextResponse.json({ error: "claim_not_found" }, { status: 404 });
     }
 
     if (parsed.data.action === "verify") {
-      const tool = await db.$queryRaw<
-        { id: string; slug: string; claimed: number | boolean }[]
-      >`
-        SELECT id, slug, claimed FROM Tool WHERE id = ${row.toolId} LIMIT 1`;
-      const toolRow = tool[0];
-      if (!toolRow) {
-        return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
+      const handle = row.userName.replace(/^@/, "") || row.userEmail.split("@")[0];
+      try {
+        const res = await convexArbitrateClaim(client, {
+          claimId: row.id,
+          action: "verify",
+          email: row.userEmail,
+          handle,
+          now: Date.now(),
+        });
+        logAudit(
+          "claim.arbitrated",
+          "tool",
+          res.toolSlug,
+          `editor verified claim of ${res.userEmail}`
+        );
+        return NextResponse.json({ ok: true, decision: "verified" });
+      } catch (err) {
+        const m = convexErr(err);
+        if (m.includes("claim_not_found")) {
+          return NextResponse.json({ error: "claim_not_found" }, { status: 404 });
+        }
+        if (m.includes("tool_not_found")) {
+          return NextResponse.json({ error: "tool_not_found" }, { status: 404 });
+        }
+        if (m.includes("already_claimed")) {
+          return NextResponse.json({ error: "already_claimed" }, { status: 409 });
+        }
+        console.error("[api:editor/arbitrate] claim verify failed:", row.id, err);
+        return NextResponse.json({ error: "server_error" }, { status: 500 });
       }
-      if (toolRow.claimed) {
-        return NextResponse.json({ error: "already_claimed" }, { status: 409 });
-      }
-      await approveClaimAndTransfer(row.id, row.toolId, {
-        email: row.userEmail,
-        handle: row.userName.replace(/^@/, "") || row.userEmail.split("@")[0],
+    }
+
+    // dismiss → disputed is the terminal state (failed stays retryable).
+    try {
+      const res = await convexArbitrateClaim(client, {
+        claimId: row.id,
+        action: "dismiss",
+        note: parsed.data.note,
+        now: Date.now(),
       });
       logAudit(
         "claim.arbitrated",
         "tool",
-        toolRow.slug,
-        `editor verified claim of ${row.userEmail}`
+        res.toolSlug || row.toolSlug,
+        `editor dismissed claim of ${res.userEmail}`
       );
-      return NextResponse.json({ ok: true, decision: "verified" });
+      return NextResponse.json({ ok: true, decision: "dismissed" });
+    } catch (err) {
+      const m = convexErr(err);
+      if (m.includes("claim_not_found")) {
+        return NextResponse.json({ error: "claim_not_found" }, { status: 404 });
+      }
+      console.error("[api:editor/arbitrate] claim dismiss failed:", row.id, err);
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
     }
-
-    // dismiss → disputed is the terminal state (failed stays retryable).
-    await db.$executeRaw`
-      UPDATE Claim SET status = 'disputed', note = ${parsed.data.note ?? "Editor dismissed: ownership not established"}
-      WHERE id = ${row.id}`;
-    logAudit(
-      "claim.arbitrated",
-      "tool",
-      row.toolId,
-      `editor dismissed claim of ${row.userEmail}`
-    );
-    return NextResponse.json({ ok: true, decision: "dismissed" });
   }
 
   // ── Review moderation ───────────────────────────────────────────────────
-  const review = await db.$queryRaw<{ id: string; toolId: string }[]>`
-    SELECT id, toolId FROM Review WHERE id = ${parsed.data.id} LIMIT 1`;
-  if (!review[0]) {
-    return NextResponse.json({ error: "review_not_found" }, { status: 404 });
-  }
-
-  if (parsed.data.action === "publish") {
-    await db.$executeRaw`
-      UPDATE Review SET status = 'published', updatedAt = ${Date.now()}
-      WHERE id = ${parsed.data.id}`;
+  // Convex-only: the mutation validates existence (review_not_found).
+  try {
+    const res = await convexArbitrateReview(client, {
+      reviewId: parsed.data.id,
+      action: parsed.data.action,
+      now: Date.now(),
+    });
     logAudit(
       "review.moderated",
       "tool",
-      review[0].toolId,
-      `editor published filtered review ${parsed.data.id}`
+      res.toolLegacyId,
+      res.decision === "published"
+        ? `editor published filtered review ${parsed.data.id}`
+        : `editor removed spam review ${parsed.data.id}`
     );
-    return NextResponse.json({ ok: true, decision: "published" });
+    return NextResponse.json({ ok: true, decision: res.decision });
+  } catch (err) {
+    const m = convexErr(err);
+    if (m.includes("review_not_found")) {
+      return NextResponse.json({ error: "review_not_found" }, { status: 404 });
+    }
+    console.error("[api:editor/arbitrate] review moderate failed:", parsed.data.id, err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-
-  await db.$executeRaw`DELETE FROM Review WHERE id = ${parsed.data.id}`;
-  logAudit(
-    "review.moderated",
-    "tool",
-    review[0].toolId,
-    `editor removed spam review ${parsed.data.id}`
-  );
-  return NextResponse.json({ ok: true, decision: "spam" });
 }

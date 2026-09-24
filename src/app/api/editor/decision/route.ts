@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import {
-  db,
-  EDITOR_KEY,
-  setSubmissionStatus,
-  slugifyName,
-  uniqueToolSlug,
-} from "@/lib/prother";
+import { EDITOR_KEY, slugifyName } from "@/lib/prother";
+import { convexEditorDecide, shadowEditorQueue } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -51,24 +47,43 @@ export async function POST(req: NextRequest) {
     );
   }
   const input = parsed.data;
+  const client = createServerConvexClient()!;
+  const convexErr = (err: unknown): string =>
+    err instanceof Error ? err.message : String(err);
 
-  // Load the submission (raw — stale-client workaround documented in lib).
-  const found = await db.$queryRaw<
-    {
-      id: string; email: string; websiteUrl: string; domain: string;
-      name: string; tagline: string; description: string; categorySlug: string;
-      tags: string; pricingModel: string; startingPrice: string | null;
-      pricingNote: string | null; hasApi: number; githubUrl: string | null;
-      docsUrl: string | null; twitterUrl: string | null; logoEmoji: string;
-      logoGradient: string; isOwner: number; status: string;
-    }[]
-  >`
-    SELECT id, email, websiteUrl, domain, name, tagline, description,
-           categorySlug, tags, pricingModel, startingPrice, pricingNote,
-           hasApi, githubUrl, docsUrl, twitterUrl, logoEmoji, logoGradient,
-           isOwner, status
-    FROM Submission WHERE id = ${input.id} LIMIT 1`;
-  const sub = found[0];
+  if (input.decision === "reject") {
+    const note = `Failed: ${input.failedStandards.join(", ")}${
+      input.note ? `: ${input.note}` : ""
+    }`;
+    // Convex-only (editor cutover): the mutation validates pending status.
+    try {
+      const res = await convexEditorDecide(client, {
+        submissionId: input.id,
+        decision: "reject",
+        reviewNote: note,
+      });
+      return NextResponse.json({ ok: true, decision: "rejected", reviewNote: res.reviewNote ?? note });
+    } catch (err) {
+      const m = convexErr(err);
+      if (m.includes("submission_not_found")) {
+        return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+      }
+      if (m.includes("already_")) {
+        const status = m.includes("already_approved") ? "approved" : m.includes("already_rejected") ? "rejected" : "processed";
+        return NextResponse.json({ error: `Submission already ${status}` }, { status: 409 });
+      }
+      console.error("[api:editor/decision] reject failed:", input.id, err);
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
+    }
+  }
+
+  // ── Approve: Submission → Tool, live immediately ─────────────────────
+  // The mutation owns the submission→Tool link atomically (validates pending
+  // status + category). The route resolves the display inputs it needs
+  // (name/email/categorySlug) from the Convex queue read, then retries slug
+  // candidates on slug_taken (mirrors uniqueToolSlug: base, base-2 … base-49).
+  const queue = await shadowEditorQueue(client);
+  const sub = queue.pending.find((s) => s.id === input.id);
   if (!sub) {
     return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
@@ -79,65 +94,45 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (input.decision === "reject") {
-    const note = `Failed: ${input.failedStandards.join(", ")}${
-      input.note ? `: ${input.note}` : ""
-    }`;
-    await setSubmissionStatus(sub.id, "rejected", note);
-    return NextResponse.json({ ok: true, decision: "rejected", reviewNote: note });
-  }
-
-  // ── Approve: Submission → Tool, live immediately ─────────────────────
-  const cat = await db.category.findUnique({ where: { slug: sub.categorySlug } });
-  if (!cat) {
-    return NextResponse.json(
-      { error: `Unknown category "${sub.categorySlug}"` },
-      { status: 409 }
-    );
-  }
-
+  const nowMs = Date.now();
+  const toolId = crypto.randomUUID();
   const baseSlug = slugifyName(sub.name);
-  const slug = await uniqueToolSlug(baseSlug);
-
-  const now = new Date();
-
-  const tool = await db.tool.create({
-    data: {
-      slug,
-      name: sub.name,
-      tagline: sub.tagline,
-      description: sub.description,
-      websiteUrl: sub.websiteUrl,
-      logoEmoji: sub.logoEmoji,
-      logoGradient: sub.logoGradient,
-      pricingModel: sub.pricingModel,
-      startingPrice: sub.startingPrice,
-      pricingNote: sub.pricingNote,
-      hasApi: Boolean(sub.hasApi),
-      githubUrl: sub.githubUrl,
-      docsUrl: sub.docsUrl,
-      twitterUrl: sub.twitterUrl,
-      tags: sub.tags,
-      track: "community",
-      claimed: false, // ownership goes through the claim flow (F-30)
-      makerHandle: `@${sub.email.split("@")[0]?.replace(/[^a-z0-9_-]/gi, "") || "maker"}`,
-      verifiedAt: now,
-      categoryId: cat.id,
-    },
-    // Narrow return — stale cached clients SELECT dropped columns on full-row returns.
-    select: { id: true, slug: true },
-  });
-
-  await setSubmissionStatus(sub.id, "approved", null);
-
-  // Exact submission↔tool link (data integrity): prefer the FK over the
-  // domain heuristic the maker tracker previously relied on. Written via
-  // $queryRaw per the stale-PrismaClient note in lib/prother.ts.
-  await db.$queryRaw`UPDATE Tool SET submissionId = ${sub.id} WHERE id = ${tool.id}`;
-
-  return NextResponse.json({
-    ok: true,
-    decision: "approved",
-    slug: tool.slug,
-  });
+  const makerHandle = `@${sub.email.split("@")[0]?.replace(/[^a-z0-9_-]/gi, "") || "maker"}`;
+  const candidates = [
+    baseSlug,
+    ...Array.from({ length: 48 }, (_, i) => `${baseSlug}-${i + 2}`),
+    `${baseSlug}-${nowMs.toString(36)}`,
+  ];
+  for (const slug of candidates) {
+    try {
+      const res = await convexEditorDecide(client, {
+        submissionId: sub.id,
+        decision: "approve",
+        toolId,
+        toolSlug: slug,
+        categorySlug: sub.categorySlug,
+        makerHandle,
+        createdAt: nowMs,
+      });
+      return NextResponse.json({ ok: true, decision: "approved", slug: res.slug });
+    } catch (err) {
+      const m = convexErr(err);
+      if (m.includes("slug_taken")) continue;
+      if (m.includes("submission_not_found")) {
+        return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+      }
+      if (m.includes("already_")) {
+        return NextResponse.json({ error: `Submission already ${sub.status}` }, { status: 409 });
+      }
+      if (m.includes("unknown_category")) {
+        return NextResponse.json(
+          { error: `Unknown category "${sub.categorySlug}"` },
+          { status: 409 }
+        );
+      }
+      console.error("[api:editor/decision] approve failed:", sub.id, err);
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
+    }
+  }
+  return NextResponse.json({ error: "server_error" }, { status: 500 });
 }
