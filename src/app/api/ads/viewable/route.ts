@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { campaignIdOk, recordViewable } from "@/lib/ad-measure";
+import { campaignIdOk } from "@/lib/ad-measure";
+import { convexAdViewable } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,7 @@ export async function POST(req: NextRequest) {
   if (!body || !campaignIdOk(body.id)) {
     return NextResponse.json({ ok: false, error: "invalid_id" }, { status: 400 });
   }
-  recordViewable(body.id);
+  // Convex-only, fire-and-forget (a failed ping never surfaces).
+  void convexAdViewable(createServerConvexClient()!, { id: body.id }).catch(() => {});
   return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 }

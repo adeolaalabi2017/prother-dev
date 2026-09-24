@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { recordPageView, trackablePath } from "@/lib/analytics";
+import { trackablePath } from "@/lib/analytics";
+import { convexPageView } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,12 @@ export async function POST(req: NextRequest) {
   if (!body || !trackablePath(body.p)) {
     return NextResponse.json({ ok: false, error: "invalid_path" }, { status: 400 });
   }
-  recordPageView(body.p);
+  // Convex-only, fire-and-forget (analytics never blocks).
+  const now = new Date();
+  void convexPageView(createServerConvexClient()!, {
+    path: body.p,
+    day: now.toISOString().slice(0, 10),
+    nowMs: now.getTime(),
+  }).catch(() => {});
   return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 }

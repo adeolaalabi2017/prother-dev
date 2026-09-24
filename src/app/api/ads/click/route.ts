@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { recordClick } from "@/lib/ads";
+import { convexAdClick } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   }
 
-  const url = await recordClick(id).catch(() => null);
-  if (!url || !/^https?:\/\//i.test(url)) {
+  // Convex-only (ads cutover): register + resolve destination. Either
+  // counting alone still redirects — measurement must never break the click.
+  try {
+    const res = await convexAdClick(createServerConvexClient()!, { id });
+    if (!res.clickUrl || !/^https?:\/\//i.test(res.clickUrl)) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    return NextResponse.redirect(res.clickUrl, {
+      status: 302,
+      headers: {
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "x-data-backend": "convex",
+      },
+    });
+  } catch {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
-  return NextResponse.redirect(url, {
-    status: 302,
-    headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
-  });
 }

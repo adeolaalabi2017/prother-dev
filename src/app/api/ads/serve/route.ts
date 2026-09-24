@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AD_PLACEMENTS, serveAd, type AdPlacement } from "@/lib/ads";
+import { AD_PLACEMENTS, type AdPlacement } from "@/lib/ads";
 import { placementEnabled } from "@/lib/ad-config";
-import { recordServeOutcome } from "@/lib/ad-measure";
+import { convexAdServe } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -35,14 +36,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ad: null, fallback: "none" }, noStore);
   }
 
-  const res = await serveAd(placement, category);
-  if (!res) {
-    recordServeOutcome(placement, "house");
-    return NextResponse.json({ ad: null, fallback: "house" }, noStore);
+  // Convex-only (ads cutover): pick + impression + fill atomically.
+  const client = createServerConvexClient()!;
+  const res = await convexAdServe(client, {
+    placement,
+    category: category ?? undefined,
+  });
+  if (!res.ad) {
+    return NextResponse.json(
+      { ad: null, fallback: res.fallback },
+      {
+        headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+      },
+    );
   }
-  recordServeOutcome(placement, "served");
   return NextResponse.json(
-    { ad: res.ad, clickHref: `/api/ads/click?id=${res.ad.id}` },
-    noStore
+    { ad: res.ad, clickHref: res.clickHref },
+    {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    },
   );
 }
