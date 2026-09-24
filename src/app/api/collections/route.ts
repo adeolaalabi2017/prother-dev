@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { slugifyName } from "@/lib/prother";
 import { getAuthUser } from "@/lib/auth";
-import { convexCollectionCreate, shadowCollectionsMine } from "@/lib/data";
+import { convexCollectionCreate, shadowCollectionDetail, shadowCollectionsMine } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";

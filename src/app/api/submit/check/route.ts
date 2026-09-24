@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Existing tool with the same domain wins the check.
+  // Convex-only (submit cutover): the query covers queue + listings.
   try {
     const res = await shadowSubmitCheck(createServerConvexClient()!, domain);
     return NextResponse.json(res, {
@@ -35,30 +36,4 @@ export async function GET(req: NextRequest) {
     console.error("[api:submit/check] failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-  const tools = await db.tool.findMany({
-    select: { websiteUrl: true, name: true, slug: true, makerHandle: true },
-  });
-  const hit = tools.find((t) => domainOf(t.websiteUrl) === domain);
-  if (hit) {
-    return NextResponse.json({
-      valid: true,
-      duplicate: {
-        kind: "tool",
-        name: hit.name,
-        slug: hit.slug,
-        maker: hit.makerHandle,
-      },
-    });
-  }
-
-  // A pending/approved submission already queued for this domain.
-  const sub = await findActiveSubmissionByDomain(domain);
-  if (sub) {
-    return NextResponse.json({
-      valid: true,
-      duplicate: { kind: "submission", name: sub.name },
-    });
-  }
-
-  return NextResponse.json({ valid: true, duplicate: null });
 }
