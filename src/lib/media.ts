@@ -137,14 +137,6 @@ export async function listMedia(opts: {
   return res.media.map((r) => ({ ...r, createdAt: toIso(r.createdAt) }));
 }
 
-/** Delete the row + its storage bytes. Returns false when unknown. */
-export async function deleteMedia(id: string): Promise<boolean> {
-  const row = await getMediaById(id);
-  if (!row) return false;
-  await cx()!.mutation(api.media.mediaDeleteFull, { id });
-  return true;
-}
-
 /** Total stored bytes across the library (quota surface for the gallery). */
 export async function totalMediaBytes(): Promise<number> {
   const res = await cx()!.query(
@@ -156,19 +148,6 @@ export async function totalMediaBytes(): Promise<number> {
 
 // ── Tool / Post media columns (Convex-backed) ────────────────────────────
 export type ToolMedia = { logoUrl: string | null; screenshotUrls: string[] };
-
-/** Parse the pipe-separated screenshot list (deduped, order kept). */
-export function parseMediaUrls(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  return Array.from(
-    new Set(
-      raw
-        .split("|")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    )
-  );
-}
 
 /** logoUrl + screenshotUrls for the given tool ids: Map<toolId, ToolMedia>. */
 export async function toolMediaByIds(ids: string[]): Promise<Map<string, ToolMedia>> {
