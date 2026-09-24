@@ -6,14 +6,14 @@
  * with the Auth phase. What remains is the ban gate every community
  * write route checks.
  */
-import { aq } from "@/lib/authdb";
 import { createServerConvexClient } from "@/lib/convex";
 import { api } from "../../convex/_generated/api.js";
 
 /** True when the account is banned — checked by every community write route.
- *  Phase 4 step 7: resolves via the Convex identity bridge first (kept fresh
- *  by NextAuth sign-in events); falls back to the micro-SQLite auth db when
- *  the bridge has no record yet or Convex is unreachable. */
+ *  Resolves via Convex first; falls back to the micro-SQLite auth db when
+ *  Convex is unreachable. The authdb import is dynamic so Workers runtimes
+ *  (no native SQLite) never evaluate the binding — the fallback only runs
+ *  on Node. */
 export async function isUserBanned(userId: string): Promise<boolean> {
   try {
     const client = createServerConvexClient();
@@ -26,6 +26,7 @@ export async function isUserBanned(userId: string): Promise<boolean> {
   } catch {
     // fall through to the auth db
   }
+  const { aq } = await import("@/lib/authdb");
   const rows = aq<{ status: string }>`
     SELECT status FROM "User" WHERE id = ${userId} LIMIT 1`;
   return rows[0]?.status === "banned";

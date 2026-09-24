@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { guard, logAudit } from "@/lib/admin";
 import { getMediaById, mediaUrl } from "@/lib/media";
-import { axUnsafe } from "@/lib/authdb";
 import { convexMediaDeleteFull, shadowMediaServeUrl } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
@@ -53,9 +52,11 @@ export async function DELETE(req: Request, ctx: RouteContext) {
     const url = mediaUrl(row.id);
 
     // Storage object + references clear transactionally in Convex; avatar
-    // references clear in the identity store.
+    // references clear in the identity store (dynamic import — the native
+    // SQLite binding must never load on Workers).
     await convexMediaDeleteFull(createServerConvexClient()!, { id });
     try {
+      const { axUnsafe } = await import("@/lib/authdb");
       axUnsafe(`UPDATE "User" SET image = NULL WHERE image = ?`, url);
     } catch {
       // best effort

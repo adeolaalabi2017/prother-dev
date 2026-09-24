@@ -1,33 +1,41 @@
 # Deploying Prother to Cloudflare (Workers, via OpenNext)
 
-## Why this replaces the old Pages path
+Next.js on Workers with static assets, driven by `@opennextjs/cloudflare`
+(Pages + `@cloudflare/next-on-pages` are deprecated/maintenance-mode).
+`@opennextjs/cloudflare@1.20.x` requires `next >= 16.3.3` — the repo pins
+Next 16.3.5 for exactly this reason.
 
-Next.js is a Node.js framework; classic **Cloudflare Pages** executes on the
-Workers V8 runtime, and the legacy adapter **`@cloudflare/next-on-pages` is
-deprecated**. Cloudflare's supported path today is **Workers with static
-assets** driven by **`@opennextjs/cloudflare`** (Pages itself is in
-maintenance mode). `vinext` is an interesting Vite-native alternative but is
-still experimental — for an existing Next.js 16 app, OpenNext is the
-production-ready choice, so this repo targets it.
+## Current architecture (post-Convex cutover)
 
-**Compatibility note:** `@opennextjs/cloudflare@1.20.x` requires
-`next >= 16.3.3` for the Next 16 line — the repo was upgraded from
-`16.1.1 → 16.3.5` for exactly this reason (this mismatch is what broke the
-previous Pages deploy).
+| Concern | Where it lives | Workers-safe? |
+| --- | --- | --- |
+| Reads + writes (tools, posts, forum, community, ads, analytics, SEO) | Convex (`NEXT_PUBLIC_CONVEX_URL`) | Yes (fetch-based client) |
+| Media bytes | Convex file storage (`_storage`), served as 307s from `/api/media/[id]` | Yes |
+| Sessions / users | Convex auth store (`AUTH_STORE=convex`) | Yes |
+| Magic-link SMTP | `sendVerificationRequest` hook in `src/lib/auth.ts` (dev-inbox stand-in) | Needs a real transport in prod |
+| `db/auth.db` fallbacks | Dynamic `import()` only — never evaluated on Workers | Yes (dead code paths there) |
 
-## What was added
+There is no Prisma, SQLite, or filesystem access left on any request path:
+settings PUT keeps a `custom.db` backup row and `isUserBanned`/avatar-clear
+keep auth.db fallbacks, but all three import the native binding dynamically
+and only execute on Node. The `d1_databases` reservation once noted here is
+obsolete — no D1/Turso/split deployment is needed anymore.
 
-| File | Purpose |
+## Required environment
+
+| Variable | Purpose |
 | --- | --- |
-| `wrangler.jsonc` | Worker entry (`.open-next/worker.js`) + static assets binding (`ASSETS`), `nodejs_compat` flag, observability |
-| `open-next.config.ts` | OpenNext config (default in-isolate revalidation cache) |
-| `package.json` scripts | `cf:build` / `cf:preview` / `cf:deploy` / `cf:typegen` |
-| `next.config.ts` | Drops `output: "standalone"` for Workers builds (`NEXT_OUTPUT=cloudflare`); optional dev-bindings proxy (`NEXT_CF_DEV=1`) |
+| `NEXT_PUBLIC_CONVEX_URL` | Convex deployment (bake at build time for client components too) |
+| `AUTH_STORE=convex` | Serve NextAuth sessions from Convex (default `sqlite` is Node-only) |
+| `NEXT_PUBLIC_SITE_URL` | Canonical origin for OG/canonical URLs (defaults to `https://prother.dev`) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional — enables Google OAuth alongside magic links |
+| `EMAIL_FROM` | Sender for magic links once SMTP is wired |
+| `AUTH_DEV_LINKS=false` | Set in production (disables the dev-inbox endpoint) |
 
 ## Deploy
 
 ```bash
-bun install                 # picks up @opennextjs/cloudflare + wrangler 4
+bun install
 bun run cf:preview          # builds .open-next/ and serves it locally on workerd
 wrangler login              # one-time browser auth (or set CLOUDFLARE_API_TOKEN)
 bun run cf:deploy           # build + deploy → https://prother.<account>.workers.dev
@@ -35,29 +43,25 @@ bun run cf:deploy           # build + deploy → https://prother.<account>.worke
 
 - Custom domain: Cloudflare dashboard → Workers & Pages → prother →
   Domains & Routes (or `wrangler deploy` again after adding the route).
-- Type-safe bindings (D1/KV later): `bun run cf:typegen` generates
+- Type-safe bindings (KV/R2 later): `bun run cf:typegen` generates
   `cloudflare-env.d.ts` (`CloudflareEnv` interface).
 - Local dev with real bindings: `NEXT_CF_DEV=1 bun run dev`.
+- Local dev against Convex: `npx convex dev` + `.env.local` with
+  `NEXT_PUBLIC_CONVEX_URL` (and `AUTH_STORE=convex` for the Convex session store).
 - Windows shells don't support the `VAR=value cmd` prefix used by the `cf:*`
   scripts — run under WSL/Git Bash, or set `NEXT_OUTPUT=cloudflare` manually.
 
-## ⚠️ Database on Workers (known blocker, next phase)
+## Pre-launch checklist
 
-The app currently uses **Prisma + a local SQLite file** (`db/custom.db`).
-Workerd has **no filesystem**, so Prisma's SQLite engine cannot run on
-Workers — DB-backed API routes (`/api/feed`, `/api/waitlist`, `/api/vote`,
-…) will 500 until the data layer is migrated. Marketing page + static shell
-deploy fine today. Options, in order of fit:
+- [ ] Production Convex deployment created; `NEXT_PUBLIC_CONVEX_URL` points at it
+- [ ] Data imported (`node scripts/export-to-convex.ts` + `backfill-auth-to-convex.ts`)
+- [ ] `AUTH_STORE=convex` set in the Worker environment
+- [ ] Real SMTP wired into `sendVerificationRequest` (or magic-link login stays dev-only)
+- [ ] `AUTH_DEV_LINKS=false` in production
+- [ ] Branding logo/favicon re-uploaded via the admin console (old rows reference pre-migration bytes)
+- [ ] `bun run cf:preview` smoke-tested: homepage, `/tools`, sign-in, admin console
 
-1. **Cloudflare D1** (SQLite at the edge) — switch Prisma to the
-   `@prisma/adapter-d1` driver adapter, or use Drizzle's D1 dialect. The
-   `d1_databases` binding slot is already reserved in `wrangler.jsonc`.
-2. **Turso (libSQL)** — `@prisma/adapter-libsql`; keeps SQLite semantics,
-   works from anywhere including Workers.
-3. **Split deployment** — keep API routes on a Node host (Fly/Railway), point
-   the frontend at it via `NEXT_PUBLIC_API_BASE`.
-
-## Caching (optional, after DB phase)
+## Caching (optional)
 
 ISR/revalidation cache is per-isolate by default. For durable caching add a
 KV or R2 binding and wire `kvIncrementalCache` / `r2IncrementalCache` in

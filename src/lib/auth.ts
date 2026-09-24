@@ -28,7 +28,12 @@ import type {
   AdapterUser,
   VerificationToken as AdapterVerificationToken,
 } from "next-auth/adapters";
-import { aq, aqUnsafe, ax, axUnsafe } from "@/lib/authdb";
+// NOTE: authdb (better-sqlite3, native) must never load on Workers — the
+// Convex store is the only backend there. Every use below goes through the
+// adb() dynamic import so workerd never evaluates the native binding.
+async function adb() {
+  return import("@/lib/authdb");
+}
 import { convexAdapter, isConvexAuthStoreEnabled } from "@/lib/auth-convex-adapter";
 import { createServerConvexClient } from "@/lib/convex";
 import { api } from "../../convex/_generated/api.js";
@@ -138,6 +143,7 @@ async function deriveHandle(email: string | null): Promise<string | null> {
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "")
       .slice(0, 24) || "maker";
+  const { aq } = await adb();
   const taken = await aq<{ handle: string }>`
     SELECT handle FROM "User" WHERE handle LIKE ${base + "%"} LIMIT 500`;
   const used = new Set(taken.map((t) => t.handle));
@@ -147,6 +153,7 @@ async function deriveHandle(email: string | null): Promise<string | null> {
 }
 
 async function rawGetUserById(id: string): Promise<AdapterUser | null> {
+  const { aq } = await adb();
   const rows = await aq<RawUserRow>`
     SELECT id, name, email, emailVerified, image, handle, bio, createdAt
     FROM "User" WHERE id = ${id} LIMIT 1`;
@@ -157,6 +164,7 @@ async function rawGetUserById(id: string): Promise<AdapterUser | null> {
 const prismaAdapter: Adapter = {
   async createUser(user) {
     const handle = await deriveHandle(user.email ?? null);
+    const { aq } = await adb();
     const rows = await aq<RawUserRow>`
       INSERT INTO "User" (id, name, email, emailVerified, image, handle, bio, createdAt)
       VALUES (
@@ -171,12 +179,14 @@ const prismaAdapter: Adapter = {
     return rawGetUserById(id);
   },
   async getUserByEmail(email) {
+    const { aq } = await adb();
     const rows = await aq<RawUserRow>`
       SELECT id, name, email, emailVerified, image, handle, bio, createdAt
       FROM "User" WHERE email = ${email} LIMIT 1`;
     return rows[0] ? mapUser(rows[0]) : null;
   },
   async getUserByAccount({ provider, providerAccountId }) {
+    const { aq } = await adb();
     const rows = await aq<RawUserRow>`
       SELECT u.id, u.name, u.email, u.emailVerified, u.image, u.handle, u.bio, u.createdAt
       FROM "Account" a JOIN "User" u ON u.id = a.userId
@@ -192,6 +202,7 @@ const prismaAdapter: Adapter = {
     }
     const keys = Object.keys(patch);
     if (keys.length > 0) {
+      const { axUnsafe } = await adb();
       await axUnsafe(
         `UPDATE "User" SET ${keys.map((k) => `"${k}" = ?`).join(", ")} WHERE "id" = ?`,
         ...keys.map((k) => patch[k]),
@@ -201,6 +212,7 @@ const prismaAdapter: Adapter = {
     return (await rawGetUserById(id)) as AdapterUser;
   },
   async linkAccount(account) {
+    const { ax } = await adb();
     await ax`
       INSERT INTO "Account" (
         id, userId, type, provider, providerAccountId, refresh_token,
@@ -215,12 +227,14 @@ const prismaAdapter: Adapter = {
       )`;
   },
   async createSession(session) {
+    const { ax } = await adb();
     await ax`
       INSERT INTO "Session" (id, sessionToken, userId, expires)
       VALUES (${crypto.randomUUID()}, ${session.sessionToken}, ${session.userId}, ${sql(session.expires)})`;
     return session as AdapterSession;
   },
   async getSessionAndUser(sessionToken) {
+    const { aq } = await adb();
     const rows = await aq<
       {
         sessionToken: string;
@@ -256,6 +270,7 @@ const prismaAdapter: Adapter = {
     if ("expires" in data) patch.expires = sql((data as { expires?: Date }).expires);
     const keys = Object.keys(patch);
     if (keys.length > 0) {
+      const { aqUnsafe } = await adb();
       const rows = await aqUnsafe<
         { sessionToken: string; userId: string; expires: string }
       >(
@@ -276,9 +291,11 @@ const prismaAdapter: Adapter = {
     return undefined;
   },
   async deleteSession(sessionToken) {
+    const { ax } = await adb();
     await ax`DELETE FROM "Session" WHERE sessionToken = ${sessionToken}`;
   },
   async createVerificationToken(token) {
+    const { ax } = await adb();
     await ax`
       INSERT INTO "VerificationToken" (identifier, token, expires)
       VALUES (${token.identifier}, ${token.token}, ${sql(token.expires)})`;
@@ -286,6 +303,7 @@ const prismaAdapter: Adapter = {
   },
   async useVerificationToken({ identifier, token }) {
     // Atomic consume: DELETE … RETURNING keeps find-then-delete semantics.
+    const { aq } = await adb();
     const rows = await aq<{ identifier: string; token: string; expires: string }>`
       DELETE FROM "VerificationToken"
       WHERE identifier = ${identifier} AND token = ${token}

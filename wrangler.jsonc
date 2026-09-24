@@ -14,8 +14,7 @@
   "observability": {
     "enabled": true
   }
-  // Optional (full-stack phase): uncomment when the Prisma/SQLite layer is
-  // migrated to D1 or Turso (see DEPLOY.md → "Database on Workers"):
-  // "d1_databases": [{ "binding": "DB", "database_name": "prother", "database_id": "<id>" }],
+  // Optional (later): KV/R2 bindings for durable ISR caching.
+  // No database binding is needed — all data lives in Convex (see DEPLOY.md).
   // "kv_namespaces": [{ "binding": "NEXT_INC_CACHE_KV", "id": "<id>" }]
 }
