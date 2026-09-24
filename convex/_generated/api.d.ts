@@ -12,6 +12,7 @@ import type * as admin from "../admin.js";
 import type * as adminCrud from "../adminCrud.js";
 import type * as ads from "../ads.js";
 import type * as analytics from "../analytics.js";
+import type * as authStore from "../authStore.js";
 import type * as categories from "../categories.js";
 import type * as claims from "../claims.js";
 import type * as comments from "../comments.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   adminCrud: typeof adminCrud;
   ads: typeof ads;
   analytics: typeof analytics;
+  authStore: typeof authStore;
   categories: typeof categories;
   claims: typeof claims;
   comments: typeof comments;

@@ -443,10 +443,39 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
 
-  // ── NextAuth bridge (transition only, plan §3.5; dropped at Phase 5) ──
+  // ── NextAuth store (Auth phase, option C): the NextAuth adapter reads
+  // and writes these tables through convex/authStore.ts instead of the
+  // micro-SQLite auth.db. Users live in the shared `users` table
+  // (legacyId = NextAuth id, same as the old SQLite ids after backfill).
+  authAccounts: defineTable({
+    userLegacyId: v.string(),
+    type: v.string(),
+    provider: v.string(),
+    providerAccountId: v.string(),
+    refreshToken: v.optional(v.string()),
+    accessToken: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    tokenType: v.optional(v.string()),
+    scope: v.optional(v.string()),
+    idToken: v.optional(v.string()),
+    sessionState: v.optional(v.string()),
+  })
+    .index("by_provider_account", ["provider", "providerAccountId"])
+    .index("by_user", ["userLegacyId"]),
+
   authSessions: defineTable({
-    nextAuthSessionToken: v.string(),
-    userId: v.id("users"),
-    expiresAt: v.number(),
-  }).index("by_token", ["nextAuthSessionToken"]),
+    sessionToken: v.string(),
+    userLegacyId: v.string(),
+    expires: v.number(),
+  })
+    .index("by_token", ["sessionToken"])
+    .index("by_user", ["userLegacyId"]),
+
+  authVerificationTokens: defineTable({
+    identifier: v.string(),
+    token: v.string(),
+    expires: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_identifier_token", ["identifier", "token"]),
 });

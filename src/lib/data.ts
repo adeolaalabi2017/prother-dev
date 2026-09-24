@@ -922,3 +922,113 @@ export function convexCompareBump(
 ) {
   return c.mutation(api.community.compareBump, args);
 }
+
+// ── Auth phase (option C): NextAuth store (see convex/authStore.ts) ──
+
+export function convexAuthUserById(c: Client, id: string) {
+  return c.query(api.authStore.authUserById, { id });
+}
+
+export function convexAuthUserByEmail(c: Client, email: string) {
+  return c.query(api.authStore.authUserByEmail, { email });
+}
+
+export function convexAuthUserByAccount(
+  c: Client,
+  args: { provider: string; providerAccountId: string },
+) {
+  return c.query(api.authStore.authUserByAccount, args);
+}
+
+export function convexAuthHandlesTaken(c: Client) {
+  return c.query(api.authStore.authHandlesTaken, {});
+}
+
+export function convexAuthUserCreate(
+  c: Client,
+  args: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    emailVerified?: number | null;
+    image?: string | null;
+    handle?: string | null;
+    createdAt: number;
+  },
+) {
+  return c.mutation(api.authStore.authUserCreate, args);
+}
+
+export function convexAuthUserPatch(
+  c: Client,
+  args: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    emailVerified?: string | null;
+    image?: string | null;
+    handle?: string | null;
+    bio?: string | null;
+  },
+) {
+  return c.mutation(api.authStore.authUserPatch, args as never);
+}
+
+export function convexAuthAccountLink(
+  c: Client,
+  args: {
+    userLegacyId: string;
+    type: string;
+    provider: string;
+    providerAccountId: string;
+    refreshToken?: string | null;
+    accessToken?: string | null;
+    expiresAt?: number | null;
+    tokenType?: string | null;
+    scope?: string | null;
+    idToken?: string | null;
+    sessionState?: string | null;
+  },
+) {
+  return c.mutation(api.authStore.authAccountLink, args);
+}
+
+export function convexAuthSessionCreate(
+  c: Client,
+  args: { sessionToken: string; userLegacyId: string; expires: number },
+) {
+  return c.mutation(api.authStore.authSessionCreate, args);
+}
+
+export function convexAuthSessionAndUser(c: Client, sessionToken: string) {
+  return c.query(api.authStore.authSessionAndUser, { sessionToken });
+}
+
+export function convexAuthSessionPatch(
+  c: Client,
+  args: { sessionToken: string; expires: number },
+) {
+  return c.mutation(api.authStore.authSessionPatch, args);
+}
+
+export function convexAuthSessionDelete(c: Client, sessionToken: string) {
+  return c.mutation(api.authStore.authSessionDelete, { sessionToken });
+}
+
+export function convexAuthSessionsDeleteByUser(c: Client, userLegacyId: string) {
+  return c.mutation(api.authStore.authSessionsDeleteByUser, { userLegacyId });
+}
+
+export function convexAuthVerificationTokenCreate(
+  c: Client,
+  args: { identifier: string; token: string; expires: number },
+) {
+  return c.mutation(api.authStore.authVerificationTokenCreate, args);
+}
+
+export function convexAuthVerificationTokenConsume(
+  c: Client,
+  args: { identifier: string; token: string },
+) {
+  return c.mutation(api.authStore.authVerificationTokenConsume, args);
+}
