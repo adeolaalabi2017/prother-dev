@@ -1,4 +1,5 @@
-import { db } from "@/lib/prother";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowRssPosts } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,24 @@ export async function GET(req: Request) {
 
 /** Journal (blog) RSS feed — items link to the real /journal/[slug] routes. */
 async function journalFeed(req: Request, explicitKind: boolean) {
-  const posts = await db.post.findMany({
-    where: { status: "published" },
-    orderBy: { publishedAt: "desc" },
-    take: 30,
-  });
+  // Convex-only (SEO cutover complete): ISO→Date reshaped route-side.
+  type FeedPost = {
+    slug: string;
+    title: string;
+    excerpt: string;
+    category: string;
+    publishedAt: Date | null;
+    updatedAt: Date;
+  };
+  const rows = await shadowRssPosts(createServerConvexClient()!, 30);
+  const posts: FeedPost[] = rows.map((p) => ({
+    slug: p.slug,
+    title: p.title,
+    excerpt: p.excerpt,
+    category: p.category,
+    publishedAt: p.publishedAt ? new Date(p.publishedAt) : null,
+    updatedAt: new Date(p.updatedAt),
+  }));
 
   const origin = new URL(req.url).origin;
 

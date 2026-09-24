@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/prother";
-import { postCoversByIds } from "@/lib/media";
+import { convexPostBumpViews, shadowBlogDetail } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -13,82 +13,35 @@ type Params = { params: Promise<{ slug: string }> };
 export async function GET(_req: NextRequest, { params }: Params) {
   const { slug } = await params;
 
-  const post = await db.post.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      body: true,
-      category: true,
-      tags: true,
-      coverEmoji: true,
-      coverGradient: true,
-      author: true,
-      status: true,
-      readingMinutes: true,
-      views: true,
-      seoTitle: true,
-      seoDescription: true,
-      keywords: true,
-      publishedAt: true,
-      updatedAt: true,
-    },
-  });
-
-  // Drafts 404 for the public API (the admin editor uses its own route).
-  if (!post || post.status !== "published") {
-    return NextResponse.json({ error: "Post not found" }, { status: 404 });
+  // Convex-only (SEO cutover complete): tags arrive as an array from Convex.
+  const res = await shadowBlogDetail(createServerConvexClient()!, slug);
+  if ("error" in res) {
+    return NextResponse.json(res, {
+      status: 404,
+      headers: { "x-data-backend": "convex" },
+    });
   }
-
-  const related = await db.post.findMany({
-    where: { status: "published", category: post.category, slug: { not: post.slug } },
-    orderBy: { publishedAt: "desc" },
-    take: 3,
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      coverEmoji: true,
-      coverGradient: true,
-      readingMinutes: true,
-      category: true,
-    },
-  });
-  // POST-boot columns → raw SQL (stale-PrismaClient rule).
-  const [coverMap, relatedCoverMap] = await Promise.all([
-    postCoversByIds([post.id]),
-    postCoversByIds(related.map((r) => r.id)),
-  ]);
-
   return NextResponse.json(
     {
       post: {
-        ...post,
-        coverUrl: coverMap.get(post.id) ?? null,
-        tags: post.tags ? post.tags.split("|").filter(Boolean) : [],
-        publishedAt: post.publishedAt?.toISOString() ?? null,
-        updatedAt: post.updatedAt.toISOString(),
+        ...res.post,
+        tags: res.post.tags.filter(Boolean),
       },
-      related: related.map((r) => ({
-        ...r,
-        coverUrl: relatedCoverMap.get(r.id) ?? null,
-      })),
+      related: res.related,
     },
-    { headers: { "Cache-Control": "no-store" } }
+    {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    },
   );
 }
 
 export async function POST(_req: NextRequest, { params }: Params) {
   const { slug } = await params;
+  // Convex-only view counting (SEO cutover complete; silent on error).
   try {
-    await db.post.update({
-      where: { slug },
-      data: { views: { increment: 1 } },
-    });
+    await convexPostBumpViews(createServerConvexClient()!, { slug });
   } catch {
-    /* view counting must never surface as an error */
+    // view counting must never surface as an error
   }
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { db } from "@/lib/prother";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowSitemapData } from "@/lib/data";
 
 /**
  * Auto sitemap (PRD NFR: SEO — auto sitemaps). Metadata route, not a page.
@@ -9,25 +10,45 @@ import { db } from "@/lib/prother";
  * /journal/[slug] routes + legacy ?post=slug), and forum threads. Tools get
  * honest lastmod dates from their listing date; posts from
  * publishedAt/updatedAt.
+ *
+ * ORDER NOTE (Phase 4 step 7): the tool block follows each backend's
+ * unordered scan order (SQLite rowid vs Convex index) — the two sequences
+ * differ but the URL SET is identical (verified). Sitemap order is
+ * non-contractual for crawlers, so this is whitelisted, not normalized.
  */
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
 
-  const [tools, categories, posts] = await Promise.all([
-    db.tool.findMany({
-      where: { status: "live" },
-      select: { slug: true, createdAt: true },
-      take: 5000,
-    }),
-    db.category.findMany({ select: { slug: true } }),
-    db.post.findMany({
-      where: { status: "published" },
-      select: { slug: true, updatedAt: true, publishedAt: true },
-      take: 1000,
-    }),
-  ]);
+  // Convex-only (SEO cutover complete): ISO strings satisfy lastModified.
+  // Order is non-contractual for crawlers (SQLite rowid vs Convex index).
+  const data = await shadowSitemapData(createServerConvexClient()!);
+  return buildSitemap(base, {
+    tools: data.tools.map((t) => ({ slug: t.slug, createdAt: new Date(t.createdAt) })),
+    categories: data.categories,
+    posts: data.posts.map((p) => ({
+      slug: p.slug,
+      updatedAt: new Date(p.updatedAt),
+      publishedAt: p.publishedAt,
+    })),
+    threads: data.threads.map((t) => ({
+      slug: t.slug,
+      createdAt: new Date(t.createdAt),
+      updatedAt: new Date(t.updatedAt),
+    })),
+  });
+}
+
+function buildSitemap(
+  base: string,
+  data: {
+    tools: { slug: string; createdAt: Date }[];
+    categories: { slug: string }[];
+    posts: { slug: string; updatedAt: Date; publishedAt: Date | string | null }[];
+    threads: { slug: string; createdAt: Date; updatedAt: Date }[];
+  },
+): MetadataRoute.Sitemap {
 
   const statics: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
@@ -44,7 +65,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Tools live at their real /tools/[slug] routes (Task 25) — the /?tool=
   // overlay serves homepage HTML and canonicalizes there.
-  const toolUrls: MetadataRoute.Sitemap = tools.map((t) => ({
+  const toolUrls: MetadataRoute.Sitemap = data.tools.map((t) => ({
     url: `${base}/tools/${encodeURIComponent(t.slug)}`,
     lastModified: t.createdAt,
     changeFrequency: "weekly",
@@ -52,7 +73,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Category browse pages (/categories/[slug] — Task 25).
-  const categoryUrls: MetadataRoute.Sitemap = categories.map((c) => ({
+  const categoryUrls: MetadataRoute.Sitemap = data.categories.map((c) => ({
     url: `${base}/categories/${encodeURIComponent(c.slug)}`,
     changeFrequency: "weekly" as const,
     priority: 0.7,
@@ -61,33 +82,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Journal articles live at their real /journal/[slug] routes — the
   // /?post= overlay serves homepage HTML and canonicalizes there, so it
   // must NOT be listed as a separate URL.
-  const postUrls: MetadataRoute.Sitemap = posts.map((p) => ({
+  const postUrls: MetadataRoute.Sitemap = data.posts.map((p) => ({
     url: `${base}/journal/${encodeURIComponent(p.slug)}`,
     lastModified: p.updatedAt,
     changeFrequency: "monthly" as const,
     priority: 0.8,
   }));
 
-  // Forum threads are read through the raw-SQL access layer (src/lib/forum.ts)
-  // because the long-running dev server caches the pre-forums Prisma client.
-  // Wrapped in try/catch — the sitemap must survive an empty/missing table.
-  let forumUrls: MetadataRoute.Sitemap = [];
-  try {
-    const threads = await db.$queryRaw<
-      { slug: string; createdAt: Date; updatedAt: Date }[]
-    >`
-      SELECT slug, createdAt, updatedAt FROM ForumThread
-      WHERE hidden = 0
-      ORDER BY createdAt DESC LIMIT 500`;
-    forumUrls = threads.map((t) => ({
-      url: `${base}/forums/${encodeURIComponent(t.slug)}`,
-      lastModified: t.updatedAt ?? t.createdAt,
-      changeFrequency: "weekly" as const,
-      priority: 0.6,
-    }));
-  } catch {
-    forumUrls = [];
-  }
+  const forumUrls: MetadataRoute.Sitemap = data.threads.map((t) => ({
+    url: `${base}/forums/${encodeURIComponent(t.slug)}`,
+    lastModified: t.updatedAt ?? t.createdAt,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
 
   return [...statics, ...toolUrls, ...categoryUrls, ...postUrls, ...forumUrls];
 }

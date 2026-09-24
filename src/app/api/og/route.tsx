@@ -1,11 +1,12 @@
 import { ImageResponse } from "next/og";
-import { db } from "@/lib/prother";
 import {
   clamp,
   GRADIENT_HEX,
   OG_COLORS as C,
   OG_FALLBACK_GRADIENT,
 } from "@/lib/og";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowOgPost, shadowOgTool } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -24,40 +25,30 @@ const SANS =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif';
 
 async function getToolData(slug: string) {
-  const tool = await db.tool.findUnique({
-    where: { slug },
-    // Explicit select — full-row Tool reads break on a stale pre-v6 cached
-    // PrismaClient (it still SELECTs the dropped relaunch columns).
-    select: {
-      name: true,
-      tagline: true,
-      logoEmoji: true,
-      logoGradient: true,
-      editorsPick: true,
-      category: { select: { slug: true, name: true, emoji: true } },
-    },
-  });
-  if (!tool) return null;
+  // Convex-only (SEO cutover complete; gradient resolved route-side).
+  const t = await shadowOgTool(createServerConvexClient()!, slug);
+  if (!t) return null;
   return {
-    name: tool.name,
-    tagline: tool.tagline,
-    emoji: tool.logoEmoji,
-    gradient: GRADIENT_HEX[tool.logoGradient] ?? OG_FALLBACK_GRADIENT,
-    category: tool.category,
-    editorsPick: tool.editorsPick,
+    name: t.name,
+    tagline: t.tagline,
+    emoji: t.emoji,
+    gradient: GRADIENT_HEX[t.gradient] ?? OG_FALLBACK_GRADIENT,
+    category: t.category,
+    editorsPick: t.editorsPick,
   };
 }
 
 async function getPostData(slug: string) {
-  const post = await db.post.findUnique({ where: { slug } });
-  if (!post || post.status !== "published") return null;
+  // Convex-only (SEO cutover complete).
+  const p = await shadowOgPost(createServerConvexClient()!, slug);
+  if (!p) return null;
   return {
-    title: post.title,
-    excerpt: post.excerpt,
-    emoji: post.coverEmoji,
-    gradient: GRADIENT_HEX[post.coverGradient] ?? OG_FALLBACK_GRADIENT,
-    category: post.category,
-    readingMinutes: post.readingMinutes,
+    title: p.title,
+    excerpt: p.excerpt,
+    emoji: p.emoji,
+    gradient: GRADIENT_HEX[p.gradient] ?? OG_FALLBACK_GRADIENT,
+    category: p.category,
+    readingMinutes: p.readingMinutes,
   };
 }
 
