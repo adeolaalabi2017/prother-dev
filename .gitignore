@@ -58,3 +58,12 @@ server.log
 
 # Task 34 media library (local uploads, served via /api/media)
 /uploads/
+
+# Phase 5: micro-SQLite auth store (sessions + tokens are secrets — never commit)
+db/auth.db
+db/auth.db-wal
+db/auth.db-shm
+
+# Convex (Phase 1 migration): codegen regenerates on `npx convex dev`;
+# local deployment credentials stay out of git (.env* already covers .env.local)
+convex/_generated/
