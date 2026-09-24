@@ -9,16 +9,15 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
-import { toolMediaByIds } from "@/lib/media";
 import { blurbFor } from "@/lib/category-blurbs";
-import { editorialByToolIds, resolveAlternatives } from "@/lib/tool-editorial";
-import { listPublishedReviews, reviewStats } from "@/lib/community";
+import { resolveAlternatives } from "@/lib/tool-editorial";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { ToolDetailActions } from "@/components/prother/tool-detail-actions";
 import { AboutClamp } from "@/components/prother/about-clamp";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowToolPageData } from "@/lib/data";
 
 /**
  * /tools/[slug] — the real, crawlable tool detail page (Task 25).
@@ -86,26 +85,125 @@ function chipCx(extra?: string): string {
 
 const SECTION_HEAD = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 
+// ── Convex-only SSR bundle (Prisma-shaped for untouched render code):
+// tags re-joined to the pipe string, Date-expected fields rebuilt as Dates,
+// media/editorial Maps keyed by tool id.
+
+type ConvexBundle = {
+  tool: {
+    id: string;
+    slug: string;
+    status: string;
+    name: string;
+    tagline: string;
+    description: string | null;
+    websiteUrl: string;
+    logoEmoji: string;
+    logoGradient: string;
+    pricingModel: string;
+    startingPrice: string | null;
+    pricingNote: string | null;
+    tags: string;
+    makerHandle: string;
+    track: string;
+    editorsPick: boolean;
+    curated: boolean;
+    claimed: boolean;
+    hasApi: boolean;
+    githubUrl: string | null;
+    docsUrl: string | null;
+    twitterUrl: string | null;
+    categoryId: string;
+    createdAt: Date;
+    category: { slug: string; name: string; emoji: string };
+  };
+  stats: { count: number; aggregate: import("@/lib/community").ReviewAggregate | null };
+  reviews: {
+    id: string;
+    author: string;
+    ease: number;
+    power: number;
+    value: number;
+    body: string;
+    createdAt: string;
+  }[];
+  threads: { slug: string; title: string; author: string; createdAt: string }[];
+  relatedRows: {
+    slug: string;
+    name: string;
+    logoEmoji: string;
+    logoGradient: string;
+    tagline: string;
+    editorsPick: boolean;
+  }[];
+  mediaMap: Map<string, { logoUrl: string | null; screenshotUrls: string[] }>;
+  editorialMap: Map<
+    string,
+    {
+      longDescription: string | null;
+      useCases: { title: string; body: string }[];
+      pros: string[];
+      cons: string[];
+      alternativeSlugs: string[];
+      pricingCheckedAt: Date | null;
+      contentUpdatedAt: Date | null;
+    }
+  >;
+  categoryToolCount: number;
+  alternatives: import("@/lib/tool-editorial").AlternativeRow[];
+};
+
+async function getConvexBundle(slug: string): Promise<ConvexBundle | null> {
+  // Convex-only (tool detail cutover): null surfaces as notFound downstream.
+  try {
+    const res = await shadowToolPageData(createServerConvexClient()!, slug);
+    if ("error" in res) return null;
+    const isoOrNull = (v: string | null): Date | null =>
+      v ? new Date(v) : null;
+    return {
+      tool: {
+        ...res.tool,
+        tags: res.tool.tags.join("|"),
+        createdAt: new Date(res.tool.createdAt),
+      },
+      stats: res.stats,
+      reviews: res.reviews,
+      threads: res.threads,
+      relatedRows: res.related,
+      mediaMap: new Map([
+        [
+          res.tool.id,
+          { logoUrl: res.logoUrl, screenshotUrls: res.screenshots },
+        ],
+      ]),
+      editorialMap: new Map([
+        [
+          res.tool.id,
+          {
+            longDescription: res.editorial.longDescription,
+            useCases: res.editorial.useCases,
+            pros: res.editorial.pros,
+            cons: res.editorial.cons,
+            alternativeSlugs: res.editorial.alternativeSlugs,
+            pricingCheckedAt: isoOrNull(res.editorial.pricingCheckedAt),
+            contentUpdatedAt: isoOrNull(res.editorial.contentUpdatedAt),
+          },
+        ],
+      ]),
+      categoryToolCount: res.categoryToolCount,
+      alternatives: res.alternatives,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Metadata ──────────────────────────────────────────────────────────────
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  const tool = await db.tool.findUnique({
-    where: { slug },
-    // Explicit select — a stale cached PrismaClient in a long-running dev
-    // server references dropped columns on full-row Tool selects.
-    select: {
-      slug: true,
-      status: true,
-      name: true,
-      tagline: true,
-      description: true,
-      pricingModel: true,
-      startingPrice: true,
-      tags: true,
-      category: { select: { name: true } },
-    },
-  });
+  const bundle = await getConvexBundle(slug);
+  const tool = bundle?.tool;
   // Unknown slug or removed/unlisted tool → 404 covers the meta too.
   if (!tool || tool.status !== "live") notFound();
 
@@ -146,87 +244,21 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function ToolPage({ params }: Params) {
   const { slug } = await params;
-  const tool = await db.tool.findUnique({
-    where: { slug },
-    // Explicit select — a stale cached PrismaClient in a long-running dev
-    // server references dropped columns on full-row Tool selects.
-    select: {
-      id: true,
-      slug: true,
-      status: true,
-      name: true,
-      tagline: true,
-      description: true,
-      websiteUrl: true,
-      logoEmoji: true,
-      logoGradient: true,
-      pricingModel: true,
-      startingPrice: true,
-      pricingNote: true,
-      tags: true,
-      makerHandle: true,
-      track: true,
-      editorsPick: true,
-      curated: true,
-      claimed: true,
-      hasApi: true,
-      githubUrl: true,
-      docsUrl: true,
-      twitterUrl: true,
-      categoryId: true,
-      createdAt: true,
-      category: { select: { slug: true, name: true, emoji: true } },
-    },
-  });
-  if (!tool || tool.status !== "live") notFound();
-
-  const name = tool.name;
+  const bundle = await getConvexBundle(slug);
+  if (!bundle || !bundle.tool || bundle.tool.status !== "live") notFound();
+  const tool = bundle.tool;
 
   // ── Full live listing — everything below is server-rendered ────────────
   const [stats, reviews, threads, relatedRows, mediaMap, editorialMap, categoryToolCount] =
-    await Promise.all([
-    reviewStats(tool.id),
-    db.review.findMany({
-      where: { toolId: tool.id, status: "published" },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    }),
-    db.forumThread.findMany({
-      where: {
-        hidden: false,
-        OR: [{ title: { contains: name } }, { body: { contains: name } }],
-      },
-      orderBy: { createdAt: "desc" },
-      take: 3,
-      select: { slug: true, title: true, author: true, createdAt: true },
-    }),
-    // Mirror the API's "More like this" query (live tools, same category,
-    // Editor's Picks first, then newest listings).
-    db.tool.findMany({
-      where: {
-        categoryId: tool.categoryId,
-        slug: { not: tool.slug },
-        status: "live",
-      },
-      orderBy: [{ editorsPick: "desc" }, { createdAt: "desc" }],
-      take: 3,
-      select: {
-        slug: true,
-        name: true,
-        logoEmoji: true,
-        logoGradient: true,
-        tagline: true,
-        editorsPick: true,
-      },
-    }),
-    // POST-boot media columns → raw SQL (stale-PrismaClient rule; never
-    // select logoUrl/screenshotUrls via the ORM).
-    toolMediaByIds([tool.id]),
-    // Task 35-c editorial fields (post-boot columns → raw SQL helper) and
-    // the live listing count for the category context panel.
-    editorialByToolIds([tool.id]),
-    db.tool.count({ where: { categoryId: tool.categoryId, status: "live" } }),
-  ]);
+    [
+      bundle.stats,
+      bundle.reviews,
+      bundle.threads,
+      bundle.relatedRows,
+      bundle.mediaMap,
+      bundle.editorialMap,
+      bundle.categoryToolCount,
+    ];
 
   const logoUrl = mediaMap.get(tool.id)?.logoUrl ?? null;
   const screenshots = mediaMap.get(tool.id)?.screenshotUrls ?? [];
@@ -243,10 +275,15 @@ export default async function ToolPage({ params }: Params) {
       pricingCheckedAt: null,
       contentUpdatedAt: null,
     };
-  // One extra query only when the editors actually listed alternatives.
-  const alternatives = editorial.alternativeSlugs.length
-    ? await resolveAlternatives(editorial.alternativeSlugs, tool.slug)
-    : [];
+  // Alternatives arrive resolved in the Convex bundle; the Prisma path
+  // below only runs when editors listed slugs the bundle didn't resolve
+  // (defensive — normally bundle.alternatives covers it).
+  const alternatives =
+    bundle.alternatives.length > 0
+      ? bundle.alternatives
+      : editorial.alternativeSlugs.length
+        ? await resolveAlternatives(editorial.alternativeSlugs, tool.slug)
+        : [];
 
   const longParagraphs = (editorial.longDescription ?? "")
     .split(/\n{2,}/)

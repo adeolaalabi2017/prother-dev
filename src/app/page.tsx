@@ -5,9 +5,31 @@ import { CategoryTicker } from "@/components/prother/category-ticker";
 import { TrendingStrip } from "@/components/prother/trending-strip";
 import { SubmitOpenButton } from "@/components/prother/submit-open-button";
 import { CATEGORIES } from "@/components/prother/categories";
-import { db } from "@/lib/prother";
 import { clamp } from "@/lib/og";
 import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
+import { createServerConvexClient } from "@/lib/convex";
+import {
+  shadowHomepage,
+  shadowMetaEntities,
+  shadowSite,
+} from "@/lib/data";
+
+/** Convex-only entity lookups for deep-link metadata (null on failure —
+ *  the homepage never 500s on a metadata read). */
+async function metaEntities(args: {
+  toolSlug?: string;
+  postSlug?: string;
+  categorySlug?: string;
+  collectionSlug?: string;
+  compareA?: string;
+  compareB?: string;
+}) {
+  try {
+    return await shadowMetaEntities(createServerConvexClient()!, args);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The landing page — search & discovery for the AI tools directory. Hero +
@@ -39,9 +61,25 @@ export async function generateMetadata({
   const compareRaw = first(params.compare);
   const mineView = first(params.mine);
 
+  // Phase 5: one Convex fetch for every deep-link branch (Prisma-shaped
+  // adapters below; each branch still falls back to its Prisma lookup).
+  const [cmpA, cmpB] = (compareRaw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const convexMeta = await metaEntities({
+    toolSlug: toolSlug ?? undefined,
+    postSlug: postSlug && !toolSlug ? postSlug : undefined,
+    categorySlug: categorySlug ?? undefined,
+    collectionSlug: collectionSlug ?? undefined,
+    compareA: cmpA,
+    compareB: cmpB,
+  });
+
   // Journal deep link (?post=slug) — article-level unfurl metadata.
   if (postSlug && !toolSlug) {
-    const post = await db.post.findUnique({ where: { slug: postSlug } });
+    const cxPost = convexMeta?.post;
+    const post =
+      cxPost && cxPost.status === "published"
+        ? { ...cxPost, publishedAt: cxPost.publishedAt ? new Date(cxPost.publishedAt) : null }
+        : null;
     if (post && post.status === "published") {
       const title = post.seoTitle || `${post.title} | Prother Journal`;
       const description = clamp(post.seoDescription || post.excerpt, 200);
@@ -75,19 +113,7 @@ export async function generateMetadata({
   }
 
   if (toolSlug) {
-    const tool = await db.tool.findUnique({
-      where: { slug: toolSlug },
-      // Explicit select — full-row Tool reads break on a stale pre-v6 cached
-      // PrismaClient (it still SELECTs the dropped relaunch columns).
-      select: {
-        slug: true,
-        name: true,
-        tagline: true,
-        description: true,
-        pricingModel: true,
-        category: { select: { name: true } },
-      },
-    });
+    const tool = convexMeta?.tool;
     if (tool) {
       const title = `${tool.name} · ${tool.tagline} | Prother`;
       const description = clamp(
@@ -123,10 +149,7 @@ export async function generateMetadata({
   if (compareRaw) {
     const [aSlug, bSlug] = compareRaw.split(",").map((s) => s.trim()).filter(Boolean);
     if (aSlug && bSlug) {
-      const [a, b] = await Promise.all([
-        db.tool.findUnique({ where: { slug: aSlug }, select: { name: true, tagline: true } }),
-        db.tool.findUnique({ where: { slug: bSlug }, select: { name: true, tagline: true } }),
-      ]);
+      const [a, b] = [convexMeta?.compareA, convexMeta?.compareB];
       if (a && b) {
         const title = `${a.name} vs ${b.name} · Compare AI tools | Prother`;
         const description = clamp(
@@ -141,14 +164,17 @@ export async function generateMetadata({
 
   // Public collection deep link (?collection=slug).
   if (collectionSlug) {
-    const c = await db.collection.findUnique({
-      where: { slug: collectionSlug },
-      include: { _count: { select: { items: true } } },
-    });
-    if (c && c.isPublic) {
-      const title = `${c.name} · Curated collection | Prother`;
+    const cxCollection = convexMeta?.collection;
+    const shaped = cxCollection
+      ? {
+          ...cxCollection,
+          _count: { items: cxCollection.itemCount },
+        }
+      : null;
+    if (shaped && shaped.isPublic) {
+      const title = `${shaped.name} · Curated collection | Prother`;
       const description = clamp(
-        `${c.description || `A curated collection of ${c._count.items} AI tools`}, hand-picked by ${c.ownerName} on Prother.`,
+        `${shaped.description || `A curated collection of ${shaped._count.items} AI tools`}, hand-picked by ${shaped.ownerName} on Prother.`,
         200,
       );
       return {
@@ -162,10 +188,13 @@ export async function generateMetadata({
 
   // Category browse deep link (?category=slug) — curated SEO intro copy.
   if (categorySlug) {
-    const cat = await db.category.findUnique({
-      where: { slug: categorySlug },
-      include: { _count: { select: { tools: true } } },
-    });
+    const cxCategory = convexMeta?.category;
+    const cat = cxCategory
+      ? {
+          ...cxCategory,
+          _count: { tools: cxCategory.toolCount },
+        }
+      : null;
     if (cat) {
       const blurb = CATEGORY_BLURBS[cat.slug] ?? "";
       const title = `${cat.name} · AI tools, ranked | Prother`;
@@ -205,18 +234,10 @@ export async function generateMetadata({
 
 /** Live listing count per category slug (statuses other than live don't count). */
 async function liveCountByCategory(): Promise<Map<string, number>> {
+  // Convex-only homepage bundle (empty grid rather than 500 on failure).
   try {
-    const [cats, live] = await Promise.all([
-      db.category.findMany({ select: { id: true, slug: true } }),
-      db.tool.findMany({ where: { status: "live" }, select: { categoryId: true } }),
-    ]);
-    const slugById = new Map(cats.map((c) => [c.id, c.slug]));
-    const out = new Map<string, number>();
-    for (const t of live) {
-      const slug = slugById.get(t.categoryId);
-      if (slug) out.set(slug, (out.get(slug) ?? 0) + 1);
-    }
-    return out;
+    const { counts } = await shadowHomepage(createServerConvexClient()!);
+    return new Map(counts.map((c) => [c.slug, c.count]));
   } catch {
     return new Map(); // grid renders with 0 counts rather than 500ing
   }
@@ -224,21 +245,10 @@ async function liveCountByCategory(): Promise<Map<string, number>> {
 
 /** Up to 6 Editor's Picks — pinned first, then newest. */
 async function getEditorsPicks() {
+  // Convex-only homepage bundle (section hides on failure).
   try {
-    return await db.tool.findMany({
-      where: { status: "live", editorsPick: true },
-      select: {
-        slug: true,
-        name: true,
-        tagline: true,
-        logoEmoji: true,
-        logoGradient: true,
-        pricingModel: true,
-        category: { select: { slug: true, name: true, emoji: true } },
-      },
-      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-      take: 6,
-    });
+    const { picks } = await shadowHomepage(createServerConvexClient()!);
+    return picks;
   } catch {
     return []; // section hides — the homepage never fails on a section query
   }
@@ -254,9 +264,10 @@ function firstSentence(blurb: string): string {
 
 /** Site copy KV (CMS-managed frontend elements) — blanks fall back in-code. */
 async function getSiteCopy(): Promise<Record<string, string>> {
+  // Convex-only site settings (empty map on failure — never fail the page).
   try {
-    const rows = await db.siteSetting.findMany({ select: { key: true, value: true } });
-    return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    const res = await shadowSite(createServerConvexClient()!);
+    return res.settings;
   } catch {
     return {}; // the page never fails on a settings read
   }

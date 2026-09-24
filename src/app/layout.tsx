@@ -3,6 +3,7 @@ import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/prother/auth-provider";
+import { ConvexClientProvider } from "@/components/prother/convex-provider";
 import { ScrollProgress } from "@/components/prother/scroll-progress";
 import { SiteHeader } from "@/components/prother/site-header";
 import { SiteFooter } from "@/components/prother/site-footer";
@@ -22,6 +23,8 @@ import { ToolFullPage } from "@/components/prother/tool-full-page";
 import { BackToTop } from "@/components/prother/back-to-top";
 import { AnalyticsPing } from "@/components/prother/analytics-ping";
 import { siteUrl } from "@/lib/site-url";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowSite } from "@/lib/data";
 
 /**
  * Typography: the SF Pro family. SF Pro is Apple's system font, so instead of
@@ -40,30 +43,18 @@ export async function generateMetadata(): Promise<Metadata> {
   let description =
     "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.";
   let faviconUrl = "";
+  // Convex-only (site settings cutover). Metadata must never 500 the shell:
+  // a failed settings read falls back to the locked defaults below.
+  let map: Record<string, string> | null = null;
   try {
-    const { db } = await import("@/lib/prother");
-    const rows = await db.siteSetting.findMany({
-      where: {
-        key: {
-          in: [
-            "seo.defaultTitle",
-            "seo.defaultDescription",
-            // Branding uploads (Task 35): the favicon feeds metadata.icons
-            // here; the logo is consumed client-side by the site header via
-            // /api/site (useSiteSettings).
-            "branding.logoUrl",
-            "branding.faviconUrl",
-          ],
-        },
-      },
-      select: { key: true, value: true },
-    });
-    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    map = (await shadowSite(createServerConvexClient()!)).settings;
+  } catch {
+    map = null;
+  }
+  if (map) {
     if (map["seo.defaultTitle"]) title = map["seo.defaultTitle"];
     if (map["seo.defaultDescription"]) description = map["seo.defaultDescription"];
     faviconUrl = map["branding.faviconUrl"] ?? "";
-  } catch {
-    // Locked defaults hold — metadata must never 500 the shell.
   }
 
   return {
@@ -132,6 +123,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
         <AuthProvider>
+          <ConvexClientProvider>
           <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
             <ScrollProgress />
             <SiteHeader />
@@ -155,6 +147,7 @@ export default function RootLayout({
             {/* First-party, cookieless pageview ping (Task 28) — renders null */}
             <AnalyticsPing />
           </div>
+          </ConvexClientProvider>
         </AuthProvider>
         </ThemeProvider>
         <Toaster />
