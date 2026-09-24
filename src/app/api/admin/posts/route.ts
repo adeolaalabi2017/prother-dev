@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
-import { postCoversByIds, setPostCover } from "@/lib/media";
+import { convexPostCreate, shadowAdminPosts } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -50,18 +50,14 @@ function slugify(title: string): string {
     .slice(0, 72);
 }
 
-/** Post-namespace slug uniquifier (tools and posts are separate URL spaces). */
-async function uniquePostSlug(base: string): Promise<string> {
-  const taken = await db.post.findMany({
-    select: { slug: true },
-    where: { slug: { startsWith: base } },
-  });
-  const takenSet = new Set(taken.map((t) => t.slug));
-  if (!takenSet.has(base)) return base;
-  for (let i = 2; i < 50; i++) {
-    if (!takenSet.has(`${base}-${i}`)) return `${base}-${i}`;
-  }
-  return `${base}-${Date.now().toString(36)}`;
+/** Post-namespace slug uniquifier (tools and posts are separate URL spaces).
+ *  Convex-only: candidates resolve by retrying the create on slug_taken. */
+function slugCandidates(base: string): string[] {
+  return [
+    base,
+    ...Array.from({ length: 48 }, (_, i) => `${base}-${i + 2}`),
+    `${base}-${Date.now().toString(36)}`,
+  ];
 }
 
 export async function GET(req: NextRequest) {
@@ -69,40 +65,10 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
 
   const status = req.nextUrl.searchParams.get("status");
-  const posts = await db.post.findMany({
-    where: status && status !== "all" ? { status } : undefined,
-    orderBy: [{ updatedAt: "desc" }],
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      category: true,
-      tags: true,
-      coverEmoji: true,
-      coverGradient: true,
-      status: true,
-      author: true,
-      readingMinutes: true,
-      views: true,
-      seoTitle: true,
-      seoDescription: true,
-      keywords: true,
-      publishedAt: true,
-      updatedAt: true,
-      createdAt: true,
-    },
-  });
-  // POST-boot column → raw SQL (stale-PrismaClient rule).
-  const coverMap = await postCoversByIds(posts.map((p) => p.id));
-  return NextResponse.json({
-    posts: posts.map((p) => ({
-      ...p,
-      coverUrl: coverMap.get(p.id) ?? null,
-      publishedAt: p.publishedAt?.toISOString() ?? null,
-      updatedAt: p.updatedAt.toISOString(),
-      createdAt: p.createdAt.toISOString(),
-    })),
+  // Convex-only (admin cutover).
+  const res = await shadowAdminPosts(createServerConvexClient()!, status ?? "");
+  return NextResponse.json(res, {
+    headers: { "x-data-backend": "convex" },
   });
 }
 
@@ -118,27 +84,51 @@ export async function POST(req: NextRequest) {
     );
   }
   const data = parsed.data;
-  // coverUrl is a POST-boot column: the ORM write below must not see it.
-  const { coverUrl, ...restData } = data;
-  const slug = await uniquePostSlug(data.slug ? slugify(data.slug) : slugify(data.title));
+  const readingMinutes = Math.max(1, Math.round(data.body.split(/\s+/).length / 220));
+  const publishedAtMs = data.status === "published" ? Date.now() : undefined;
 
-  const post = await db.post.create({
-    data: {
-      ...restData,
-      slug,
-      readingMinutes: Math.max(1, Math.round(data.body.split(/\s+/).length / 220)),
-      publishedAt: data.status === "published" ? new Date() : null,
-    },
-  });
-  // POST-boot column → raw SQL (stale-PrismaClient rule).
-  if (data.coverUrl !== undefined) {
-    await setPostCover(post.id, data.coverUrl);
+  // Convex-only: one id + timestamps for the insert; slug candidates retry
+  // on the mutation's slug_taken error (atomic check-and-insert).
+  const postId = crypto.randomUUID();
+  const nowMs = Date.now();
+  const client = createServerConvexClient()!;
+  const base = data.slug ? slugify(data.slug) : slugify(data.title);
+  for (const slug of slugCandidates(base)) {
+    try {
+      await convexPostCreate(client, {
+        id: postId,
+        slug,
+        title: data.title,
+        excerpt: data.excerpt,
+        body: data.body,
+        category: data.category,
+        tagsPipe: data.tags,
+        coverEmoji: data.coverEmoji,
+        coverGradient: data.coverGradient,
+        author: data.author,
+        status: data.status,
+        seoTitle: data.seoTitle,
+        seoDescription: data.seoDescription,
+        keywords: data.keywords,
+        coverUrl: data.coverUrl ?? undefined,
+        readingMinutes,
+        publishedAt: publishedAtMs,
+        createdAt: nowMs,
+        updatedAt: nowMs,
+      });
+      logAudit(
+        data.status === "published" ? "post.publish" : "post.create",
+        "post",
+        postId,
+        slug
+      );
+      return NextResponse.json({ ok: true, id: postId, slug });
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      if (m.includes("slug_taken")) continue;
+      console.error("[api:admin/posts] create failed:", data.title, err);
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
+    }
   }
-  logAudit(
-    data.status === "published" ? "post.publish" : "post.create",
-    "post",
-    post.id,
-    post.slug
-  );
-  return NextResponse.json({ ok: true, id: post.id, slug: post.slug });
+  return NextResponse.json({ error: "server_error" }, { status: 500 });
 }

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
-import { setPostCover } from "@/lib/media";
+import { convexPostDelete, convexPostPatch, shadowAdminPosts } from "@/lib/data";
+import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -51,39 +51,59 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
-  const { body, coverUrl, ...rest } = parsed.data;
-  const data: Parameters<typeof db.post.update>[0]["data"] = { ...rest };
+  const { body, coverUrl, tags, ...rest } = parsed.data;
+  const client = createServerConvexClient()!;
+  const data: Record<string, unknown> = { ...rest };
   if (body) {
+    data.body = body;
     data.readingMinutes = Math.max(1, Math.round(body.split(/\s+/).length / 220));
   }
 
   // Stamp publishedAt on the draft → published transition (keep original date
-  // when re-publishing an already-published post).
-  if (data.status === "published") {
-    const current = await db.post.findUnique({
-      where: { id },
-      select: { publishedAt: true, status: true },
-    });
-    if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (!current.publishedAt) (data as { publishedAt?: Date }).publishedAt = new Date();
+  // when re-publishing an already-published post). Current state resolves
+  // from the Convex table read.
+  let current: { publishedAt: string | null; status: string; slug: string } | null = null;
+  try {
+    const table = await shadowAdminPosts(client, "all");
+    current = table.posts.find((p) => p.id === id) ?? null;
+  } catch (err) {
+    console.error("[api:admin/posts] table read failed:", id, err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
+  if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  let stampedAtMs: number | undefined;
+  if (data.status === "published" && !current.publishedAt) {
+    stampedAtMs = Date.now();
   }
 
+  // Convex-only: single-transaction patch. Tags travel as the pipe string.
+  const nowMs = Date.now();
   try {
-    const post = await db.post.update({ where: { id }, data });
-    // POST-boot column → raw SQL (stale-PrismaClient rule).
-    if (coverUrl !== undefined) {
-      await setPostCover(id, coverUrl);
+    await convexPostPatch(client, {
+      postLegacyId: id,
+      data: {
+        ...data,
+        ...(tags !== undefined ? { tagsPipe: tags } : {}),
+        ...(stampedAtMs ? { publishedAt: stampedAtMs } : {}),
+        updatedAt: nowMs,
+      },
+      coverUrl,
+    });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("not_found")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    logAudit(
-      data.status === "draft" ? "post.unpublish" : "post.update",
-      "post",
-      id,
-      post.slug
-    );
-    return NextResponse.json({ ok: true, slug: post.slug });
-  } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    console.error("[api:admin/posts] PATCH failed:", id, err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
+  logAudit(
+    data.status === "draft" ? "post.unpublish" : "post.update",
+    "post",
+    id,
+    (data.slug as string | undefined) ?? current.slug
+  );
+  return NextResponse.json({ ok: true, slug: (data.slug as string | undefined) ?? current.slug });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
@@ -91,8 +111,17 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (denied) return denied;
 
   const { id } = await params;
-  const post = await db.post.delete({ where: { id } }).catch(() => null);
-  if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  logAudit("post.delete", "post", id, post.slug);
-  return NextResponse.json({ ok: true });
+  // Convex-only: the mutation throws not_found for unknown ids.
+  try {
+    const res = await convexPostDelete(createServerConvexClient()!, { postLegacyId: id });
+    logAudit("post.delete", "post", id, res.slug);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("not_found")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    console.error("[api:admin/posts] DELETE failed:", id, err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
