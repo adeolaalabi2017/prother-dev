@@ -106,8 +106,10 @@ function CommandPalette() {
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
-      setDebouncedQ("");
-      return;
+      // Deferred (not synchronous) so the effect never triggers a cascading
+      // render pass — behavior unchanged, it still clears on the next tick.
+      const t = window.setTimeout(() => setDebouncedQ(""), 0);
+      return () => window.clearTimeout(t);
     }
     if (CONVEX_LIVE) {
       const t = window.setTimeout(() => setDebouncedQ(q), 180);

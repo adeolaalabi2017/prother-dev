@@ -1,10 +1,7 @@
 # CI/CD — verify on every push/PR; deploy backend then frontend on main.
 #
-# Lint scope note: `eslint .` is not gated here because
-# src/components/prother/* carries pre-existing hook-rule debt in files
-# unrelated to the Convex migration (fails identically at the migration
-# base). The gated paths below are clean; widen the scope once that debt
-# is paid down.
+# Lint gates the full source tree (the pre-existing hook-rule debt that once
+# forced scoped paths was paid down during the dead-code sweep).
 #
 # Deploy order matters: the worker build bakes NEXT_PUBLIC_CONVEX_URL and
 # must never ship against a failed backend push, so deploy-convex runs
@@ -40,8 +37,8 @@ jobs:
         # client, which is not committed — generate it from prisma/schema.prisma.
         run: bunx prisma generate
 
-      - name: Lint (gated paths)
-        run: bunx eslint src/app src/lib convex scripts
+      - name: Lint
+        run: bunx eslint src convex scripts
 
       - name: Typecheck
         run: bunx tsc --noEmit -p tsconfig.json
