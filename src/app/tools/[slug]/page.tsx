@@ -276,15 +276,17 @@ export default async function ToolPage({ params }: Params) {
       pricingCheckedAt: null,
       contentUpdatedAt: null,
     };
-  // Alternatives arrive resolved in the Convex bundle; the Prisma path
-  // below only runs when editors listed slugs the bundle didn't resolve
-  // (defensive — normally bundle.alternatives covers it).
-  const alternatives =
-    bundle.alternatives.length > 0
-      ? bundle.alternatives
-      : editorial.alternativeSlugs.length
-        ? await resolveAlternatives(editorial.alternativeSlugs, tool.slug)
-        : [];
+  // Alternatives arrive resolved in the Convex bundle; the fallback below
+  // only runs when editors listed slugs the bundle didn't resolve — and it
+  // must never break the page (it still hits the legacy Prisma reader).
+  let alternatives = bundle.alternatives;
+  if (alternatives.length === 0 && editorial.alternativeSlugs.length > 0) {
+    try {
+      alternatives = await resolveAlternatives(editorial.alternativeSlugs, tool.slug);
+    } catch {
+      alternatives = [];
+    }
+  }
 
   const longParagraphs = (editorial.longDescription ?? "")
     .split(/\n{2,}/)
