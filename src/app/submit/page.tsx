@@ -97,7 +97,7 @@ const REASSURANCE = [
   {
     icon: CheckCircle2,
     q: "Is submitting free?",
-    a: "Yes. Submitting and being listed are free, forever. No paid placement, no fast-lane upsell. Curation is never sold.",
+    a: "Yes. Submitting and being listed are free, forever.",
   },
   {
     icon: Clock3,

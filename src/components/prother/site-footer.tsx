@@ -44,7 +44,6 @@ const COLS: { title: string; links: FooterLink[] }[] = [
     links: [
       { label: "About", href: "/about" },
       { label: "Contact", href: "mailto:makers@prother.dev", external: true },
-      { label: "Advertise", href: "/advertise" },
       { label: "Press", href: "/about" },
       { label: "Trademark", href: "/about" },
       { label: "Privacy", href: "/privacy" },
@@ -78,7 +77,7 @@ export function SiteFooter() {
   const tagline =
     settings["footer.tagline"] ||
     "The curated directory for AI tools. Search, compare, and save your stack.";
-  const note = settings["footer.note"] || "Curation is never sold.";
+  const note = settings["footer.note"] || "Curated, human-reviewed.";
   return (
     <footer className="mt-auto border-t border-white/10 bg-ink">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">

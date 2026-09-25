@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import {
   ArrowUpRight,
   BookOpen,
@@ -106,6 +107,9 @@ const FLOAT_TILES = [
 ];
 
 export default async function AdvertisePage() {
+  // Monetization paused (see pause-monitization.md): the pitch page stays in
+  // the tree so it can return with one revert, but it is not routable.
+  notFound();
   const stats = await getStats();
   const statCards = [
     { label: "TOOLS LISTED", value: stats.tools > 0 ? `${stats.tools}` : "—" },

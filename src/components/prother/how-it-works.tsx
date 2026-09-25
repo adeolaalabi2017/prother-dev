@@ -12,7 +12,7 @@ const STATS = [
   {
     value: "0",
     title: "Spam tools, ever",
-    body: "Every listing passes all six published standards before it can be listed. Curation is never sold.",
+    body: "Every listing passes all six published standards before it can be listed.",
   },
   {
     value: "$0",

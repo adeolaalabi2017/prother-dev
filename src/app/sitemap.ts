@@ -5,7 +5,7 @@ import { shadowSitemapData } from "@/lib/data";
 /**
  * Auto sitemap (PRD NFR: SEO — auto sitemaps). Metadata route, not a page.
  * Indexes: homepage, the dedicated routes (/tools, /forums, /journal, /about,
- * /submit, /advertise), live tool deep-links (/tools/[slug] — Task 25),
+ * /submit), live tool deep-links (/tools/[slug] — Task 25),
  * category pages (/categories/[slug]), published journal posts (real
  * /journal/[slug] routes + legacy ?post=slug), and forum threads. Tools get
  * honest lastmod dates from their listing date; posts from
@@ -58,7 +58,6 @@ function buildSitemap(
     { url: `${base}/journal`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/about`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/submit`, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${base}/advertise`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.3 },    { url: `${base}/about#standards`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/about#faq`, changeFrequency: "monthly", priority: 0.4 },
