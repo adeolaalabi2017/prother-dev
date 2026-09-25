@@ -47,6 +47,8 @@ const COLS: { title: string; links: FooterLink[] }[] = [
       { label: "Advertise", href: "/advertise" },
       { label: "Press", href: "/about" },
       { label: "Trademark", href: "/about" },
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
     ],
   },
 ];
