@@ -13,6 +13,11 @@
   },
   "observability": {
     "enabled": true
+  },
+  "vars": {
+    "AUTH_STORE": "convex",
+    "AUTH_DEV_LINKS": "false",
+    "NEXT_PUBLIC_SITE_URL": "https://prother.dev"
   }
   // Optional (later): KV/R2 bindings for durable ISR caching.
   // No database binding is needed — all data lives in Convex (see DEPLOY.md).
