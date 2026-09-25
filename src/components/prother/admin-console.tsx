@@ -69,7 +69,6 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { STANDARD_DEFS } from "@/lib/standards";
 import {
-  DEMO_HINT,
   adminFetch,
   inputCx,
   labelCx,
