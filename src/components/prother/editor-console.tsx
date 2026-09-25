@@ -98,8 +98,7 @@ type EditorReview = {
   ageH: number;
 };
 
-/** Demo passcode — real auth (NextAuth) ships in Phase 2. */
-const DEMO_HINT = "ember-dev";
+/** Admin key gate — the key lives server-side (ADMIN_KEY env). */
 const KEY_STORAGE = "prother_editor_key";
 
 // ── Gate screen ──────────────────────────────────────────────────────────
@@ -115,14 +114,7 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
         Editor access
       </h2>
       <p className="mt-1.5 max-w-xs text-sm text-white/50">
-        Review queue for the moderation desk. Demo key:{" "}
-        <button
-          type="button"
-          onClick={() => setValue(DEMO_HINT)}
-          className="font-mono text-ember underline-offset-2 hover:underline"
-        >
-          {DEMO_HINT}
-        </button>
+        Review queue for the moderation desk. Ask the site owner for the key.
       </p>
       <form
         className="mt-6 flex w-full max-w-xs gap-2"

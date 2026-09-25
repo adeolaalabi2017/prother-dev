@@ -118,15 +118,8 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
           Enter the backstage
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-white/50">
-          Listings, journal, taxonomy and site copy: one key,
-          no deploys. Demo key:{" "}
-          <button
-            type="button"
-            onClick={() => setValue(DEMO_HINT)}
-            className="font-mono text-ember underline-offset-2 hover:underline"
-          >
-            {DEMO_HINT}
-          </button>
+          Listings, journal, taxonomy and site copy: one key, no deploys.
+          Ask the site owner for the key.
         </p>
         <form
           className="mt-6 space-y-2.5"
