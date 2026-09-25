@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/prother/theme-provider";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +22,7 @@ function useMounted() {
  *   · ThemeToggle      icon button, matches the header utility buttons
  *   · ThemeToggleRow   full-width row, matches the mobile menu rows
  * Both render a stable SSR frame (Sun) and swap the icon after mount;
- * next-themes persists the choice in localStorage ("prother-theme").
+ * the choice persists in localStorage ("prother-theme").
  */
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();

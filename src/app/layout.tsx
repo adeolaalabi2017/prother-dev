@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/components/prother/theme-provider";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/prother/auth-provider";
@@ -115,15 +115,9 @@ export default function RootLayout({
       <body className="antialiased bg-background text-foreground">
         {/* Dark is the brand default; the header toggle flips to the warm
             paper light theme (globals.css html.light token remap). The
-            class is set pre-hydration by next-themes' inline script, so
+            class is set pre-hydration by our inline theme script, so
             there is no first-paint flash. */}
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          storageKey="prother-theme"
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
         <AuthProvider>
           <ConvexClientProvider>
           <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
