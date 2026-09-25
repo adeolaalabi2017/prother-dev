@@ -19,6 +19,9 @@ import { shadowAdvertiseStats } from "@/lib/data";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/advertise" },
+  // Hidden while monetization is paused (page notFounds): keep crawlers out
+  // regardless of the served status code.
+  robots: { index: false, follow: false },
   title: "Advertise on Prother",
   description:
     "Put your product in front of the builders, founders, and early adopters who search, compare, and save AI tools every day. Clearly-labeled placements, one sponsor per slot.",
