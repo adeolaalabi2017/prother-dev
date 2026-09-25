@@ -29,8 +29,8 @@ import { ThemeToggle, ThemeToggleRow } from "./theme-toggle";
  * on the homepage is neutral.
  */
 const NAV_LINKS = [
-  { label: "Tools", href: "/tools", id: "tools", icon: Compass },
   { label: "Categories", href: "/#categories", id: "categories", icon: Grid2x2 },
+  { label: "Tools", href: "/tools", id: "tools", icon: Compass },
   { label: "Journal", href: "/journal", id: "journal", icon: Feather },
   { label: "Forums", href: "/forums", id: "forums", icon: MessagesSquare },
   { label: "About", href: "/about", id: "about", icon: Info },
