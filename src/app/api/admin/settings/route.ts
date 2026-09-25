@@ -44,22 +44,22 @@ export async function PUT(req: NextRequest) {
       ? Object.entries(parsed.data.settings)
       : [[parsed.data.key, parsed.data.value] as const];
 
-  for (const [key, value] of entries) {
-    await db.siteSetting.upsert({
-      where: { key },
-      update: { value },
-      create: { key, value },
-    });
-  }
-  // Dual-write: Prisma stays as the settings backup (it also fed the
-  // retired per-route backend.* flag reader); Convex is mirrored
-  // unconditionally so the mirror never goes stale.
+  // Convex-first (the served store). The Prisma backup is best-effort:
+  // on Workers there is no local database file, so it always fails there
+  // by design — and that must never fail the save.
+  await convexSettingsPut(createServerConvexClient()!, {
+    entries: entries.map(([key, value]) => ({ key, value })),
+  });
   try {
-    await convexSettingsPut(createServerConvexClient()!, {
-      entries: entries.map(([key, value]) => ({ key, value })),
-    });
+    for (const [key, value] of entries) {
+      await db.siteSetting.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value },
+      });
+    }
   } catch (err) {
-    console.error("[dual-write] convex settingsPut failed:", entries.map(([k]) => k).join(","), err);
+    console.error("[settings] prisma backup failed (non-fatal):", err);
   }
   logAudit("settings.update", "settings", "", entries.map(([k]) => k).join(", "));
   return NextResponse.json({ ok: true, updated: entries.length });
