@@ -16,15 +16,21 @@ export const metadata: Metadata = {
 };
 
 /** /terms — plain-language terms of service (also serves Google OAuth verification). */
-export default function TermsPage() {
-  const P = ({ children }: { children: React.ReactNode }) => (
+function P({ children }: { children: React.ReactNode }) {
+  return (
     <p className="mt-3 text-[15px] leading-relaxed text-white/70">{children}</p>
   );
-  const H = ({ children }: { children: React.ReactNode }) => (
+}
+
+function H({ children }: { children: React.ReactNode }) {
+  return (
     <h2 className="pt-8 text-xl font-bold tracking-tight text-white">
       {children}
     </h2>
   );
+}
+
+export default function TermsPage() {
   return (
     <div className="bg-ink pb-16 md:pb-0">
       <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
