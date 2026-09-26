@@ -10,6 +10,7 @@
 
 import type * as admin from "../admin.js";
 import type * as adminCrud from "../adminCrud.js";
+import type * as adminPurge from "../adminPurge.js";
 import type * as ads from "../ads.js";
 import type * as analytics from "../analytics.js";
 import type * as authStore from "../authStore.js";
@@ -43,6 +44,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   adminCrud: typeof adminCrud;
+  adminPurge: typeof adminPurge;
   ads: typeof ads;
   analytics: typeof analytics;
   authStore: typeof authStore;

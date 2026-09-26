@@ -31,6 +31,7 @@ import {
   Star,
   Tags,
   Trash2,
+  TriangleAlert,
   Users,
   X,
   type LucideIcon,
@@ -78,6 +79,7 @@ import {
   useAdminKey,
 } from "./admin/admin-shared";
 import { UsersTab } from "./admin/admin-users";
+import { PurgeTab } from "./admin/admin-purge";
 import { ReportsTab } from "./admin/admin-reports";
 import { AdsTab } from "./admin/admin-ads";
 import { AdminMediaTab } from "./admin/admin-media";
@@ -3219,7 +3221,8 @@ type SectionId =
   | "journal"
   | "media"
   | "ads"
-  | "settings";
+  | "settings"
+  | "purge";
 
 const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: LucideIcon }[] }[] = [
   {
@@ -3249,7 +3252,10 @@ const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: 
   },
   {
     label: "Config",
-    items: [{ id: "settings", label: "Settings", icon: SettingsIcon }],
+    items: [
+      { id: "settings", label: "Settings", icon: SettingsIcon },
+      { id: "purge", label: "Danger Zone", icon: TriangleAlert },
+    ],
   },
 ];
 
@@ -3264,6 +3270,7 @@ const SECTION_TITLES: Record<SectionId, string> = {
   media: "Media library",
   ads: "Advertising",
   settings: "Site settings",
+  purge: "Danger Zone",
 };
 
 const SECTION_NOTES: Record<SectionId, string> = {
@@ -3277,6 +3284,7 @@ const SECTION_NOTES: Record<SectionId, string> = {
   media: "Uploaded images and videos: copy URLs, attach to listings or posts, delete safely.",
   ads: "Sponsored campaigns: placements, flights, budgets and CTR.",
   settings: "KV site copy: hero, announcement, footer, SEO defaults. No deploys.",
+  purge: "One-time launch purge: every account but yours, plus seeded content.",
 };
 
 // ── Shell: sidebar ───────────────────────────────────────────────────────
@@ -3619,6 +3627,9 @@ export function AdminDashboard() {
                   )}
                   {section === "settings" && (
                     <SettingsTab apiKey={key} onChanged={bumpOverview} />
+                  )}
+                  {section === "purge" && (
+                    <PurgeTab apiKey={key} onChanged={bumpOverview} />
                   )}
                 </Panel>
               </section>

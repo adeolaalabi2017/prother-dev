@@ -413,6 +413,14 @@ export function shadowAdminSettings(c: Client) {
   return c.query(api.adminCrud.settingsTable, {});
 }
 
+/** Launch purge (dry-run or execute) — admin-key enforced route-side. */
+export function convexAdminPurge(
+  c: Client,
+  args: { protectedEmail: string; confirm: string; execute: boolean }
+) {
+  return c.mutation(api.adminPurge.purgeUsers, args);
+}
+
 // ── Phase 4 step 6 — admin console writes (dual-write; editor-key enforced
 // route-side, ids/timestamps generated once route-side and shared) ──
 
