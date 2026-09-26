@@ -37,6 +37,7 @@ function serializeUser(u: {
   image?: string;
   handle?: string;
   bio?: string;
+  coverImage?: string;
   role?: string;
   status?: string;
   createdAt: number;
@@ -49,6 +50,7 @@ function serializeUser(u: {
     image: u.image ?? null,
     handle: u.handle ?? null,
     bio: u.bio ?? null,
+    coverImage: u.coverImage ?? null,
     // Role/status travel for profile + moderation reads (ignored by the
     // NextAuth adapter mapping, which only takes the AdapterUser fields).
     role: u.role ?? "member",
@@ -153,6 +155,7 @@ export const authUserPatch = mutation({
     image: v.optional(v.union(v.string(), v.null())),
     handle: v.optional(v.union(v.string(), v.null())),
     bio: v.optional(v.union(v.string(), v.null())),
+    coverImage: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, a) => {
     const users = await ctx.db.query("users").collect();
@@ -168,6 +171,7 @@ export const authUserPatch = mutation({
     if (a.image !== undefined) patch.image = a.image ?? undefined;
     if (a.handle !== undefined) patch.handle = a.handle ?? undefined;
     if (a.bio !== undefined) patch.bio = a.bio ?? undefined;
+    if (a.coverImage !== undefined) patch.coverImage = a.coverImage ?? undefined;
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(u._id, patch as never);
     }

@@ -158,7 +158,9 @@ export function ImageUploadField({
         <div
           className={cn(
             "flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2",
-            square ? "flex-col items-start" : ""
+            // Square tiles (avatars, logos) live in narrow columns: stack
+            // compactly, hide the raw URL (title attr keeps it reachable).
+            square ? "flex-col" : ""
           )}
         >
           <a
@@ -184,8 +186,10 @@ export function ImageUploadField({
             )}
           </a>
           <div className="min-w-0 flex-1 space-y-1.5">
-            <p className="truncate font-mono text-xs text-white/55">{value}</p>
-            <div className="flex flex-wrap gap-2">
+            {!square && (
+              <p className="truncate font-mono text-xs text-white/55">{value}</p>
+            )}
+            <div className={cn("flex gap-2", square ? "w-full flex-col items-stretch" : "flex-wrap")}>
               <Button
                 type="button"
                 variant="outline"

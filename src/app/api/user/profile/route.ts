@@ -21,8 +21,8 @@ export async function GET() {
     if (!profile) {
       return NextResponse.json({ error: "Account not found." }, { status: 404 });
     }
-    const { id, name, handle, bio, image, role, createdAt } = profile;
-    return NextResponse.json({ profile: { id, name, handle, bio, image, role, createdAt } });
+    const { id, name, handle, bio, image, coverImage, role, createdAt } = profile;
+    return NextResponse.json({ profile: { id, name, handle, bio, image, coverImage, role, createdAt } });
   } catch (err) {
     console.error("[api/user/profile] get failed", err);
     return NextResponse.json(
@@ -37,6 +37,7 @@ type PatchBody = {
   handle?: unknown;
   bio?: unknown;
   image?: unknown;
+  coverImage?: unknown;
 };
 
 const HANDLE_RE = /^[a-zA-Z0-9_-]{2,24}$/;
@@ -45,7 +46,8 @@ const MEDIA_URL_RE = /^\/api\/media\/[A-Za-z0-9_-]+$/;
 /**
  * PATCH /api/user/profile — edit the signed-in user's profile.
  * Body (all optional): name (2-40), handle (2-24, unique), bio (≤200),
- * image (an /api/media/... URL from /api/upload, or null to clear).
+ * image (an /api/media/... URL from /api/upload, or null to clear),
+ * coverImage (banner /api/media/... URL, or null to clear).
  */
 export async function PATCH(req: Request) {
   const user = await getAuthUser();
@@ -64,6 +66,7 @@ export async function PATCH(req: Request) {
     handle?: string;
     bio?: string | null;
     image?: string | null;
+    coverImage?: string | null;
   } = {};
 
   if (body.name !== undefined) {
@@ -110,6 +113,21 @@ export async function PATCH(req: Request) {
     }
   }
 
+  if (body.coverImage !== undefined) {
+    if (body.coverImage === null || body.coverImage === "") {
+      data.coverImage = null;
+    } else {
+      const coverImage = String(body.coverImage);
+      if (!MEDIA_URL_RE.test(coverImage)) {
+        return NextResponse.json(
+          { error: "Banner must be a file uploaded through /api/upload." },
+          { status: 400 }
+        );
+      }
+      data.coverImage = coverImage;
+    }
+  }
+
   if (Object.keys(data).length === 0) {
     return NextResponse.json(
       { error: "Nothing to update." },
@@ -135,11 +153,12 @@ export async function PATCH(req: Request) {
       handle: data.handle,
       bio: data.bio,
       image: data.image,
+      coverImage: data.coverImage,
     });
     // The users row IS the directory profile (shared table) — no bridge
     // sync needed; the admin roster and ban checks read this same row.
-    const { id, name, handle, bio, image, role, createdAt } = updated;
-    return NextResponse.json({ profile: { id, name, handle, bio, image, role, createdAt } });
+    const { id, name, handle, bio, image, coverImage, role, createdAt } = updated;
+    return NextResponse.json({ profile: { id, name, handle, bio, image, coverImage, role, createdAt } });
   } catch (err) {
     console.error("[api/user/profile] patch failed", err);
     return NextResponse.json(

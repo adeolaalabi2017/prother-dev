@@ -44,11 +44,9 @@ function openAuth(): void {
   window.dispatchEvent(new CustomEvent("prother:auth-open"));
 }
 
-export function CollectionsMineFullPage() {
+export function CollectionsMinePanel({ active }: { active: boolean }) {
   const { toast } = useToast();
   const { status } = useSession();
-  const mineView = useExplorer((s) => s.mineView);
-  const closeMine = useExplorer((s) => s.closeMine);
   const openCollection = useExplorer((s) => s.openCollection);
 
   const [colls, setColls] = useState<MineCollection[] | null>(null);
@@ -100,16 +98,16 @@ export function CollectionsMineFullPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (status !== "authenticated" || mineView !== "collections") return;
+    if (status !== "authenticated" || !active) return;
     if (colls === null) void loadCollections();
-  }, [status, mineView, colls, loadCollections]);
+  }, [status, active, colls, loadCollections]);
 
   useEffect(() => {
-    if (status !== "authenticated" || mineView !== "collections") return;
+    if (status !== "authenticated" || !active) return;
     if (tab === "following" && follows === null && !followsLoading) {
       void loadFollows();
     }
-  }, [status, mineView, tab, follows, followsLoading, loadFollows]);
+  }, [status, active, tab, follows, followsLoading, loadFollows]);
 
   const create = useCallback(async () => {
     const name = newName.trim();
@@ -233,63 +231,10 @@ export function CollectionsMineFullPage() {
     return groups.filter((g) => g.rows.length > 0);
   }, [follows]);
 
-  // ── Gate: mount state ──
-  if (mineView !== "collections") return null;
-
-  // Session loading → skeleton.
-  if (status === "loading") {
-    return (
-      <FullPageShell
-        kicker="Account"
-        breadcrumb={[{ label: "Home" }]}
-        onClose={closeMine}
-        ariaLabel="My collections"
-      >
-        <PageSkeleton />
-      </FullPageShell>
-    );
-  }
-
-  // Anonymous → sign-in panel.
-  if (status === "unauthenticated") {
-    return (
-      <FullPageShell
-        kicker="Account"
-        breadcrumb={[{ label: "Home" }]}
-        onClose={closeMine}
-        ariaLabel="My collections (sign in required)"
-      >
-        <div className="flex flex-col items-center gap-4 py-16 text-center">
-          <span
-            aria-hidden
-            className="grid size-14 place-items-center rounded-2xl border border-ember/30 bg-ember/[0.06]"
-          >
-            <FolderHeart className="size-6 text-ember" />
-          </span>
-          <h1 className="text-2xl font-black tracking-tight text-white">SIGN IN REQUIRED</h1>
-          <p className="max-w-sm text-sm leading-relaxed text-white/55">
-            Collections and follows live in your account. Sign in to keep your
-            picks across visits.
-          </p>
-          <Button
-            type="button"
-            onClick={openAuth}
-            className="h-11 bg-ember px-6 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
-          >
-            SIGN IN →
-          </Button>
-        </div>
-      </FullPageShell>
-    );
-  }
-
+  // ── Panel: tabs content only (overlay shell lives below). The caller
+  // owns auth gating — the panel assumes an authenticated session.
   return (
-    <FullPageShell
-      kicker="Account"
-      breadcrumb={[{ label: "Home" }, { label: "My collections" }]}
-      onClose={closeMine}
-      ariaLabel="My collections and follows"
-    >
+    <>
       <Tabs value={tab} onValueChange={setTab} className="gap-6">
         <TabsList className="h-11 w-fit border border-white/10 bg-white/[0.03] p-1">
           <TabsTrigger
@@ -521,6 +466,77 @@ export function CollectionsMineFullPage() {
           )}
         </TabsContent>
       </Tabs>
+    </>
+  );
+}
+
+/**
+ * Overlay shell (?mine=collections) — mount gate, session gates, and the
+ * FullPageShell chrome around CollectionsMinePanel. Behavior unchanged.
+ */
+export function CollectionsMineFullPage() {
+  const { status } = useSession();
+  const mineView = useExplorer((s) => s.mineView);
+  const closeMine = useExplorer((s) => s.closeMine);
+
+  // ── Gate: mount state ──
+  if (mineView !== "collections") return null;
+
+  // Session loading → skeleton.
+  if (status === "loading") {
+    return (
+      <FullPageShell
+        kicker="Account"
+        breadcrumb={[{ label: "Home" }]}
+        onClose={closeMine}
+        ariaLabel="My collections"
+      >
+        <PageSkeleton />
+      </FullPageShell>
+    );
+  }
+
+  // Anonymous → sign-in panel.
+  if (status === "unauthenticated") {
+    return (
+      <FullPageShell
+        kicker="Account"
+        breadcrumb={[{ label: "Home" }]}
+        onClose={closeMine}
+        ariaLabel="My collections (sign in required)"
+      >
+        <div className="flex flex-col items-center gap-4 py-16 text-center">
+          <span
+            aria-hidden
+            className="grid size-14 place-items-center rounded-2xl border border-ember/30 bg-ember/[0.06]"
+          >
+            <FolderHeart className="size-6 text-ember" />
+          </span>
+          <h1 className="text-2xl font-black tracking-tight text-white">SIGN IN REQUIRED</h1>
+          <p className="max-w-sm text-sm leading-relaxed text-white/55">
+            Collections and follows live in your account. Sign in to keep your
+            picks across visits.
+          </p>
+          <Button
+            type="button"
+            onClick={openAuth}
+            className="h-11 bg-ember px-6 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+          >
+            SIGN IN →
+          </Button>
+        </div>
+      </FullPageShell>
+    );
+  }
+
+  return (
+    <FullPageShell
+      kicker="Account"
+      breadcrumb={[{ label: "Home" }, { label: "My collections" }]}
+      onClose={closeMine}
+      ariaLabel="My collections and follows"
+    >
+      <CollectionsMinePanel active />
     </FullPageShell>
   );
 }

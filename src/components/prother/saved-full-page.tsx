@@ -91,34 +91,8 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "post", label: "Posts" },
 ];
 
-export function SavedFullPage() {
-  const savedView = useExplorer((s) => s.savedView);
-  const closeSaved = useExplorer((s) => s.closeSaved);
+export function SavedPanel() {
   const { items, loading, error, refresh } = useBookmarksList();
-
-  // Single-live-instance claim (see DEV-SERVER NOTE above): the earliest
-  // mounted instance wins; every other instance renders null for its whole
-  // lifetime. The instance's useId() is the claim token — stable per mounted
-  // instance, render-readable without refs — and useSyncExternalStore makes
-  // ownership reactive without any setState-in-effect. Server snapshot (null)
-  // keeps hydration stable.
-  const myInstanceId = useId();
-  const overlayOwner = useSyncExternalStore(
-    subscribeOverlayClaim,
-    () => overlayOwnerToken,
-    () => null
-  );
-
-  useEffect(() => {
-    claimOverlayInstance(myInstanceId);
-    return () => releaseOverlayInstance(myInstanceId);
-  }, [myInstanceId]);
-
-  // Take over if the owner went away while this instance stayed mounted
-  // (e.g. the claimant unmounted during HMR) — idempotent, effect-side only.
-  useEffect(() => {
-    if (overlayOwner === null) claimOverlayInstance(myInstanceId);
-  }, [overlayOwner, myInstanceId]);
 
   const [filter, setFilter] = useState<Filter>("all");
   const [removing, setRemoving] = useState<string | null>(null);
@@ -149,30 +123,10 @@ export function SavedFullPage() {
     }
   };
 
-  if (savedView !== "mine") return null;
-  // Exactly one live instance — duplicates (the layout.tsx mount once it goes
-  // live, while the back-to-top.tsx TEMP mount still exists) render nothing.
-  if (overlayOwner !== myInstanceId) return null;
-
+  // ── Panel: filter + list only (overlay shell lives below; the profile
+  // page reuses this without the overlay chrome or the H1 header).
   return (
-    <FullPageShell
-      kicker="Account"
-      breadcrumb={[{ label: "Home" }, { label: "Saved" }]}
-      onClose={closeSaved}
-      ariaLabel="Saved tools, threads, and posts"
-    >
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-            Saved
-          </h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">
-            Your bookmarked tools, threads, and posts, kept on this device
-            until you sign in, then kept with your account.
-          </p>
-        </div>
-
-        {/* type filter chips */}
+    <div className="space-y-6">
         <div
           role="tablist"
           aria-label="Filter saved items by type"
@@ -292,6 +246,65 @@ export function SavedFullPage() {
             })}
           </ul>
         )}
+    </div>
+  );
+}
+
+/**
+ * Overlay shell (?saved=mine) — mount gate, single-live-instance claim, and
+ * the FullPageShell chrome around SavedPanel. Behavior unchanged.
+ */
+export function SavedFullPage() {
+  const savedView = useExplorer((s) => s.savedView);
+  const closeSaved = useExplorer((s) => s.closeSaved);
+
+  // Single-live-instance claim (see DEV-SERVER NOTE above): the earliest
+  // mounted instance wins; every other instance renders null for its whole
+  // lifetime. The instance's useId() is the claim token — stable per mounted
+  // instance, render-readable without refs — and useSyncExternalStore makes
+  // ownership reactive without any setState-in-effect. Server snapshot (null)
+  // keeps hydration stable.
+  const myInstanceId = useId();
+  const overlayOwner = useSyncExternalStore(
+    subscribeOverlayClaim,
+    () => overlayOwnerToken,
+    () => null
+  );
+
+  useEffect(() => {
+    claimOverlayInstance(myInstanceId);
+    return () => releaseOverlayInstance(myInstanceId);
+  }, [myInstanceId]);
+
+  // Take over if the owner went away while this instance stayed mounted
+  // (e.g. the claimant unmounted during HMR) — idempotent, effect-side only.
+  useEffect(() => {
+    if (overlayOwner === null) claimOverlayInstance(myInstanceId);
+  }, [overlayOwner, myInstanceId]);
+
+  if (savedView !== "mine") return null;
+  // Exactly one live instance — duplicates (the layout.tsx mount once it goes
+  // live, while the back-to-top.tsx TEMP mount still exists) render nothing.
+  if (overlayOwner !== myInstanceId) return null;
+
+  return (
+    <FullPageShell
+      kicker="Account"
+      breadcrumb={[{ label: "Home" }, { label: "Saved" }]}
+      onClose={closeSaved}
+      ariaLabel="Saved tools, threads, and posts"
+    >
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+            Saved
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">
+            Your bookmarked tools, threads, and posts, kept on this device
+            until you sign in, then kept with your account.
+          </p>
+        </div>
+        <SavedPanel />
       </div>
     </FullPageShell>
   );

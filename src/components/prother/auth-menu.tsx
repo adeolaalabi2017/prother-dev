@@ -1,14 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { Bookmark, FolderHeart, Loader2, LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ImageUploadField } from "@/components/prother/image-upload-field";
-import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Popover,
-  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
@@ -32,10 +29,9 @@ import { useExplorer } from "./explorer-store";
  * Signed out  → "SIGN IN" mono button opening a popover with Google OAuth
  *               (only when configured) + the email magic-link flow
  *               (CSRF → POST /api/auth/signin/email → dev-inbox lookup).
- * Signed in   → avatar/@handle chip with a dropdown (profile editor, my
- *               collections, sign out). The profile editor is a controlled
- *               Popover anchored to the chip: selecting "Profile" closes the
- *               menu and opens the form, so the two Radix layers never nest.
+ * Signed in   → avatar/@handle chip with a dropdown linking to the
+ *               unified /profile hub (header + tabbed collections/saved),
+ *               plus sign out. Profile editing lives on the hub.
  * Loading     → skeleton chip.
  *
  * Other components can pop the sign-in popover via requestSignIn() — it
@@ -81,29 +77,11 @@ function GoogleGlyph() {
 }
 
 export function AuthMenu() {
-  const { status, data, update } = useSession();
+  const { status, data } = useSession();
+  const router = useRouter();
 
   // Popover open state — also driven by the "prother:auth-open" event.
   const [open, setOpen] = useState(false);
-
-  // Profile editor popover (signed in) — anchored to the avatar chip; the
-  // dropdown menu closes before it opens, so the layers never stack.
-  const [profileOpen, setProfileOpen] = useState(false);
-  // Radix restores focus to the trigger after the menu closes; that stray
-  // focus event dismisses the freshly opened popover, so the close-restore
-  // is suppressed when the Profile item opened it (flag consumed by
-  // DropdownMenuContent.onCloseAutoFocus).
-  const openProfileRef = useRef(false);
-  const chipRef = useRef<HTMLButtonElement>(null);
-
-  const handleProfileOpenChange = useCallback((next: boolean) => {
-    setProfileOpen(next);
-    if (!next) {
-      // Return focus to the chip so keyboard users keep their place after
-      // Escape / outside-click / the Save flow closes the editor.
-      window.setTimeout(() => chipRef.current?.focus(), 0);
-    }
-  }, []);
 
   // Google is rendered only when /api/auth/providers exposes it (F-37).
   const [hasGoogle, setHasGoogle] = useState(false);
@@ -213,17 +191,14 @@ export function AuthMenu() {
     const avatar = user.image;
 
     return (
-      <Popover open={profileOpen} onOpenChange={handleProfileOpenChange}>
-        <DropdownMenu>
-          <PopoverAnchor asChild>
-            <DropdownMenuTrigger asChild>
-              <button
-                ref={chipRef}
-                type="button"
-                aria-haspopup="menu"
-                aria-label={`Account menu for @${handle}`}
-                className="inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 transition-colors hover:border-ember/40 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
-              >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-label={`Account menu for @${handle}`}
+            className="inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3 transition-colors hover:border-ember/40 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+          >
                 {avatar ? (
                   <img
                     src={avatar}
@@ -238,19 +213,10 @@ export function AuthMenu() {
                 <span className="font-mono text-xs text-white/80">@{handle}</span>
               </button>
             </DropdownMenuTrigger>
-          </PopoverAnchor>
 
           <DropdownMenuContent
             align="end"
             sideOffset={8}
-            onCloseAutoFocus={(e) => {
-              // The Profile item opens the editor popover: keep Radix from
-              // restoring focus to the trigger (that dismisses the popover).
-              if (openProfileRef.current) {
-                openProfileRef.current = false;
-                e.preventDefault();
-              }
-            }}
             className="z-[70] w-64 rounded-xl border border-white/10 bg-coal p-1 text-white shadow-xl shadow-black/40"
           >
             <DropdownMenuLabel className="px-2 py-2">
@@ -277,12 +243,7 @@ export function AuthMenu() {
             <DropdownMenuSeparator className="bg-white/10" />
 
             <DropdownMenuItem
-              onSelect={() => {
-                openProfileRef.current = true;
-                // Open after the menu finishes its close cycle; Radix treats
-                // the same-tick open as a dismiss and cancels it otherwise.
-                window.setTimeout(() => setProfileOpen(true), 0);
-              }}
+              onSelect={() => router.push("/profile")}
               className="gap-2 rounded-lg px-2 py-2 text-sm text-white/80 focus:bg-white/10 focus:text-white"
             >
               <UserRound className="size-4 text-ember" aria-hidden />
@@ -290,7 +251,7 @@ export function AuthMenu() {
             </DropdownMenuItem>
 
             <DropdownMenuItem
-              onSelect={() => useExplorer.getState().openMine("collections")}
+              onSelect={() => router.push("/profile?tab=collections")}
               className="gap-2 rounded-lg px-2 py-2 text-sm text-white/80 focus:bg-white/10 focus:text-white"
             >
               <FolderHeart className="size-4 text-ember" aria-hidden />
@@ -298,7 +259,7 @@ export function AuthMenu() {
             </DropdownMenuItem>
 
           <DropdownMenuItem
-            onSelect={() => useExplorer.getState().openSaved("mine")}
+            onSelect={() => router.push("/profile?tab=saved")}
             className="gap-2 rounded-lg px-2 py-2 text-sm text-white/80 focus:bg-white/10 focus:text-white"
           >
             <Bookmark className="size-4 text-ember" aria-hidden />
@@ -316,19 +277,7 @@ export function AuthMenu() {
           <DropdownMenuSeparator className="bg-white/10" />
           <div className={cn(MONO_LABEL, "px-2 pb-1 pt-1.5")}>Session · Database</div>
           </DropdownMenuContent>
-        </DropdownMenu>
-
-        <ProfileEditor
-          open={profileOpen}
-          onOpenChange={handleProfileOpenChange}
-          initial={{ name, handle, email: user.email ?? null }}
-          onSaved={async () => {
-            // Refetch the session so the chip avatar + @handle update without
-            // a page reload (database sessions re-run the session callback).
-            await update();
-          }}
-        />
-      </Popover>
+      </DropdownMenu>
     );
   }
 
@@ -485,229 +434,5 @@ export function AuthMenu() {
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-// ── Profile editor (Task 34) ────────────────────────────────────────────────
-
-/** GET/PATCH /api/user/profile payload (route returns this shape). */
-type ProfilePayload = {
-  id: string;
-  name: string | null;
-  handle: string | null;
-  bio: string | null;
-  image: string | null;
-  role: string;
-  createdAt: string;
-};
-
-const BIO_MAX = 200;
-
-/**
- * Compact profile editor in a Popover anchored to the avatar chip.
- * Opening (the parent owns `open`) pulls the full profile so bio and avatar
- * are always current (fetch continuation, not an effect body, per the
- * repo's setState-in-effect lint ban); Save → PATCH, then onSaved() lets the
- * parent refresh the session so the header chip and the dropdown row pick up
- * the new avatar/handle without a reload.
- */
-function ProfileEditor({
-  open,
-  onOpenChange,
-  initial,
-  onSaved,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  initial: { name: string; handle: string; email: string | null };
-  onSaved: () => void | Promise<void>;
-}) {
-  const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
-  const [name, setName] = useState(initial.name);
-  const [handle, setHandle] = useState(initial.handle);
-  const [bio, setBio] = useState("");
-  const [image, setImage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Every open: pull the authoritative profile (bio and avatar are not on
-  // the session) and clear stale errors. All state writes happen in async
-  // continuations so react-hooks/set-state-in-effect stays satisfied.
-  useEffect(() => {
-    if (!open) return;
-    let alive = true;
-    setError(null);
-    fetch("/api/user/profile")
-      .then((r) =>
-        r.ok ? (r.json() as Promise<{ profile: ProfilePayload }>) : null
-      )
-      .then((d) => {
-        if (!alive || !d?.profile) return;
-        setName(d.profile.name || initial.name);
-        setHandle(d.profile.handle || initial.handle);
-        setBio(d.profile.bio ?? "");
-        setImage(d.profile.image ?? null);
-      })
-      .catch(() => {
-        /* fall back to the session-derived values already in the form */
-      });
-    return () => {
-      alive = false;
-    };
-  }, [open, initial.name, initial.handle]);
-
-  const save = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, handle, bio, image }),
-      });
-      const payload = (await res.json().catch(() => null)) as
-        | { profile?: ProfilePayload; error?: string }
-        | null;
-      if (!res.ok || !payload?.profile) {
-        throw new Error(
-          payload?.error ?? "Could not save the profile. Try again."
-        );
-      }
-      toast({ title: "Profile saved." });
-      await onSaved();
-      onOpenChange(false);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not save the profile."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <PopoverContent
-      align="end"
-      sideOffset={8}
-      className="z-[70] w-[340px] rounded-xl border border-white/10 bg-coal p-4 text-white shadow-xl shadow-black/40"
-    >
-      <p className={MONO_LABEL}>Profile</p>
-      <p className="mt-1 text-xs leading-snug text-white/60">
-        Signed in as {initial.email ?? "a maker"}.
-      </p>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!saving) void save();
-        }}
-        noValidate
-        className="mt-4 space-y-3"
-      >
-        <div className="flex items-start gap-3">
-          <ImageUploadField
-            value={image}
-            onChange={(url) => setImage(url)}
-            purpose="avatar"
-            endpoint="user"
-            square
-            label="Avatar"
-            hint="Square works best"
-            className="w-[116px] shrink-0"
-            disabled={saving}
-          />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div>
-              <Label htmlFor="prother-profile-name" className={MONO_LABEL}>
-                Name
-              </Label>
-              <Input
-                id="prother-profile-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={40}
-                autoComplete="name"
-                disabled={saving}
-                className="mt-1 h-10 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
-                placeholder="Your name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="prother-profile-handle" className={MONO_LABEL}>
-                Handle
-              </Label>
-              <div className="relative mt-1">
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-white/55"
-                >
-                  @
-                </span>
-                <Input
-                  id="prother-profile-handle"
-                  value={handle}
-                  onChange={(e) =>
-                    setHandle(e.target.value.replace(/\s/g, ""))
-                  }
-                  maxLength={24}
-                  autoComplete="off"
-                  spellCheck={false}
-                  disabled={saving}
-                  className="h-10 rounded-lg border-white/15 bg-white/[0.03] pl-7 text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
-                  placeholder="handle"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-baseline justify-between gap-2">
-            <Label htmlFor="prother-profile-bio" className={MONO_LABEL}>
-              Bio
-            </Label>
-            <span
-              className={cn(
-                "font-mono text-xs tabular-nums",
-                bio.length >= BIO_MAX ? "text-ember" : "text-white/55"
-              )}
-            >
-              {bio.length}/{BIO_MAX}
-            </span>
-          </div>
-          <Textarea
-            id="prother-profile-bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
-            maxLength={BIO_MAX}
-            rows={3}
-            disabled={saving}
-            className="mt-1 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
-            placeholder="What are you building?"
-          />
-        </div>
-
-        {error && (
-          <p role="alert" className="text-xs leading-snug text-red-400">
-            {error}
-          </p>
-        )}
-
-        <Button
-          type="submit"
-          disabled={saving}
-          className="h-11 w-full rounded-lg bg-ember font-semibold text-[#0A0A0A] shadow-none hover:bg-ember/90"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-              Saving…
-            </>
-          ) : (
-            "Save profile"
-          )}
-        </Button>
-      </form>
-    </PopoverContent>
   );
 }

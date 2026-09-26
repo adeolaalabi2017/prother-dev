@@ -195,6 +195,8 @@ export default defineSchema({
     handle: v.optional(v.string()),
     image: v.optional(v.string()),
     bio: v.optional(v.string()),
+    /** Profile banner (/api/media/... URL) — null/absent renders the glow fallback. */
+    coverImage: v.optional(v.string()),
     /** member | moderator | admin */
     role: v.string(),
     /** active | banned */

@@ -983,6 +983,7 @@ export function convexAuthUserPatch(
     image?: string | null;
     handle?: string | null;
     bio?: string | null;
+    coverImage?: string | null;
   },
 ) {
   return c.mutation(api.authStore.authUserPatch, args as never);
