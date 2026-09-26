@@ -39,6 +39,17 @@ export const purgeUsers = mutation({
     const purged = users.filter(
       (u) => (u.email ?? "").toLowerCase() !== keepEmail
     );
+    const keeper = kept[0];
+    const keeperIds = new Set(
+      [keeper.email, keeper.legacyId, String(keeper._id)].filter(
+        Boolean
+      ) as string[]
+    );
+    const keeperNames = new Set(
+      [keeper.handle, keeper.name]
+        .map((s) => norm(s))
+        .filter(Boolean)
+    );
     const emails = new Set(
       purged.map((u) => (u.email ?? "").toLowerCase()).filter(Boolean)
     );
@@ -120,13 +131,14 @@ export const purgeUsers = mutation({
       "authVerificationTokens"
     );
 
-    // ── reviews / comments ──
+    // ── reviews / comments: keep-only-keeper (catches unattributed and
+    // system-authored seed rows no user row ever matched) ──
     const reviews = await ctx.db.query("reviews").collect();
     const deadReviewIds = new Set<string>();
     await wipe(
       "reviews",
       reviews
-        .filter((r) => legacyIds.has(r.userId))
+        .filter((r) => !keeperIds.has(r.userId))
         .map((r) => {
           deadReviewIds.add(String(r._id));
           return String(r._id);
@@ -137,23 +149,35 @@ export const purgeUsers = mutation({
     await wipe(
       "comments",
       comments
-        .filter((c) => handles.has(norm(c.author)))
+        .filter(
+          (c) =>
+            !keeperNames.has(norm(c.author)) &&
+            !keeperIds.has(norm(c.author))
+        )
         .map((c) => String(c._id)),
       "comments"
     );
 
-    // ── forum: threads (+ replies + votes), then orphan replies ──
+    // ── forum: keep-only-keeper threads (system/seed rows like @prother
+    // match no user), keeper replies survive only on kept threads, and ALL
+    // thread votes go (anonymous voter keys, seed-era ballots) ──
     const threads = await ctx.db.query("forumThreads").collect();
     const deadThreadIds = new Set<string>();
     const deadThreadSlugs = new Set<string>();
+    const keptThreadIds = new Set<string>();
     await wipe(
       "forumThreads",
       threads
-        .filter(
-          (t) =>
-            (t.authorId && legacyIds.has(t.authorId)) ||
-            handles.has(norm(t.author))
-        )
+        .filter((t) => {
+          const mine =
+            (t.authorId && keeperIds.has(t.authorId)) ||
+            keeperNames.has(norm(t.author));
+          if (mine) {
+            keptThreadIds.add(String(t._id));
+            return false;
+          }
+          return true;
+        })
         .map((t) => {
           deadThreadIds.add(String(t._id));
           deadThreadSlugs.add(t.slug);
@@ -165,23 +189,55 @@ export const purgeUsers = mutation({
     await wipe(
       "forumReplies",
       replies
-        .filter(
-          (r) =>
-            deadThreadIds.has(String(r.threadId)) ||
-            (r.authorId && legacyIds.has(r.authorId)) ||
-            handles.has(norm(r.author))
-        )
+        .filter((r) => {
+          if (deadThreadIds.has(String(r.threadId))) return true;
+          if (!keptThreadIds.has(String(r.threadId))) return true;
+          return !(
+            (r.authorId && keeperIds.has(r.authorId)) ||
+            keeperNames.has(norm(r.author))
+          );
+        })
         .map((r) => String(r._id)),
       "forumReplies"
     );
     const votes = await ctx.db.query("forumThreadVotes").collect();
     await wipe(
       "forumThreadVotes",
-      votes
-        .filter((x) => deadThreadIds.has(String(x.threadId)))
-        .map((x) => String(x._id)),
+      votes.map((x) => String(x._id)),
       "forumThreadVotes"
     );
+
+    // ── tools: recompute denormalized counters from surviving rows ──
+    const tools = await ctx.db.query("tools").collect();
+    const remainingReviews = a.execute
+      ? await ctx.db.query("reviews").collect()
+      : reviews;
+    const remainingComments = a.execute
+      ? await ctx.db.query("comments").collect()
+      : comments;
+    const reviewCountByTool = new Map<string, number>();
+    for (const r of remainingReviews) {
+      const k = String(r.toolId);
+      reviewCountByTool.set(k, (reviewCountByTool.get(k) ?? 0) + 1);
+    }
+    const commentCountByTool = new Map<string, number>();
+    for (const c of remainingComments) {
+      const k = String(c.toolId);
+      commentCountByTool.set(k, (commentCountByTool.get(k) ?? 0) + 1);
+    }
+    let toolsRecomputed = 0;
+    for (const t of tools) {
+      const k = String(t._id);
+      const reviewCount = reviewCountByTool.get(k) ?? 0;
+      const commentCount = commentCountByTool.get(k) ?? 0;
+      if (t.reviewCount !== reviewCount || t.commentCount !== commentCount) {
+        toolsRecomputed += 1;
+        if (a.execute) {
+          await ctx.db.patch(t._id, { reviewCount, commentCount });
+        }
+      }
+    }
+    bump("toolsRecomputed", toolsRecomputed);
 
     // ── collections + items / follows / bookmarks ──
     const collections = await ctx.db.query("collections").collect();

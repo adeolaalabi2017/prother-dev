@@ -32,6 +32,7 @@ const TABLE_LABELS: [string, string][] = [
   ["reports", "Reports"],
   ["media", "Uploads"],
   ["adCampaigns", "Ad campaigns"],
+  ["toolsRecomputed", "Counters fixed"],
 ];
 
 /**
