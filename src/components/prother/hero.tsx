@@ -85,9 +85,9 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
-          <p className="inline-flex items-center rounded-full border border-ember/40 bg-ember/10 px-4 py-1.5 font-mono text-xs text-ember">
+          <p className="inline-flex items-center rounded-full border border-ember/40 bg-ember/10 px-4 py-1.5 font-mono text-xs text-ember-tint">
             <span
-              className="mr-2 inline-block size-1.5 rounded-full bg-ember animate-status-pulse"
+              className="mr-2 inline-block size-1.5 rounded-full bg-ember-tint animate-status-pulse"
               aria-hidden
             />
             {copy.announcement}
@@ -98,10 +98,10 @@ export function Hero() {
               <>
                 {headlineBody}
                 <br />
-                <span className="text-ember">{headlineAccent}</span>
+                {headlineAccent}
               </>
             ) : (
-              <span className="text-ember">{headlineAccent}</span>
+              headlineAccent
             )}
           </h1>
 

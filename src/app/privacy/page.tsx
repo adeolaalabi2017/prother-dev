@@ -32,7 +32,7 @@ export default function PrivacyPage() {
   return (
     <div className="bg-ink pb-16 md:pb-0">
       <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
-        <p className="font-mono text-xs uppercase tracking-[0.3em] text-ember">
+        <p className="font-mono text-xs uppercase tracking-[0.3em] text-ember-tint">
           Legal
         </p>
         <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">

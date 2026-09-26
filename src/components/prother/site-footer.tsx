@@ -78,13 +78,24 @@ export function SiteFooter() {
     settings["footer.tagline"] ||
     "The curated directory for AI tools. Search, compare, and save your stack.";
   const note = settings["footer.note"] || "Curated, human-reviewed.";
+  // Same brand mark as the header (Task 35): CMS logo URL wins, hexagon
+  // glyph is the fallback — header and footer never disagree.
+  const brandingLogoUrl = settings["branding.logoUrl"] ?? "";
   return (
     <footer className="mt-auto border-t border-white/10 bg-ink">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <div className="flex items-center gap-2">
-              <Hexagon className="size-6 fill-ember text-ember" aria-hidden />
+              {brandingLogoUrl ? (
+                <img
+                  src={brandingLogoUrl}
+                  alt="Prother logo"
+                  className="size-7 rounded-md object-contain"
+                />
+              ) : (
+                <Hexagon className="size-6 fill-ember text-ember" aria-hidden />
+              )}
               <span className="text-lg font-black tracking-tight text-white">Prother</span>
             </div>
             <p className="mt-3 max-w-xs text-sm text-white/50">
@@ -148,6 +159,7 @@ export function SiteFooter() {
             <span aria-hidden>·</span>
             <Link
               href="/admin"
+              prefetch={false}
               className="rounded px-1 py-0.5 transition-colors hover:text-ember"
               title="Admin console (⌘⇧A)"
             >

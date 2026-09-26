@@ -117,7 +117,7 @@ export default async function CategoryPage({ params }: Params) {
 
         {/* Page head */}
         <header className="mt-8">
-          <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember uppercase">
+          <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             <Compass className="size-3.5" aria-hidden />
             Category
           </p>

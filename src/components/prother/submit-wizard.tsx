@@ -88,7 +88,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
   return (
     <div className="space-y-4">
       <p className="flex items-center gap-1.5 font-mono text-xs tracking-widest text-white/60">
-        <Eye className="size-3.5 text-ember" aria-hidden /> LIVE PREVIEW
+        <Eye className="size-3.5 text-ember-tint" aria-hidden /> LIVE PREVIEW
       </p>
 
       {/* Listing mock */}
@@ -135,7 +135,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
         <p className="mt-1.5 text-sm text-white/80">
           {pricing}
           {form.startingPrice.trim() && (
-            <span className="ml-1.5 font-mono text-ember">{form.startingPrice.trim()}</span>
+            <span className="ml-1.5 font-mono text-ember-tint">{form.startingPrice.trim()}</span>
           )}
         </p>
         {form.pricingNote.trim() && (
@@ -145,7 +145,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
 
       {/* Standards reminder */}
       <div className="rounded-xl border border-ember/20 bg-ember/[0.06] p-4">
-        <p className="font-mono text-xs tracking-widest text-ember">QUALITY BAR</p>
+        <p className="font-mono text-xs tracking-widest text-ember-tint">QUALITY BAR</p>
         <p className="mt-1.5 text-xs leading-relaxed text-white/60">
           Every listing passes all six standards: live &amp; accessible, AI-native,
           complete, honest, safe, English. Rejections cite the failed standard.
@@ -405,14 +405,14 @@ export function SubmitWizard() {
             <p className="mt-2 max-w-sm text-sm text-white/60">
               <span className="font-semibold text-white">{form.name.trim()}</span> is
               in the moderation queue. Editors check the six standards and reply
-              to <span className="font-mono text-ember">{form.email.trim()}</span>,
+              to <span className="font-mono text-white">{form.email.trim()}</span>,
               typically within 24h. Review usually takes 1–2 days. Approved
               listings go live immediately, free forever.
             </p>
             <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-3">
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <p className="font-mono text-xs tracking-widest text-white/60">QUEUE</p>
-                <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-ember">
+                <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-white">
                   #{result.position}
                 </p>
               </div>
@@ -462,7 +462,7 @@ export function SubmitWizard() {
               {/* Progress header */}
               <div className="border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
                 <div className="flex items-center justify-between">
-                  <p className="font-mono text-xs tracking-[0.25em] text-ember">
+                  <p className="font-mono text-xs tracking-[0.25em] text-ember-tint">
                     SUBMIT YOUR TOOL
                   </p>
                   <p className="font-mono text-xs text-white/60">
@@ -503,6 +503,7 @@ export function SubmitWizard() {
                       <div className="relative">
                         <Input
                           id="su-url"
+                          name="websiteUrl"
                           value={form.websiteUrl}
                           onChange={(e) => set("websiteUrl", e.target.value)}
                           onBlur={checkDuplicate}
@@ -538,6 +539,7 @@ export function SubmitWizard() {
                       <FieldLabel htmlFor="su-name">TOOL NAME *</FieldLabel>
                       <Input
                         id="su-name"
+                        name="name"
                         value={form.name}
                         onChange={(e) => set("name", e.target.value)}
                         placeholder="Promptly"
@@ -553,6 +555,7 @@ export function SubmitWizard() {
                       </FieldLabel>
                       <Input
                         id="su-email"
+                        name="email"
                         type="email"
                         value={form.email}
                         onChange={(e) => set("email", e.target.value)}
@@ -565,6 +568,8 @@ export function SubmitWizard() {
 
                     <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/30">
                       <Checkbox
+                        id="su-is-owner"
+                        name="isOwner"
                         checked={form.isOwner}
                         onCheckedChange={(v) => set("isOwner", v === true)}
                         className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-coal"
@@ -591,6 +596,7 @@ export function SubmitWizard() {
                       </FieldLabel>
                       <Input
                         id="su-tagline"
+                        name="tagline"
                         value={form.tagline}
                         onChange={(e) => set("tagline", e.target.value)}
                         placeholder="AI chatbots that never hallucinate citations"
@@ -621,6 +627,7 @@ export function SubmitWizard() {
                       </FieldLabel>
                       <textarea
                         id="su-desc"
+                        name="description"
                         value={form.description}
                         onChange={(e) => set("description", e.target.value)}
                         rows={4}
@@ -745,6 +752,7 @@ export function SubmitWizard() {
                           <FieldLabel htmlFor="su-price">STARTING AT</FieldLabel>
                           <Input
                             id="su-price"
+                            name="startingPrice"
                             value={form.startingPrice}
                             onChange={(e) => set("startingPrice", e.target.value)}
                             placeholder="$19"
@@ -759,6 +767,7 @@ export function SubmitWizard() {
                           </FieldLabel>
                           <Input
                             id="su-pnote"
+                            name="pricingNote"
                             value={form.pricingNote}
                             onChange={(e) => set("pricingNote", e.target.value)}
                             placeholder="Pro / 20 free queries per month"
@@ -771,6 +780,8 @@ export function SubmitWizard() {
 
                     <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/30">
                       <Checkbox
+                        id="su-has-api"
+                        name="hasApi"
                         checked={form.hasApi}
                         onCheckedChange={(v) => set("hasApi", v === true)}
                         className="border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-coal"
@@ -790,6 +801,7 @@ export function SubmitWizard() {
                         </FieldLabel>
                         <Input
                           id="su-gh"
+                          name="githubUrl"
                           value={form.githubUrl}
                           onChange={(e) => set("githubUrl", e.target.value)}
                           placeholder="github.com/you/tool"
@@ -801,6 +813,7 @@ export function SubmitWizard() {
                         <FieldLabel htmlFor="su-docs">DOCS</FieldLabel>
                         <Input
                           id="su-docs"
+                          name="docsUrl"
                           value={form.docsUrl}
                           onChange={(e) => set("docsUrl", e.target.value)}
                           placeholder="yourtool.ai/docs"
@@ -811,6 +824,7 @@ export function SubmitWizard() {
                         <FieldLabel htmlFor="su-x">𝕏 / TWITTER</FieldLabel>
                         <Input
                           id="su-x"
+                          name="twitterUrl"
                           value={form.twitterUrl}
                           onChange={(e) => set("twitterUrl", e.target.value)}
                           placeholder="x.com/yourtool"
@@ -869,7 +883,7 @@ export function SubmitWizard() {
                       </div>
                     </div>
                     <p className="rounded-xl border border-ember/20 bg-ember/[0.06] p-3.5 text-xs leading-relaxed text-white/60">
-                      <span className="font-semibold text-ember">Heads up:</span> screenshots
+                      <span className="font-semibold text-ember-tint">Heads up:</span> screenshots
                       and real logo upload ship with maker accounts (Phase 2). Editors
                       enrich your listing: you&apos;ll get a preview.
                     </p>
@@ -904,6 +918,8 @@ export function SubmitWizard() {
 
                     <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/30">
                       <Checkbox
+                        id="su-confirmed-live"
+                        name="confirmedLive"
                         checked={form.confirmedLive}
                         onCheckedChange={(v) => set("confirmedLive", v === true)}
                         className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-coal"
@@ -917,6 +933,8 @@ export function SubmitWizard() {
 
                     <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/30">
                       <Checkbox
+                        id="su-agreed-standards"
+                        name="agreedStandards"
                         checked={form.agreedStandards}
                         onCheckedChange={(v) => set("agreedStandards", v === true)}
                         className="mt-0.5 border-white/20 data-[state=checked]:border-ember data-[state=checked]:bg-ember data-[state=checked]:text-coal"

@@ -130,7 +130,7 @@ export default async function JournalArticlePage({ params }: Params) {
 
         {/* header */}
         <header className="mt-8">
-          <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
+          <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             Prother Journal
             <span className="text-white/55"> · {post.category}</span>
           </p>

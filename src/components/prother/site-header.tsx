@@ -111,6 +111,7 @@ export function SiteHeader() {
           <ThemeToggle />
           <Link
             href="/admin"
+            prefetch={false}
             aria-label="Admin console"
             title="Admin console (⌘⇧A)"
             className="inline-flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:border-ember/40 hover:text-ember"
@@ -168,6 +169,7 @@ export function SiteHeader() {
           </Button>
           <Link
             href="/admin"
+            prefetch={false}
             onClick={() => setOpen(false)}
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
           >

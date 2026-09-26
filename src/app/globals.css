@@ -160,8 +160,11 @@
     outline: 2px solid #ff6a00;
     outline-offset: 2px;
   }
-  /* Smooth anchor scrolling (respects reduced-motion override below). */
-  html {
+  /* Smooth anchor scrolling (respects reduced-motion override below).
+     Scoped to :target so Next.js App Router route transitions scroll to
+     top instantly (0,0) instead of getting stuck mid-animation behind the
+     sticky header. */
+  html:has(:target) {
     scroll-behavior: smooth;
   }
 }
@@ -359,7 +362,7 @@
 }
 .post-body h2::before {
   content: "## ";
-  color: #ff6a00;
+  color: #ffb877;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.8em;
   font-weight: 700;
@@ -380,14 +383,14 @@
   gap: 0.4em;
 }
 .post-body .md-list li::marker {
-  color: #ff6a00;
+  color: #ffb877;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.85em;
 }
 .post-body .md-code {
   background: rgba(255, 106, 0, 0.1);
   border: 1px solid rgba(255, 106, 0, 0.25);
-  color: #ff8a3d;
+  color: #ffb877;
   border-radius: 6px;
   padding: 0.1em 0.4em;
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -418,12 +421,12 @@
   border-top: 1px dashed rgba(255, 255, 255, 0.15);
 }
 .post-body a {
-  color: #ff8a3d;
+  color: #ffb877;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 .post-body a:hover {
-  color: #ffb877;
+  color: #ff8a3d;
 }
 
 /* post-body qa marker */
@@ -457,6 +460,26 @@ html.light {
   --foreground: #26211c;
 }
 
+/* Light-mode legibility: white-opacity utilities compile against
+   --color-white (#26211c), so low opacities fall below WCAG AA on paper
+   (text-white/50 ≈ 3.0:1). Pin the dimmest text steps to solid AA-safe
+   ink tones and lift hairline borders so they stay visible. */
+html.light .text-white\/50 {
+  color: #575149;
+}
+html.light .text-white\/55 {
+  color: #4f4a42;
+}
+html.light .text-white\/60 {
+  color: #45403a;
+}
+html.light .border-white\/10 {
+  border-color: color-mix(in oklab, #26211c 22%, transparent);
+}
+html.light .border-white\/15 {
+  border-color: color-mix(in oklab, #26211c 28%, transparent);
+}
+
 /* Dark label on ember fills: bg-ember elements (buttons, highlight cards,
    data-[state=checked]:bg-ember toggles) keep their dark text color.
    Substring match also covers hover:bg-ember-hot and bg-ember/10 chips. */
@@ -486,6 +509,10 @@ html.light .hover\:text-ember:hover,
 html.light .focus\:text-ember:focus,
 html.light .group:hover .group-hover\:text-ember,
 html.light .text-ember-hot {
+  color: var(--ember-text);
+}
+/* Soft tint on dark would wash out on paper — pin to the AA ember text. */
+html.light .text-ember-tint {
   color: var(--ember-text);
 }
 html.light .text-ember\/80 {
@@ -552,6 +579,11 @@ html.light .post-body {
 html.light .post-body h2 {
   color: #1d1915;
   border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+/* Vivid markdown decorations fail on paper — pin to the AA ember text. */
+html.light .post-body h2::before,
+html.light .post-body .md-list li::marker {
+  color: var(--ember-text);
 }
 html.light .post-body h3 {
   color: #1d1915;

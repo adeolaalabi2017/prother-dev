@@ -204,7 +204,7 @@ export function PostReader() {
                 {post.coverEmoji}
               </div>
               <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tracking-[0.25em] text-ember uppercase">
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tracking-[0.25em] text-ember-tint uppercase">
                   <span className="inline-flex items-center gap-1">
                     <Feather className="size-3" aria-hidden /> Prother Journal
                   </span>
@@ -232,7 +232,7 @@ export function PostReader() {
                 variant="ghost"
                 size="sm"
                 onClick={() => void share()}
-                className="ml-auto h-7 gap-1.5 rounded-md px-2 font-mono text-sm tracking-wider text-ember uppercase hover:bg-ember/10 hover:text-ember"
+                className="ml-auto h-7 gap-1.5 rounded-md px-2 font-mono text-sm tracking-wider text-white/70 uppercase hover:bg-ember/10 hover:text-ember"
               >
                 <Link2 className="size-3" aria-hidden /> Copy link
               </Button>

@@ -300,7 +300,7 @@ export default async function ToolsPage({
         {/* Results header — the page's single H1 (the directory's hero is hidden) */}
         <section className="bg-ink">
           <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
-            <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember uppercase">
+            <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
               <Compass className="size-3.5" aria-hidden />
               Search results
             </p>
@@ -328,7 +328,7 @@ export default async function ToolsPage({
                 </p>
                 <Link
                   href="/tools"
-                  className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2 font-mono text-sm font-semibold tracking-wider text-ember uppercase transition-colors hover:bg-ember/20"
+                  className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-transparent px-4 py-2 font-mono text-sm font-semibold tracking-wider text-white/80 uppercase transition-colors hover:border-ember/40 hover:text-ember"
                 >
                   Browse all tools
                 </Link>

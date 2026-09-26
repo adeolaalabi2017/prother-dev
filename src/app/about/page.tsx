@@ -40,7 +40,7 @@ export default function AboutPage() {
       {/* Slim page header */}
       <section className="bg-ink pb-20 pt-14">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
+          <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             About Prother
           </p>
           <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">

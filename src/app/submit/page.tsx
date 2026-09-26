@@ -129,11 +129,11 @@ export default function SubmitPage() {
           className="absolute top-0 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-ember/10 blur-[100px]"
         />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
+          <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             For makers
           </p>
           <h1 className="mt-3 max-w-3xl text-5xl font-black tracking-tighter text-white md:text-6xl">
-            Submit your tool to <span className="text-ember">the directory.</span>
+            Submit your tool to the directory.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-white/60">
             Submitting is free and open: no waitlist, no invite. Approved
@@ -165,7 +165,7 @@ export default function SubmitPage() {
                 className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-6"
               >
                 <div className="flex items-center justify-between">
-                  <p className="font-mono text-sm text-ember">{step.n}</p>
+                  <p className="font-mono text-sm text-ember-tint">{step.n}</p>
                   <p className="font-mono text-xs tracking-wider text-white/55 uppercase">
                     {step.minutes}
                   </p>
@@ -186,7 +186,7 @@ export default function SubmitPage() {
       {/* Standards — the quality bar, mono rows */}
       <section className="border-t border-white/10 py-16">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
+          <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             The quality bar · public
           </p>
           <h2 className="mt-3 text-3xl font-black tracking-tighter text-white md:text-4xl">
@@ -195,7 +195,7 @@ export default function SubmitPage() {
           <ul role="list" className="mt-8 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02]">
             {STANDARDS.map((s) => (
               <li key={s.id} className="flex gap-4 p-5">
-                <span className="shrink-0 font-mono text-sm text-ember">{s.id}</span>
+                <span className="shrink-0 font-mono text-sm text-ember-tint">{s.id}</span>
                 <div>
                   <h3 className="font-bold text-white">{s.title}</h3>
                   <p className="mt-1 text-sm leading-relaxed text-white/55">{s.body}</p>
@@ -222,7 +222,7 @@ export default function SubmitPage() {
                 key={r.q}
                 className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
               >
-                <r.icon className="size-5 text-ember" aria-hidden />
+                <r.icon className="size-5 text-ember-tint" aria-hidden />
                 <h3 className="mt-3 font-bold text-white">{r.q}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-white/55">{r.a}</p>
               </div>

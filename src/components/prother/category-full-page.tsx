@@ -229,7 +229,7 @@ export function CategoryFullPage() {
                   </button>
                   <Link
                     href={`/compare?category=${meta.slug}`}
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ember/40 px-3 py-1.5 font-mono text-sm tracking-[0.2em] text-ember uppercase transition-colors hover:bg-ember/10"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 font-mono text-sm tracking-[0.2em] text-white/70 uppercase transition-colors hover:border-ember/40 hover:text-ember"
                   >
                     <Scale className="size-3.5" aria-hidden />
                     Compare tools

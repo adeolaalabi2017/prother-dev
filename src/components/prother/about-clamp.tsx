@@ -25,7 +25,7 @@ export function AboutClamp({ text }: { text: string }) {
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-md px-1 font-mono text-sm font-semibold tracking-wider text-ember uppercase transition-colors hover:text-ember-hot"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-md px-1 font-mono text-sm font-semibold tracking-wider text-ember-tint uppercase transition-colors hover:text-ember"
         >
           {expanded ? "Show less" : "Read more"}
           <ChevronDown

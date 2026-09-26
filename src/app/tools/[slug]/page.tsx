@@ -409,7 +409,7 @@ export default async function ToolPage({ params }: Params) {
 
             {/* Mono meta line: pricing · maker · listed date (UTC, static) */}
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs uppercase tracking-wider text-white/60">
-              <span title={tool.pricingNote ?? undefined} className="text-ember">
+              <span title={tool.pricingNote ?? undefined} className="text-white/85">
                 {pricingLine(tool.pricingModel, tool.startingPrice)}
               </span>
               {editorial.pricingCheckedAt && (
@@ -558,7 +558,7 @@ export default async function ToolPage({ params }: Params) {
                   >
                     <span
                       aria-hidden
-                      className="pt-0.5 font-mono text-xs font-semibold tracking-wider text-ember"
+                      className="pt-0.5 font-mono text-xs font-semibold tracking-wider text-ember-tint"
                     >
                       {String(i + 1).padStart(2, "0")}
                     </span>
@@ -686,7 +686,7 @@ export default async function ToolPage({ params }: Params) {
 
             {aggregate && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                <span className="text-2xl font-black tabular-nums text-ember">
+                <span className="text-2xl font-black tabular-nums text-white">
                   {aggregate.overall}
                   <span className="text-sm text-white/55">/5</span>
                 </span>
@@ -713,7 +713,7 @@ export default async function ToolPage({ params }: Params) {
                     className="space-y-2.5 rounded-xl border border-white/10 bg-white/[0.02] p-4"
                   >
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="font-mono text-xs font-semibold tracking-wider text-ember">
+                      <span className="font-mono text-xs font-semibold tracking-wider text-white/85">
                         {r.author}
                       </span>
                       <span aria-hidden className="text-white/55">
@@ -771,7 +771,7 @@ export default async function ToolPage({ params }: Params) {
             )}
             <Link
               href="/forums"
-              className="inline-flex items-center gap-1.5 font-mono text-sm font-semibold uppercase tracking-wider text-ember transition-colors hover:text-ember-hot"
+              className="inline-flex items-center gap-1.5 font-mono text-sm font-semibold uppercase tracking-wider text-ember-tint transition-colors hover:text-ember"
             >
               Start a discussion
               <ArrowUpRight className="size-3.5" aria-hidden />

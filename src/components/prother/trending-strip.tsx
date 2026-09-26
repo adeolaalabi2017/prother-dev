@@ -88,15 +88,15 @@ export function TrendingStrip() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.55, ease: "easeOut" }}
           >
             <p className="inline-flex items-center font-mono text-xs tracking-[0.25em] text-white/60 uppercase">
-              <Flame className="mr-1.5 size-3.5 text-ember" aria-hidden />
+              <Flame className="mr-1.5 size-3.5 text-ember-tint" aria-hidden />
               Trending this {window}
             </p>
             <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
-              What the community is <span className="text-ember">testing.</span>
+              What the community is testing.
             </h2>
             <p className="mt-4 max-w-xl text-lg text-white/60">
               Ranked by real engagement (comments, reviews, and collection
@@ -140,7 +140,7 @@ export function TrendingStrip() {
               key={row.slug}
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-40px" }}
+              viewport={{ once: true, amount: 0.2 }}
               transition={{ duration: 0.4, delay: (i % 4) * 0.05, ease: "easeOut" }}
               className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 transition-colors hover:border-ember/40"
             >

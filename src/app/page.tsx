@@ -273,13 +273,17 @@ async function getSiteCopy(): Promise<Record<string, string>> {
   }
 }
 
-/** Black display heading with the last word of each line in ember. */
+/** Black display heading with the last word of each line in ember.
+ *  Pass accent={false} for supporting sections — the ember word is a brand
+ *  moment reserved for the hero and closing band, not every H2 on the page. */
 function AccentHeading({
   text,
   className,
+  accent = true,
 }: {
   text: string;
   className?: string;
+  accent?: boolean;
 }) {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   return (
@@ -287,12 +291,16 @@ function AccentHeading({
       {lines.map((line, li) => {
         const words = line.split(" ");
         const body = words.slice(0, -1).join(" ");
-        const accent = words.at(-1) ?? "";
+        const accentWord = words.at(-1) ?? "";
         return (
           <span key={li}>
             {li > 0 && <br />}
             {body ? `${body} ` : ""}
-            <span className="text-ember">{accent}</span>
+            {accent ? (
+              <span className="text-ember">{accentWord}</span>
+            ) : (
+              accentWord
+            )}
           </span>
         );
       })}
@@ -316,6 +324,7 @@ function CategoryGrid({
         </p>
         <AccentHeading
           text={copy["home.categoriesHeading"] || "Find your category."}
+          accent={false}
           className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl"
         />
 
@@ -376,6 +385,7 @@ function EditorsPicks({
         </p>
         <AccentHeading
           text={copy["home.picksHeading"] || "Hand-tested by our editors."}
+          accent={false}
           className="mt-3 max-w-2xl text-5xl font-black tracking-tighter text-white md:text-6xl"
         />
 
@@ -423,6 +433,7 @@ function ClosingBand({ copy }: { copy: Record<string, string> }) {
       <div className="relative mx-auto max-w-2xl px-4 text-center sm:px-6">
         <AccentHeading
           text={copy["home.closingHeadline"] || "Can't find the\ntool you need?"}
+          accent={false}
           className="text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl"
         />
         <p className="mt-4 text-white/60">
@@ -432,7 +443,7 @@ function ClosingBand({ copy }: { copy: Record<string, string> }) {
           <SubmitOpenButton label="Submit a tool" className="h-12 px-6 text-base" />
           <Link
             href="/tools"
-            className="inline-flex h-12 items-center justify-center rounded-lg border border-ember/40 bg-transparent px-6 text-base font-semibold text-ember transition-colors hover:bg-ember/10 hover:text-ember-hot"
+            className="inline-flex h-12 items-center justify-center rounded-lg border border-white/15 bg-transparent px-6 text-base font-semibold text-white/80 transition-colors hover:border-ember/40 hover:text-ember"
           >
             Browse the directory
           </Link>

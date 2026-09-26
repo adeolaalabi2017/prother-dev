@@ -63,7 +63,7 @@ export function JournalIndex({
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember uppercase">
+            <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
               <Feather className="size-3.5" aria-hidden />
               The Prother Journal
             </p>
