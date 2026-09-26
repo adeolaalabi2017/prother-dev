@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Hexagon } from "lucide-react";
 import { useExplorer } from "./explorer-store";
 import { useSiteSettings } from "./use-site-settings";
+import { usePrivileged } from "./use-privileged";
 
 type FooterLink = {
   label: string;
@@ -78,6 +79,9 @@ export function SiteFooter() {
     settings["footer.tagline"] ||
     "The curated directory for AI tools. Search, compare, and save your stack.";
   const note = settings["footer.note"] || "Curated, human-reviewed.";
+  // Owner-only entries (admin gear, editor access) render solely for
+  // unlocked tabs — guests get no trace of either console in the DOM.
+  const privileged = usePrivileged();
   // Same brand mark as the header (Task 35): CMS logo URL wins, hexagon
   // glyph is the fallback — header and footer never disagree.
   const brandingLogoUrl = settings["branding.logoUrl"] ?? "";
@@ -106,12 +110,16 @@ export function SiteFooter() {
               <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
                 <span className="text-white/80">⌘K</span> SEARCH
               </kbd>
-              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
-                <span className="text-white/80">⌘⇧E</span> EDITOR
-              </kbd>
-              <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
-                <span className="text-white/80">⌘⇧A</span> ADMIN
-              </kbd>
+              {privileged && (
+                <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
+                  <span className="text-white/80">⌘⇧E</span> EDITOR
+                </kbd>
+              )}
+              {privileged && (
+                <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
+                  <span className="text-white/80">⌘⇧A</span> ADMIN
+                </kbd>
+              )}
             </div>
           </div>
 
@@ -147,24 +155,32 @@ export function SiteFooter() {
           </p>
           <div className="flex items-center gap-2 font-mono text-xs text-white/60">
             <span>STANDARDS · PRIVACY · STATUS</span>
-            <span aria-hidden>·</span>
-            <button
-              type="button"
-              onClick={() => setEditorOpen(true)}
-              className="rounded px-1 py-0.5 transition-colors hover:text-ember"
-              title="Editor review console (⌘⇧E)"
-            >
-              EDITOR ACCESS
-            </button>
-            <span aria-hidden>·</span>
-            <Link
-              href="/admin"
-              prefetch={false}
-              className="rounded px-1 py-0.5 transition-colors hover:text-ember"
-              title="Admin console (⌘⇧A)"
-            >
-              ADMIN
-            </Link>
+            {privileged && (
+              <>
+                <span aria-hidden>·</span>
+                <button
+                  type="button"
+                  onClick={() => setEditorOpen(true)}
+                  className="rounded px-1 py-0.5 transition-colors hover:text-ember"
+                  title="Editor review console (⌘⇧E)"
+                >
+                  EDITOR ACCESS
+                </button>
+              </>
+            )}
+            {privileged && (
+              <>
+                <span aria-hidden>·</span>
+                <Link
+                  href="/admin"
+                  prefetch={false}
+                  className="rounded px-1 py-0.5 transition-colors hover:text-ember"
+                  title="Admin console (⌘⇧A)"
+                >
+                  ADMIN
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -21,6 +21,7 @@ import { useExplorer } from "./explorer-store";
 import { useSiteSettings } from "./use-site-settings";
 import { AuthMenu } from "./auth-menu";
 import { ThemeToggle, ThemeToggleRow } from "./theme-toggle";
+import { usePrivileged } from "./use-privileged";
 
 /**
  * Nav points at dedicated routes; "Categories" is the one homepage anchor
@@ -45,6 +46,8 @@ export function SiteHeader() {
   // theme-safe; absent/empty falls back to the glyph.
   const settings = useSiteSettings();
   const brandingLogoUrl = settings["branding.logoUrl"] ?? "";
+  // Owner-only admin gear — guests render no trace of /admin in the header.
+  const privileged = usePrivileged();
 
   const isActive = (id: string) => {
     const link = NAV_LINKS.find((l) => l.id === id);
@@ -109,15 +112,17 @@ export function SiteHeader() {
               the global ⌘K palette (mounted in layout.tsx) already cover it. */}
           <AuthMenu />
           <ThemeToggle />
-          <Link
-            href="/admin"
-            prefetch={false}
-            aria-label="Admin console"
-            title="Admin console (⌘⇧A)"
-            className="inline-flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:border-ember/40 hover:text-ember"
-          >
-            <Settings2 className="size-4" aria-hidden />
-          </Link>
+          {privileged && (
+            <Link
+              href="/admin"
+              prefetch={false}
+              aria-label="Admin console"
+              title="Admin console (⌘⇧A)"
+              className="inline-flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:border-ember/40 hover:text-ember"
+            >
+              <Settings2 className="size-4" aria-hidden />
+            </Link>
+          )}
           <Button
             asChild
             className="hidden rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot sm:inline-flex dark:text-coal"
@@ -167,15 +172,17 @@ export function SiteHeader() {
               Submit your tool
             </Link>
           </Button>
-          <Link
-            href="/admin"
-            prefetch={false}
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
-          >
-            <Settings2 className="size-4 text-ember" aria-hidden />
-            Admin console
-          </Link>
+          {privileged && (
+            <Link
+              href="/admin"
+              prefetch={false}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              <Settings2 className="size-4 text-ember" aria-hidden />
+              Admin console
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => {

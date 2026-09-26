@@ -26,6 +26,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+  PRIV_LOCK_EVENT,
+  PRIV_UNLOCK_EVENT,
+} from "./use-privileged";
 import { CATEGORIES } from "./categories";
 import { useExplorer } from "./explorer-store";
 import { STANDARD_DEFS } from "@/lib/standards";
@@ -818,6 +822,7 @@ export function EditorConsole() {
       if (res.status === 401) {
         sessionStorage.removeItem(KEY_STORAGE);
         setAuthed(false);
+        window.dispatchEvent(new Event(PRIV_LOCK_EVENT));
         return;
       }
       setQueue((await res.json()) as QueueResponse);
@@ -836,6 +841,7 @@ export function EditorConsole() {
     (key: string) => {
       sessionStorage.setItem(KEY_STORAGE, key);
       setAuthed(true);
+      window.dispatchEvent(new Event(PRIV_UNLOCK_EVENT));
       void load();
     },
     [load]

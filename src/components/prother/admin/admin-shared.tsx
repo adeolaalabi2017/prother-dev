@@ -12,6 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/components/prother/forum-thread-actions";
+import {
+  PRIV_LOCK_EVENT,
+  PRIV_UNLOCK_EVENT,
+} from "@/components/prother/use-privileged";
 
 /**
  * Shared building blocks for the Admin Console (Task 23-b module split).
@@ -45,10 +49,12 @@ export function useAdminKey() {
   const unlock = useCallback((k: string) => {
     sessionStorage.setItem(KEY_STORAGE, k);
     setKey(k);
+    window.dispatchEvent(new Event(PRIV_UNLOCK_EVENT));
   }, []);
   const lock = useCallback(() => {
     sessionStorage.removeItem(KEY_STORAGE);
     setKey(null);
+    window.dispatchEvent(new Event(PRIV_LOCK_EVENT));
   }, []);
   return { key, unlock, lock };
 }
