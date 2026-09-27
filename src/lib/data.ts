@@ -413,6 +413,11 @@ export function shadowAdminSettings(c: Client) {
   return c.query(api.adminCrud.settingsTable, {});
 }
 
+/** Bulk curate every listing — admin-key enforced route-side. */
+export function convexAdminMarkAllCurated(c: Client) {
+  return c.mutation(api.admin.markAllCurated, {});
+}
+
 /** Launch purge (dry-run or execute) — admin-key enforced route-side. */
 export function convexAdminPurge(
   c: Client,

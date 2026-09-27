@@ -270,3 +270,23 @@ export const toolsTable = query({
     };
   },
 });
+
+/**
+ * Bulk curate: mark every listing curated (launch state — no founder or
+ * editor makers registered yet, the directory itself stands behind every
+ * tool). Returns updated + total counts. Idempotent.
+ */
+export const markAllCurated = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const tools = await ctx.db.query("tools").collect();
+    let updated = 0;
+    for (const t of tools) {
+      if (!t.curated) {
+        await ctx.db.patch(t._id, { curated: true });
+        updated += 1;
+      }
+    }
+    return { updated, total: tools.length };
+  },
+});

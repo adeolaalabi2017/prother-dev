@@ -1557,6 +1557,9 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   const [status, setStatus] = useState("all");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [curating, setCurating] = useState(false);
+
+  const uncuratedCount = (tools ?? []).filter((t) => !t.curated).length;
 
   const load = useCallback(() => {
     adminFetch(apiKey, `/api/admin/tools?q=${encodeURIComponent(q)}&status=${status}`)
@@ -1577,6 +1580,39 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
       .catch(() => {});
   }, [apiKey]);
 
+  const markAllCurated = useCallback(async () => {
+    if (curating) return;
+    setCurating(true);
+    try {
+      const res = await adminFetch(apiKey, "/api/admin/tools/curate-all", {
+        method: "POST",
+      });
+      const data = (await res.json().catch(() => null)) as {
+        updated?: number;
+        total?: number;
+        error?: string;
+      } | null;
+      if (!res.ok || !data || typeof data.updated !== "number") {
+        throw new Error(data?.error ?? "Could not update listings.");
+      }
+      toast({
+        title:
+          data.updated === 0
+            ? "Every listing is already curated."
+            : `${data.updated} listing(s) marked curated.`,
+      });
+      load();
+      onChanged();
+    } catch (err) {
+      toast({
+        title: err instanceof Error ? err.message : "Could not update listings.",
+        variant: "destructive",
+      });
+    } finally {
+      setCurating(false);
+    }
+  }, [apiKey, curating, load, onChanged, toast]);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
@@ -1594,6 +1630,26 @@ function ListingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
             ))}
           </SelectContent>
         </Select>
+        <Button
+          size="sm"
+          onClick={() => void markAllCurated()}
+          disabled={curating || uncuratedCount === 0}
+          title="Mark every listing in the directory curated"
+          className="rounded-lg border border-ember/40 bg-ember/10 px-3 font-mono text-sm tracking-wider text-ember shadow-none hover:bg-ember/20 disabled:opacity-40"
+        >
+          {curating ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              Curating…
+            </>
+          ) : (
+            <>
+              <BadgeCheck className="size-4" aria-hidden />
+              Mark all curated
+              {uncuratedCount > 0 ? ` (${uncuratedCount})` : ""}
+            </>
+          )}
+        </Button>
         <Button
           size="sm"
           onClick={() => setCreating((v) => !v)}
