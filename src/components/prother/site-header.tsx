@@ -11,6 +11,7 @@ import {
   Info,
   Menu,
   MessagesSquare,
+  Scale,
   Search,
   Settings2,
   X,
@@ -32,6 +33,7 @@ import { usePrivileged } from "./use-privileged";
 const NAV_LINKS = [
   { label: "Categories", href: "/#categories", id: "categories", icon: Grid2x2 },
   { label: "Tools", href: "/tools", id: "tools", icon: Compass },
+  { label: "Compare", href: "/compare", id: "compare", icon: Scale },
   { label: "Journal", href: "/journal", id: "journal", icon: Feather },
   { label: "Forums", href: "/forums", id: "forums", icon: MessagesSquare },
   { label: "About", href: "/about", id: "about", icon: Info },
@@ -83,7 +85,7 @@ export function SiteHeader() {
           <span className="text-lg font-black tracking-tight text-white">Prother</span>
         </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-7 md:flex xl:gap-8">
+        <nav aria-label="Main" className="hidden items-center gap-5 md:flex lg:gap-7 xl:gap-8">
           {NAV_LINKS.map((l) => (
             <Link
               key={l.href}
