@@ -74,10 +74,14 @@ export async function prepareMedia(file: File): Promise<PreparedMedia> {
   const rawType = (file.type || "").toLowerCase();
   const mime =
     rawType ||
-    (file.name.toLowerCase().endsWith(".ico") ? "image/x-icon" : "");
+    (file.name.toLowerCase().endsWith(".ico")
+      ? "image/x-icon"
+      : file.name.toLowerCase().endsWith(".svg")
+        ? "image/svg+xml"
+        : "");
   if (!isAllowedMime(mime)) {
     throw new Error(
-      "Unsupported file type. Use JPEG, PNG, WebP, GIF or ICO images, or MP4, WebM, MOV videos."
+      "Unsupported file type. Use JPEG, PNG, WebP, GIF, SVG or ICO images, or MP4, WebM, MOV videos."
     );
   }
   const kind = kindForMime(mime);
@@ -125,11 +129,11 @@ export async function prepareMedia(file: File): Promise<PreparedMedia> {
     );
   }
 
-  // GIFs: compression would kill the animation, so they must fit as-is.
-  if (mime === "image/gif") {
+  // GIFs and SVGs: compression would break animation or corrupt vector XML, so they must fit as-is.
+  if (mime === "image/gif" || mime === "image/svg+xml") {
     if (file.size > IMAGE_MAX_BYTES) {
       throw new Error(
-        `Animated GIFs are limited to ${formatBytes(IMAGE_MAX_BYTES)} (they are not recompressed). This one is ${formatBytes(file.size)}.`
+        `${mime === "image/svg+xml" ? "SVG files" : "Animated GIFs"} are limited to ${formatBytes(IMAGE_MAX_BYTES)} (they are not recompressed). This one is ${formatBytes(file.size)}.`
       );
     }
     const dims = await measureImage(file);

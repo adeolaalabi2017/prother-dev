@@ -28,6 +28,7 @@ export const IMAGE_MIME_TYPES = [
   "image/png",
   "image/webp",
   "image/gif",
+  "image/svg+xml",
 ] as const;
 export const FAVICON_MIME_TYPES = [
   "image/x-icon",
@@ -81,6 +82,7 @@ const IMAGE_EXTS: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
   "image/gif": "gif",
+  "image/svg+xml": "svg",
   "image/x-icon": "ico",
   "image/vnd.microsoft.icon": "ico",
 };
@@ -97,7 +99,7 @@ export function extForMime(mime: string): string | null {
 
 /** Human-readable accept attribute for file inputs. */
 export const IMAGE_ACCEPT =
-  "image/jpeg,image/png,image/webp,image/gif";
+  "image/jpeg,image/png,image/webp,image/gif,image/svg+xml,.svg";
 export const FAVICON_ACCEPT = "image/png,image/webp,image/x-icon,.ico";
 export const VIDEO_ACCEPT = "video/mp4,video/webm,video/quicktime";
 

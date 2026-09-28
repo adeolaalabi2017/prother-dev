@@ -11,6 +11,7 @@ export type SearchToolHit = {
   tagline: string;
   emoji: string;
   gradient: string;
+  logoUrl?: string | null;
   editorsPick: boolean;
   pricing: { model: string; price: string | null };
   category: { slug: string; name: string; emoji: string };

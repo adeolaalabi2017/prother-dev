@@ -196,6 +196,7 @@ export const toolPatch = mutation({
       docsUrl: v.optional(v.union(v.string(), v.null())),
       twitterUrl: v.optional(v.union(v.string(), v.null())),
       tagsPipe: v.optional(v.string()),
+      tags: v.optional(v.string()),
       status: v.optional(v.string()),
       pinned: v.optional(v.number()),
       editorsPick: v.optional(v.boolean()),
@@ -203,6 +204,7 @@ export const toolPatch = mutation({
       claimed: v.optional(v.boolean()),
       makerHandle: v.optional(v.string()),
       categoryLegacyId: v.optional(v.string()),
+      categoryId: v.optional(v.string()),
       verifiedAt: v.optional(v.number()),
     }),
     features: v.optional(v.record(v.string(), v.string())),
@@ -230,8 +232,9 @@ export const toolPatch = mutation({
     if (d.githubUrl !== undefined) patch.githubUrl = d.githubUrl ?? undefined;
     if (d.docsUrl !== undefined) patch.docsUrl = d.docsUrl ?? undefined;
     if (d.twitterUrl !== undefined) patch.twitterUrl = d.twitterUrl ?? undefined;
-    if (d.tagsPipe !== undefined) {
-      patch.tags = d.tagsPipe.split("|").map((t) => t.trim()).filter(Boolean);
+    const rawTags = d.tagsPipe ?? d.tags;
+    if (rawTags !== undefined) {
+      patch.tags = rawTags.split("|").map((t) => t.trim()).filter(Boolean);
     }
     if (d.status !== undefined) patch.status = d.status;
     if (d.pinned !== undefined) patch.pinned = d.pinned;
@@ -240,9 +243,10 @@ export const toolPatch = mutation({
     if (d.claimed !== undefined) patch.claimed = d.claimed;
     if (d.makerHandle !== undefined) patch.makerHandle = d.makerHandle;
     if (d.verifiedAt !== undefined) patch.verifiedAt = d.verifiedAt;
-    if (d.categoryLegacyId !== undefined) {
+    const targetCatId = d.categoryLegacyId ?? d.categoryId;
+    if (targetCatId !== undefined) {
       const categories = await ctx.db.query("categories").collect();
-      const cat = categories.find((c) => docId(c) === d.categoryLegacyId);
+      const cat = categories.find((c) => docId(c) === targetCatId);
       if (!cat) throw new Error("not_found");
       patch.categoryId = cat._id;
     }

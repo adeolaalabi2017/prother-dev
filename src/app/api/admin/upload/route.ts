@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
       allowedPurposes: ADMIN_PURPOSES,
     });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "server_error";
     console.error("[api:admin/upload] failed:", err);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

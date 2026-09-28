@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
 import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
+import { ToolLogo } from "./tool-logo";
 import type { DirectoryRow } from "@/app/api/tools/route";
 
 /**
@@ -299,15 +300,14 @@ export function CategoryFullPage() {
                   className="flex h-full w-full flex-col rounded-xl border border-white/10 bg-white/[0.02] p-4 text-left transition hover:border-ember/40 hover:bg-white/5"
                 >
                   <span className="flex items-center gap-3">
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-lg shadow-inner",
-                        row.gradient || "from-white/10 to-white/5"
-                      )}
-                    >
-                      {row.emoji}
-                    </span>
+                    <ToolLogo
+                      slug={row.slug}
+                      name={row.name}
+                      logoUrl={row.logoUrl}
+                      emoji={row.emoji}
+                      gradient={row.gradient}
+                      size="md"
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold text-white">
                         <span aria-hidden className="mr-1.5 font-mono text-xs text-white/55">

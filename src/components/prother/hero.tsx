@@ -14,18 +14,50 @@ const HeroSearch = dynamic(
   { ssr: false },
 );
 
-type SiteStats = { tools: number; categories: number; reviews: number; comments: number };
+export type SiteStats = { tools: number; categories: number; reviews: number; comments: number };
 
-export function Hero() {
+export type HeroProps = {
+  initialStats?: SiteStats | null;
+  initialSettings?: Record<string, string>;
+};
+
+export function formatAnnouncement(
+  template: string,
+  stats: SiteStats | null,
+): string {
+  const toolCount = stats ? stats.tools : 46;
+  const catCount = stats ? stats.categories : 7;
+  const revCount = stats ? stats.reviews : 0;
+  const comCount = stats ? stats.comments : 0;
+
+  let formatted = template
+    .replace(/\{tools\}|\{count\}/gi, String(toolCount))
+    .replace(/\{categories\}/gi, String(catCount))
+    .replace(/\{reviews\}/gi, String(revCount))
+    .replace(/\{comments\}/gi, String(comCount));
+
+  if (stats && stats.tools > 0) {
+    formatted = formatted.replace(/\b\d+(\s+tools\b)/gi, `${stats.tools}$1`);
+  }
+  if (stats && stats.categories > 0) {
+    formatted = formatted.replace(/\b\d+(\s+categories\b)/gi, `${stats.categories}$1`);
+  }
+  return formatted;
+}
+
+export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
   // Admin-manageable site copy (/api/site ← Site settings KV). Falls back to
   // the locked defaults when the store is empty — the hero never breaks.
-  const [copy, setCopy] = useState({
-    announcement: "Curated daily · 46 tools indexed across 7 categories",
-    headline: "Find the right AI tool.",
+  const [copy, setCopy] = useState(() => ({
+    announcement:
+      initialSettings?.["hero.announcement"] ||
+      "{count} tools indexed: free forever",
+    headline: initialSettings?.["hero.headline"] || "Find the right AI tool.",
     subline:
+      initialSettings?.["hero.subline"] ||
       "Prother is a curated search and discovery directory for AI products and tools. Compare pricing, read real reviews, and save your stack. No launch games, no pay-to-win ranking.",
-  });
-  const [stats, setStats] = useState<SiteStats | null>(null);
+  }));
+  const [stats, setStats] = useState<SiteStats | null>(initialStats ?? null);
 
   useEffect(() => {
     let alive = true;
@@ -54,6 +86,8 @@ export function Hero() {
   const headlineWords = copy.headline.split(" ");
   const headlineBody = headlineWords.slice(0, -1).join(" ");
   const headlineAccent = headlineWords.at(-1) ?? "";
+
+  const announcement = formatAnnouncement(copy.announcement, stats);
 
   return (
     <section id="top" className="relative pt-16 pb-20 md:pt-20">
@@ -90,7 +124,7 @@ export function Hero() {
               className="mr-2 inline-block size-1.5 rounded-full bg-ember-tint animate-status-pulse"
               aria-hidden
             />
-            {copy.announcement}
+            {announcement}
           </p>
 
           <h1 className="mt-6 text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl xl:text-8xl">

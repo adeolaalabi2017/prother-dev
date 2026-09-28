@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import { useExplorer } from "./explorer-store";
+import { ToolLogo } from "./tool-logo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,6 +22,7 @@ type TrendingRow = {
   tagline: string;
   emoji: string;
   gradient: string;
+  logoUrl?: string | null;
   score: number;
   signals: { comments: number; reviews: number; saves: number };
   category: { slug: string; name: string; emoji: string };
@@ -148,15 +150,14 @@ export function TrendingStrip() {
                 {i + 1}
               </span>
 
-              <div
-                aria-hidden
-                className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-lg shadow-inner",
-                  row.gradient
-                )}
-              >
-                {row.emoji}
-              </div>
+              <ToolLogo
+                slug={row.slug}
+                name={row.name}
+                logoUrl={row.logoUrl}
+                emoji={row.emoji}
+                gradient={row.gradient}
+                size="md"
+              />
 
               <div className="min-w-0 flex-1">
                 <button

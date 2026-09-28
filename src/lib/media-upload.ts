@@ -61,16 +61,20 @@ export async function handleMediaUpload(
   }
   if (file.size === 0) return fail(400, "The selected file is empty.");
 
-  // Mirror lib/upload-client.ts: .ico files with an empty reported type are
-  // still favicons (mime inferred from the extension).
+  // Mirror lib/upload-client.ts: .ico and .svg files with an empty reported type are
+  // inferred from the extension.
   const rawType = (file.type || "").toLowerCase();
   const mime =
     rawType ||
-    (file.name.toLowerCase().endsWith(".ico") ? "image/x-icon" : "");
+    (file.name.toLowerCase().endsWith(".ico")
+      ? "image/x-icon"
+      : file.name.toLowerCase().endsWith(".svg")
+        ? "image/svg+xml"
+        : "");
   if (!isAllowedMime(mime)) {
     return fail(
       415,
-      "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF or ICO images and MP4, WebM, MOV videos."
+      "Unsupported file type. Allowed: JPEG, PNG, WebP, GIF, SVG or ICO images and MP4, WebM, MOV videos."
     );
   }
 
@@ -107,7 +111,8 @@ export async function handleMediaUpload(
   const h =
     Number.isInteger(height) && height > 0 && height <= 20000 ? height : null;
 
-  const bytes = Buffer.from(await file.arrayBuffer());
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
   const row = await createMediaRow({
     kind,
     mimeType: mime,

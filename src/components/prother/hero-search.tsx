@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
+import { ToolLogo } from "./tool-logo";
 import type { SearchResponse } from "@/app/api/search/route";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api.js";
@@ -34,12 +35,19 @@ type TrendRow = {
   tagline: string;
   emoji: string;
   gradient: string;
+  logoUrl?: string | null;
   score: number;
   signals: { comments: number; reviews: number; saves: number };
   category?: { slug: string; name: string; emoji: string };
 };
 
-type Recent = { slug: string; name: string; emoji: string; gradient: string };
+type Recent = {
+  slug: string;
+  name: string;
+  emoji: string;
+  gradient: string;
+  logoUrl?: string | null;
+};
 
 type Item =
   | {
@@ -49,6 +57,7 @@ type Item =
       tagline: string;
       emoji: string;
       gradient: string;
+      logoUrl?: string | null;
       editorsPick: boolean;
       pricing: { model: string; price: string | null };
       category: { slug: string; name: string; emoji: string };
@@ -63,7 +72,14 @@ type Item =
       gradient: string;
       minutes: number;
     }
-  | { kind: "recent"; slug: string; name: string; emoji: string; gradient: string };
+  | {
+      kind: "recent";
+      slug: string;
+      name: string;
+      emoji: string;
+      gradient: string;
+      logoUrl?: string | null;
+    };
 
 type Group = { label: string; hint?: string; items: Item[]; start: number };
 
@@ -290,12 +306,13 @@ export function HeroSearch() {
       push(
         "Trending now",
         trendingRows.map<Item>((t) => ({
-          kind: "tool",
+          kind: "tool" as const,
           slug: t.slug,
           name: t.name,
           tagline: t.tagline,
           emoji: t.emoji,
           gradient: t.gradient,
+          logoUrl: t.logoUrl,
           editorsPick: false,
           pricing: { model: "", price: null },
           category: t.category ?? { slug: "", name: "", emoji: "" },
@@ -325,6 +342,7 @@ export function HeroSearch() {
         tagline: t.tagline,
         emoji: t.emoji,
         gradient: t.gradient,
+        logoUrl: t.logoUrl,
         editorsPick: t.editorsPick,
         pricing: t.pricing,
         category: t.category,
@@ -374,7 +392,13 @@ export function HeroSearch() {
   const pick = useCallback(
     (item: Item) => {
       if (item.kind === "tool") {
-        pushRecent({ slug: item.slug, name: item.name, emoji: item.emoji, gradient: item.gradient });
+        pushRecent({
+          slug: item.slug,
+          name: item.name,
+          emoji: item.emoji,
+          gradient: item.gradient,
+          logoUrl: item.logoUrl,
+        });
         setOpen(false);
         inputRef.current?.blur();
         // Tools are real routes now — navigate like journal posts (the
@@ -577,15 +601,27 @@ export function HeroSearch() {
                             : "hover:bg-white/[0.04]"
                         )}
                       >
-                        <span
-                          aria-hidden
-                          className={cn(
-                            "flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-base shadow-inner",
-                            "gradient" in item && item.gradient ? item.gradient : "from-white/10 to-white/5"
-                          )}
-                        >
-                          {item.emoji}
-                        </span>
+                        {item.kind === "tool" || item.kind === "recent" ? (
+                          <ToolLogo
+                            slug={item.slug}
+                            name={"name" in item ? item.name : ""}
+                            logoUrl={"logoUrl" in item ? item.logoUrl : null}
+                            emoji={item.emoji}
+                            gradient={"gradient" in item ? item.gradient : undefined}
+                            size="sm"
+                            className="size-9 rounded-lg"
+                          />
+                        ) : (
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-base shadow-inner",
+                              "gradient" in item && item.gradient ? item.gradient : "from-white/10 to-white/5"
+                            )}
+                          >
+                            {item.emoji}
+                          </span>
+                        )}
 
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">

@@ -2397,7 +2397,11 @@ const SETTING_GROUPS: {
     fields: [
       { key: "hero.headline", label: "Hero headline", hint: "Last word renders in ember." },
       { key: "hero.subline", label: "Hero subline", multiline: true },
-      { key: "hero.announcement", label: "Announcement pill" },
+      {
+        key: "hero.announcement",
+        label: "Announcement pill",
+        hint: "Supports {count} or {tools} and {categories}, or updates tool count dynamically.",
+      },
     ],
   },
   {

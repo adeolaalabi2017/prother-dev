@@ -12,6 +12,7 @@ export type CompareMatrixOption = {
   name: string;
   emoji: string;
   gradient: string;
+  logoUrl?: string | null;
   tagline: string;
   pricingModel: string;
   editorsPick: boolean;
@@ -23,6 +24,7 @@ export type CompareMatrixTool = {
   name: string;
   emoji: string;
   gradient: string;
+  logoUrl?: string | null;
   tagline: string;
   websiteUrl: string;
   pricing: { model: string; price: string | null; note: string | null };

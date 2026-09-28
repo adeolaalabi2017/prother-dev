@@ -17,20 +17,100 @@ import { blurbFor } from "@/lib/category-blurbs";
 
 type Client = ConvexHttpClient;
 
-export function shadowSite(c: Client) {
-  return c.query(api.site.get, {});
+export async function shadowSite(c: Client) {
+  const res = await c.query(api.site.get, {});
+  if (res && res.settings && res.stats) {
+    const template = res.settings["hero.announcement"];
+    if (template) {
+      let formatted = template
+        .replace(/\{tools\}|\{count\}/gi, String(res.stats.tools))
+        .replace(/\{categories\}/gi, String(res.stats.categories));
+      if (res.stats.tools > 0) {
+        formatted = formatted.replace(/\b\d+(\s+tools\b)/gi, `${res.stats.tools}$1`);
+      }
+      if (res.stats.categories > 0) {
+        formatted = formatted.replace(/\b\d+(\s+categories\b)/gi, `${res.stats.categories}$1`);
+      }
+      res.settings["hero.announcement"] = formatted;
+    }
+  }
+  return res;
 }
 
-export function shadowTrending(c: Client, window: "week" | "month", limit: number) {
-  return c.query(api.trending.list, { window, limit });
+let cachedLogoMap: { map: Map<string, string>; expiry: number } | null = null;
+let pendingLogoMapPromise: Promise<Map<string, string>> | null = null;
+
+export async function getToolLogoMap(c: Client): Promise<Map<string, string>> {
+  const now = Date.now();
+  if (cachedLogoMap && cachedLogoMap.expiry > now) {
+    return cachedLogoMap.map;
+  }
+  if (pendingLogoMapPromise) {
+    return pendingLogoMapPromise;
+  }
+  pendingLogoMapPromise = (async () => {
+    try {
+      const dir = await c.query(api.tools.directory, {
+        sort: "featured",
+        page: 1,
+        pageSize: 100,
+      });
+      if (dir && "rows" in dir && Array.isArray(dir.rows)) {
+        const map = new Map<string, string>();
+        for (const r of dir.rows) {
+          if (r.slug && r.logoUrl) {
+            map.set(r.slug, r.logoUrl);
+          }
+        }
+        cachedLogoMap = { map, expiry: Date.now() + 60_000 };
+        return map;
+      }
+    } catch {
+      // return fallback
+    } finally {
+      pendingLogoMapPromise = null;
+    }
+    return cachedLogoMap?.map ?? new Map();
+  })();
+  return pendingLogoMapPromise;
+}
+
+export async function shadowTrending(c: Client, window: "week" | "month", limit: number) {
+  const [res, logoMap] = await Promise.all([
+    c.query(api.trending.list, { window, limit }),
+    getToolLogoMap(c),
+  ]);
+  if (res && Array.isArray(res.rows)) {
+    return {
+      ...res,
+      rows: res.rows.map((r: any) => ({
+        ...r,
+        logoUrl: (r as any).logoUrl ?? logoMap.get(r.slug) ?? null,
+      })),
+    };
+  }
+  return res;
 }
 
 export function shadowBlog(c: Client, limit: number, category: string | null) {
   return c.query(api.posts.list, { limit, category: category ?? undefined });
 }
 
-export function shadowSearch(c: Client, q: string) {
-  return c.query(api.search.search, { q });
+export async function shadowSearch(c: Client, q: string) {
+  const [res, logoMap] = await Promise.all([
+    c.query(api.search.search, { q }),
+    getToolLogoMap(c),
+  ]);
+  if (res && Array.isArray(res.tools)) {
+    return {
+      ...res,
+      tools: res.tools.map((t: any) => ({
+        ...t,
+        logoUrl: (t as any).logoUrl ?? logoMap.get(t.slug) ?? null,
+      })),
+    };
+  }
+  return res;
 }
 
 export async function shadowToolsDirectory(
@@ -76,15 +156,31 @@ export async function shadowToolDetail(
   slug: string,
   viewer?: { id: string; email: string; handle: string } | null,
 ) {
-  const res = await c.query(api.tools.detail, {
-    slug,
-    viewerEmail: viewer?.email,
-    viewerUserId: viewer?.id,
-  });
+  const [res, logoMap] = await Promise.all([
+    c.query(api.tools.detail, {
+      slug,
+      viewerEmail: viewer?.email,
+      viewerUserId: viewer?.id,
+    }),
+    getToolLogoMap(c),
+  ]);
   if ("error" in res) return res;
   const { viewer: v, ...rest } = res;
   return {
     ...rest,
+    logoUrl: rest.logoUrl ?? logoMap.get(rest.slug) ?? null,
+    related: Array.isArray(rest.related)
+      ? rest.related.map((r: any) => ({
+          ...r,
+          logoUrl: (r as any).logoUrl ?? logoMap.get(r.slug) ?? null,
+        }))
+      : rest.related,
+    alternatives: Array.isArray(rest.alternatives)
+      ? rest.alternatives.map((a: any) => ({
+          ...a,
+          logoUrl: (a as any).logoUrl ?? logoMap.get(a.slug) ?? null,
+        }))
+      : rest.alternatives,
     standards: STANDARD_DEFS.map((s) => ({ ...s, passed: true })),
     // Shadow covers anonymous traffic only (no cookies) — viewer is null.
     viewer:
@@ -184,25 +280,88 @@ export function shadowCollectionsMine(c: Client, ownerEmail?: string) {
   });
 }
 
-export function shadowCollectionDetail(
+export async function shadowCollectionDetail(
   c: Client,
   slug: string,
   viewerEmail?: string,
 ) {
-  return c.query(api.community.collectionDetail, { slug, viewerEmail });
+  const [res, logoMap] = await Promise.all([
+    c.query(api.community.collectionDetail, { slug, viewerEmail }),
+    getToolLogoMap(c),
+  ]);
+  if (res && res.collection && Array.isArray(res.collection.items)) {
+    return {
+      ...res,
+      collection: {
+        ...res.collection,
+        items: res.collection.items.map((item: any) => ({
+          ...item,
+          tool: item.tool
+            ? {
+                ...item.tool,
+                logoUrl: item.tool.logoUrl ?? logoMap.get(item.tool.slug) ?? null,
+              }
+            : item.tool,
+        })),
+      },
+    };
+  }
+  return res;
 }
 
-export function shadowCompareView(
+export async function shadowCompareView(
   c: Client,
   aSlug: string,
   bSlug: string,
   limit: number,
 ) {
-  return c.query(api.community.compareView, { aSlug, bSlug, limit });
+  const [res, logoMap] = await Promise.all([
+    c.query(api.community.compareView, { aSlug, bSlug, limit }),
+    getToolLogoMap(c),
+  ]);
+  if (res && !("error" in res)) {
+    const attach = (t: any) =>
+      t ? { ...t, logoUrl: t.logoUrl ?? logoMap.get(t.slug) ?? null } : t;
+    return {
+      ...res,
+      a: attach(res.a),
+      b: attach(res.b),
+      popular: Array.isArray(res.popular)
+        ? res.popular.map((p: any) => ({
+            ...p,
+            aLogoUrl: p.aLogoUrl ?? logoMap.get(p.aSlug) ?? null,
+            bLogoUrl: p.bLogoUrl ?? logoMap.get(p.bSlug) ?? null,
+          }))
+        : res.popular,
+    };
+  }
+  return res;
 }
 
-export function shadowToolPageData(c: Client, slug: string) {
-  return c.query(api.tools.pageData, { slug });
+export async function shadowToolPageData(c: Client, slug: string) {
+  const [res, logoMap] = await Promise.all([
+    c.query(api.tools.pageData, { slug }),
+    getToolLogoMap(c),
+  ]);
+  if (res && !("error" in res)) {
+    return {
+      ...res,
+      logoUrl: res.logoUrl ?? logoMap.get(res.tool.slug) ?? null,
+      alternatives: Array.isArray(res.alternatives)
+        ? res.alternatives.map((a: any) => ({
+            ...a,
+            logoUrl: a.logoUrl ?? logoMap.get(a.slug) ?? null,
+          }))
+        : res.alternatives,
+      related: Array.isArray(res.related)
+        ? res.related.map((r: any) => ({
+            ...r,
+            logoUrl: (r as any).logoUrl ?? logoMap.get(r.slug) ?? null,
+          }))
+        : res.related,
+    };
+  }
+  return res;
 }
 
 // ── Phase 5 — claims flow ──
@@ -309,12 +468,35 @@ export function convexMediaDeleteFull(c: Client, args: { id: string }) {
 
 // ── Phase 5 — remaining SSR surfaces ──
 
-export function shadowCategoryDetail(c: Client, slug: string) {
-  return c.query(api.categories.detail, { slug });
+export async function shadowCategoryDetail(c: Client, slug: string) {
+  const [res, logoMap] = await Promise.all([
+    c.query(api.categories.detail, { slug }),
+    getToolLogoMap(c),
+  ]);
+  if (res && "tools" in res && Array.isArray(res.tools)) {
+    return {
+      ...res,
+      tools: res.tools.map((t: any) => ({
+        ...t,
+        logoUrl: (t as any).logoUrl ?? logoMap.get(t.slug) ?? null,
+      })),
+    };
+  }
+  return res;
 }
 
-export function shadowHomepage(c: Client) {
-  return c.query(api.tools.homepage, {});
+export async function shadowHomepage(c: Client) {
+  const [res, logoMap] = await Promise.all([
+    c.query(api.tools.homepage, {}),
+    getToolLogoMap(c),
+  ]);
+  if (res && res.picks && Array.isArray(res.picks)) {
+    res.picks = res.picks.map((p: any) => ({
+      ...p,
+      logoUrl: p.logoUrl ?? logoMap.get(p.slug) ?? null,
+    }));
+  }
+  return res;
 }
 
 export function shadowSerp(

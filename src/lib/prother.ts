@@ -23,6 +23,7 @@ export type RelatedToolRow = {
   gradient: string;
   tagline: string;
   editorsPick: boolean;
+  logoUrl?: string | null;
 };
 
 export type ToolDetailResponse = {

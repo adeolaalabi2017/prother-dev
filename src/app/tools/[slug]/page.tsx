@@ -18,6 +18,7 @@ import { ToolDetailActions } from "@/components/prother/tool-detail-actions";
 import { AboutClamp } from "@/components/prother/about-clamp";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowToolPageData } from "@/lib/data";
+import { ToolLogo } from "@/components/prother/tool-logo";
 
 /**
  * /tools/[slug] — the real, crawlable tool detail page (Task 25).
@@ -135,6 +136,7 @@ type ConvexBundle = {
     logoGradient: string;
     tagline: string;
     editorsPick: boolean;
+    logoUrl?: string | null;
   }[];
   mediaMap: Map<string, { logoUrl: string | null; screenshotUrls: string[] }>;
   editorialMap: Map<
@@ -301,6 +303,7 @@ export default async function ToolPage({ params }: Params) {
     gradient: r.logoGradient,
     tagline: r.tagline,
     editorsPick: r.editorsPick,
+    logoUrl: r.logoUrl ?? null,
   }));
   const tags = tool.tags.split("|").map((t) => t.trim()).filter(Boolean);
 
@@ -360,23 +363,14 @@ export default async function ToolPage({ params }: Params) {
           {/* a. Header */}
           <header className="space-y-5">
             <div className="flex items-start gap-4 sm:gap-5">
-              <span
-                aria-hidden={!logoUrl}
-                className={cn(
-                  "grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
-                  tool.logoGradient
-                )}
-              >
-                {logoUrl ? (
-                  <img
-                    src={logoUrl}
-                    alt={`${name} logo`}
-                    className="size-full object-contain"
-                  />
-                ) : (
-                  <span aria-hidden>{tool.logoEmoji}</span>
-                )}
-              </span>
+              <ToolLogo
+                slug={tool.slug}
+                name={name}
+                logoUrl={logoUrl}
+                emoji={tool.logoEmoji}
+                gradient={tool.logoGradient}
+                size="xl"
+              />
               <div className="min-w-0 flex-1">
                 <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
                   {name}
@@ -791,23 +785,14 @@ export default async function ToolPage({ params }: Params) {
                     aria-label={`Open ${a.name}: ${a.tagline}`}
                     className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                   >
-                    <span
-                      aria-hidden={!a.logoUrl}
-                      className={cn(
-                        "grid size-10 place-items-center overflow-hidden rounded-lg bg-gradient-to-br text-lg",
-                        a.logoGradient
-                      )}
-                    >
-                      {a.logoUrl ? (
-                        <img
-                          src={a.logoUrl}
-                          alt={`${a.name} logo`}
-                          className="size-full object-contain"
-                        />
-                      ) : (
-                        <span aria-hidden>{a.logoEmoji}</span>
-                      )}
-                    </span>
+                    <ToolLogo
+                      slug={a.slug}
+                      name={a.name}
+                      logoUrl={a.logoUrl}
+                      emoji={a.logoEmoji}
+                      gradient={a.logoGradient}
+                      size="md"
+                    />
                     <span className="mt-2.5 flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
                         {a.name}
@@ -867,15 +852,14 @@ export default async function ToolPage({ params }: Params) {
                       aria-label={`Open ${r.name}: ${r.tagline}`}
                       className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                     >
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "grid size-10 place-items-center rounded-lg bg-gradient-to-br text-lg",
-                          r.gradient
-                        )}
-                      >
-                        {r.emoji}
-                      </span>
+                      <ToolLogo
+                        slug={r.slug}
+                        name={r.name}
+                        logoUrl={r.logoUrl}
+                        emoji={r.emoji}
+                        gradient={r.gradient}
+                        size="md"
+                      />
                       <span className="mt-2.5 flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
                           {r.name}

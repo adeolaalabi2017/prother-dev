@@ -5,7 +5,9 @@ import { CategoryTicker } from "@/components/prother/category-ticker";
 import { TrendingStrip } from "@/components/prother/trending-strip";
 import { SubmitOpenButton } from "@/components/prother/submit-open-button";
 import { CATEGORIES } from "@/components/prother/categories";
+import { ToolLogo } from "@/components/prother/tool-logo";
 import { clamp } from "@/lib/og";
+import { cn } from "@/lib/utils";
 import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
 import { createServerConvexClient } from "@/lib/convex";
 import {
@@ -248,7 +250,7 @@ async function getEditorsPicks() {
   // Convex-only homepage bundle (section hides on failure).
   try {
     const { picks } = await shadowHomepage(createServerConvexClient()!);
-    return picks;
+    return picks as Array<(typeof picks)[number] & { logoUrl?: string | null }>;
   } catch {
     return []; // section hides — the homepage never fails on a section query
   }
@@ -262,14 +264,14 @@ function firstSentence(blurb: string): string {
 
 // ── Sections (server-rendered) ───────────────────────────────────────────
 
-/** Site copy KV (CMS-managed frontend elements) — blanks fall back in-code. */
-async function getSiteCopy(): Promise<Record<string, string>> {
+/** Site copy KV & stats (CMS-managed frontend elements) — blanks fall back in-code. */
+async function getSiteData() {
   // Convex-only site settings (empty map on failure — never fail the page).
   try {
     const res = await shadowSite(createServerConvexClient()!);
-    return res.settings;
+    return { settings: res.settings, stats: res.stats };
   } catch {
-    return {}; // the page never fails on a settings read
+    return { settings: {}, stats: null }; // the page never fails on a settings read
   }
 }
 
@@ -370,6 +372,7 @@ function EditorsPicks({
     tagline: string;
     logoEmoji: string;
     logoGradient: string;
+    logoUrl?: string | null;
     pricingModel: string;
     category: { slug: string; name: string; emoji: string };
   }[];
@@ -397,12 +400,14 @@ function EditorsPicks({
               className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-ember/50"
             >
               <div className="flex items-start justify-between gap-3">
-                <span
-                  aria-hidden
-                  className={`flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-2xl shadow-inner ${p.logoGradient}`}
-                >
-                  {p.logoEmoji}
-                </span>
+                <ToolLogo
+                  slug={p.slug}
+                  name={p.name}
+                  logoUrl={p.logoUrl}
+                  emoji={p.logoEmoji}
+                  gradient={p.logoGradient}
+                  size="lg"
+                />
                 <span className="rounded-full border border-ember/40 bg-ember/10 px-2 py-0.5 font-mono text-xs uppercase tracking-[0.2em] text-ember">
                   Editor&apos;s Pick
                 </span>
@@ -496,7 +501,11 @@ export default async function Page() {
     ],
   };
 
-  const [counts, picks, copy] = await Promise.all([liveCountByCategory(), getEditorsPicks(), getSiteCopy()]);
+  const [counts, picks, siteData] = await Promise.all([
+    liveCountByCategory(),
+    getEditorsPicks(),
+    getSiteData(),
+  ]);
 
   return (
     <>
@@ -504,12 +513,12 @@ export default async function Page() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <Hero />
+      <Hero initialStats={siteData.stats} initialSettings={siteData.settings} />
       <CategoryTicker />
-      <CategoryGrid counts={counts} copy={copy} />
-      <EditorsPicks picks={picks} copy={copy} />
+      <CategoryGrid counts={counts} copy={siteData.settings} />
+      <EditorsPicks picks={picks} copy={siteData.settings} />
       <TrendingStrip />
-      <ClosingBand copy={copy} />
+      <ClosingBand copy={siteData.settings} />
     </>
   );
 }

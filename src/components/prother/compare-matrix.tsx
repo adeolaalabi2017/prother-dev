@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { ToolLogo } from "./tool-logo";
 import type { CompareMatrix, CompareMatrixTool } from "@/lib/compare";
 
 /**
@@ -350,7 +351,15 @@ export function CompareMatrixView({
                     capped && "cursor-not-allowed opacity-40 hover:border-white/15"
                   )}
                 >
-                  <span aria-hidden>{o.emoji}</span>
+                  <ToolLogo
+                    slug={o.slug}
+                    name={o.name}
+                    logoUrl={(o as any).logoUrl}
+                    emoji={o.emoji}
+                    gradient={o.gradient}
+                    size="xs"
+                    className="size-5 rounded"
+                  />
                   <span className="font-medium">{o.name}</span>
                   {o.editorsPick && (
                     <Star className="size-3.5 fill-ember text-ember" aria-hidden />
@@ -456,15 +465,14 @@ export function CompareMatrixView({
                       className="min-w-[190px] p-4 text-left align-top font-normal"
                     >
                       <div className="flex items-start gap-3">
-                        <span
-                          aria-hidden
-                          className={cn(
-                            "flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl",
-                            t.gradient
-                          )}
-                        >
-                          {t.emoji}
-                        </span>
+                        <ToolLogo
+                          slug={t.slug}
+                          name={t.name}
+                          logoUrl={(t as any).logoUrl}
+                          emoji={t.emoji}
+                          gradient={t.gradient}
+                          size="md"
+                        />
                         <div className="min-w-0">
                           <Link
                             href={`/tools/${t.slug}`}

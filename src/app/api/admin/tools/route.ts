@@ -12,11 +12,17 @@ import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
-/** Media library URLs only — uploads must come from /api/media. */
+/** Media library URLs, local logo vectors, or external web URLs. */
 const MEDIA_URL = z
   .string()
-  .regex(/^\/api\/media\/[A-Za-z0-9_-]+$/, "must be an uploaded media URL")
-  .max(200);
+  .refine(
+    (s) =>
+      /^\/api\/media\/[A-Za-z0-9_-]+$/.test(s) ||
+      /^\/logos\/[A-Za-z0-9_.-]+$/.test(s) ||
+      /^https?:\/\/.+$/.test(s),
+    "must be an uploaded media URL (/api/media/...), local logo (/logos/...), or valid web URL"
+  )
+  .max(500);
 
 /** Editorial enrichment fields (Task 35) — POST-boot columns, raw SQL only
  *  (lib/tool-editorial.ts). Shared shape for the create + patch schemas. */
@@ -318,8 +324,9 @@ export async function PATCH(req: NextRequest) {
   const nowMs = Date.now();
   try {
     // verifiedAt travels as epoch ms (the patch schema holds a Date).
-    const { categoryId, ...convexRest } = data as Record<string, unknown> & {
+    const { categoryId, tags, ...convexRest } = data as Record<string, unknown> & {
       categoryId?: string;
+      tags?: string;
       verifiedAt?: Date;
     };
     delete convexRest.verifiedAt;
@@ -328,6 +335,7 @@ export async function PATCH(req: NextRequest) {
       data: {
         ...convexRest,
         ...(categoryId ? { categoryLegacyId: categoryId } : {}),
+        ...(tags !== undefined ? { tagsPipe: tags } : {}),
         ...(verify ? { verifiedAt: nowMs } : {}),
       },
       features,
@@ -355,7 +363,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Tool not found" }, { status: 404 });
     }
     console.error("[api:admin/tools] PATCH failed:", id, err);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    return NextResponse.json({ error: m || "server_error" }, { status: 500 });
   }
 }
 

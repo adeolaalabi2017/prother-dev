@@ -8,6 +8,7 @@ import { placementEnabled } from "@/lib/ad-config";
 import { cn } from "@/lib/utils";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowSerp, shadowToolsDirectory } from "@/lib/data";
+import { ToolLogo } from "@/components/prother/tool-logo";
 
 /** One scored result row on the /tools?q= SERP. */
 export type SerpToolRow = {
@@ -16,6 +17,7 @@ export type SerpToolRow = {
   tagline: string;
   emoji: string;
   gradient: string;
+  logoUrl?: string | null;
   editorsPick: boolean;
   pricingModel: string;
   startingPrice: string | null;
@@ -110,15 +112,14 @@ function SerpResultCard({ row }: { row: SerpToolRow }) {
   return (
     <article className="group relative flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]">
       <div className="flex items-start justify-between gap-3">
-        <div
-          aria-hidden
-          className={cn(
-            "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
-            row.gradient
-          )}
-        >
-          {row.emoji}
-        </div>
+        <ToolLogo
+          slug={row.slug}
+          name={row.name}
+          logoUrl={row.logoUrl}
+          emoji={row.emoji}
+          gradient={row.gradient}
+          size="lg"
+        />
         <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {row.editorsPick && (
             <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">

@@ -10,6 +10,7 @@ import { AdSlot } from "@/components/prother/ad-slot";
 import { placementEnabled } from "@/lib/ad-config";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowCategoryDetail } from "@/lib/data";
+import { ToolLogo } from "@/components/prother/tool-logo";
 
 /**
  * /categories/[slug] — the real, crawlable category page (Task 25).
@@ -82,6 +83,7 @@ export default async function CategoryPage({ params }: Params) {
     tagline: t.tagline,
     emoji: t.emoji,
     gradient: t.gradient,
+    logoUrl: (t as any).logoUrl ?? null,
     pricing: t.pricing,
     editorsPick: t.editorsPick,
   }));
@@ -181,15 +183,14 @@ export default async function CategoryPage({ params }: Params) {
                   className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
-                        t.gradient
-                      )}
-                    >
-                      {t.emoji}
-                    </span>
+                    <ToolLogo
+                      slug={t.slug}
+                      name={t.name}
+                      logoUrl={t.logoUrl}
+                      emoji={t.emoji}
+                      gradient={t.gradient}
+                      size="lg"
+                    />
                     <span className="inline-flex items-center gap-1.5">
                       {i < 3 && (
                         <span className="font-mono text-xs tracking-wider text-white/55 uppercase">

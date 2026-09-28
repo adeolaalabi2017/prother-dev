@@ -46,6 +46,7 @@ import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
 import { useExplorer } from "./explorer-store";
 import { useBookmark } from "./use-bookmarks";
 import { ReportDialog } from "./report-dialog";
+import { ToolLogo } from "./tool-logo";
 
 // ── Types (additive fields per the tool-detail API contract) ─────────────
 
@@ -1637,23 +1638,14 @@ export function ToolFullPage() {
         {/* a. Header */}
         <header className="space-y-5">
           <div className="flex items-start gap-4 sm:gap-5">
-            <span
-              aria-hidden={!detail.logoUrl}
-              className={cn(
-                "grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br text-4xl shadow-xl sm:size-20",
-                detail.gradient
-              )}
-            >
-              {detail.logoUrl ? (
-                <img
-                  src={detail.logoUrl}
-                  alt={`${name} logo`}
-                  className="size-full object-contain"
-                />
-              ) : (
-                <span aria-hidden>{detail.emoji}</span>
-              )}
-            </span>
+            <ToolLogo
+              slug={detail.slug}
+              name={name}
+              logoUrl={detail.logoUrl}
+              emoji={detail.emoji}
+              gradient={detail.gradient}
+              size="xl"
+            />
             <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
                 {name}
@@ -2120,24 +2112,14 @@ export function ToolFullPage() {
                         "group flex flex-col p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                       )}
                     >
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "grid size-10 place-items-center overflow-hidden rounded-lg bg-gradient-to-br text-lg",
-                          alt.logoGradient
-                        )}
-                      >
-                        {alt.logoUrl ? (
-                          <img
-                            src={alt.logoUrl}
-                            alt=""
-                            loading="lazy"
-                            className="size-full object-contain"
-                          />
-                        ) : (
-                          alt.logoEmoji
-                        )}
-                      </span>
+                      <ToolLogo
+                        slug={alt.slug}
+                        name={alt.name}
+                        logoUrl={alt.logoUrl}
+                        emoji={alt.logoEmoji}
+                        gradient={alt.logoGradient}
+                        size="md"
+                      />
                       <span className="mt-2.5 flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
                           {alt.name}
@@ -2215,15 +2197,14 @@ export function ToolFullPage() {
                       aria-label={`Open ${r.name} details`}
                       className={cn(PANEL, "p-4 text-left transition-colors hover:border-ember/40 hover:bg-ember/[0.04]")}
                     >
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "grid size-10 place-items-center rounded-lg bg-gradient-to-br text-lg",
-                          r.gradient
-                        )}
-                      >
-                        {r.emoji}
-                      </span>
+                      <ToolLogo
+                        slug={r.slug}
+                        name={r.name}
+                        logoUrl={r.logoUrl}
+                        emoji={r.emoji}
+                        gradient={r.gradient}
+                        size="md"
+                      />
                       <span className="mt-2.5 flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-bold text-white/90">{r.name}</span>
                         {r.editorsPick && (

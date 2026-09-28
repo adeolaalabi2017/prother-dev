@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { FullPageShell, PageSkeleton } from "./page-shell";
 import { useExplorer } from "./explorer-store";
+import { ToolLogo } from "./tool-logo";
 
 // ── Types (per the compare API contract) ──────────────────────────────────
 
@@ -18,6 +19,7 @@ type CompareRow = {
   tagline: string;
   emoji: string;
   gradient: string;
+  logoUrl?: string | null;
   description: string | null;
   websiteUrl: string;
   pricing: { model: string; price: string | null; note: string | null };
@@ -41,8 +43,10 @@ type PopularPair = {
   views: number;
   aName: string;
   aEmoji: string;
+  aLogoUrl?: string | null;
   bName: string;
   bEmoji: string;
+  bLogoUrl?: string | null;
 };
 
 type CompareResponse = {
@@ -58,6 +62,7 @@ type DirectoryRow = {
   emoji: string;
   gradient: string;
   editorsPick?: boolean;
+  logoUrl?: string | null;
 };
 
 const MONO = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
@@ -125,15 +130,14 @@ function ToolPicker({
           >
             {current ? (
               <>
-                <span
-                  aria-hidden
-                  className={cn(
-                    "grid size-7 shrink-0 place-items-center rounded-md bg-gradient-to-br text-sm",
-                    current.gradient
-                  )}
-                >
-                  {current.emoji}
-                </span>
+                <ToolLogo
+                  slug={current.slug}
+                  name={current.name}
+                  logoUrl={current.logoUrl}
+                  emoji={current.emoji}
+                  gradient={current.gradient}
+                  size="xs"
+                />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white/90">
                   {current.name}
                 </span>
@@ -171,15 +175,14 @@ function ToolPicker({
                 }}
                 className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-ember/10"
               >
-                <span
-                  aria-hidden
-                  className={cn(
-                    "grid size-7 shrink-0 place-items-center rounded-md bg-gradient-to-br text-sm",
-                    r.gradient
-                  )}
-                >
-                  {r.emoji}
-                </span>
+                <ToolLogo
+                  slug={r.slug}
+                  name={r.name}
+                  logoUrl={(r as any).logoUrl}
+                  emoji={r.emoji}
+                  gradient={r.gradient}
+                  size="xs"
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-white/90">{r.name}</span>
                   <span className="block truncate text-xs text-white/60">{r.tagline}</span>
@@ -465,15 +468,14 @@ export function CompareFullPage() {
                   key={r.slug}
                   className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40"
                 >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-3xl",
-                      r.gradient
-                    )}
-                  >
-                    {r.emoji}
-                  </span>
+                  <ToolLogo
+                    slug={r.slug}
+                    name={r.name}
+                    logoUrl={r.logoUrl}
+                    emoji={r.emoji}
+                    gradient={r.gradient}
+                    size="xl"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate text-xl font-black text-white">{r.name}</h2>

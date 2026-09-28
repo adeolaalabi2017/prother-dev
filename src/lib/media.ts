@@ -80,18 +80,28 @@ export async function createMediaRow(input: {
   height?: number | null;
   purpose?: string;
   ownerKey?: string;
-  bytes: Buffer;
+  bytes: Uint8Array | Buffer;
 }): Promise<MediaRow> {
-  const client = cx()!;
-  const id = `m_${randomUUID()}`;
+  const client = cx();
+  if (!client) {
+    throw new Error("Convex client is not configured (NEXT_PUBLIC_CONVEX_URL is missing).");
+  }
+  const id = `m_${typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : randomUUID()}`;
   const createdAt = Date.now();
   const uploadUrl: string = await client.mutation(api.media.mediaUploadUrl, {});
+  const body = input.bytes instanceof Uint8Array ? input.bytes : new Uint8Array(input.bytes);
   const put = await fetch(uploadUrl, {
     method: "POST",
-    headers: { "Content-Type": input.mimeType },
-    body: new Uint8Array(input.bytes),
+    headers: {
+      "Content-Type": input.mimeType,
+      "Content-Length": String(body.byteLength),
+    },
+    body: new Blob([body as any], { type: input.mimeType }),
   });
-  if (!put.ok) throw new Error(`storage put ${put.status}`);
+  if (!put.ok) {
+    const errorText = await put.text().catch(() => "");
+    throw new Error(`Storage upload failed (${put.status}): ${errorText}`);
+  }
   const { storageId } = (await put.json()) as { storageId: string };
   const row = await client.mutation(api.media.mediaCreate, {
     id,

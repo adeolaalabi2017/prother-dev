@@ -302,8 +302,8 @@ const SETTINGS: Record<string, string> = {
   "hero.headline": "Find the right AI tool.",
   "hero.subline":
     "A curated directory of AI products and tools. Search, compare, and read real reviews, before you commit your workflow.",
-  "hero.announcement": "46 tools indexed: free forever",
-  "footer.note": "Curated, human-reviewed, never for sale.",
+  "hero.announcement": "48 tools indexed: free forever",
+  "footer.note": "Rankings are never sold.",
   "seo.defaultTitle": "Prother. AI tool discovery",
   "seo.defaultDescription":
     "A curated search & discovery directory for AI products and tools. Compare pricing, read reviews, and find the right AI for the job.",

@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
 import { useExplorer } from "./explorer-store";
+import { ToolLogo } from "./tool-logo";
 import type { SearchToolHit } from "@/app/api/search/route";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api.js";
@@ -192,15 +193,14 @@ function CommandPalette() {
                 onSelect={() => pickTool(r.slug)}
               >
                 <TrendingUp aria-hidden className="text-ember/85" />
-                <span
-                  aria-hidden
-                  className={cn(
-                    "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
-                    r.gradient,
-                  )}
-                >
-                  {r.emoji}
-                </span>
+                <ToolLogo
+                  slug={r.slug}
+                  name={r.name}
+                  logoUrl={(r as any).logoUrl}
+                  emoji={r.emoji}
+                  gradient={r.gradient}
+                  size="xs"
+                />
                 <span className="font-semibold">{r.name}</span>
                 <span className="truncate text-white/60">{r.tagline}</span>
                 <span className="ml-auto font-mono text-xs uppercase tracking-wider text-white/60">
@@ -221,15 +221,14 @@ function CommandPalette() {
                   value={`${r.name} ${r.tagline} ${r.category.name}`}
                   onSelect={() => pickTool(r.slug)}
                 >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "flex size-6 items-center justify-center rounded-md bg-gradient-to-br text-xs",
-                      r.gradient,
-                    )}
-                  >
-                    {r.emoji}
-                  </span>
+                  <ToolLogo
+                    slug={r.slug}
+                    name={r.name}
+                    logoUrl={(r as any).logoUrl}
+                    emoji={r.emoji}
+                    gradient={r.gradient}
+                    size="xs"
+                  />
                   <span className="font-semibold">{r.name}</span>
                   <span className="truncate text-white/60">{r.tagline}</span>
                   {r.editorsPick ? (

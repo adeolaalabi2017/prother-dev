@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
 import { useExplorer } from "./explorer-store";
+import { ToolLogo } from "./tool-logo";
 
 /**
  * Public collection full page (?collection=<slug>) — a curator's set of
@@ -19,6 +20,7 @@ type CollectionTool = {
   tagline: string;
   emoji: string;
   gradient: string;
+  logoUrl?: string | null;
   votes: number;
   category?: { slug: string; name: string; emoji: string };
   pricing?: { model: string; price: string | null; note: string | null };
@@ -190,15 +192,15 @@ export function CollectionFullPage() {
                   className="group h-full w-full rounded-xl border border-white/10 bg-white/[0.02] p-4 text-left transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                 >
                   <div className="flex items-start gap-3">
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-xl transition-transform group-hover:scale-105",
-                        item.tool.gradient
-                      )}
-                    >
-                      {item.tool.emoji}
-                    </span>
+                    <ToolLogo
+                      slug={item.tool.slug}
+                      name={item.tool.name}
+                      logoUrl={item.tool.logoUrl}
+                      emoji={item.tool.emoji}
+                      gradient={item.tool.gradient}
+                      size="md"
+                      className="size-11 rounded-xl transition-transform group-hover:scale-105"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-white/90">{item.tool.name}</p>
                       <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-white/60">
