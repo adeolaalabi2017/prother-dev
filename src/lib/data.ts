@@ -37,6 +37,37 @@ export async function shadowSite(c: Client) {
   return res;
 }
 
+export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
+  openchamber: "/logos/openchamber.svg",
+  nebula: "/logos/nebula.svg",
+  "open-slide": "/logos/open-slide.png",
+  paperclip: "/logos/paperclip.svg",
+  linear: "/logos/linear.svg",
+  openviking: "/logos/openviking.png",
+  "julia-1": "/logos/julia-1.svg",
+  jev: "/logos/jev.png",
+  supermemory: "/logos/supermemory.svg",
+  antigravity: "/logos/antigravity.png",
+  aider: "/logos/aider.png",
+  cursor: "/logos/cursor.svg",
+  windsurf: "/logos/windsurf.svg",
+};
+
+export function cleanLogoUrl(
+  raw: string | null | undefined,
+  slug: string | null | undefined,
+  logoMap?: Map<string, string>,
+): string | null {
+  if (slug) {
+    const fromMap = logoMap?.get(slug);
+    if (fromMap && !fromMap.startsWith("/api/media/")) return fromMap;
+    const local = KNOWN_LOCAL_LOGOS[slug];
+    if (local) return local;
+  }
+  if (raw && !raw.startsWith("/api/media/")) return raw;
+  return null;
+}
+
 let cachedLogoMap: { map: Map<string, string>; expiry: number } | null = null;
 let pendingLogoMapPromise: Promise<Map<string, string>> | null = null;
 
@@ -53,36 +84,39 @@ export async function getToolLogoMap(c: Client): Promise<Map<string, string>> {
       const dir = await c.query(api.tools.directory, {
         sort: "featured",
         page: 1,
-        pageSize: 100,
+        pageSize: 200,
       });
+      const map = new Map<string, string>(Object.entries(KNOWN_LOCAL_LOGOS));
       if (dir && "rows" in dir && Array.isArray(dir.rows)) {
-        const map = new Map<string, string>();
         for (const r of dir.rows) {
-          if (r.slug && r.logoUrl) {
+          if (r.slug && r.logoUrl && !r.logoUrl.startsWith("/api/media/")) {
             map.set(r.slug, r.logoUrl);
           }
         }
-        cachedLogoMap = { map, expiry: Date.now() + 600_000 };
-        return map;
       }
+      cachedLogoMap = { map, expiry: Date.now() + 600_000 };
+      return map;
     } catch {
       // return fallback
     } finally {
       pendingLogoMapPromise = null;
     }
-    return cachedLogoMap?.map ?? new Map();
+    return cachedLogoMap?.map ?? new Map(Object.entries(KNOWN_LOCAL_LOGOS));
   })();
   return pendingLogoMapPromise;
 }
 
 export async function shadowTrending(c: Client, window: "week" | "month", limit: number) {
-  const res = await c.query(api.trending.list, { window, limit });
+  const [res, logoMap] = await Promise.all([
+    c.query(api.trending.list, { window, limit }),
+    getToolLogoMap(c),
+  ]);
   if (res && Array.isArray(res.rows)) {
     return {
       ...res,
       rows: res.rows.map((r: any) => ({
         ...r,
-        logoUrl: (r as any).logoUrl ?? null,
+        logoUrl: cleanLogoUrl(r.logoUrl, r.slug, logoMap),
       })),
     };
   }
@@ -94,13 +128,16 @@ export function shadowBlog(c: Client, limit: number, category: string | null) {
 }
 
 export async function shadowSearch(c: Client, q: string) {
-  const res = await c.query(api.search.search, { q });
+  const [res, logoMap] = await Promise.all([
+    c.query(api.search.search, { q }),
+    getToolLogoMap(c),
+  ]);
   if (res && Array.isArray(res.tools)) {
     return {
       ...res,
       tools: res.tools.map((t: any) => ({
         ...t,
-        logoUrl: (t as any).logoUrl ?? null,
+        logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
       })),
     };
   }
@@ -119,21 +156,28 @@ export async function shadowToolsDirectory(
     pageSize: number;
   },
 ) {
-  const res = await c.query(api.tools.directory, {
-    categorySlug: args.categorySlug ?? undefined,
-    q: args.q ?? undefined,
-    pricing: args.pricing ?? undefined,
-    tag: args.tag ?? undefined,
-    sort: args.sort,
-    page: args.page,
-    pageSize: args.pageSize,
-  });
+  const [res, logoMap] = await Promise.all([
+    c.query(api.tools.directory, {
+      categorySlug: args.categorySlug ?? undefined,
+      q: args.q ?? undefined,
+      pricing: args.pricing ?? undefined,
+      tag: args.tag ?? undefined,
+      sort: args.sort,
+      page: args.page,
+      pageSize: args.pageSize,
+    }),
+    getToolLogoMap(c),
+  ]);
   if ("error" in res) return res;
   // categoryMeta is ABSENT (not null) when unscoped — mirror the route.
   // The blurb stays a Next-side presentation constant (lib/category-blurbs).
   const { categoryMeta, ...rest } = res;
   return {
     ...rest,
+    rows: res.rows.map((r: any) => ({
+      ...r,
+      logoUrl: cleanLogoUrl(r.logoUrl, r.slug, logoMap),
+    })),
     ...(categoryMeta
       ? {
           categoryMeta: {
@@ -162,17 +206,17 @@ export async function shadowToolDetail(
   const { viewer: v, ...rest } = res;
   return {
     ...rest,
-    logoUrl: rest.logoUrl ?? logoMap.get(rest.slug) ?? null,
+    logoUrl: cleanLogoUrl(rest.logoUrl, rest.slug, logoMap),
     related: Array.isArray(rest.related)
       ? rest.related.map((r: any) => ({
           ...r,
-          logoUrl: (r as any).logoUrl ?? logoMap.get(r.slug) ?? null,
+          logoUrl: cleanLogoUrl((r as any).logoUrl, r.slug, logoMap),
         }))
       : rest.related,
     alternatives: Array.isArray(rest.alternatives)
       ? rest.alternatives.map((a: any) => ({
           ...a,
-          logoUrl: (a as any).logoUrl ?? logoMap.get(a.slug) ?? null,
+          logoUrl: cleanLogoUrl((a as any).logoUrl, a.slug, logoMap),
         }))
       : rest.alternatives,
     standards: STANDARD_DEFS.map((s) => ({ ...s, passed: true })),
@@ -472,7 +516,7 @@ export async function shadowCategoryDetail(c: Client, slug: string) {
       ...res,
       tools: res.tools.map((t: any) => ({
         ...t,
-        logoUrl: (t as any).logoUrl ?? logoMap.get(t.slug) ?? null,
+        logoUrl: cleanLogoUrl((t as any).logoUrl, t.slug, logoMap),
       })),
     };
   }
@@ -487,7 +531,7 @@ export async function shadowHomepage(c: Client) {
   if (res && res.picks && Array.isArray(res.picks)) {
     res.picks = res.picks.map((p: any) => ({
       ...p,
-      logoUrl: p.logoUrl ?? logoMap.get(p.slug) ?? null,
+      logoUrl: cleanLogoUrl(p.logoUrl, p.slug, logoMap),
     }));
   }
   return res;

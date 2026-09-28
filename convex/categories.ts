@@ -62,6 +62,7 @@ export const detail = query({
         tagline: t.tagline,
         emoji: t.logoEmoji,
         gradient: t.logoGradient,
+        logoUrl: t.logoUrl ?? null,
         pricing: pricingChip(t.pricingModel, t.startingPrice),
         editorsPick: t.editorsPick,
       })),

@@ -59,6 +59,10 @@ export function ToolLogo({
   const resolvedUrl = getLogo(slug, logoUrl);
   const [hasError, setHasError] = useState(false);
 
+  React.useEffect(() => {
+    setHasError(false);
+  }, [resolvedUrl]);
+
   const style = SIZE_STYLES[size];
   const showImage = Boolean(resolvedUrl) && !hasError;
 
