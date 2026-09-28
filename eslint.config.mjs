@@ -43,8 +43,19 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-unreachable": "off",
     "no-useless-escape": "off",
   },
-}, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  ignores: [
+    "node_modules/**",
+    ".next/**",
+    ".open-next/**",
+    ".openchamber/**",
+    ".playwright-cli/**",
+    "convex/_generated/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "examples/**",
+    "skills/**"
+  ]
 }];
 
 export default eslintConfig;
