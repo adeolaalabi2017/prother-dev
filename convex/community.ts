@@ -117,17 +117,30 @@ export const reviewsData = query({
       .withIndex("by_slug", (i) => i.eq("slug", toolSlug))
       .unique();
     if (!tool) return { error: "tool_not_found" as const };
-    const all = await ctx.db.query("reviews").collect();
-    const mine = all.filter((r) => r.toolId === tool._id);
-    const published = mine
-      .filter((r) => r.status === "published")
-      .sort((a, b) => b.createdAt - a.createdAt || a._creationTime - b._creationTime);
-    const stats = reviewAggregate(
-      mine
-        .filter((r) => r.status === "published")
-        .map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
+    const published = await ctx.db
+      .query("reviews")
+      .withIndex("by_tool_status", (i) =>
+        i.eq("toolId", tool._id).eq("status", "published"),
+      )
+      .collect();
+    published.sort(
+      (a, b) => b.createdAt - a.createdAt || a._creationTime - b._creationTime,
     );
-    const ser = (r: (typeof mine)[number]) => ({
+    const mineRow =
+      viewerUserId != null
+        ? ((
+            await ctx.db
+              .query("reviews")
+              .withIndex("by_tool_user", (i) =>
+                i.eq("toolId", tool._id).eq("userId", viewerUserId),
+              )
+              .collect()
+          )[0] ?? null)
+        : null;
+    const stats = reviewAggregate(
+      published.map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
+    );
+    const ser = (r: (typeof published)[number]) => ({
       id: docId(r),
       userId: r.userId,
       author: r.author,
@@ -138,10 +151,6 @@ export const reviewsData = query({
       status: r.status,
       createdAt: isoFromMs(r.createdAt),
     });
-    const mineRow =
-      viewerUserId != null
-        ? (mine.find((r) => r.userId === viewerUserId) ?? null)
-        : null;
     return {
       tool: {
         claimed: tool.claimed,
@@ -215,11 +224,14 @@ export const reviewUpsert = mutation({
         )
         .collect()
     )[0]!;
-    const allReviews = await ctx.db.query("reviews").collect();
+    const published = await ctx.db
+      .query("reviews")
+      .withIndex("by_tool_status", (i) =>
+        i.eq("toolId", tool._id).eq("status", "published"),
+      )
+      .collect();
     const stats = reviewAggregate(
-      allReviews
-        .filter((r) => r.toolId === tool._id && r.status === "published")
-        .map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
+      published.map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
     );
     return {
       review: {
@@ -744,15 +756,17 @@ export const collectionDetail = query({
     if (!c) return { error: "not_found" as const };
     const isOwner = viewerEmail != null && c.ownerEmail === viewerEmail;
     if (!c.isPublic && !isOwner) return { error: "not_found" as const };
-    const [itemRows, tools, categories] = await Promise.all([
+    const [itemRows, categories] = await Promise.all([
       ctx.db
         .query("collectionItems")
         .withIndex("by_collection", (i) => i.eq("collectionId", c._id))
         .collect(),
-      ctx.db.query("tools").collect(),
       ctx.db.query("categories").collect(),
     ]);
-    const toolById = new Map(tools.map((t) => [t._id, t]));
+    const tools = await Promise.all(itemRows.map((i) => ctx.db.get(i.toolId)));
+    const toolById = new Map(
+      tools.filter((t): t is NonNullable<typeof t> => t != null).map((t) => [t._id, t]),
+    );
     const catById = new Map(categories.map((x) => [x._id, x]));
     const items = itemRows
       .sort((a, b) => a.position - b.position || a.createdAt - b.createdAt)

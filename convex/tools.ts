@@ -45,24 +45,37 @@ function docId<T extends { legacyId?: string; _id: string }>(d: T): string {
 type Ctx = GenericQueryCtx<DataModel>;
 
 async function publishedReviewsByTool(ctx: Ctx, toolIds: string[]) {
-  const all = await ctx.db.query("reviews").collect();
   const byTool = new Map<string, { ease: number; power: number; value: number }[]>();
-  for (const r of all) {
-    if (r.status !== "published" || !toolIds.includes(r.toolId)) continue;
-    const list = byTool.get(r.toolId) ?? [];
-    list.push({ ease: r.ease, power: r.power, value: r.value });
-    byTool.set(r.toolId, list);
-  }
+  await Promise.all(
+    toolIds.map(async (toolId) => {
+      const list = await ctx.db
+        .query("reviews")
+        .withIndex("by_tool_status", (i) => i.eq("toolId", toolId as any).eq("status", "published"))
+        .collect();
+      if (list.length > 0) {
+        byTool.set(
+          toolId,
+          list.map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
+        );
+      }
+    }),
+  );
   return byTool;
 }
 
 async function commentCounts(ctx: Ctx, toolIds: string[]) {
-  const all = await ctx.db.query("comments").collect();
   const counts = new Map<string, number>();
-  for (const c of all) {
-    if (!toolIds.includes(c.toolId)) continue;
-    counts.set(c.toolId, (counts.get(c.toolId) ?? 0) + 1);
-  }
+  await Promise.all(
+    toolIds.map(async (toolId) => {
+      const list = await ctx.db
+        .query("comments")
+        .withIndex("by_tool_created", (i) => i.eq("toolId", toolId as any))
+        .collect();
+      if (list.length > 0) {
+        counts.set(toolId, list.length);
+      }
+    }),
+  );
   return counts;
 }
 
@@ -253,36 +266,22 @@ export const detail = query({
     const catById = new Map(categories.map((c) => [c._id, c]));
     const cat = catById.get(tool.categoryId)!;
 
-    const [relatedDocs, allLive, reviews, comments, toolCount, follows, claims, collections, items] =
+    const [allLive, reviews, comments, follows, claims, collections] =
       await Promise.all([
         ctx.db
           .query("tools")
           .withIndex("by_status_category", (i) => i.eq("status", "live"))
-          .collect()
-          .then((rows) =>
-            rows
-              .filter(
-                (t) => t.categoryId === tool.categoryId && t.slug !== tool.slug,
-              )
-              .sort(
-                (a, b) =>
-                  Number(b.editorsPick) - Number(a.editorsPick) ||
-                  b.createdAt - a.createdAt ||
-                  a._creationTime - b._creationTime,
-              )
-              .slice(0, 3),
-          ),
-        ctx.db
-          .query("tools")
-          .withIndex("by_status_category", (i) => i.eq("status", "live"))
           .collect(),
-        ctx.db.query("reviews").collect(),
-        ctx.db.query("comments").collect(),
         ctx.db
-          .query("tools")
-          .withIndex("by_status_category", (i) => i.eq("status", "live"))
-          .collect()
-          .then((rows) => rows.filter((t) => t.categoryId === tool.categoryId).length),
+          .query("reviews")
+          .withIndex("by_tool_status", (i) =>
+            i.eq("toolId", tool._id).eq("status", "published"),
+          )
+          .collect(),
+        ctx.db
+          .query("comments")
+          .withIndex("by_tool_created", (i) => i.eq("toolId", tool._id))
+          .collect(),
         viewerEmail != null
           ? ctx.db
               .query("follows")
@@ -295,12 +294,16 @@ export const detail = query({
               .collect()
           : Promise.resolve([]),
         viewerEmail != null
-          ? ctx.db.query("claims").collect().then((rows) =>
-              rows
-                .filter((c) => c.toolId === tool._id && c.userEmail === viewerEmail)
-                .sort((a, b) => b.createdAt - a.createdAt)
-                .slice(0, 1),
-            )
+          ? ctx.db
+              .query("claims")
+              .withIndex("by_tool", (i) => i.eq("toolId", tool._id))
+              .collect()
+              .then((rows) =>
+                rows
+                  .filter((c) => c.userEmail === viewerEmail)
+                  .sort((a, b) => b.createdAt - a.createdAt)
+                  .slice(0, 1),
+              )
           : Promise.resolve([]),
         viewerEmail != null
           ? ctx.db
@@ -308,10 +311,31 @@ export const detail = query({
               .withIndex("by_owner", (i) => i.eq("ownerEmail", viewerEmail))
               .collect()
           : Promise.resolve([]),
-        viewerEmail != null
-          ? ctx.db.query("collectionItems").collect()
-          : Promise.resolve([]),
       ]);
+
+    const relatedDocs = allLive
+      .filter((t) => t.categoryId === tool.categoryId && t.slug !== tool.slug)
+      .sort(
+        (a, b) =>
+          Number(b.editorsPick) - Number(a.editorsPick) ||
+          b.createdAt - a.createdAt ||
+          a._creationTime - b._creationTime,
+      )
+      .slice(0, 3);
+    const toolCount = allLive.filter((t) => t.categoryId === tool.categoryId).length;
+
+    const items = viewerEmail != null && collections.length > 0
+      ? (
+          await Promise.all(
+            collections.map((col) =>
+              ctx.db
+                .query("collectionItems")
+                .withIndex("by_collection", (i) => i.eq("collectionId", col._id))
+                .collect(),
+            ),
+          )
+        ).flat()
+      : [];
 
     const published = reviews
       .filter((r) => r.toolId === tool._id && r.status === "published")
@@ -471,7 +495,12 @@ export const detail = query({
 
     const [categories, reviews, threads, liveTools] = await Promise.all([
       ctx.db.query("categories").collect(),
-      ctx.db.query("reviews").collect(),
+      ctx.db
+        .query("reviews")
+        .withIndex("by_tool_status", (i) =>
+          i.eq("toolId", tool._id).eq("status", "published"),
+        )
+        .collect(),
       ctx.db.query("forumThreads").collect(),
       ctx.db
         .query("tools")

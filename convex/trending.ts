@@ -18,7 +18,7 @@ export const list = query({
     const days = window === "month" ? 30 : 7;
     const sinceMs = Date.now() - days * 86_400_000;
 
-    const [tools, categories, comments, reviews, items, totalReviews] =
+    const [tools, categories, comments, reviews, items] =
       await Promise.all([
         ctx.db
           .query("tools")
@@ -28,11 +28,6 @@ export const list = query({
         ctx.db.query("comments").collect(),
         ctx.db.query("reviews").collect(),
         ctx.db.query("collectionItems").collect(),
-        ctx.db
-          .query("reviews")
-          .withIndex("by_tool_status")
-          .collect()
-          .then((rows) => rows.filter((r) => r.status === "published")),
       ]);
 
     const catById = new Map(categories.map((c) => [c._id, c]));
@@ -43,18 +38,18 @@ export const list = query({
       recentComments.set(c.toolId, (recentComments.get(c.toolId) ?? 0) + 1);
     }
     const recentReviews = new Map<string, number>();
+    const totalByTool = new Map<string, number>();
     for (const r of reviews) {
-      if (r.status !== "published" || r.createdAt < sinceMs) continue;
-      recentReviews.set(r.toolId, (recentReviews.get(r.toolId) ?? 0) + 1);
+      if (r.status !== "published") continue;
+      totalByTool.set(r.toolId, (totalByTool.get(r.toolId) ?? 0) + 1);
+      if (r.createdAt >= sinceMs) {
+        recentReviews.set(r.toolId, (recentReviews.get(r.toolId) ?? 0) + 1);
+      }
     }
     const recentSaves = new Map<string, number>();
     for (const i of items) {
       if (i.createdAt < sinceMs) continue;
       recentSaves.set(i.toolId, (recentSaves.get(i.toolId) ?? 0) + 1);
-    }
-    const totalByTool = new Map<string, number>();
-    for (const r of totalReviews) {
-      totalByTool.set(r.toolId, (totalByTool.get(r.toolId) ?? 0) + 1);
     }
 
     // Stable score-desc sort over insertion order: _creationTime replays
@@ -84,6 +79,7 @@ export const list = query({
         tagline: t.tagline,
         emoji: t.logoEmoji,
         gradient: t.logoGradient,
+        logoUrl: t.logoUrl ?? null,
         score: scoreOf.get(t._id)!,
         signals: {
           comments: recentComments.get(t._id) ?? 0,

@@ -15,11 +15,7 @@ import { matchTokens, relevanceScore, tokenize } from "./shared";
 export const search = query({
   args: { q: v.string() },
   handler: async (ctx, { q }) => {
-    const [liveTools, categories, allTools, posts] = await Promise.all([
-      ctx.db
-        .query("tools")
-        .withIndex("by_status_category", (q) => q.eq("status", "live"))
-        .collect(),
+    const [categories, allTools, posts] = await Promise.all([
       ctx.db.query("categories").collect(),
       ctx.db.query("tools").collect(),
       ctx.db
@@ -27,6 +23,7 @@ export const search = query({
         .withIndex("by_status", (q) => q.eq("status", "published"))
         .collect(),
     ]);
+    const liveTools = allTools.filter((t) => t.status === "live");
 
     const toolTotal = liveTools.length;
     const postTotal = posts.length;
@@ -77,6 +74,7 @@ export const search = query({
         tagline: t.tagline,
         emoji: t.logoEmoji,
         gradient: t.logoGradient,
+        logoUrl: t.logoUrl ?? null,
         editorsPick: t.editorsPick,
         pricing: { model: t.pricingModel, price: t.startingPrice ?? null },
         category: {

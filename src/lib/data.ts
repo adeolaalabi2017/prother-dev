@@ -62,7 +62,7 @@ export async function getToolLogoMap(c: Client): Promise<Map<string, string>> {
             map.set(r.slug, r.logoUrl);
           }
         }
-        cachedLogoMap = { map, expiry: Date.now() + 60_000 };
+        cachedLogoMap = { map, expiry: Date.now() + 600_000 };
         return map;
       }
     } catch {
@@ -76,16 +76,13 @@ export async function getToolLogoMap(c: Client): Promise<Map<string, string>> {
 }
 
 export async function shadowTrending(c: Client, window: "week" | "month", limit: number) {
-  const [res, logoMap] = await Promise.all([
-    c.query(api.trending.list, { window, limit }),
-    getToolLogoMap(c),
-  ]);
+  const res = await c.query(api.trending.list, { window, limit });
   if (res && Array.isArray(res.rows)) {
     return {
       ...res,
       rows: res.rows.map((r: any) => ({
         ...r,
-        logoUrl: (r as any).logoUrl ?? logoMap.get(r.slug) ?? null,
+        logoUrl: (r as any).logoUrl ?? null,
       })),
     };
   }
@@ -97,16 +94,13 @@ export function shadowBlog(c: Client, limit: number, category: string | null) {
 }
 
 export async function shadowSearch(c: Client, q: string) {
-  const [res, logoMap] = await Promise.all([
-    c.query(api.search.search, { q }),
-    getToolLogoMap(c),
-  ]);
+  const res = await c.query(api.search.search, { q });
   if (res && Array.isArray(res.tools)) {
     return {
       ...res,
       tools: res.tools.map((t: any) => ({
         ...t,
-        logoUrl: (t as any).logoUrl ?? logoMap.get(t.slug) ?? null,
+        logoUrl: (t as any).logoUrl ?? null,
       })),
     };
   }
