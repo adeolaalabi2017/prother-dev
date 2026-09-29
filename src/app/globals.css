@@ -428,6 +428,22 @@
 .post-body a:hover {
   color: #ff8a3d;
 }
+.post-body .md-table-wrap {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+.post-body table th {
+  color: #ffb877;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  background: rgba(255, 255, 255, 0.04);
+}
+.post-body table td {
+  color: rgba(255, 255, 255, 0.82);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+.post-body table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
 
 /* post-body qa marker */
 
@@ -613,6 +629,21 @@ html.light .post-body a {
 }
 html.light .post-body a:hover {
   color: #9a3407;
+}
+html.light .post-body .md-table-wrap {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.015);
+}
+html.light .post-body table th {
+  color: var(--ember-text);
+  background-color: rgba(0, 0, 0, 0.03);
+}
+html.light .post-body table td {
+  color: #3c3730;
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+html.light .post-body table tr:hover td {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 /* light-theme rebuild marker */

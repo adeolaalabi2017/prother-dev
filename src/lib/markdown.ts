@@ -20,6 +20,10 @@ function esc(s: string): string {
 /** Inline: code, bold, italic, links (escape already applied). */
 function inline(s: string): string {
   return s
+    .replace(
+      /!\[([^\]]*)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
+      '<img src="$2" alt="$1" class="md-img my-6 rounded-xl border border-white/10 w-full" loading="lazy" />'
+    )
     .replace(/`([^`]+)`/g, '<code class="md-code">$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>")
@@ -106,6 +110,38 @@ export function renderMarkdown(src: string): string {
       continue;
     }
 
+    // table
+    if (line.trim().startsWith("|") && line.trim().endsWith("|")) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      if (tableLines.length >= 2) {
+        const headerCols = tableLines[0].split("|").slice(1, -1).map((c) => c.trim());
+        const isSeparator = /^\|[\s\-:]+(\|[\s\-:]+)+\|$/.test(tableLines[1]);
+        const bodyStart = isSeparator ? 2 : 1;
+
+        let tableHtml = '<div class="md-table-wrap my-6 overflow-x-auto rounded-xl border border-white/10"><table class="w-full text-left text-sm border-collapse">';
+        tableHtml += '<thead class="bg-white/5 border-b border-white/10"><tr>';
+        for (const col of headerCols) {
+          tableHtml += `<th class="px-4 py-3 font-mono text-xs uppercase tracking-wider text-ember-tint">${inline(esc(col))}</th>`;
+        }
+        tableHtml += '</tr></thead><tbody>';
+        for (let r = bodyStart; r < tableLines.length; r++) {
+          const cells = tableLines[r].split("|").slice(1, -1).map((c) => c.trim());
+          tableHtml += '<tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">';
+          for (const cell of cells) {
+            tableHtml += `<td class="px-4 py-3 align-top text-white/80">${inline(esc(cell))}</td>`;
+          }
+          tableHtml += '</tr>';
+        }
+        tableHtml += '</tbody></table></div>';
+        out.push(tableHtml);
+        continue;
+      }
+    }
+
     // blank
     if (line.trim() === "") {
       i++;
@@ -122,7 +158,8 @@ export function renderMarkdown(src: string): string {
       !lines[i].startsWith("> ") &&
       !/^[-*]\s+/.test(lines[i]) &&
       !/^\d+\.\s+/.test(lines[i]) &&
-      !/^---+\s*$/.test(lines[i])
+      !/^---+\s*$/.test(lines[i]) &&
+      !(lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|"))
     ) {
       para.push(lines[i]);
       i++;
