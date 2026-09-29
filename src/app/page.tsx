@@ -327,7 +327,7 @@ function CategoryGrid({
         <AccentHeading
           text={copy["home.categoriesHeading"] || "Find your category."}
           accent={false}
-          className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl"
+          className="mt-3 text-5xl font-black tracking-tighter text-white text-balance md:text-6xl"
         />
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -344,14 +344,14 @@ function CategoryGrid({
                 >
                   {c.emoji}
                 </span>
-                <span className="font-mono text-xs uppercase tracking-wider text-white/60 group-hover:text-ember">
+                <span className="font-mono text-xs uppercase tracking-wider text-white/60 tabular-nums group-hover:text-ember">
                   {counts.get(c.slug) ?? 0} tools
                 </span>
               </div>
               <h3 className="mt-4 text-lg font-bold text-white transition-colors group-hover:text-ember">
                 {c.name}
               </h3>
-              <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-white/50">
+              <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-white/50 text-pretty">
                 {firstSentence(CATEGORY_BLURBS[c.slug] ?? "")}
               </p>
             </Link>
@@ -389,7 +389,7 @@ function EditorsPicks({
         <AccentHeading
           text={copy["home.picksHeading"] || "Hand-tested by our editors."}
           accent={false}
-          className="mt-3 max-w-2xl text-5xl font-black tracking-tighter text-white md:text-6xl"
+          className="mt-3 max-w-2xl text-5xl font-black tracking-tighter text-white text-balance md:text-6xl"
         />
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -415,7 +415,7 @@ function EditorsPicks({
               <h3 className="mt-4 text-lg font-bold text-white transition-colors group-hover:text-ember">
                 {p.name}
               </h3>
-              <p className="mt-1 line-clamp-2 text-sm text-white/50">{p.tagline}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-white/50 text-pretty">{p.tagline}</p>
               <p className="mt-3 font-mono text-xs uppercase tracking-wider text-white/60">
                 {p.category.emoji} {p.category.name}
               </p>
@@ -439,9 +439,9 @@ function ClosingBand({ copy }: { copy: Record<string, string> }) {
         <AccentHeading
           text={copy["home.closingHeadline"] || "Can't find the\ntool you need?"}
           accent={false}
-          className="text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl"
+          className="text-6xl leading-[0.95] font-black tracking-tighter text-white text-balance md:text-7xl"
         />
-        <p className="mt-4 text-white/60">
+        <p className="mt-4 text-white/60 text-pretty">
           {copy["home.closingSub"] || "Listings are free and reviewed by humans."}
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

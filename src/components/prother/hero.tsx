@@ -127,7 +127,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
             {announcement}
           </p>
 
-          <h1 className="mt-6 text-6xl leading-[0.95] font-black tracking-tighter text-white md:text-7xl xl:text-8xl">
+          <h1 className="mt-6 text-6xl leading-[0.95] font-black tracking-tighter text-white text-balance md:text-7xl xl:text-8xl">
             {headlineBody ? (
               <>
                 {headlineBody}
@@ -139,7 +139,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
             )}
           </h1>
 
-          <p className="mx-auto mt-6 max-w-xl text-lg text-white/70">
+          <p className="mx-auto mt-6 max-w-xl text-lg text-white/70 text-pretty">
             {copy.subline}
           </p>
 
@@ -158,7 +158,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
             ].map((s) => (
               <li
                 key={s.label}
-                className="font-mono text-xs tracking-[0.2em] text-white/50 uppercase"
+                className="font-mono text-xs tracking-[0.2em] text-white/50 uppercase tabular-nums"
               >
                 {s.label}
               </li>

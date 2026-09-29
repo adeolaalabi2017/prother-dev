@@ -97,10 +97,10 @@ export function TrendingStrip() {
               <Flame className="mr-1.5 size-3.5 text-ember-tint" aria-hidden />
               Trending this {window}
             </p>
-            <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
+            <h2 className="mt-3 text-5xl font-black tracking-tighter text-white text-balance md:text-6xl">
               What the community is testing.
             </h2>
-            <p className="mt-4 max-w-xl text-lg text-white/60">
+            <p className="mt-4 max-w-xl text-lg text-white/60 text-pretty">
               Ranked by real engagement (comments, reviews, and collection
               saves), recalculated continuously, not by editorial whim.
             </p>
