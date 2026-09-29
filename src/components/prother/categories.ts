@@ -1,5 +1,5 @@
 /**
- * Prother taxonomy — 7 primary categories for the search & discovery
+ * Prother taxonomy: 7 primary categories for the search & discovery
  * directory. Hardcoded for the ticker + browse chips + ⌘K palette.
  * `name` mirrors the seeded Category rows so search/labels stay consistent.
  * `helper` = one-line radio helper in the submission wizard.
@@ -11,6 +11,7 @@ export const CATEGORIES: {
   short: string;
   helper: string;
 }[] = [
+  { slug: "ai-models", name: "AI Models", emoji: "🧠", short: "AI Models", helper: "Foundation models, LLMs, reasoning models, and multimodal architectures" },
   { slug: "conversational-ai", name: "Conversational AI & Chatbots", emoji: "💬", short: "Chatbots", helper: "Assistants, answer engines, customer-support agents" },
   { slug: "generative-content", name: "Generative Content Creation", emoji: "🎨", short: "Generative", helper: "Image, video, audio, and code generation from prompts" },
   { slug: "nlp-text", name: "NLP & Text Utilities", emoji: "📝", short: "NLP & Text", helper: "Summarize, translate, transcribe, grammar, sentiment" },

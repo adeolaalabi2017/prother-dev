@@ -6,6 +6,7 @@ import {
   Bookmark,
   BookmarkCheck,
   Check,
+  Download,
   Flag,
   Scale,
   Share2,
@@ -15,11 +16,13 @@ import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
 import { useBookmark } from "./use-bookmarks";
 import { ReportDialog } from "./report-dialog";
+import { getToolInstallInfo } from "@/lib/tool-install";
 
 /**
  * Client island for the SSR tool page (Task 25) — the interactive sliver of
  * /tools/[slug]:
  *  · VISIT   → the primary outbound link to the tool's website.
+ *  · DOWNLOAD → direct download or installer for the tool.
  *  · SAVE    → the shared useBookmark store ("tool", slug) so the Saved
  *    overlay (?saved=mine) and the overlay's save button stay in sync.
  *  · COMPARE → the shared explorer-store compare tray (up to two tools).
@@ -32,11 +35,13 @@ export function ToolDetailActions({
   slug,
   name,
   websiteUrl,
+  githubUrl,
 }: {
   slug: string;
   name: string;
   /** Outbound link to the tool's site. */
   websiteUrl: string;
+  githubUrl?: string | null;
 }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -95,6 +100,8 @@ export function ToolDetailActions({
   const iconBtn =
     "inline-flex size-11 items-center justify-center rounded-full border bg-white/[0.03] transition-colors hover:bg-white/[0.08]";
 
+  const installInfo = getToolInstallInfo({ slug, name, websiteUrl, githubUrl });
+
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label={`${name} actions`}>
       <a
@@ -106,6 +113,17 @@ export function ToolDetailActions({
       >
         Visit website
         <ArrowUpRight className="size-4" aria-hidden />
+      </a>
+
+      <a
+        href={installInfo.downloadUrl}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        aria-label={`Download ${name}`}
+        className="inline-flex h-11 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 text-sm font-semibold tracking-wide text-white transition hover:border-ember/40 hover:bg-white/10 hover:text-ember"
+      >
+        <Download className="size-4" aria-hidden />
+        {installInfo.downloadLabel}
       </a>
 
       <button

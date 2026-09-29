@@ -51,6 +51,7 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   aider: "/logos/aider.png",
   cursor: "/logos/cursor.svg",
   windsurf: "/logos/windsurf.svg",
+  vllm: "/logos/vllm.svg",
 };
 
 export function cleanLogoUrl(

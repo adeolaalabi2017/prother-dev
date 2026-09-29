@@ -1,11 +1,14 @@
 /**
- * Curated SEO intro copy per category slug — category browse pages need
+ * Curated SEO intro copy per category slug: category browse pages need
  * unique, human-written intro paragraphs for search engines.
- * 2–3 sentences each; honest tone, no superlatives inflation.
+ * 2-3 sentences each; honest tone, no superlatives inflation.
  * Client-safe: no database imports.
  */
 
 export const CATEGORY_BLURBS: Record<string, string> = {
+  "ai-models":
+    "Frontier foundation models, large language models, open-weight reasoning architectures, and multimodal intelligence systems. Every listing evaluates benchmark performance, native context window limits, parameter scale, licensing terms, and deployment efficiency across local hardware and managed APIs.",
+
   "conversational-ai":
     "Assistants and answer engines built on large language models: general-purpose chat, research copilots with inline citations, and customer-support agents that resolve tickets end to end. Every listing documents model access, context limits, API availability, and pricing so you can match the tool to the workload instead of the hype.",
 

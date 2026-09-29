@@ -8,7 +8,6 @@ import {
   Feather,
   Grid2x2,
   Hexagon,
-  Info,
   Menu,
   MessagesSquare,
   Scale,
@@ -36,7 +35,6 @@ const NAV_LINKS = [
   { label: "Compare", href: "/compare", id: "compare", icon: Scale },
   { label: "Journal", href: "/journal", id: "journal", icon: Feather },
   { label: "Forums", href: "/forums", id: "forums", icon: MessagesSquare },
-  { label: "About", href: "/about", id: "about", icon: Info },
 ];
 
 export function SiteHeader() {

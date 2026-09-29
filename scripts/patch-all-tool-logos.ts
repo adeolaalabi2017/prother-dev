@@ -29,6 +29,7 @@ const LOGO_UPDATES: Record<string, string> = {
   aider: "/logos/aider.png",
   cursor: "/logos/cursor.svg",
   windsurf: "/logos/windsurf.svg",
+  vllm: "/logos/vllm.svg",
 };
 
 async function main() {

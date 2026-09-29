@@ -13,6 +13,7 @@ import {
   ChevronDown,
   CircleDashed,
   Copy,
+  Download,
   Flag,
   Heart,
   Link2,
@@ -47,6 +48,9 @@ import { useExplorer } from "./explorer-store";
 import { useBookmark } from "./use-bookmarks";
 import { ReportDialog } from "./report-dialog";
 import { ToolLogo } from "./tool-logo";
+import { ToolInstallBox } from "./tool-install-box";
+import { ToolReviewsSection } from "./tool-reviews-section";
+import { getToolInstallInfo } from "@/lib/tool-install";
 
 // ── Types (additive fields per the tool-detail API contract) ─────────────
 
@@ -109,28 +113,6 @@ type ToolFullDetail = ToolDetailResponse &
     category?: ToolDetailResponse["category"] & { toolCount?: number };
   };
 
-type ReviewRow = {
-  id: string;
-  author: string;
-  ease: number;
-  power: number;
-  value: number;
-  body: string;
-  status: string;
-  createdAt: string;
-  mine: boolean;
-};
-
-type ReviewsResponse = {
-  count: number;
-  aggregate: ReviewsAggregate | null;
-  reviews: ReviewRow[];
-  /** My review (object) or null — defensively guarded below. */
-  mine?: unknown;
-  canReview: boolean;
-  reason: null | "auth" | "maker";
-};
-
 type CollectionRow = {
   id: string;
   slug: string;
@@ -154,7 +136,7 @@ const PRICING_LABEL: Record<string, string> = {
 };
 
 function fmtDay(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -594,44 +576,7 @@ function ClaimPanel({
   );
 }
 
-// ── Reviews (PRD F-16) ────────────────────────────────────────────────────
-
-function StarPicker({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className={MONO}>{label}</span>
-      <div className="flex items-center gap-0.5" role="radiogroup" aria-label={`${label} rating`}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={value === n}
-            aria-label={`${label}: ${n} of 5`}
-            onClick={() => onChange(n)}
-            className="grid size-10 place-items-center rounded-lg transition-colors hover:bg-white/5"
-          >
-            <Star
-              aria-hidden
-              className={cn(
-                "size-5",
-                n <= value ? "fill-ember text-ember" : "text-white/55"
-              )}
-            />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+// ── Rating visualization helpers ──────────────────────────────────────────
 
 function DimBar({ label, value }: { label: string; value: number }) {
   return (
@@ -652,309 +597,7 @@ function DimBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-const REVIEW_BODY_MIN = 20;
-const REVIEW_BODY_MAX = 2000;
-
-function ReviewsSection({
-  slug,
-  isMaker,
-  sessionStatus,
-  viewerMyReview,
-  onRefreshTool,
-}: {
-  slug: string;
-  isMaker: boolean;
-  sessionStatus: "loading" | "authenticated" | "unauthenticated";
-  viewerMyReview: ToolViewer["myReview"];
-  onRefreshTool: () => void;
-}) {
-  const { toast } = useToast();
-  const [data, setData] = useState<ReviewsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadErr, setLoadErr] = useState(false);
-  const [ease, setEase] = useState(0);
-  const [power, setPower] = useState(0);
-  const [value, setValue] = useState(0);
-  const [body, setBody] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
-  const prefilled = useRef(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadErr(false);
-    try {
-      const res = await fetch(`/api/reviews?tool=${encodeURIComponent(slug)}`);
-      if (!res.ok) throw new Error("failed");
-      const json = (await res.json()) as ReviewsResponse;
-      setData(json);
-      if (!prefilled.current) {
-        prefilled.current = true;
-        const mine = json.mine;
-        const mineObj =
-          mine && typeof mine === "object" && "ease" in (mine as object)
-            ? (mine as { ease: number; power: number; value: number; body: string })
-            : viewerMyReview;
-        if (mineObj) {
-          setEase(mineObj.ease);
-          setPower(mineObj.power);
-          setValue(mineObj.value);
-          setBody(mineObj.body);
-        }
-      }
-    } catch {
-      setLoadErr(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [slug, viewerMyReview]);
-
-  useEffect(() => {
-    prefilled.current = false;
-    void load();
-  }, [load]);
-
-  const count = data?.count ?? 0;
-  const aggregate = data?.aggregate ?? null;
-  const isUpdate = !!viewerMyReview || !!(data?.mine && typeof data.mine === "object");
-
-  const submit = useCallback(async () => {
-    const localErrors: string[] = [];
-    if (ease < 1 || power < 1 || value < 1)
-      localErrors.push("Rate all three dimensions (1–5 stars).");
-    if (body.trim().length < REVIEW_BODY_MIN)
-      localErrors.push(`Review needs ${REVIEW_BODY_MIN}+ characters.`);
-    if (body.trim().length > REVIEW_BODY_MAX)
-      localErrors.push(`Review is capped at ${REVIEW_BODY_MAX} characters.`);
-    setErrors(localErrors);
-    if (localErrors.length > 0) return;
-
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          toolSlug: slug,
-          ease,
-          power,
-          value,
-          body: body.trim(),
-        }),
-      });
-      const json = (await res.json().catch(() => ({}))) as
-        | (ReviewsResponse & { review?: ReviewRow })
-        | { error?: string };
-      if (res.status === 201) {
-        const ok = json as ReviewsResponse & { review?: ReviewRow };
-        setData((prev) =>
-          prev
-            ? {
-                ...prev,
-                count: ok.count ?? prev.count,
-                aggregate: ok.aggregate ?? prev.aggregate,
-                reviews: ok.review
-                  ? [ok.review, ...prev.reviews.filter((r) => !r.mine)]
-                  : prev.reviews,
-              }
-            : prev
-        );
-        toast({ title: isUpdate ? "Review updated" : "Review posted. Thanks!" });
-        onRefreshTool();
-      } else if (res.status === 401) {
-        openAuth();
-      } else if (res.status === 403) {
-        toast({
-          title: "Makers can't review their own product",
-          variant: "destructive",
-        });
-      } else {
-        const msg =
-          (json as { error?: string }).error ?? "Fix the highlighted fields and try again.";
-        setErrors([msg]);
-      }
-    } catch {
-      setErrors(["Could not submit the review. Please try again."]);
-    } finally {
-      setSubmitting(false);
-    }
-  }, [body, ease, power, value, slug, toast, isUpdate, onRefreshTool]);
-
-  const counterTone =
-    body.length >= REVIEW_BODY_MAX
-      ? "text-red-400"
-      : body.length >= REVIEW_BODY_MAX * 0.8
-        ? "text-ember"
-        : "text-white/55";
-
-  return (
-    <section aria-label="Reviews" className="space-y-4">
-      <SectionHead right={<span className="font-mono text-xs text-white/55">MODERATED · HONEST ONLY</span>}>
-        Reviews ({count})
-      </SectionHead>
-
-      {/* Aggregate */}
-      {loading && <Skeleton className="h-24 w-full rounded-xl bg-white/5" />}
-      {!loading && !loadErr && aggregate && (
-        <div className={cn(PANEL, "flex flex-col gap-5 p-5 sm:flex-row sm:items-center")}>
-          <div className="text-center sm:w-32">
-            <p className="text-4xl font-black tabular-nums text-white">
-              {aggregate.overall.toFixed(1)}
-            </p>
-            <div className="mt-1 flex justify-center">
-              <Stars value={aggregate.overall} />
-            </div>
-            <p className="mt-1 font-mono text-xs text-white/60">
-              {aggregate.count} REVIEWS
-            </p>
-          </div>
-          <div className="min-w-0 flex-1 space-y-2.5">
-            <DimBar label="EASE" value={aggregate.ease} />
-            <DimBar label="POWER" value={aggregate.power} />
-            <DimBar label="VALUE" value={aggregate.value} />
-          </div>
-        </div>
-      )}
-      {!loading && !loadErr && !aggregate && (
-        <p className={cn(PANEL, "p-4 font-mono text-xs uppercase tracking-[0.2em] text-white/60")}>
-          {count === 0
-            ? "No reviews yet. Be the first after you've tried it."
-            : `Ratings unlock at 3 reviews · ${count} so far`}
-        </p>
-      )}
-      {!loading && loadErr && (
-        <p className="rounded-lg border border-red-500/25 bg-red-500/[0.04] p-3 text-xs text-red-300">
-          Couldn&apos;t load reviews right now.
-        </p>
-      )}
-
-      {/* Review list */}
-      {(data?.reviews.length ?? 0) > 0 && (
-        <ul
-          className={cn(
-            "space-y-2",
-            (data?.reviews.length ?? 0) > 4 && "max-h-96 overflow-y-auto pr-1"
-          )}
-          aria-label="Review list"
-        >
-          {data!.reviews.map((r) => (
-            <li key={r.id} className={cn(PANEL, "p-3.5")}>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="font-mono text-xs font-semibold text-white/90">
-                  {r.author}
-                </span>
-                {r.status === "filtered" && r.mine && (
-                  <span className="rounded-full border border-white/20 bg-white/5 px-1.5 py-px font-mono text-xs tracking-wider text-white/50">
-                    IN MODERATION
-                  </span>
-                )}
-                <span className="ml-auto font-mono text-xs text-white/55">
-                  {fmtDay(r.createdAt)}
-                </span>
-              </div>
-              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="font-mono text-xs tracking-widest text-white/55">EASE</span>
-                  <Stars value={r.ease} size={2.5} />
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="font-mono text-xs tracking-widest text-white/55">POWER</span>
-                  <Stars value={r.power} size={2.5} />
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="font-mono text-xs tracking-widest text-white/55">VALUE</span>
-                  <Stars value={r.value} size={2.5} />
-                </span>
-              </div>
-              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/75">
-                {r.body}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {/* Write / update a review */}
-      {data?.reason === "auth" || (sessionStatus === "unauthenticated" && !data?.reason) ? (
-        <div className={cn(PANEL, "flex flex-wrap items-center justify-between gap-3 p-4")}>
-          <p className="text-sm text-white/70">Been using {slugToName(slug)}? Rate it honestly.</p>
-          <Button
-            type="button"
-            onClick={openAuth}
-            className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
-          >
-            SIGN IN TO REVIEW →
-          </Button>
-        </div>
-      ) : data?.reason === "maker" || isMaker ? (
-        <p className={cn(PANEL, "p-4 font-mono text-xs uppercase tracking-[0.2em] text-white/60")}>
-          Makers can&apos;t review their own product
-        </p>
-      ) : data?.canReview ? (
-        <div className={cn(PANEL, "space-y-4 p-4")}>
-          <StarPicker label="EASE" value={ease} onChange={setEase} />
-          <StarPicker label="POWER" value={power} onChange={setPower} />
-          <StarPicker label="VALUE" value={value} onChange={setValue} />
-          <div>
-            <label htmlFor="review-body" className="sr-only">
-              Your review
-            </label>
-            <Textarea
-              id="review-body"
-              value={body}
-              onChange={(e) => setBody(e.target.value.slice(0, REVIEW_BODY_MAX))}
-              rows={4}
-              placeholder="Honest, specific, useful: what does this tool actually do well or badly?"
-              className="resize-none border-white/10 bg-transparent text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50"
-            />
-            <div className="mt-1 flex items-center justify-between">
-              <span className="font-mono text-xs text-white/55">
-                {REVIEW_BODY_MIN}–{REVIEW_BODY_MAX} CHARS
-              </span>
-              <span className={cn("font-mono text-xs tabular-nums", counterTone)} aria-live="polite">
-                {body.length}/{REVIEW_BODY_MAX}
-              </span>
-            </div>
-          </div>
-          {errors.length > 0 && (
-            <ul className="space-y-1 rounded-lg border border-red-500/25 bg-red-500/[0.06] p-3" aria-live="polite">
-              {errors.map((e, i) => (
-                <li key={i} className="text-xs text-red-300">
-                  {e}
-                </li>
-              ))}
-            </ul>
-          )}
-          <Button
-            type="button"
-            onClick={() => void submit()}
-            disabled={submitting}
-            className="h-11 w-full bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot sm:w-auto"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="size-3.5 animate-spin" aria-hidden /> SENDING…
-              </>
-            ) : isUpdate ? (
-              "UPDATE REVIEW"
-            ) : (
-              "POST REVIEW"
-            )}
-          </Button>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function slugToName(slug: string): string {
-  return slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-// ── Discussion (ported from the legacy modal — same API shapes) ──────────
+// ── Discussion (ported from the legacy modal: same API shapes) ──────────
 
 const COMMENT_BODY_MAX = 280;
 const COMMENT_BODY_WARN = 224;
@@ -1624,6 +1267,12 @@ export function ToolFullPage() {
   const showPricing = Boolean(
     pricing.model || pricing.price || pricing.note || detail.pricingCheckedAt
   );
+  const installInfo = getToolInstallInfo({
+    slug,
+    name,
+    websiteUrl: detail.websiteUrl,
+    githubUrl: detail.links?.github,
+  });
 
   return (
     <FullPageShell
@@ -1710,7 +1359,7 @@ export function ToolFullPage() {
             </div>
           )}
 
-          {/* Actions row: primary outbound + secondary icon buttons */}
+          {/* Actions row: primary outbound + download + secondary icon buttons */}
           <div className="flex flex-wrap items-center gap-2">
             <Button
               asChild
@@ -1726,6 +1375,24 @@ export function ToolFullPage() {
                 <ArrowUpRight className="size-4" aria-hidden />
               </a>
             </Button>
+
+            {installInfo.downloadUrl && (
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-full border-white/15 bg-white/[0.04] px-5 text-sm font-bold tracking-wide text-white hover:border-ember/40 hover:bg-white/[0.08]"
+              >
+                <a
+                  href={installInfo.downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Download or get ${name}`}
+                >
+                  <Download className="mr-1.5 size-4 text-ember" aria-hidden />
+                  {installInfo.downloadLabel}
+                </a>
+              </Button>
+            )}
 
             <Button
               type="button"
@@ -1900,10 +1567,18 @@ export function ToolFullPage() {
           </DialogContent>
         </Dialog>
 
-        {/* b–i: main column + facts rail */}
+        {/* b-i: main column + facts rail */}
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-10">
           <div className="min-w-0 space-y-10">
-            {/* c. About — editorial long description when enriched, else the
+            {/* Installation Command / Download Box */}
+            <ToolInstallBox
+              slug={slug}
+              name={name}
+              websiteUrl={detail.websiteUrl}
+              githubUrl={detail.links?.github}
+            />
+
+            {/* c. About: editorial long description when enriched, else the
                 submitted description. Blank-line paragraphs in the copy render
                 via AboutClamp's whitespace-pre-line; clamp behavior unchanged. */}
             {(detail.longDescription || detail.description) && (
@@ -2083,11 +1758,12 @@ export function ToolFullPage() {
               )}
             </section>
 
-            {/* e. Reviews (F-16) */}
-            <ReviewsSection
+            {/* e. Reviews */}
+            <ToolReviewsSection
               slug={slug}
+              toolName={name}
               isMaker={detail.viewer?.isMaker ?? false}
-              sessionStatus={sessionStatus}
+              initialAggregate={detail.reviews?.aggregate ?? null}
               viewerMyReview={detail.viewer?.myReview ?? null}
               onRefreshTool={() => void load()}
             />

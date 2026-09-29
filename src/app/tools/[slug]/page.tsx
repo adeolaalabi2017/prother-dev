@@ -15,6 +15,8 @@ import { resolveAlternatives } from "@/lib/tool-editorial";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { ToolDetailActions } from "@/components/prother/tool-detail-actions";
+import { ToolInstallBox } from "@/components/prother/tool-install-box";
+import { ToolReviewsSection } from "@/components/prother/tool-reviews-section";
 import { AboutClamp } from "@/components/prother/about-clamp";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowToolPageData } from "@/lib/data";
@@ -455,6 +457,15 @@ export default async function ToolPage({ params }: Params) {
               slug={tool.slug}
               name={name}
               websiteUrl={tool.websiteUrl}
+              githubUrl={tool.githubUrl}
+            />
+
+            {/* Installation command / Download block */}
+            <ToolInstallBox
+              slug={tool.slug}
+              name={name}
+              websiteUrl={tool.websiteUrl}
+              githubUrl={tool.githubUrl}
             />
           </header>
 
@@ -674,62 +685,13 @@ export default async function ToolPage({ params }: Params) {
             </div>
           </section>
 
-          {/* e. Reviews (F-16) — server-rendered; aggregate unlocks at ≥3 */}
-          <section aria-label="Reviews" className="space-y-4">
-            <h2 className={SECTION_HEAD}>Reviews</h2>
-
-            {aggregate && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                <span className="text-2xl font-black tabular-nums text-white">
-                  {aggregate.overall}
-                  <span className="text-sm text-white/55">/5</span>
-                </span>
-                <span className="font-mono text-xs tracking-wider text-white/60 uppercase">
-                  {aggregate.count} verified reviews
-                </span>
-                <span className="flex flex-wrap items-center gap-1.5">
-                  <span className={chipCx("text-white/60")}>Ease {aggregate.ease}/5</span>
-                  <span className={chipCx("text-white/60")}>Power {aggregate.power}/5</span>
-                  <span className={chipCx("text-white/60")}>Value {aggregate.value}/5</span>
-                </span>
-              </div>
-            )}
-
-            {reviews.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-sm text-white/50">
-                No reviews yet. Be the first after you&apos;ve tried it.
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {reviews.map((r) => (
-                  <li
-                    key={r.id}
-                    className="space-y-2.5 rounded-xl border border-white/10 bg-white/[0.02] p-4"
-                  >
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="font-mono text-xs font-semibold tracking-wider text-white/85">
-                        {r.author}
-                      </span>
-                      <span aria-hidden className="text-white/55">
-                        ·
-                      </span>
-                      <span className="font-mono text-xs tracking-wider text-white/55 uppercase">
-                        {utcDateLabel(r.createdAt)}
-                      </span>
-                      <span className="ml-auto flex items-center gap-1.5">
-                        <span className={chipCx("text-white/55")}>Ease {r.ease}/5</span>
-                        <span className={chipCx("text-white/55")}>Power {r.power}/5</span>
-                        <span className={chipCx("text-white/55")}>Value {r.value}/5</span>
-                      </span>
-                    </div>
-                    <p className="text-sm leading-relaxed whitespace-pre-line text-white/75">
-                      {r.body}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {/* e. Reviews (F-16): interactive review engine */}
+          <ToolReviewsSection
+            slug={tool.slug}
+            toolName={name}
+            initialReviews={reviews}
+            initialAggregate={aggregate}
+          />
 
           {/* f. Discussion — forum threads mentioning this tool */}
           <section aria-label="Discussion" className="space-y-3">

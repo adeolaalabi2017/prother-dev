@@ -5,6 +5,7 @@ import { isUserBanned } from "@/lib/users";
 import { isReviewMaker } from "@/lib/community";
 import { convexReviewUpsert, shadowReviewsData } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -48,8 +49,8 @@ export async function GET(req: Request) {
       mine: userId === user?.id,
     }));
 
-    // Eligibility: anon → auth; maker → maker. Reviews are open immediately
-    // for any live listing — no launch-day gating.
+    // Eligibility: anon -> auth; maker -> maker. Reviews are open immediately
+    // for any live listing: no launch-day gating.
     let canReview = true;
     let reason: null | "auth" | "maker" = null;
     if (!user) {
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
         count: res.stats.count,
         aggregate: res.stats.aggregate,
         reviews,
-        mine: res.mineRow != null,
+        mine: res.mineRow ? { ...res.mineRow, mine: true } : null,
         canReview,
         reason,
       },
@@ -131,9 +132,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "maker_self" }, { status: 403 });
     }
 
-    // <48h accounts → soft-moderation filter (P3 policy).
-    const accountAgeMs = Date.now() - new Date(user.createdAt).getTime();
-    const status = accountAgeMs < 48 * 3_600_000 ? "filtered" : "published";
+    const status = "published";
 
     const now = Date.now();
     const res = await convexReviewUpsert(client, {
@@ -149,6 +148,47 @@ export async function POST(req: Request) {
       createdAt: now,
       updatedAt: now,
     });
+
+    // SQLite dual-write (AGENTS.md requirement)
+    try {
+      const targetTool = await db.tool.findUnique({ where: { slug: toolSlug } });
+      if (targetTool) {
+        const existingReview = await db.review.findFirst({
+          where: { toolId: targetTool.id, userId: user.id },
+        });
+        if (existingReview) {
+          await db.review.update({
+            where: { id: existingReview.id },
+            data: {
+              ease,
+              power,
+              value,
+              body,
+              status,
+              updatedAt: new Date(now),
+            },
+          });
+        } else {
+          await db.review.create({
+            data: {
+              id: crypto.randomUUID(),
+              toolId: targetTool.id,
+              userId: user.id,
+              author: `@${user.handle}`,
+              ease,
+              power,
+              value,
+              body,
+              status,
+              createdAt: new Date(now),
+              updatedAt: new Date(now),
+            },
+          });
+        }
+      }
+    } catch (dbErr) {
+      console.error("[api:reviews] SQLite dual-write failed:", dbErr);
+    }
 
     return NextResponse.json(
       {
