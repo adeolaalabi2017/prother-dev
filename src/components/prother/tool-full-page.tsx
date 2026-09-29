@@ -16,6 +16,7 @@ import {
   Download,
   Flag,
   Heart,
+  KeyRound,
   Link2,
   Loader2,
   MessageSquare,
@@ -1376,20 +1377,26 @@ export function ToolFullPage() {
               </a>
             </Button>
 
-            {installInfo.downloadUrl && (
+            {!installInfo.isRedundantWithWebsite && (
               <Button
                 asChild
                 variant="outline"
                 className="h-11 rounded-full border-white/15 bg-white/[0.04] px-5 text-sm font-bold tracking-wide text-white hover:border-ember/40 hover:bg-white/[0.08]"
               >
                 <a
-                  href={installInfo.downloadUrl}
+                  href={installInfo.actionUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={`Download or get ${name}`}
+                  aria-label={`${installInfo.actionLabel} for ${name}`}
                 >
-                  <Download className="mr-1.5 size-4 text-ember" aria-hidden />
-                  {installInfo.downloadLabel}
+                  {installInfo.actionType === "download" ? (
+                    <Download className="mr-1.5 size-4 text-ember" aria-hidden />
+                  ) : installInfo.actionType === "api" ? (
+                    <KeyRound className="mr-1.5 size-4 text-amber-400" aria-hidden />
+                  ) : (
+                    <ArrowUpRight className="mr-1.5 size-4 text-white/70" aria-hidden />
+                  )}
+                  {installInfo.actionLabel}
                 </a>
               </Button>
             )}

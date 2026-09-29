@@ -1,501 +1,703 @@
 /**
- * Tool Installation Command & Download Registry.
+ * Tool Installation Command, Download & Cloud Access Registry.
  *
- * Provides authentic, verified terminal installation commands and download links
- * for tools listed on Prother.dev. Fallback logic derives clean, safe commands
- * for any future or unmapped tools based on repository or package metadata.
+ * Provides authentic, verified delivery classification, installation commands,
+ * desktop application downloads, and cloud API links for all tools on Prother.dev.
+ *
+ * Distinguishes between:
+ * 1. Installable local packages, CLIs, runners, and open source repositories.
+ * 2. Downloadable native desktop applications (e.g. Cursor, Windsurf).
+ * 3. Closed-weight foundation models and cloud APIs (access via API keys or subscriptions).
+ * 4. Cloud-hosted web applications and SaaS platforms (no local installation).
  */
 
+export type ToolDeliveryType = "installable" | "desktop_app" | "cloud_api" | "cloud_saas";
+export type ActionType = "download" | "api" | "launch";
+
 export interface ToolInstallInfo {
-  command: string;
+  deliveryType: ToolDeliveryType;
+  /** True only if tool can actually be installed or run locally */
+  hasInstallCommand: boolean;
+  command: string | null;
+  commandTitle?: string;
+  /** Optional SDK client command for cloud APIs */
+  hasSdkCommand: boolean;
+  sdkCommand: string | null;
+  sdkTitle?: string;
+  actionUrl: string;
+  actionLabel: string;
+  actionType: ActionType;
+  platformNote: string;
+  isCloud: boolean;
+  /** True when the action URL is identical to the primary website URL */
+  isRedundantWithWebsite: boolean;
+  /** Backward compatibility aliases */
   downloadUrl: string;
   downloadLabel: string;
   isCliOrPackage: boolean;
 }
 
-const TOOL_INSTALL_REGISTRY: Record<string, Partial<ToolInstallInfo>> = {
-  // ── AI Models ──
-  "chatgpt": {
-    command: "pip install openai",
-    downloadUrl: "https://chatgpt.com/download",
-    downloadLabel: "Download App",
-    isCliOrPackage: true,
-  },
-  "claude": {
-    command: "pip install anthropic",
-    downloadUrl: "https://claude.ai/download",
-    downloadLabel: "Download App",
-    isCliOrPackage: true,
-  },
-  "gemini": {
-    command: "pip install google-genai",
-    downloadUrl: "https://gemini.google.com/app",
-    downloadLabel: "Download App",
-    isCliOrPackage: true,
+interface ToolInstallConfig {
+  deliveryType: ToolDeliveryType;
+  command?: string;
+  commandTitle?: string;
+  sdkCommand?: string;
+  sdkTitle?: string;
+  actionUrl: string;
+  actionLabel: string;
+  actionType: ActionType;
+  platformNote: string;
+}
+
+const TOOL_INSTALL_REGISTRY: Record<string, ToolInstallConfig> = {
+  // ── AI Models (Foundation & Frontier Architectures) ──
+  "naive-n0-5-flash": {
+    deliveryType: "installable",
+    command: "huggingface-cli download NaiveAI/Naive-N0.5-Flash",
+    commandTitle: "Download Model Weights",
+    actionUrl: "https://huggingface.co/NaiveAI",
+    actionLabel: "Download Weights",
+    actionType: "download",
+    platformNote: "Open-weight 309B MoE model. Weights are distributed via Hugging Face for local or private cloud deployment.",
   },
   "julia-1": {
+    deliveryType: "installable",
     command: "curl -fsSL https://julia.ai/install.sh | sh",
-    downloadUrl: "https://julia.ai",
-    downloadLabel: "Download Weights",
-    isCliOrPackage: true,
-  },
-  "naive-n0-5-flash": {
-    command: "huggingface-cli download NaiveAI/Naive-N0.5-Flash",
-    downloadUrl: "https://huggingface.co/NaiveAI",
-    downloadLabel: "Download Model",
-    isCliOrPackage: true,
+    commandTitle: "Local Inference Runner",
+    actionUrl: "https://julia.ai",
+    actionLabel: "Download Runner",
+    actionType: "download",
+    platformNote: "Fast System 1 foundation model with dedicated local inference runner for edge or workstation execution.",
   },
   "minimax-m3-1-flash": {
-    command: "pip install minimax-sdk",
-    downloadUrl: "https://api.minimax.chat",
-    downloadLabel: "Download SDK",
-    isCliOrPackage: true,
+    deliveryType: "cloud_api",
+    sdkCommand: "pip install minimax-sdk",
+    sdkTitle: "MiniMax Python SDK",
+    actionUrl: "https://api.minimax.chat",
+    actionLabel: "API Documentation",
+    actionType: "api",
+    platformNote: "Closed-weight cloud frontier model. Access is provided via API keys, developer endpoints, and paid subscription tiers. No local weights are distributed.",
   },
   "mimo-v2-6": {
-    command: "pip install mimo-ai",
-    downloadUrl: "https://mimo.ai",
-    downloadLabel: "Download Model",
-    isCliOrPackage: true,
+    deliveryType: "cloud_api",
+    actionUrl: "https://mimo.ai",
+    actionLabel: "API Documentation",
+    actionType: "api",
+    platformNote: "Closed-weight multimodal foundation model. Accessible through cloud API endpoints and developer platform tiers.",
   },
   "jev": {
-    command: "npm install -g jev-cli",
-    downloadUrl: "https://typesafe.ai/jev",
-    downloadLabel: "Download CLI",
-    isCliOrPackage: true,
+    deliveryType: "cloud_api",
+    actionUrl: "https://typesafe.ai/jev",
+    actionLabel: "API Access",
+    actionType: "api",
+    platformNote: "Closed-weight machine-native intelligence infrastructure. Access is provided via cloud API and enterprise platform credentials.",
+  },
+
+  // ── Conversational AI & Chatbots ──
+  "chatgpt": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://chatgpt.com/download",
+    actionLabel: "Download App",
+    actionType: "download",
+    platformNote: "Cloud-hosted conversational AI assistant. Access directly in your web browser or download official native apps for macOS, Windows, iOS, and Android.",
+  },
+  "claude": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://claude.ai/download",
+    actionLabel: "Download App",
+    actionType: "download",
+    platformNote: "Cloud-hosted conversational AI assistant powered by Anthropic foundation models. Access via web browser or official desktop application.",
+  },
+  "gemini": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://gemini.google.com/app",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud-based AI assistant powered by Google models. Access directly in your browser or integrated across Google Workspace.",
+  },
+  "perplexity": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.perplexity.ai/download",
+    actionLabel: "Download App",
+    actionType: "download",
+    platformNote: "Cloud-hosted conversational search and answer engine. Access via web or official desktop and mobile applications.",
+  },
+  "poe": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://poe.com/download",
+    actionLabel: "Download App",
+    actionType: "download",
+    platformNote: "Cloud-hosted multi-bot conversational platform. Access through web browser or official desktop and mobile apps.",
+  },
+  "character-ai": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://character.ai",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud-hosted conversational character platform. Operates entirely in the cloud with no local installation required.",
+  },
+  "pi": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://pi.ai",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud-hosted personal conversational AI. Runs entirely on cloud infrastructure.",
+  },
+  "chatbase": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.chatbase.co",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud-hosted SaaS platform for training and embedding custom AI chatbots.",
+  },
+  "intercom-fin": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.intercom.com/fin",
+    actionLabel: "Intercom Platform",
+    actionType: "launch",
+    platformNote: "Cloud-based AI customer service agent integrated into the Intercom platform.",
   },
 
   // ── Developer Platforms & Frameworks ──
   "cursor": {
-    command: "curl -fsSL https://downloader.cursor.sh/linux/x64 -o cursor.AppImage && chmod +x cursor.AppImage",
-    downloadUrl: "https://www.cursor.com",
-    downloadLabel: "Download Cursor",
-    isCliOrPackage: false,
+    deliveryType: "desktop_app",
+    actionUrl: "https://www.cursor.com/download",
+    actionLabel: "Download Cursor",
+    actionType: "download",
+    platformNote: "Native AI-first code editor available for macOS, Windows, and Linux. Download the official installer to get started.",
   },
   "windsurf": {
-    command: "brew install --cask windsurf",
-    downloadUrl: "https://codeium.com/windsurf",
-    downloadLabel: "Download Windsurf",
-    isCliOrPackage: false,
+    deliveryType: "desktop_app",
+    actionUrl: "https://codeium.com/windsurf/download",
+    actionLabel: "Download Windsurf",
+    actionType: "download",
+    platformNote: "Agentic IDE by Codeium with native desktop installers for macOS, Windows, and Linux.",
   },
   "aider": {
+    deliveryType: "installable",
     command: "pip install aider-chat",
-    downloadUrl: "https://github.com/paul-gauthier/aider/releases",
-    downloadLabel: "Download Binary",
-    isCliOrPackage: true,
-  },
-  "openchamber": {
-    command: "git clone https://github.com/openchamber/openchamber.git && cd openchamber && npm install",
-    downloadUrl: "https://github.com/openchamber/openchamber",
-    downloadLabel: "Download Source",
-    isCliOrPackage: true,
+    commandTitle: "Install via pip",
+    actionUrl: "https://github.com/paul-gauthier/aider/releases",
+    actionLabel: "GitHub Releases",
+    actionType: "download",
+    platformNote: "Terminal-based AI pair programming tool. Installs locally via Python package manager.",
   },
   "ollama": {
+    deliveryType: "installable",
     command: "curl -fsSL https://ollama.com/install.sh | sh",
-    downloadUrl: "https://ollama.com/download",
-    downloadLabel: "Download Ollama",
-    isCliOrPackage: true,
-  },
-  "pytorch": {
-    command: "pip3 install torch torchvision torchaudio",
-    downloadUrl: "https://pytorch.org/get-started/locally/",
-    downloadLabel: "Download PyTorch",
-    isCliOrPackage: true,
-  },
-  "tensorflow": {
-    command: "pip install tensorflow",
-    downloadUrl: "https://www.tensorflow.org/install",
-    downloadLabel: "Download TensorFlow",
-    isCliOrPackage: true,
+    commandTitle: "Terminal Install Command",
+    actionUrl: "https://ollama.com/download",
+    actionLabel: "Download Ollama",
+    actionType: "download",
+    platformNote: "Get up and running with large language models locally. Install via shell script or download native desktop binary.",
   },
   "vllm": {
+    deliveryType: "installable",
     command: "pip install vllm",
-    downloadUrl: "https://github.com/vllm-project/vllm/releases",
-    downloadLabel: "Download vLLM",
-    isCliOrPackage: true,
+    commandTitle: "Install via pip",
+    actionUrl: "https://docs.vllm.ai",
+    actionLabel: "vLLM Documentation",
+    actionType: "api",
+    platformNote: "High-throughput and memory-efficient LLM serving engine. Installs via pip for local or cluster deployment.",
+  },
+  "pytorch": {
+    deliveryType: "installable",
+    command: "pip3 install torch torchvision torchaudio",
+    commandTitle: "Install via pip",
+    actionUrl: "https://pytorch.org/get-started/locally/",
+    actionLabel: "PyTorch Get Started",
+    actionType: "download",
+    platformNote: "Open source machine learning framework. Select your OS and hardware compute platform to install locally.",
+  },
+  "tensorflow": {
+    deliveryType: "installable",
+    command: "pip install tensorflow",
+    commandTitle: "Install via pip",
+    actionUrl: "https://www.tensorflow.org/install",
+    actionLabel: "TensorFlow Install Guide",
+    actionType: "download",
+    platformNote: "End-to-end machine learning platform for training and deploying deep learning models.",
   },
   "langchain": {
+    deliveryType: "installable",
     command: "pip install langchain langchain-community",
-    downloadUrl: "https://github.com/langchain-ai/langchain",
-    downloadLabel: "Download LangChain",
-    isCliOrPackage: true,
+    commandTitle: "Install via pip",
+    actionUrl: "https://github.com/langchain-ai/langchain",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source framework for building context-aware reasoning applications with language models.",
   },
   "hugging-face": {
-    command: "pip install transformers datasets huggingface_hub",
-    downloadUrl: "https://huggingface.co",
-    downloadLabel: "Download CLI",
-    isCliOrPackage: true,
+    deliveryType: "installable",
+    command: "pip install huggingface_hub",
+    commandTitle: "Install Hugging Face CLI",
+    actionUrl: "https://huggingface.co",
+    actionLabel: "Hugging Face Hub",
+    actionType: "launch",
+    platformNote: "Central platform for open source machine learning models, datasets, and collaborative tools.",
   },
   "pinecone": {
-    command: "pip install pinecone-client",
-    downloadUrl: "https://github.com/pinecone-io/pinecone-python-client",
-    downloadLabel: "Download Client",
-    isCliOrPackage: true,
+    deliveryType: "cloud_api",
+    sdkCommand: "pip install pinecone-client",
+    sdkTitle: "Pinecone Python SDK",
+    actionUrl: "https://docs.pinecone.io",
+    actionLabel: "Pinecone Documentation",
+    actionType: "api",
+    platformNote: "Managed cloud vector database. Access is provided via API keys, cloud clusters, and developer console.",
   },
   "replicate": {
-    command: "pip install replicate",
-    downloadUrl: "https://github.com/replicate/replicate-python",
-    downloadLabel: "Download Client",
-    isCliOrPackage: true,
-  },
-  "openviking": {
-    command: "pip install openviking",
-    downloadUrl: "https://github.com/openviking/openviking",
-    downloadLabel: "Download OpenViking",
-    isCliOrPackage: true,
+    deliveryType: "cloud_api",
+    sdkCommand: "pip install replicate",
+    sdkTitle: "Replicate Python SDK",
+    actionUrl: "https://replicate.com/docs",
+    actionLabel: "Developer Docs",
+    actionType: "api",
+    platformNote: "Cloud AI model execution platform. Run open-source and fine-tuned models via cloud API with per-second billing.",
   },
   "supermemory": {
+    deliveryType: "installable",
     command: "npm install supermemory",
-    downloadUrl: "https://github.com/supermemoryai/supermemory",
-    downloadLabel: "Download Package",
-    isCliOrPackage: true,
+    commandTitle: "Install via npm",
+    actionUrl: "https://github.com/supermemoryai/supermemory",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Persistent context and memory infrastructure for AI agents. Open source and self-hostable.",
   },
   "antigravity": {
+    deliveryType: "installable",
     command: "npm install -g @google/antigravity",
-    downloadUrl: "https://antigravity.google/download",
-    downloadLabel: "Download IDE",
-    isCliOrPackage: true,
+    commandTitle: "Install CLI",
+    actionUrl: "https://antigravity.google/download",
+    actionLabel: "Download IDE",
+    actionType: "download",
+    platformNote: "Google autonomous agentic AI development environment and orchestration framework.",
+  },
+  "openchamber": {
+    deliveryType: "installable",
+    command: "git clone https://github.com/openchamber/openchamber.git",
+    commandTitle: "Clone Repository",
+    actionUrl: "https://github.com/openchamber/openchamber",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source development chamber for multi-agent simulation and AI safety testing.",
   },
   "opencode": {
+    deliveryType: "installable",
     command: "npm install -g opencode-ai",
-    downloadUrl: "https://github.com/opencode-ai/opencode",
-    downloadLabel: "Download Package",
-    isCliOrPackage: true,
+    commandTitle: "Install via npm",
+    actionUrl: "https://github.com/opencode-ai/opencode",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source AI coding assistant and agent environment.",
   },
   "openship": {
+    deliveryType: "installable",
     command: "curl -fsSL https://openship.org/install.sh | sh",
-    downloadUrl: "https://github.com/openship/openship",
-    downloadLabel: "Download Openship",
-    isCliOrPackage: true,
+    commandTitle: "Install Script",
+    actionUrl: "https://github.com/openship/openship",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source developer deployment and continuous shipping toolkit.",
+  },
+  "openviking": {
+    deliveryType: "installable",
+    command: "pip install openviking",
+    commandTitle: "Install via pip",
+    actionUrl: "https://github.com/openviking/openviking",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source Python library for automated code auditing and exploration.",
   },
 
   // ── Automation & Workflow Orchestration ──
   "n8n": {
+    deliveryType: "installable",
     command: "npx n8n",
-    downloadUrl: "https://github.com/n8n-io/n8n",
-    downloadLabel: "Download n8n",
-    isCliOrPackage: true,
+    commandTitle: "Run via npx / Docker",
+    actionUrl: "https://github.com/n8n-io/n8n",
+    actionLabel: "GitHub Releases",
+    actionType: "download",
+    platformNote: "Fair-code workflow automation tool. Run locally via npx, Docker, or self-hosted server.",
   },
   "plane": {
-    command: "docker compose -f docker-compose.yml up -d",
-    downloadUrl: "https://github.com/makeplane/plane",
-    downloadLabel: "Download Plane",
-    isCliOrPackage: true,
-  },
-  "paperclip": {
-    command: "npm install -g paperclip-ai",
-    downloadUrl: "https://github.com/paperclip-ai/paperclip",
-    downloadLabel: "Download Paperclip",
-    isCliOrPackage: true,
+    deliveryType: "installable",
+    command: "git clone https://github.com/makeplane/plane.git",
+    commandTitle: "Clone Repository",
+    actionUrl: "https://github.com/makeplane/plane",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source project planning and management tool. Self-host with Docker or deploy to cloud.",
   },
   "linear": {
-    command: "brew install --cask linear-linear",
-    downloadUrl: "https://linear.app/download",
-    downloadLabel: "Download Linear",
-    isCliOrPackage: false,
-  },
-  "openbot": {
-    command: "npm install -g openbot",
-    downloadUrl: "https://github.com/openbot/openbot",
-    downloadLabel: "Download Openbot",
-    isCliOrPackage: true,
-  },
-  "nebula": {
-    command: "npm install -g @nebula/workspace-cli",
-    downloadUrl: "https://nebula.so",
-    downloadLabel: "Download Nebula",
-    isCliOrPackage: true,
-  },
-  "computer": {
-    command: "docker run -d -p 8080:8080 computer/worker",
-    downloadUrl: "https://computer.ai",
-    downloadLabel: "Download Worker",
-    isCliOrPackage: true,
-  },
-  "overlay": {
-    command: "git clone https://github.com/overlay-ai/overlay.git && cd overlay && npm install",
-    downloadUrl: "https://github.com/overlay-ai/overlay",
-    downloadLabel: "Download Overlay",
-    isCliOrPackage: true,
-  },
-  "zapier": {
-    command: "npm i @zapier/mcp",
-    downloadUrl: "https://zapier.com",
-    downloadLabel: "Get Zapier",
-    isCliOrPackage: true,
-  },
-  "make": {
-    command: "npm i @make/sdk",
-    downloadUrl: "https://make.com",
-    downloadLabel: "Get Make",
-    isCliOrPackage: true,
-  },
-  "uipath": {
-    command: "pip install uipath",
-    downloadUrl: "https://www.uipath.com",
-    downloadLabel: "Download Studio",
-    isCliOrPackage: false,
-  },
-  "relay-app": {
-    command: "npm i @relay-app/client",
-    downloadUrl: "https://relay.app",
-    downloadLabel: "Get Relay",
-    isCliOrPackage: true,
+    deliveryType: "desktop_app",
+    actionUrl: "https://linear.app/download",
+    actionLabel: "Download Linear",
+    actionType: "download",
+    platformNote: "Issue tracking and project management tool with native desktop apps for macOS and Windows.",
   },
   "bardeen": {
-    command: "npm i -g bardeen-cli",
-    downloadUrl: "https://chrome.google.com/webstore/detail/bardeen/ihhknhdhndiipaglgmgflghghnhggiba",
-    downloadLabel: "Download Extension",
-    isCliOrPackage: false,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.bardeen.ai/download",
+    actionLabel: "Add Extension",
+    actionType: "launch",
+    platformNote: "Browser automation platform. Add the official Chrome extension to automate web workflows.",
+  },
+  "zapier": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://zapier.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud workflow automation platform. Connects web apps directly in the cloud with no local installation.",
+  },
+  "make": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.make.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud visual automation platform. Design and run multi-step workflows entirely in the cloud.",
+  },
+  "paperclip": {
+    deliveryType: "installable",
+    command: "npm install -g paperclip-ai",
+    commandTitle: "Install via npm",
+    actionUrl: "https://github.com/paperclip-ai/paperclip",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source terminal and workflow clipboard assistant.",
+  },
+  "openbot": {
+    deliveryType: "installable",
+    command: "npm install -g openbot",
+    commandTitle: "Install via npm",
+    actionUrl: "https://github.com/openbot/openbot",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source robot and agent automation scripting framework.",
+  },
+  "overlay": {
+    deliveryType: "installable",
+    command: "git clone https://github.com/overlay-ai/overlay.git",
+    commandTitle: "Clone Repository",
+    actionUrl: "https://github.com/overlay-ai/overlay",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source developer interface overlay toolkit.",
+  },
+  "uipath": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.uipath.com",
+    actionLabel: "UiPath Platform",
+    actionType: "launch",
+    platformNote: "Enterprise robotic process automation and AI workflow cloud platform.",
+  },
+  "relay-app": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.relay.app",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud workflow automation with human-in-the-loop approvals.",
+  },
+  "computer": {
+    deliveryType: "installable",
+    command: "docker run -d -p 8080:8080 computer/worker",
+    commandTitle: "Run via Docker",
+    actionUrl: "https://computer.ai",
+    actionLabel: "Docker Hub",
+    actionType: "download",
+    platformNote: "Automated desktop computer agent container for task execution.",
+  },
+  "nebula": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://symbl.ai",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud human-interaction intelligence and conversation analysis platform.",
   },
 
-  // ── Generative Content & Media ──
-  "open-slide": {
-    command: "npx create-open-slide",
-    downloadUrl: "https://github.com/open-slide/open-slide",
-    downloadLabel: "Download Package",
-    isCliOrPackage: true,
-  },
+  // ── Generative Content Creation ──
   "midjourney": {
-    command: "curl -fsSL https://midjourney.com/api",
-    downloadUrl: "https://discord.com/invite/midjourney",
-    downloadLabel: "Join Discord",
-    isCliOrPackage: false,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.midjourney.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud-hosted generative AI image platform. Operates via web browser and Discord with no local installation.",
   },
   "runway": {
-    command: "pip install runwayml",
-    downloadUrl: "https://runwayml.com",
-    downloadLabel: "Get Runway",
-    isCliOrPackage: false,
-  },
-  "elevenlabs": {
-    command: "pip install elevenlabs",
-    downloadUrl: "https://elevenlabs.io",
-    downloadLabel: "Get ElevenLabs",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://runwayml.com",
+    actionLabel: "Open Studio",
+    actionType: "launch",
+    platformNote: "Cloud creative video generation platform. Gen-2 and Gen-3 models run entirely on cloud GPU infrastructure.",
   },
   "suno": {
-    command: "npm i suno-api",
-    downloadUrl: "https://suno.com",
-    downloadLabel: "Get Suno",
-    isCliOrPackage: false,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://suno.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud AI music generation platform. Create complete songs from prompts directly in your web browser.",
   },
   "synthesia": {
-    command: "npm i synthesia-api",
-    downloadUrl: "https://synthesia.io",
-    downloadLabel: "Get Synthesia",
-    isCliOrPackage: false,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.synthesia.io",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud AI avatar and video generation platform. Operates entirely in the cloud.",
   },
-  "adobe-firefly": {
-    command: "npm i @adobe/firefly-api",
-    downloadUrl: "https://adobe.com/products/firefly",
-    downloadLabel: "Get Firefly",
-    isCliOrPackage: false,
+  "elevenlabs": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://elevenlabs.io",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud AI voice synthesis, voice cloning, and audio generation platform.",
   },
   "heygen": {
-    command: "npm i @heygen/streaming-avatar",
-    downloadUrl: "https://heygen.com",
-    downloadLabel: "Get HeyGen",
-    isCliOrPackage: false,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.heygen.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud video generation platform specializing in AI spokespersons and avatar translation.",
+  },
+  "adobe-firefly": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://firefly.adobe.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Adobe generative AI creative tools running directly in web browsers and Creative Cloud.",
+  },
+  "open-slide": {
+    deliveryType: "installable",
+    command: "npx create-open-slide",
+    commandTitle: "Scaffold via npx",
+    actionUrl: "https://github.com/open-slide/open-slide",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source presentation generation and slide layout tool.",
   },
 
   // ── Computer Vision ──
-  "roboflow": {
-    command: "pip install roboflow supervision",
-    downloadUrl: "https://github.com/roboflow/supervision",
-    downloadLabel: "Download SDK",
-    isCliOrPackage: true,
-  },
   "label-studio": {
+    deliveryType: "installable",
     command: "pip install label-studio",
-    downloadUrl: "https://github.com/HumanSignal/label-studio",
-    downloadLabel: "Download Studio",
-    isCliOrPackage: true,
+    commandTitle: "Install via pip",
+    actionUrl: "https://github.com/HumanSignal/label-studio",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source data labeling and annotation tool for computer vision, audio, text, and time series.",
+  },
+  "roboflow": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://roboflow.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "End-to-end computer vision platform for dataset curation, model training, and edge deployment.",
   },
   "clarifai": {
-    command: "pip install clarifai",
-    downloadUrl: "https://github.com/Clarifai/clarifai-python",
-    downloadLabel: "Download SDK",
-    isCliOrPackage: true,
+    deliveryType: "cloud_api",
+    actionUrl: "https://www.clarifai.com",
+    actionLabel: "Developer Console",
+    actionType: "api",
+    platformNote: "Cloud computer vision and deep learning platform accessible via API.",
   },
   "google-cloud-vision": {
-    command: "pip install google-cloud-vision",
-    downloadUrl: "https://cloud.google.com/vision",
-    downloadLabel: "Download Client",
-    isCliOrPackage: true,
+    deliveryType: "cloud_api",
+    actionUrl: "https://cloud.google.com/vision",
+    actionLabel: "Google Cloud Console",
+    actionType: "api",
+    platformNote: "Pre-trained machine learning vision models accessible via Google Cloud API endpoints.",
   },
   "amazon-rekognition": {
-    command: "pip install boto3",
-    downloadUrl: "https://aws.amazon.com/rekognition/",
-    downloadLabel: "Download SDK",
-    isCliOrPackage: true,
+    deliveryType: "cloud_api",
+    actionUrl: "https://aws.amazon.com/rekognition/",
+    actionLabel: "AWS Console",
+    actionType: "api",
+    platformNote: "Managed AWS computer vision service for image and video analysis via cloud API.",
   },
   "viso-suite": {
-    command: "npm i @viso/sdk",
-    downloadUrl: "https://viso.ai",
-    downloadLabel: "Get Viso Suite",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://viso.ai",
+    actionLabel: "Viso Platform",
+    actionType: "launch",
+    platformNote: "Enterprise end-to-end computer vision platform.",
   },
 
-  // ── NLP & Text ──
-  "grammarly": {
-    command: "brew install --cask grammarly-desktop",
-    downloadUrl: "https://www.grammarly.com/desktop",
-    downloadLabel: "Download App",
-    isCliOrPackage: false,
-  },
+  // ── NLP & Text Utilities ──
   "deepl": {
-    command: "pip install deepl",
-    downloadUrl: "https://www.deepl.com/app",
-    downloadLabel: "Download DeepL",
-    isCliOrPackage: false,
+    deliveryType: "desktop_app",
+    actionUrl: "https://www.deepl.com/en/app",
+    actionLabel: "Download DeepL App",
+    actionType: "download",
+    platformNote: "AI translation tool with native desktop applications for macOS and Windows, plus browser extensions.",
   },
-  "quillbot": {
-    command: "npm i quillbot-api",
-    downloadUrl: "https://quillbot.com/chrome",
-    downloadLabel: "Download Extension",
-    isCliOrPackage: false,
+  "grammarly": {
+    deliveryType: "desktop_app",
+    actionUrl: "https://www.grammarly.com/desktop",
+    actionLabel: "Download Grammarly",
+    actionType: "download",
+    platformNote: "Writing assistance platform with native desktop applications and browser extensions.",
   },
   "notion-ai": {
-    command: "brew install --cask notion",
-    downloadUrl: "https://www.notion.so/desktop",
-    downloadLabel: "Download Notion",
-    isCliOrPackage: false,
+    deliveryType: "desktop_app",
+    actionUrl: "https://www.notion.so/desktop",
+    actionLabel: "Download Notion",
+    actionType: "download",
+    platformNote: "Connected workspace with integrated AI assistant and official desktop apps for macOS and Windows.",
+  },
+  "quillbot": {
+    deliveryType: "cloud_saas",
+    actionUrl: "https://quillbot.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud writing, paraphrasing, and summarization tool.",
   },
   "otter-ai": {
-    command: "brew install --cask otter",
-    downloadUrl: "https://otter.ai",
-    downloadLabel: "Download Otter",
-    isCliOrPackage: false,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://otter.ai",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud meeting recording, real-time transcription, and automated summary tool.",
   },
   "originality-ai": {
-    command: "pip install originality-ai",
-    downloadUrl: "https://originality.ai",
-    downloadLabel: "Get Originality",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://originality.ai",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud AI content detection and plagiarism verification platform.",
   },
 
-  // ── Data Analytics ──
+  // ── Data Analytics & Predictive Modeling ──
   "h2o-ai": {
+    deliveryType: "installable",
     command: "pip install h2o",
-    downloadUrl: "https://github.com/h2oai/h2o-3",
-    downloadLabel: "Download h2o",
-    isCliOrPackage: true,
+    commandTitle: "Install via pip",
+    actionUrl: "https://github.com/h2oai/h2o-3",
+    actionLabel: "GitHub Repository",
+    actionType: "download",
+    platformNote: "Open source distributed in-memory machine learning platform.",
   },
   "datarobot": {
-    command: "pip install datarobot",
-    downloadUrl: "https://datarobot.com",
-    downloadLabel: "Get DataRobot",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.datarobot.com",
+    actionLabel: "DataRobot Platform",
+    actionType: "launch",
+    platformNote: "Enterprise cloud AI and automated machine learning platform.",
   },
   "hex": {
-    command: "pip install hex-api",
-    downloadUrl: "https://hex.tech",
-    downloadLabel: "Get Hex",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://hex.tech",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud collaborative analytics notebook and interactive data app builder.",
   },
   "tableau-pulse": {
-    command: "npm i @tableau/pulse-client",
-    downloadUrl: "https://tableau.com/products/tableau-pulse",
-    downloadLabel: "Get Tableau Pulse",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.tableau.com/products/pulse",
+    actionLabel: "Tableau Cloud",
+    actionType: "launch",
+    platformNote: "Personalized metrics and automated insights powered by Tableau Cloud.",
   },
   "salesforce-einstein": {
-    command: "npm i @salesforce/einstein-api",
-    downloadUrl: "https://salesforce.com",
-    downloadLabel: "Get Einstein",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.salesforce.com/einstein/",
+    actionLabel: "Salesforce Console",
+    actionType: "launch",
+    platformNote: "Embedded CRM intelligence and generative AI platform within Salesforce Cloud.",
   },
   "polymer": {
-    command: "npm i @polymer/search-api",
-    downloadUrl: "https://polymer.com",
-    downloadLabel: "Get Polymer",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://www.polymersearch.com",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "No-code business intelligence tool that turns spreadsheets into interactive data hubs.",
   },
   "notra": {
-    command: "npm i @notra/analytics-sdk",
-    downloadUrl: "https://notra.ai",
-    downloadLabel: "Get Notra",
-    isCliOrPackage: true,
-  },
-
-  // ── Conversational AI ──
-  "perplexity": {
-    command: "npm i @perplexityai/sdk",
-    downloadUrl: "https://www.perplexity.ai/download",
-    downloadLabel: "Download App",
-    isCliOrPackage: true,
-  },
-  "poe": {
-    command: "pip install fastapi-poe",
-    downloadUrl: "https://poe.com/download",
-    downloadLabel: "Download App",
-    isCliOrPackage: true,
-  },
-  "character-ai": {
-    command: "npm i @characterai/client",
-    downloadUrl: "https://character.ai",
-    downloadLabel: "Download App",
-    isCliOrPackage: false,
-  },
-  "intercom-fin": {
-    command: "npm i @intercom/messenger-js-sdk",
-    downloadUrl: "https://intercom.com/fin",
-    downloadLabel: "Get Fin",
-    isCliOrPackage: true,
-  },
-  "pi": {
-    command: "curl -fsSL https://pi.ai/api",
-    downloadUrl: "https://pi.ai",
-    downloadLabel: "Download App",
-    isCliOrPackage: false,
-  },
-  "chatbase": {
-    command: "npm i @chatbase/sdk",
-    downloadUrl: "https://chatbase.co",
-    downloadLabel: "Get Chatbase",
-    isCliOrPackage: true,
+    deliveryType: "cloud_saas",
+    actionUrl: "https://notra.ai",
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud predictive data analytics platform.",
   },
 };
 
 /**
- * Returns installation command and download details for any tool.
- * Provides fallback based on git/npm/pip/website for unknown tools.
+ * Resolves verified delivery info, commands, and access links for any tool.
  */
-export function getToolInstallInfo(tool: {
+export function getToolInstallInfo({
+  slug,
+  name,
+  websiteUrl,
+  githubUrl,
+}: {
   slug: string;
-  name?: string;
+  name: string;
   websiteUrl?: string;
   githubUrl?: string | null;
-  pricingModel?: string;
 }): ToolInstallInfo {
-  const custom = TOOL_INSTALL_REGISTRY[tool.slug];
-  if (custom?.command && custom?.downloadUrl) {
+  const configured = TOOL_INSTALL_REGISTRY[slug];
+  const primaryUrl = websiteUrl || (githubUrl ?? "https://prother.dev");
+
+  if (configured) {
+    const actionUrl = configured.actionUrl || primaryUrl;
+    const isRedundant =
+      configured.actionType === "launch" &&
+      Boolean(websiteUrl) &&
+      actionUrl.replace(/\/$/, "") === websiteUrl?.replace(/\/$/, "");
+
     return {
-      command: custom.command,
-      downloadUrl: custom.downloadUrl,
-      downloadLabel: custom.downloadLabel ?? "Download",
-      isCliOrPackage: custom.isCliOrPackage ?? true,
+      deliveryType: configured.deliveryType,
+      hasInstallCommand: Boolean(configured.command),
+      command: configured.command ?? null,
+      commandTitle: configured.commandTitle ?? "Terminal Installation",
+      hasSdkCommand: Boolean(configured.sdkCommand),
+      sdkCommand: configured.sdkCommand ?? null,
+      sdkTitle: configured.sdkTitle ?? "SDK Client",
+      actionUrl,
+      actionLabel: configured.actionLabel,
+      actionType: configured.actionType,
+      platformNote: configured.platformNote,
+      isCloud: configured.deliveryType === "cloud_api" || configured.deliveryType === "cloud_saas",
+      isRedundantWithWebsite: isRedundant,
+      downloadUrl: actionUrl,
+      downloadLabel: configured.actionLabel,
+      isCliOrPackage: configured.deliveryType === "installable",
     };
   }
 
-  // Derive from GitHub repository
-  if (tool.githubUrl) {
-    const cleanGit = tool.githubUrl.replace(/\/$/, "");
+  // Dynamic fallback for any unmapped tool
+  if (githubUrl) {
     return {
-      command: `git clone ${cleanGit}.git`,
-      downloadUrl: `${cleanGit}/releases`,
-      downloadLabel: "Download Source",
+      deliveryType: "installable",
+      hasInstallCommand: true,
+      command: `git clone ${githubUrl}.git`,
+      commandTitle: "Clone Repository",
+      hasSdkCommand: false,
+      sdkCommand: null,
+      actionUrl: githubUrl,
+      actionLabel: "GitHub Repository",
+      actionType: "download",
+      platformNote: "Open source tool available on GitHub.",
+      isCloud: false,
+      isRedundantWithWebsite: false,
+      downloadUrl: githubUrl,
+      downloadLabel: "GitHub Repository",
       isCliOrPackage: true,
     };
   }
 
-  // Standard safe fallback
-  const baseSlug = tool.slug.toLowerCase().replace(/[^a-z0-9-]/g, "");
-  const targetSite = tool.websiteUrl ?? `https://${baseSlug}.com`;
+  // Fallback for cloud web tools
   return {
-    command: `npm install ${baseSlug}`,
-    downloadUrl: targetSite,
-    downloadLabel: "Download",
+    deliveryType: "cloud_saas",
+    hasInstallCommand: false,
+    command: null,
+    hasSdkCommand: false,
+    sdkCommand: null,
+    actionUrl: primaryUrl,
+    actionLabel: "Open Web App",
+    actionType: "launch",
+    platformNote: "Cloud-hosted web platform. Runs entirely in the cloud with no local installation required.",
+    isCloud: true,
+    isRedundantWithWebsite: true,
+    downloadUrl: primaryUrl,
+    downloadLabel: "Open Web App",
     isCliOrPackage: false,
   };
 }

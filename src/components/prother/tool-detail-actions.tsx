@@ -8,6 +8,7 @@ import {
   Check,
   Download,
   Flag,
+  KeyRound,
   Scale,
   Share2,
 } from "lucide-react";
@@ -19,7 +20,7 @@ import { ReportDialog } from "./report-dialog";
 import { getToolInstallInfo } from "@/lib/tool-install";
 
 /**
- * Client island for the SSR tool page (Task 25) — the interactive sliver of
+ * Client island for the SSR tool page (Task 25): the interactive sliver of
  * /tools/[slug]:
  *  · VISIT   → the primary outbound link to the tool's website.
  *  · DOWNLOAD → direct download or installer for the tool.
@@ -78,7 +79,7 @@ export function ToolDetailActions({
         await navigator.share({ title: `${name} · Prother`, url });
         return;
       } catch (err) {
-        // User dismissed the share sheet — not an error.
+        // User dismissed the share sheet: not an error.
         if (err instanceof DOMException && err.name === "AbortError") return;
         // Unsupported-ish or denied → fall through to the clipboard.
       }
@@ -115,16 +116,24 @@ export function ToolDetailActions({
         <ArrowUpRight className="size-4" aria-hidden />
       </a>
 
-      <a
-        href={installInfo.downloadUrl}
-        target="_blank"
-        rel="noopener noreferrer nofollow"
-        aria-label={`Download ${name}`}
-        className="inline-flex h-11 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 text-sm font-semibold tracking-wide text-white transition hover:border-ember/40 hover:bg-white/10 hover:text-ember"
-      >
-        <Download className="size-4" aria-hidden />
-        {installInfo.downloadLabel}
-      </a>
+      {!installInfo.isRedundantWithWebsite && (
+        <a
+          href={installInfo.actionUrl}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          aria-label={`${installInfo.actionLabel} for ${name}`}
+          className="inline-flex h-11 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 text-sm font-semibold tracking-wide text-white transition hover:border-ember/40 hover:bg-white/10 hover:text-ember"
+        >
+          {installInfo.actionType === "download" ? (
+            <Download className="size-4 text-ember" aria-hidden />
+          ) : installInfo.actionType === "api" ? (
+            <KeyRound className="size-4 text-amber-400" aria-hidden />
+          ) : (
+            <ArrowUpRight className="size-4 text-white/70" aria-hidden />
+          )}
+          {installInfo.actionLabel}
+        </a>
+      )}
 
       <button
         type="button"
