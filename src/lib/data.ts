@@ -52,6 +52,18 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   cursor: "/logos/cursor.svg",
   windsurf: "/logos/windsurf.svg",
   vllm: "/logos/vllm.svg",
+  "open-webui": "/logos/open-webui.svg",
+  plane: "/logos/plane.png",
+  chatbase: "/logos/chatbase.svg",
+  "mimo-v2-6": "/logos/mimo-v2-6.png",
+  notra: "/logos/notra.svg",
+  openbot: "/logos/openbot.svg",
+  openship: "/logos/openship.png",
+  opencode: "/logos/opencode.svg",
+  "minimax-m3-1-flash": "/logos/minimax-m3-1-flash.svg",
+  computer: "/logos/computer.svg",
+  overlay: "/logos/overlay.png",
+  "naive-n0-5-flash": "/logos/naive-n0-5-flash.svg",
 };
 
 export function cleanLogoUrl(

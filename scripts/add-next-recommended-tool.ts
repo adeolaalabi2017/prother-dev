@@ -213,7 +213,7 @@ const BACKLOG: ToolSpec[] = [
         "Document embedding and vector indexing speed depends on server CPU and GPU resources",
         "Frequent update cycles may require occasional configuration adjustments",
       ],
-      alternatives: ["chatgpt", "poe"],
+      alternatives: ["chatgpt", "poe", "ollama"],
     },
   },
   {
@@ -1315,7 +1315,11 @@ async function main() {
 
     // B) Update Convex for altSlug
     try {
-      const convexLegacyId = altDbTool?.id;
+      let convexLegacyId = altDbTool?.id;
+      if (!convexLegacyId) {
+        const page: any = await convex.query(api.tools.pageData, { slug: altSlug });
+        convexLegacyId = page?.tool?.id;
+      }
       if (convexLegacyId) {
         const altConvexTool: any = await convex.query(api.tools.detail, { slug: altSlug });
         if (altConvexTool && !("error" in altConvexTool) && altConvexTool.slug) {

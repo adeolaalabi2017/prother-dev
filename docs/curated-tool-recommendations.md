@@ -44,7 +44,7 @@ Every tool in this backlog clears the **Six Published Listing Standards (S1-S6)*
 | **Windsurf** | `windsurf` | Freemium | $15 / month | Yes | **Added & Live** | Codeium's agentic IDE powered by the Cascade agent and low-latency Supercomplete typing. |
 | **Aider** | `aider` | Open Source | $0 (BYOK) | Yes | **Added & Live** | Terminal-based AI pair programming CLI with git integration and benchmark-leading code editing. |
 | **vLLM** | `vllm` | Open Source | $0 | Yes | **Added & Live** | High-throughput open-source LLM inference and serving engine utilizing PagedAttention. |
-| **Open WebUI** | `open-webui` | Open Source | $0 | Yes | Ready for Intake | Feature-rich self-hosted UI for Ollama, OpenAI-compatible backends, RAG, and multi-user setups. |
+| **Open WebUI** | `open-webui` | Open Source | $0 | Yes | **Added & Live** | Feature-rich self-hosted UI for Ollama, OpenAI-compatible backends, RAG, and multi-user setups. |
 | **LiteLLM** | `litellm` | Open Source | $0 / Usage proxy| Yes | Ready for Intake | Universal I/O proxy providing 100+ LLMs in standardized OpenAI-compatible API format with rate limiting. |
 | **Groq** | `groq` | Freemium | Pay-as-you-go | Yes | Ready for Intake | Ultra-fast LPU inference engine serving open-weight models (Llama 3, Gemma) at 300+ tokens/second. |
 | **OpenRouter** | `openrouter` | Paid (Usage) | Pay-as-you-go | Yes | Ready for Intake | Unified API gateway for commercial and open models with automatic fallback, routing, and crypto/card billing. |
@@ -75,7 +75,7 @@ Every tool in this backlog clears the **Six Published Listing Standards (S1-S6)*
 - **Tagline**: Self-hosted, extensible AI interface for local and cloud models
 - **Pricing**: Open Source (MIT licensed)
 - **Key Use Cases**: Private corporate chat portal, internal model testing, multi-user document RAG on local hardware.
-- **Alternatives**: `chatgpt`, `poe`
+- **Alternatives**: `chatgpt`, `poe`, `ollama`
 
 #### LiteLLM (`litellm`)
 - **Website**: `https://litellm.ai`
