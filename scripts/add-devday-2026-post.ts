@@ -25,7 +25,7 @@ const POST_DATA = {
   tagsPipe: "openai|devday|saas|strategy|ecosystem",
   coverEmoji: "♟️",
   coverGradient: "from-amber-600 to-orange-950",
-  coverUrl: "/journal/openai-devday-2026-table.png",
+  coverUrl: null,
   readingMinutes: 6,
   author: "Prother Editorial",
   status: "published",
