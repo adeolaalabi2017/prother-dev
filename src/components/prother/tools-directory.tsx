@@ -192,7 +192,7 @@ export function ToolsDirectory({
               <input
                 type="search"
                 role="searchbox"
-                aria-label="Search tools by name or tagline"
+                aria-label="Search tools by name"
                 value={query}
                 onChange={(e) => {
                   interactedRef.current = true;

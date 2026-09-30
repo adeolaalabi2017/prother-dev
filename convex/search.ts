@@ -45,19 +45,14 @@ export const search = query({
     }
 
     const toolHits = liveTools
-      .filter((t) =>
-        matchTokens(
-          [t.name, t.tagline, t.tags.join("|"), t.description ?? null],
-          tokens,
-        ),
-      )
+      .filter((t) => matchTokens([t.name], tokens))
       .map((t) => ({
         t,
         score: relevanceScore(tokens, {
           name: t.name,
-          tagline: t.tagline,
-          tags: t.tags.join("|"),
-          description: t.description ?? null,
+          tagline: "",
+          tags: "",
+          description: null,
         }),
       }))
       .sort(

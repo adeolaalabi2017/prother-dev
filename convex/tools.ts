@@ -118,11 +118,7 @@ export const directory = query({
       if (category && t.categoryId !== category._id) return false;
       if (pricing && t.pricingModel !== pricing) return false;
       if (tag && !ciContains(t.tags.join("|"), tag)) return false;
-      if (
-        q &&
-        !(ciContains(t.name, q) || ciContains(t.tagline, q))
-      )
-        return false;
+      if (q && !ciContains(t.name, q)) return false;
       return true;
     });
 
@@ -692,19 +688,14 @@ export const serp = query({
     ]);
     const catById = new Map(categories.map((c) => [c._id, c]));
     const scored = live
-      .filter((t) =>
-        matchTokens(
-          [t.name, t.tagline, t.tags.join("|"), t.description ?? null],
-          tokens,
-        ),
-      )
+      .filter((t) => matchTokens([t.name], tokens))
       .map((t) => ({
         t,
         score: relevanceScore(tokens, {
           name: t.name,
-          tagline: t.tagline,
-          tags: t.tags.join("|"),
-          description: t.description ?? null,
+          tagline: "",
+          tags: "",
+          description: null,
         }),
         editorial:
           (t.editorsPick ? 3 : 0) + (t.curated ? 2 : 0) + (t.pinned ?? 0),
