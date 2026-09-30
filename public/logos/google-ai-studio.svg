@@ -1,0 +1,12 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="#0C1017"/>
+  <path fill="url(#g-studio-grad)" d="M16 3C16 10.18 10.18 16 3 16C10.18 16 16 21.82 16 29C16 21.82 21.82 16 29 16C21.82 16 16 10.18 16 3Z"/>
+  <circle cx="24" cy="8" r="2.5" fill="#34A853"/>
+  <defs>
+    <linearGradient id="g-studio-grad" x1="3" y1="3" x2="29" y2="29" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4285F4"/>
+      <stop offset="50%" stop-color="#A142F4"/>
+      <stop offset="100%" stop-color="#EA4335"/>
+    </linearGradient>
+  </defs>
+</svg>
