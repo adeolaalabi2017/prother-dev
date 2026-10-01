@@ -49,6 +49,8 @@ export function SiteHeader() {
   // Owner-only admin gear — guests render no trace of /admin in the header.
   const privileged = usePrivileged();
 
+  const [logoError, setLogoError] = useState(false);
+
   const isActive = (id: string) => {
     const link = NAV_LINKS.find((l) => l.id === id);
     if (!link) return false;
@@ -68,13 +70,14 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2.5"
           aria-label="Prother home"
         >
-          {brandingLogoUrl ? (
+          {brandingLogoUrl && !logoError ? (
             <img
               src={brandingLogoUrl}
               alt="Prother logo"
+              onError={() => setLogoError(true)}
               className="size-7 rounded-md object-contain"
             />
           ) : (
@@ -90,7 +93,7 @@ export function SiteHeader() {
               href={l.href}
               aria-current={isActive(l.id) ? "true" : undefined}
               className={cn(
-                "relative py-1 text-sm transition-colors",
+                "relative py-1 text-sm font-medium transition-colors",
                 isActive(l.id) ? "text-ember" : "text-white/70 hover:text-white"
               )}
             >
@@ -107,7 +110,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {/* No search box in the bar — the hero search, /tools directory and
               the global ⌘K palette (mounted in layout.tsx) already cover it. */}
           <AuthMenu />
@@ -125,9 +128,10 @@ export function SiteHeader() {
           )}
           <Button
             asChild
-            className="hidden rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot sm:inline-flex dark:text-coal"
+            variant="outline"
+            className="hidden h-9 rounded-lg border-white/15 bg-white/[0.04] px-3.5 font-mono text-xs uppercase tracking-wider text-white/80 transition-colors hover:border-ember/40 hover:bg-white/[0.08] hover:text-ember sm:inline-flex"
           >
-            <Link href="/submit">Submit your tool</Link>
+            <Link href="/submit">Submit Tool</Link>
           </Button>
           <button
             type="button"

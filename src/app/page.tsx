@@ -310,6 +310,52 @@ function AccentHeading({
   );
 }
 
+function EngineeringStandards() {
+  return (
+    <section aria-label="Core Standards" className="border-y border-white/[0.08] bg-white/[0.015] py-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="group relative border-l-2 border-ember/60 pl-4 sm:pl-5">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-ember uppercase">
+              <span>01 / INTEGRITY</span>
+            </div>
+            <h3 className="mt-2 text-base font-bold text-white">
+              Zero Pay-to-Play Rankings
+            </h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
+              No sponsored top slots, launch-day manipulation, or affiliate bias. Placements reflect genuine developer adoption, utility, and verified reviews.
+            </p>
+          </div>
+
+          <div className="group relative border-l-2 border-white/20 pl-4 transition-colors group-hover:border-ember sm:pl-5">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-white/60 uppercase">
+              <span>02 / TELEMETRY</span>
+            </div>
+            <h3 className="mt-2 text-base font-bold text-white">
+              Production-Ready Specs
+            </h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
+              Inspect context window sizes, API throughput, self-hosting requirements, and honest pricing tiers before introducing dependencies to your codebase.
+            </p>
+          </div>
+
+          <div className="group relative border-l-2 border-white/20 pl-4 transition-colors group-hover:border-ember sm:pl-5">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-white/60 uppercase">
+              <span>03 / VERIFICATION</span>
+            </div>
+            <h3 className="mt-2 text-base font-bold text-white">
+              Tested by Practicing Engineers
+            </h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
+              Every tool is independently reviewed by human developers in active projects. Zero hallucinated AI summaries or unverified crawler imports.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CategoryGrid({
   counts,
   copy,
@@ -318,44 +364,69 @@ function CategoryGrid({
   copy: Record<string, string>;
 }) {
   return (
-    <section id="categories" className="bg-ink py-24">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <p className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
-          <span aria-hidden className="h-px w-6 bg-ember/70" />
-          {copy["home.categoriesKicker"] || "Browse by category"}
-        </p>
-        <AccentHeading
-          text={copy["home.categoriesHeading"] || "Find your category."}
-          accent={false}
-          className="mt-3 text-5xl font-black tracking-tighter text-white text-balance md:text-6xl"
-        />
+    <section id="directory" className="bg-ink py-20 md:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
+              TAXONOMY & DIRECTORY
+            </p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
+              {copy["home.categoriesHeading"] || "Browse by architecture & domain."}
+            </h2>
+          </div>
+          <p className="max-w-md text-sm text-white/60 text-pretty">
+            Eight specialized intelligence domains indexed with verified specs, API access, and community ratings.
+          </p>
+        </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CATEGORIES.map((c) => (
-            <Link
-              key={c.slug}
-              href={`/categories/${c.slug}`}
-              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-ember/50"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span
-                  aria-hidden
-                  className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-stone-600 to-orange-700 text-2xl shadow-inner"
+        {/* Architectural Workbench Grid (Replacing generic floating rounded cards) */}
+        <div className="mt-10 overflow-hidden rounded-xl border border-white/10 bg-white/10">
+          <div className="grid gap-px bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
+            {CATEGORIES.map((c, idx) => {
+              const count = counts.get(c.slug) ?? 0;
+              const indexStr = String(idx + 1).padStart(2, "0");
+              return (
+                <Link
+                  key={c.slug}
+                  href={`/categories/${c.slug}`}
+                  className="group relative flex flex-col justify-between bg-ink p-6 transition-all duration-150 hover:bg-white/[0.035]"
                 >
-                  {c.emoji}
-                </span>
-                <span className="font-mono text-xs uppercase tracking-wider text-white/60 tabular-nums group-hover:text-ember">
-                  {counts.get(c.slug) ?? 0} tools
-                </span>
-              </div>
-              <h3 className="mt-4 text-lg font-bold text-white transition-colors group-hover:text-ember">
-                {c.name}
-              </h3>
-              <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-white/50 text-pretty">
-                {firstSentence(CATEGORY_BLURBS[c.slug] ?? "")}
-              </p>
-            </Link>
-          ))}
+                  <div>
+                    {/* Index header */}
+                    <div className="flex items-center justify-between font-mono text-xs text-white/40">
+                      <span className="font-semibold text-ember/80 group-hover:text-ember">
+                        {indexStr}
+                      </span>
+                      <span className="rounded bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium tracking-wider text-white/70 tabular-nums uppercase group-hover:bg-ember/15 group-hover:text-ember">
+                        {count} tools
+                      </span>
+                    </div>
+
+                    {/* Category Title */}
+                    <h3 className="mt-4 flex items-center justify-between text-base font-bold text-white transition-colors group-hover:text-ember">
+                      <span>{c.name}</span>
+                      <span className="font-mono text-xs text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-ember">
+                        →
+                      </span>
+                    </h3>
+
+                    {/* Crisp blurb */}
+                    <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-white/55 text-pretty">
+                      {firstSentence(CATEGORY_BLURBS[c.slug] ?? "")}
+                    </p>
+                  </div>
+
+                  {/* Bottom hairline accent */}
+                  <div className="mt-6 border-t border-white/[0.06] pt-3">
+                    <span className="font-mono text-[11px] font-medium tracking-wider text-white/40 uppercase group-hover:text-white/80">
+                      View Domain Index
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
@@ -380,47 +451,79 @@ function EditorsPicks({
 }) {
   if (picks.length === 0) return null;
   return (
-    <section id="picks" className="bg-ink py-24">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <p className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
-          <span aria-hidden className="text-ember">★</span>
-          {copy["home.picksKicker"] || "Editor's Picks"}
-        </p>
-        <AccentHeading
-          text={copy["home.picksHeading"] || "Hand-tested by our editors."}
-          accent={false}
-          className="mt-3 max-w-2xl text-5xl font-black tracking-tighter text-white text-balance md:text-6xl"
-        />
+    <section id="picks" className="border-t border-white/[0.08] bg-ink py-20 md:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <div className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
+              <span>★</span>
+              <span>VERIFIED BENCHMARKS</span>
+            </div>
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
+              {copy["home.picksHeading"] || "Hand-tested by our engineering team."}
+            </h2>
+          </div>
+          <p className="max-w-md text-sm text-white/60 text-pretty">
+            Highlighted tools audited for production viability, responsive APIs, and transparent pricing terms.
+          </p>
+        </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {picks.map((p) => (
-            <Link
-              key={p.slug}
-              href={`/tools/${p.slug}`}
-              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-ember/50"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <ToolLogo
-                  slug={p.slug}
-                  name={p.name}
-                  logoUrl={p.logoUrl}
-                  emoji={p.logoEmoji}
-                  gradient={p.logoGradient}
-                  size="lg"
-                />
-                <span className="rounded-full border border-ember/40 bg-ember/10 px-2 py-0.5 font-mono text-xs uppercase tracking-[0.2em] text-ember">
-                  Editor&apos;s Pick
-                </span>
-              </div>
-              <h3 className="mt-4 text-lg font-bold text-white transition-colors group-hover:text-ember">
-                {p.name}
-              </h3>
-              <p className="mt-1 line-clamp-2 text-sm text-white/50 text-pretty">{p.tagline}</p>
-              <p className="mt-3 font-mono text-xs uppercase tracking-wider text-white/60">
-                {p.category.emoji} {p.category.name}
-              </p>
-            </Link>
-          ))}
+        {/* Precision Editorial Benchmark Matrix */}
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {picks.map((p) => {
+            const pricingClean = p.pricingModel.replace(/_/g, " ").toUpperCase();
+            return (
+              <Link
+                key={p.slug}
+                href={`/tools/${p.slug}`}
+                className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.025] p-6 transition-all duration-200 hover:border-ember/50 hover:bg-white/[0.045] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+              >
+                <div>
+                  {/* Top Bar: Logo + Name + Pricing Badge */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <ToolLogo
+                        slug={p.slug}
+                        name={p.name}
+                        logoUrl={p.logoUrl}
+                        emoji={p.logoEmoji}
+                        gradient={p.logoGradient}
+                        size="md"
+                      />
+                      <div>
+                        <h3 className="text-base font-bold text-white transition-colors group-hover:text-ember">
+                          {p.name}
+                        </h3>
+                        <p className="font-mono text-[11px] text-white/45">
+                          {p.category.name}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="rounded border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wider text-white/80 uppercase">
+                      {pricingClean}
+                    </span>
+                  </div>
+
+                  {/* Spec Tagline */}
+                  <p className="mt-4 line-clamp-2 text-xs leading-relaxed text-white/65 text-pretty">
+                    {p.tagline}
+                  </p>
+                </div>
+
+                {/* Footer spec bar */}
+                <div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-3">
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ember-tint">
+                    <span className="size-1 rounded-full bg-ember-tint" aria-hidden />
+                    Verified Spec
+                  </span>
+                  <span className="font-mono text-xs text-white/40 transition-colors group-hover:text-ember">
+                    Inspect Tool →
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -429,28 +532,24 @@ function EditorsPicks({
 
 function ClosingBand({ copy }: { copy: Record<string, string> }) {
   return (
-    <section id="submit" className="relative overflow-hidden bg-ink py-28">
-      {/* Bottom ember glow */}
-      <div
-        aria-hidden
-        className="absolute bottom-0 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-ember/20 blur-[100px]"
-      />
-      <div className="relative mx-auto max-w-2xl px-4 text-center sm:px-6">
-        <AccentHeading
-          text={copy["home.closingHeadline"] || "Can't find the\ntool you need?"}
-          accent={false}
-          className="text-6xl leading-[0.95] font-black tracking-tighter text-white text-balance md:text-7xl"
-        />
-        <p className="mt-4 text-white/60 text-pretty">
-          {copy["home.closingSub"] || "Listings are free and reviewed by humans."}
+    <section id="submit" className="border-t border-white/[0.08] bg-ink py-24">
+      <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
+        <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
+          COMMUNITY INDEX
         </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <SubmitOpenButton label="Submit a tool" className="h-12 px-6 text-base" />
+        <h2 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl text-balance">
+          {copy["home.closingHeadline"] || "Building an AI tool for production?"}
+        </h2>
+        <p className="mx-auto mt-4 max-w-xl text-base text-white/65 text-pretty">
+          {copy["home.closingSub"] || "Submit your tool for an independent technical audit. Submissions are free forever and reviewed by human engineers."}
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
+          <SubmitOpenButton label="Submit Your Tool for Review" className="h-11 px-6 text-sm font-semibold" />
           <Link
             href="/tools"
-            className="inline-flex h-12 items-center justify-center rounded-lg border border-white/15 bg-transparent px-6 text-base font-semibold text-white/80 transition-colors hover:border-ember/40 hover:text-ember"
+            className="inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-6 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white"
           >
-            Browse the directory
+            Browse Full Directory
           </Link>
         </div>
       </div>
@@ -514,6 +613,7 @@ export default async function Page() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Hero initialStats={siteData.stats} initialSettings={siteData.settings} />
+      <EngineeringStandards />
       <CategoryTicker />
       <CategoryGrid counts={counts} copy={siteData.settings} />
       <EditorsPicks picks={picks} copy={siteData.settings} />

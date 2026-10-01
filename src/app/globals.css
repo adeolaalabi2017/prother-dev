@@ -480,6 +480,10 @@ html.light {
    --color-white (#26211c), so low opacities fall below WCAG AA on paper
    (text-white/50 ≈ 3.0:1). Pin the dimmest text steps to solid AA-safe
    ink tones and lift hairline borders so they stay visible. */
+html.light .text-white\/40,
+html.light .text-white\/45 {
+  color: #5f5951;
+}
 html.light .text-white\/50 {
   color: #575149;
 }
@@ -488,6 +492,15 @@ html.light .text-white\/55 {
 }
 html.light .text-white\/60 {
   color: #45403a;
+}
+html.light .text-white\/65,
+html.light .text-white\/70,
+html.light .text-white\/75 {
+  color: #38342f;
+}
+html.light .text-white\/80,
+html.light .text-white\/90 {
+  color: #1f1b17;
 }
 html.light .border-white\/10 {
   border-color: color-mix(in oklab, #26211c 22%, transparent);

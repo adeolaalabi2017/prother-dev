@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
+import { ArrowRight, Compass, Scale, ShieldCheck, Sparkles } from "lucide-react";
 import GatewayFlow from "@/components/ui/gateway-flow";
 
 // Client-only: hero-search subscribes via convex/react, whose module
@@ -25,8 +27,8 @@ export function formatAnnouncement(
   template: string,
   stats: SiteStats | null,
 ): string {
-  const toolCount = stats ? stats.tools : 46;
-  const catCount = stats ? stats.categories : 7;
+  const toolCount = stats ? stats.tools : 108;
+  const catCount = stats ? stats.categories : 8;
   const revCount = stats ? stats.reviews : 0;
   const comCount = stats ? stats.comments : 0;
 
@@ -52,10 +54,10 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
     announcement:
       initialSettings?.["hero.announcement"] ||
       "{count} tools indexed: free forever",
-    headline: initialSettings?.["hero.headline"] || "Find the right AI tool.",
+    headline: initialSettings?.["hero.headline"] || "Find the best AI Tools.",
     subline:
       initialSettings?.["hero.subline"] ||
-      "Prother is a curated search and discovery directory for AI products and tools. Compare pricing, read real reviews, and save your stack. No launch games, no pay-to-win ranking.",
+      "A curated directory of AI products and tools. Search, compare, and read real reviews, before you commit your workflow.",
   }));
   const [stats, setStats] = useState<SiteStats | null>(initialStats ?? null);
 
@@ -82,88 +84,118 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
     };
   }, []);
 
-  // Last word renders in ember — "Find the right AI tool." → tool.
-  const headlineWords = copy.headline.split(" ");
-  const headlineBody = headlineWords.slice(0, -1).join(" ");
-  const headlineAccent = headlineWords.at(-1) ?? "";
-
+  const cleanHeadline = copy.headline.replace(/\.$/, "");
   const announcement = formatAnnouncement(copy.announcement, stats);
 
   return (
-    <section id="top" className="relative pt-16 pb-20 md:pt-20">
-      {/* Gateway Flow background — dashed bezier streams converge on the hero
-          center with ember particles riding the curves; clicking the hero fires
-          a shockwave that bends the flow. Replaces the rings/rays backdrop.
-          Clipping lives HERE on the decorative layer, not on the section:
-          the section must not clip the hero search dropdown, which floats
-          below the fold when open. */}
+    <section id="top" className="relative pt-12 pb-16 md:pt-16 md:pb-20">
+      {/* Gateway Flow background — subtle ember particles and convergence */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(circle at 50% 46%, rgba(255,106,0,0.13) 0%, rgba(255,106,0,0.05) 34%, transparent 62%)",
+              "radial-gradient(circle at 50% 40%, rgba(255,106,0,0.12) 0%, rgba(255,106,0,0.04) 36%, transparent 64%)",
           }}
         />
         <GatewayFlow
           className="absolute inset-0"
-          speed={0.9}
-          density={0.85}
-          opacity={0.9}
+          speed={0.8}
+          density={0.75}
+          opacity={0.85}
         />
       </div>
 
-      <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
+      <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
         >
-          <p className="inline-flex items-center rounded-full border border-ember/40 bg-ember/10 px-4 py-1.5 font-mono text-xs text-ember-tint">
+          {/* Architectural Telemetry Badge */}
+          <div className="inline-flex items-center gap-2 rounded border border-ember/30 bg-ember/10 px-3.5 py-1 font-mono text-[11px] font-medium tracking-wider uppercase text-ember-tint shadow-[0_0_16px_rgba(255,106,0,0.15)]">
             <span
-              className="mr-2 inline-block size-1.5 rounded-full bg-ember-tint animate-status-pulse"
+              className="inline-block size-1.5 rounded-full bg-ember-tint animate-status-pulse"
               aria-hidden
             />
-            {announcement}
-          </p>
+            <span className="font-semibold text-ember">VERIFIED REGISTRY</span>
+            <span className="text-white/20">/</span>
+            <span>{announcement}</span>
+          </div>
 
-          <h1 className="mt-6 text-6xl leading-[0.95] font-black tracking-tighter text-white text-balance md:text-7xl xl:text-8xl">
-            {headlineBody ? (
-              <>
-                {headlineBody}
-                <br />
-                {headlineAccent}
-              </>
-            ) : (
-              headlineAccent
-            )}
+          {/* Balanced High-Impact Headline */}
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl text-balance">
+            {cleanHeadline}
+            <span className="text-ember">.</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-xl text-lg text-white/70 text-pretty">
-            {copy.subline}
+          {/* Clear Value Proposition: What it is + Who it is for + Why it matters */}
+          <p className="mx-auto mt-5 max-w-2xl text-base text-white/75 sm:text-lg sm:leading-relaxed text-pretty">
+            The independent software & model directory for engineers, founders, and technical teams.
+            Compare production specs, verified pricing, and real developer reviews—with <strong className="font-semibold text-white">zero pay-to-play ranking</strong>.
           </p>
 
-          {/* Discovery-first hero: comprehensive search over the whole
-              directory — tools, categories, and journal in one dropdown. */}
-          <div className="mx-auto mt-8 w-full max-w-xl">
+          {/* Clear Next Steps: Primary & Secondary CTAs */}
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="#directory"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ember px-6 text-sm font-semibold text-coal shadow-[0_0_24px_rgba(255,106,0,0.28)] transition-all hover:bg-ember-hot hover:shadow-[0_0_32px_rgba(255,106,0,0.4)]"
+            >
+              <Compass className="size-4" />
+              <span>Explore {stats ? stats.tools : 108}+ Vetted Tools</span>
+              <ArrowRight className="size-4 opacity-70" />
+            </a>
+            <Link
+              href="/compare"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-5 text-sm font-medium text-white/90 backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/[0.08]"
+            >
+              <Scale className="size-4 text-ember-tint" />
+              <span>Compare Stacks</span>
+            </Link>
+          </div>
+
+          {/* Discovery Console: Hero Search */}
+          <div className="mx-auto mt-7 w-full max-w-2xl">
             <HeroSearch />
           </div>
 
-          <ul className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2">
-            {[
-              { label: `${stats ? stats.tools : 46} tools indexed` },
-              { label: `${stats ? stats.categories : 7} categories` },
-              { label: stats ? `${stats.reviews} reviews` : "real reviews" },
-              { label: "$0 forever" },
-            ].map((s) => (
-              <li
-                key={s.label}
-                className="font-mono text-xs tracking-[0.2em] text-white/50 uppercase tabular-nums"
-              >
-                {s.label}
-              </li>
-            ))}
-          </ul>
+          {/* Structured Telemetry Proof Bar */}
+          <div className="mx-auto mt-10 max-w-3xl border-t border-white/[0.08] pt-6">
+            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="text-center">
+                <dt className="font-mono text-[10px] tracking-widest text-white/40 uppercase">
+                  VERIFIED INDEX
+                </dt>
+                <dd className="mt-1 font-mono text-sm font-bold text-white tabular-nums">
+                  {stats ? stats.tools : 108} Tools
+                </dd>
+              </div>
+              <div className="text-center">
+                <dt className="font-mono text-[10px] tracking-widest text-white/40 uppercase">
+                  RANKING INTEGRITY
+                </dt>
+                <dd className="mt-1 font-mono text-sm font-bold text-ember">
+                  0% Pay-to-Win
+                </dd>
+              </div>
+              <div className="text-center">
+                <dt className="font-mono text-[10px] tracking-widest text-white/40 uppercase">
+                  TAXONOMY
+                </dt>
+                <dd className="mt-1 font-mono text-sm font-bold text-white tabular-nums">
+                  {stats ? stats.categories : 8} Domains
+                </dd>
+              </div>
+              <div className="text-center">
+                <dt className="font-mono text-[10px] tracking-widest text-white/40 uppercase">
+                  ACCESS MODEL
+                </dt>
+                <dd className="mt-1 font-mono text-sm font-bold text-mint">
+                  $0 Free Forever
+                </dd>
+              </div>
+            </dl>
+          </div>
         </motion.div>
       </div>
     </section>
