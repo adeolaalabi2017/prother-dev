@@ -7,23 +7,8 @@ import { ConvexClientProvider } from "@/components/prother/convex-provider";
 import { ScrollProgress } from "@/components/prother/scroll-progress";
 import { SiteHeader } from "@/components/prother/site-header";
 import { SiteFooter } from "@/components/prother/site-footer";
-// Client-only overlay: tool-explorer subscribes via convex/react (see
-// convex-provider.tsx for why it must not enter the SSR graph).
-import { SubmitWizard } from "@/components/prother/submit-wizard";
-import { StatusTracker } from "@/components/prother/status-tracker";
-import { EditorConsole } from "@/components/prother/editor-console";
-import { CompareTray } from "@/components/prother/compare-tray";
-import { DeepLinkHost } from "@/components/prother/deep-link-host";
-import { CollectionsMineFullPage } from "@/components/prother/collections-mine-full-page";
-import { SavedFullPage } from "@/components/prother/saved-full-page";
-import { CollectionFullPage } from "@/components/prother/collection-full-page";
-import { CategoryFullPage } from "@/components/prother/category-full-page";
-import { CompareFullPage } from "@/components/prother/compare-full-page";
-import { PostFullPage } from "@/components/prother/post-full-page";
-import { ToolFullPage } from "@/components/prother/tool-full-page";
-import { BackToTop } from "@/components/prother/back-to-top";
+import { GlobalOverlays } from "@/components/prother/global-overlays";
 import { AnalyticsPing } from "@/components/prother/analytics-ping";
-import { ToolExplorerHost } from "@/components/prother/tool-explorer-host";
 import { siteUrl } from "@/lib/site-url";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowSite } from "@/lib/data";
@@ -101,10 +86,13 @@ export async function generateMetadata(): Promise<Metadata> {
     alternates: {
       types: { "application/rss+xml": "/api/rss" },
     },
-    // Uploaded favicon (Task 35 branding) — replaces the default icon set
-    // when the editor has configured one; no src/app/favicon.ico exists, so
-    // unset keeps the previous no-icon behavior.
-    ...(faviconUrl ? { icons: [{ url: faviconUrl }] } : {}),
+    icons: faviconUrl
+      ? [{ url: faviconUrl }]
+      : [
+          { url: "/favicon.ico", sizes: "32x32" },
+          { url: "/icon.png", sizes: "32x32", type: "image/png" },
+          { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+        ],
   };
 }
 
@@ -134,22 +122,8 @@ export default function RootLayout({
                 <SiteHeader />
                 <main className="flex-1">{children}</main>
                 <SiteFooter />
-                <ToolExplorerHost />
-                <SubmitWizard />
-                <StatusTracker />
-                <EditorConsole />
-                <CompareTray />
-                <DeepLinkHost />
-                {/* Full-page deep-link stack — each renders null when closed */}
-                <CollectionsMineFullPage />
-                <SavedFullPage />
-                <CollectionFullPage />
-                <CategoryFullPage />
-                <CompareFullPage />
-                <PostFullPage />
-                <ToolFullPage />
-                <BackToTop />
-                {/* First-party, cookieless pageview ping (Task 28) — renders null */}
+                <GlobalOverlays />
+                {/* First-party, cookieless pageview ping (Task 28) - renders null */}
                 <AnalyticsPing />
               </div>
             </ConvexClientProvider>

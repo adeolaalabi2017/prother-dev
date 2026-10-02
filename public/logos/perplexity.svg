@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="#0E1317"/>
+  <!-- Perplexity Asterism Symbol -->
+  <g transform="translate(6, 6)">
+    <path d="M10 0V20M0 10H20" stroke="#22B8CD" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M2.93 2.93L17.07 17.07M17.07 2.93L2.93 17.07" stroke="#22B8CD" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="10" cy="10" r="2.5" fill="#FFFFFF"/>
+    <path d="M10 3.5L14.6 6.16V13.84L10 16.5L5.4 13.84V6.16L10 3.5Z" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round"/>
+  </g>
+</svg>

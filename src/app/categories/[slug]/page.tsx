@@ -13,7 +13,7 @@ import { shadowCategoryDetail } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
 
 /**
- * /categories/[slug] — the real, crawlable category page (Task 25).
+ * /categories/[slug] - the real, crawlable category page (Task 25).
  * Ranked grid of live tools in the category (server-rendered static links),
  * the curated SEO blurb from lib/category-blurbs, an ItemList JSON-LD over
  * the tools, and a BreadcrumbList (free from <Breadcrumbs />).
@@ -147,16 +147,89 @@ export default async function CategoryPage({ params }: Params) {
           </p>
           <div className="mt-5">
             <Link
-              href={`/compare?category=${category.slug}`}
+              href={`/compare/${category.slug}`}
               className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ember/40 px-5 text-sm font-semibold text-ember transition-colors hover:bg-ember/10"
             >
               <Scale className="size-4" aria-hidden />
-              Compare tools
+              Compare {category.name} tools
             </Link>
           </div>
         </header>
 
-        {/* Category Spotlight — the top slot sold on /advertise. Category-
+        {/* Head-to-Head Showdowns in this category */}
+        {tools.length >= 2 && (
+          <section
+            aria-label={`Compare ${category.name} tools`}
+            className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6"
+          >
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-mono text-xs uppercase tracking-[0.25em] text-ember">
+                  Head-to-Head Showdowns
+                </h2>
+                <p className="mt-1 text-sm text-white/70">
+                  Compare top {category.name.toLowerCase()} tools side by side.
+                </p>
+              </div>
+              <Link
+                href={`/compare/${category.slug}`}
+                className="mt-2 inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-white/50 transition-colors hover:text-ember sm:mt-0"
+              >
+                Full comparison table
+                <ArrowUpRight className="size-3" aria-hidden />
+              </Link>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                [tools[0], tools[1]],
+                ...(tools.length >= 3 ? [[tools[0], tools[2]]] : []),
+                ...(tools.length >= 4 ? [[tools[1], tools[2]]] : []),
+              ].map(([tA, tB]) => (
+                <Link
+                  key={`${tA.slug}-vs-${tB.slug}`}
+                  href={`/compare/${tA.slug}-vs-${tB.slug}`}
+                  className="group flex items-center justify-between rounded-xl border border-white/10 bg-black/40 p-3.5 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ToolLogo
+                      slug={tA.slug}
+                      name={tA.name}
+                      logoUrl={tA.logoUrl}
+                      emoji={tA.emoji}
+                      size="xs"
+                      className="size-6 rounded"
+                    />
+                    <span className="text-xs font-semibold text-white/85 group-hover:text-ember">
+                      {tA.name}
+                    </span>
+                    <span className="font-mono text-[10px] text-white/40 uppercase">
+                      vs
+                    </span>
+                    <ToolLogo
+                      slug={tB.slug}
+                      name={tB.name}
+                      logoUrl={tB.logoUrl}
+                      emoji={tB.emoji}
+                      size="xs"
+                      className="size-6 rounded"
+                    />
+                    <span className="text-xs font-semibold text-white/85 group-hover:text-ember">
+                      {tB.name}
+                    </span>
+                  </div>
+
+                  <ArrowUpRight
+                    className="size-3.5 text-white/40 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+                    aria-hidden
+                  />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Category Spotlight - the top slot sold on /advertise. Category-
             targeted campaigns win here (targetCategory = slug or null). */}
         {spotlightOn && (
           <AdSlot
@@ -167,7 +240,7 @@ export default async function CategoryPage({ params }: Params) {
           />
         )}
 
-        {/* Ranked grid — real links to the SSR tool pages */}
+        {/* Ranked grid - real links to the SSR tool pages */}
         <div className="pb-24 pt-8">
           {tools.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
@@ -240,7 +313,7 @@ export default async function CategoryPage({ params }: Params) {
             </div>
           )}
 
-          {/* Cross-links — the directory stays one hop away */}
+          {/* Cross-links - the directory stays one hop away */}
           <p className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
             <Link href="/tools" className="transition-colors hover:text-ember">
               Browse the full directory

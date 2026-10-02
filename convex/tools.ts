@@ -119,11 +119,19 @@ export const directory = query({
     const categories = await ctx.db.query("categories").collect();
     const catById = new Map(categories.map((c) => [c._id, c]));
 
+    const qTokens = q ? tokenize(q) : [];
     let matching = all.filter((t) => {
       if (category && t.categoryId !== category._id) return false;
       if (pricing && t.pricingModel !== pricing) return false;
       if (tag && !ciContains(t.tags.join("|"), tag)) return false;
-      if (q && !ciContains(t.name, q)) return false;
+      if (
+        qTokens.length > 0 &&
+        !matchTokens(
+          [t.name, t.tagline, t.tags.join(" "), t.description],
+          qTokens,
+        )
+      )
+        return false;
       return true;
     });
 
@@ -188,14 +196,30 @@ export const directory = query({
           a._creationTime - b._creationTime,
       );
     } else {
-      matching.sort(
-        (a, b) =>
+      matching.sort((a, b) => {
+        if (qTokens.length > 0) {
+          const scoreA = relevanceScore(qTokens, {
+            name: a.name,
+            tagline: a.tagline,
+            tags: a.tags.join(" "),
+            description: a.description ?? null,
+          });
+          const scoreB = relevanceScore(qTokens, {
+            name: b.name,
+            tagline: b.tagline,
+            tags: b.tags.join(" "),
+            description: b.description ?? null,
+          });
+          if (scoreB !== scoreA) return scoreB - scoreA;
+        }
+        return (
           Number(b.pinned) - Number(a.pinned) ||
           Number(b.editorsPick) - Number(a.editorsPick) ||
           Number(b.curated) - Number(a.curated) ||
           b.createdAt - a.createdAt ||
-          a._creationTime - b._creationTime,
-      );
+          a._creationTime - b._creationTime
+        );
+      });
     }
 
     const total = matching.length;

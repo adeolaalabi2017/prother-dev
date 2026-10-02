@@ -20,17 +20,18 @@ import { ToolInstallBox } from "@/components/prother/tool-install-box";
 import { ToolReviewsSection } from "@/components/prother/tool-reviews-section";
 import { AboutClamp } from "@/components/prother/about-clamp";
 import { ClaimListing } from "@/components/prother/claim-listing";
+import { ToolBadgeEmbed } from "@/components/prother/tool-badge-embed";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowToolPageData } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
 
 /**
- * /tools/[slug] — the real, crawlable tool detail page (Task 25).
+ * /tools/[slug] - the real, crawlable tool detail page (Task 25).
  *
  * Server-rendered from the ORM: header, badges, pricing/maker/listing meta,
  * description, tags, links, published reviews (with the shared reviewStats
  * aggregate), forum mentions and related tools. The only client island is
- * <ToolDetailActions /> (save / compare / share / report) — everything else
+ * <ToolDetailActions /> (save / compare / share / report) - everything else
  * is static HTML so search engines see the full listing.
  *
  * Task 35-c editorial enrichment: long about copy, pricing facts panel,
@@ -45,7 +46,7 @@ type Params = { params: Promise<{ slug: string }> };
 
 const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
 
-// ── Formatting helpers (server-only, deterministic UTC — hydration-safe) ─
+// ── Formatting helpers (server-only, deterministic UTC - hydration-safe) ─
 
 const MONTHS = [
   "Jan",
@@ -68,7 +69,7 @@ function utcDateLabel(v: Date | string): string {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
 }
 
-/** "Mar 2026" — the Listed-date format. */
+/** "Mar 2026" - the Listed-date format. */
 function utcMonthYear(v: Date | string): string {
   const d = typeof v === "string" ? new Date(v) : v;
   if (Number.isNaN(d.getTime())) return "";
@@ -284,7 +285,7 @@ export default async function ToolPage({ params }: Params) {
   const tool = bundle.tool;
   const name = tool.name;
 
-  // ── Full live listing — everything below is server-rendered ────────────
+  // ── Full live listing - everything below is server-rendered ────────────
   const [
     stats,
     reviews,
@@ -318,7 +319,7 @@ export default async function ToolPage({ params }: Params) {
     contentUpdatedAt: null,
   };
   // Alternatives arrive resolved in the Convex bundle; the fallback below
-  // only runs when editors listed slugs the bundle didn't resolve — and it
+  // only runs when editors listed slugs the bundle didn't resolve - and it
   // must never break the page (it still hits the legacy Prisma reader).
   let alternatives = bundle.alternatives;
   if (alternatives.length === 0 && editorial.alternativeSlugs.length > 0) {
@@ -352,7 +353,7 @@ export default async function ToolPage({ params }: Params) {
     .map((t) => t.trim())
     .filter(Boolean);
 
-  // JSON-LD — SoftwareApplication. aggregateRating appears ONLY when the
+  // JSON-LD - SoftwareApplication. aggregateRating appears ONLY when the
   // real aggregate exists (≥3 published reviews); ratings are never faked.
   const priceMatch = (tool.startingPrice ?? "").match(/(\d+(?:\.\d+)?)/);
   const softwareAppJsonLd = {
@@ -426,7 +427,7 @@ export default async function ToolPage({ params }: Params) {
               </div>
             </div>
 
-            {/* Badge chips — mirror tool-full-page.tsx */}
+            {/* Badge chips - mirror tool-full-page.tsx */}
             <ul
               className="flex flex-wrap items-center gap-1.5"
               aria-label="Badges"
@@ -495,7 +496,7 @@ export default async function ToolPage({ params }: Params) {
               </span>
             </p>
 
-            {/* Category chip + rating — a real link to the crawlable category page */}
+            {/* Category chip + rating - a real link to the crawlable category page */}
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={`/categories/${tool.category.slug}`}
@@ -533,7 +534,7 @@ export default async function ToolPage({ params }: Params) {
             />
           </header>
 
-          {/* b. About — the editors' long description wins when present,
+          {/* b. About - the editors' long description wins when present,
               split into real paragraphs for crawlers; the short listing copy
               (with its Read more clamp) remains the fallback. */}
           {(longParagraphs.length > 0 || tool.description) && (
@@ -556,7 +557,7 @@ export default async function ToolPage({ params }: Params) {
             </section>
           )}
 
-          {/* b1. Pricing (Task 35-c) — compact facts panel; renders whenever
+          {/* b1. Pricing (Task 35-c) - compact facts panel; renders whenever
               the listing carries a model, a price or an editor note. */}
           {(tool.pricingModel || tool.startingPrice || tool.pricingNote) && (
             <section aria-label={`Pricing for ${name}`} className="space-y-3">
@@ -590,7 +591,7 @@ export default async function ToolPage({ params }: Params) {
             </section>
           )}
 
-          {/* b2. Screenshots (Task 35-c layout) — crawlable link grid; each
+          {/* b2. Screenshots (Task 35-c layout) - crawlable link grid; each
               shot opens full size in a new tab. */}
           {screenshots.length > 0 && (
             <section
@@ -620,7 +621,7 @@ export default async function ToolPage({ params }: Params) {
             </section>
           )}
 
-          {/* b3. Use cases (Task 35-c) — editor-written, mono-indexed rows. */}
+          {/* b3. Use cases (Task 35-c) - editor-written, mono-indexed rows. */}
           {editorial.useCases.length > 0 && (
             <section aria-label={`Use cases for ${name}`} className="space-y-3">
               <h2 className={SECTION_HEAD}>Use cases</h2>
@@ -650,7 +651,7 @@ export default async function ToolPage({ params }: Params) {
             </section>
           )}
 
-          {/* b4. Pros and cons (Task 35-c) — side-by-side verdict panels. */}
+          {/* b4. Pros and cons (Task 35-c) - side-by-side verdict panels. */}
           {(editorial.pros.length > 0 || editorial.cons.length > 0) && (
             <section
               aria-label={`Pros and cons of ${name}`}
@@ -728,6 +729,9 @@ export default async function ToolPage({ params }: Params) {
             claimed={tool.claimed}
           />
 
+          {/* c3. Embed badge - live badge for READMEs and websites */}
+          <ToolBadgeEmbed slug={tool.slug} name={name} />
+
           {/* d. Links */}
           <section aria-label="Links" className="space-y-3">
             <h2 className={SECTION_HEAD}>Links</h2>
@@ -785,7 +789,7 @@ export default async function ToolPage({ params }: Params) {
             initialAggregate={aggregate}
           />
 
-          {/* f. Discussion — forum threads mentioning this tool */}
+          {/* f. Discussion - forum threads mentioning this tool */}
           <section aria-label="Discussion" className="space-y-3">
             <h2 className={SECTION_HEAD}>Discussion</h2>
             {threads.length > 0 && (
@@ -826,7 +830,7 @@ export default async function ToolPage({ params }: Params) {
             </Link>
           </section>
 
-          {/* g2. Alternatives (Task 35-c) — editor-picked rivals resolved to
+          {/* g2. Alternatives (Task 35-c) - editor-picked rivals resolved to
               live listings only (unknown slugs are skipped by the helper). */}
           {alternatives.length > 0 && (
             <section
@@ -836,49 +840,62 @@ export default async function ToolPage({ params }: Params) {
               <h2 className={SECTION_HEAD}>Alternatives</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {alternatives.map((a) => (
-                  <Link
+                  <div
                     key={a.slug}
-                    href={`/tools/${a.slug}`}
-                    aria-label={`Open ${a.name}: ${a.tagline}`}
-                    className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
+                    className="group flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                   >
-                    <ToolLogo
-                      slug={a.slug}
-                      name={a.name}
-                      logoUrl={a.logoUrl}
-                      emoji={a.logoEmoji}
-                      gradient={a.logoGradient}
-                      size="md"
-                    />
-                    <span className="mt-2.5 flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
-                        {a.name}
-                      </span>
-                      {a.editorsPick && (
-                        <span
-                          aria-label="Editor's Pick"
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase"
-                        >
-                          <Star className="size-2.5 fill-current" aria-hidden />
-                          Pick
+                    <Link
+                      href={`/tools/${a.slug}`}
+                      aria-label={`Open ${a.name}: ${a.tagline}`}
+                      className="block"
+                    >
+                      <ToolLogo
+                        slug={a.slug}
+                        name={a.name}
+                        logoUrl={a.logoUrl}
+                        emoji={a.logoEmoji}
+                        gradient={a.logoGradient}
+                        size="md"
+                      />
+                      <span className="mt-2.5 flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
+                          {a.name}
                         </span>
-                      )}
-                    </span>
-                    <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
-                      {a.tagline}
-                    </span>
-                    <span className="mt-2.5 block">
+                        {a.editorsPick && (
+                          <span
+                            aria-label="Editor's Pick"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase"
+                          >
+                            <Star className="size-2.5 fill-current" aria-hidden />
+                            Pick
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
+                        {a.tagline}
+                      </span>
+                    </Link>
+
+                    <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/5 pt-3">
                       <span className={chipCx("text-white/55")}>
                         {PRICING_LABEL[a.pricingModel] ?? a.pricingModel}
                       </span>
-                    </span>
-                  </Link>
+                      <Link
+                        href={`/compare/${tool.slug}-vs-${a.slug}`}
+                        className="inline-flex items-center gap-1 font-mono text-xs font-semibold tracking-wider text-ember-tint uppercase transition-colors hover:text-ember"
+                        title={`Compare ${name} vs ${a.name}`}
+                      >
+                        <span>Compare</span>
+                        <ArrowUpRight className="size-3" aria-hidden />
+                      </Link>
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
           )}
 
-          {/* g. Category context (Task 35-c panel) + More like this — the
+          {/* g. Category context (Task 35-c panel) + More like this - the
               panel carries the crawlable category intro and live listing
               count; the sibling grid below stays the one "more in" surface,
               so no duplicate chip list of the same tools is rendered. */}
@@ -950,7 +967,7 @@ export default async function ToolPage({ params }: Params) {
           </section>
         </article>
 
-        {/* Back to the directory — crawlable path Home → /tools → tool */}
+        {/* Back to the directory - crawlable path Home → /tools → tool */}
         <p className="mt-14 border-t border-white/10 pt-6">
           <Link
             href="/tools"

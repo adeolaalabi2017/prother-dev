@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/about" },
   title: "About Prother, the AI tools directory",
   description:
-    "How Prother works: a curated search & discovery platform for AI tools, with 7 categories, six published listing standards, and honest reviews. No link dumps, no pay-to-win.",
+    "How Prother works: a curated search & discovery platform for AI tools, with 8 categories, six published listing standards, and honest reviews. No link dumps, no pay-to-win.",
   keywords: [
     "About Prother",
     "AI tools directory",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "About Prother, the AI tools directory",
     description:
-      "A curated search & discovery platform for AI tools: 7 categories, six published listing standards, and honest reviews.",
+      "A curated search & discovery platform for AI tools: 8 categories, six published listing standards, and honest reviews.",
     siteName: "Prother",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
@@ -28,12 +28,12 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "About Prother, the AI tools directory",
     description:
-      "A curated search & discovery platform for AI tools: 7 categories, six published listing standards, and honest reviews.",
+      "A curated search & discovery platform for AI tools: 8 categories, six published listing standards, and honest reviews.",
     images: ["/api/og"],
   },
 };
 
-/** /about — the full story, assembled from the dedicated section components. */
+/** /about - the full story, assembled from the dedicated section components. */
 export default function AboutPage() {
   return (
     <div className="pb-16 md:pb-0">
@@ -49,7 +49,7 @@ export default function AboutPage() {
           <p className="mt-4 max-w-2xl text-lg text-white/60">
             Prother is a curated search &amp; discovery platform for AI products
             and tools, every listing reviewed against published standards,
-            organized into 7 categories, and rated by honest reviews. This page
+            organized into 8 categories, and rated by honest reviews. This page
             is the whole story: how the directory works, what we build for, and
             the bar every listing clears.
           </p>

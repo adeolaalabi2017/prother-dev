@@ -32,7 +32,7 @@ const payloadSchema = z.object({
     .max(500, "Description must be 500 characters or fewer"),
   categorySlug: z.string().refine(
     (slug) => CATEGORIES.some((c) => c.slug === slug),
-    "Pick one of the 7 categories"
+    "Pick one of the 8 categories"
   ),
   tags: z.array(z.enum(TAG_VOCAB)).max(5).default([]),
   pricingModel: z.enum(["free", "freemium", "paid", "open_source"]),

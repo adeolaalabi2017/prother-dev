@@ -146,7 +146,7 @@ export default function SubmitPage() {
               className="h-12 px-6 text-base"
             />
             <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
-              6 standards · 7 categories · $0
+              6 standards · 8 categories · $0
             </p>
           </div>
         </div>

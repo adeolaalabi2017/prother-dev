@@ -9,6 +9,8 @@ import { createServerConvexClient } from "@/lib/convex";
 import { shadowOgPost, shadowOgTool } from "@/lib/data";
 import { CATEGORIES } from "@/components/prother/categories";
 
+import { siteUrl } from "@/lib/site-url";
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -22,7 +24,7 @@ export const dynamic = "force-dynamic";
  * and the ?tool= generateMetadata on the root page.
  *
  * The ?category= variant exists because the category and comparison pages
- * have no per-entity card otherwise — they all unfurl as the generic site
+ * have no per-entity card otherwise - they all unfurl as the generic site
  * image, which makes every share of a category look identical.
  */
 
@@ -39,6 +41,7 @@ async function getToolData(slug: string) {
     tagline: t.tagline,
     emoji: t.emoji,
     gradient: GRADIENT_HEX[t.gradient] ?? OG_FALLBACK_GRADIENT,
+    logoUrl: (t as any).logoUrl ?? null,
     category: t.category,
     editorsPick: t.editorsPick,
   };
@@ -88,14 +91,21 @@ function Chip({
 }
 
 export async function GET(req: Request) {
+  const origin = new URL(req.url).origin || siteUrl();
   const sp = new URL(req.url).searchParams;
   const postSlug = sp.get("post");
   const slug = sp.get("tool");
   const categorySlug = sp.get("category");
-  const tool = postSlug ? null : slug ? await getToolData(slug) : null;
+  const aSlug = sp.get("a");
+  const bSlug = sp.get("b");
+  const isVs = Boolean(aSlug && bSlug);
+  const [toolA, toolB] = isVs
+    ? await Promise.all([getToolData(aSlug!), getToolData(bSlug!)])
+    : [null, null];
+  const tool = postSlug || isVs ? null : slug ? await getToolData(slug) : null;
   const post = postSlug ? await getPostData(postSlug) : null;
   const category =
-    !tool && !post && categorySlug
+    !tool && !post && !isVs && categorySlug
       ? CATEGORIES.find((c) => c.slug === categorySlug)
       : undefined;
 
@@ -198,10 +208,219 @@ export async function GET(req: Request) {
     </div>
   );
 
-  const element = tool ? (
-    <div style={shell}>
-      {topBar}
-      <div style={{ display: "flex", alignItems: "center", gap: 44 }}>
+  const element =
+    toolA && toolB ? (
+      <div style={shell}>
+        {topBar}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 24,
+            margin: "12px 0",
+          }}
+        >
+          {/* Tool A */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 24,
+              flex: 1,
+              backgroundColor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 28,
+              padding: "24px 28px",
+            }}
+          >
+            <div
+              style={{
+                width: 110,
+                height: 110,
+                borderRadius: 24,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#141312",
+                border: "1px solid rgba(255,255,255,0.16)",
+                overflow: "hidden",
+                flexShrink: 0,
+              }}
+            >
+              {toolA.logoUrl ? (
+                <img
+                  src={
+                    toolA.logoUrl.startsWith("http")
+                      ? toolA.logoUrl
+                      : `${origin}${toolA.logoUrl}`
+                  }
+                  alt={toolA.name}
+                  width={76}
+                  height={76}
+                  style={{ width: 76, height: 76, objectFit: "contain" }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 54,
+                    backgroundImage: `linear-gradient(135deg, ${toolA.gradient[0]}, ${toolA.gradient[1]})`,
+                  }}
+                >
+                  {toolA.emoji}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <div
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 14,
+                  letterSpacing: 3,
+                  color: C.ember,
+                  marginBottom: 6,
+                }}
+              >
+                {toolA.category.name.toUpperCase()}
+              </div>
+              <div
+                style={{
+                  fontSize: 40,
+                  fontWeight: 900,
+                  color: C.white,
+                  letterSpacing: -1,
+                  fontFamily: SANS,
+                  lineHeight: 1.1,
+                }}
+              >
+                {clamp(toolA.name, 18)}
+              </div>
+            </div>
+          </div>
+
+          {/* VS Badge */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 72,
+              height: 72,
+              borderRadius: 999,
+              backgroundColor: "rgba(255,106,0,0.12)",
+              border: "2px solid rgba(255,106,0,0.5)",
+              color: C.ember,
+              fontFamily: MONO,
+              fontSize: 24,
+              fontWeight: 900,
+              letterSpacing: 2,
+              flexShrink: 0,
+            }}
+          >
+            VS
+          </div>
+
+          {/* Tool B */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 24,
+              flex: 1,
+              backgroundColor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 28,
+              padding: "24px 28px",
+            }}
+          >
+            <div
+              style={{
+                width: 110,
+                height: 110,
+                borderRadius: 24,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#141312",
+                border: "1px solid rgba(255,255,255,0.16)",
+                overflow: "hidden",
+                flexShrink: 0,
+              }}
+            >
+              {toolB.logoUrl ? (
+                <img
+                  src={
+                    toolB.logoUrl.startsWith("http")
+                      ? toolB.logoUrl
+                      : `${origin}${toolB.logoUrl}`
+                  }
+                  alt={toolB.name}
+                  width={76}
+                  height={76}
+                  style={{ width: 76, height: 76, objectFit: "contain" }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 54,
+                    backgroundImage: `linear-gradient(135deg, ${toolB.gradient[0]}, ${toolB.gradient[1]})`,
+                  }}
+                >
+                  {toolB.emoji}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <div
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 14,
+                  letterSpacing: 3,
+                  color: C.ember,
+                  marginBottom: 6,
+                }}
+              >
+                {toolB.category.name.toUpperCase()}
+              </div>
+              <div
+                style={{
+                  fontSize: 40,
+                  fontWeight: 900,
+                  color: C.white,
+                  letterSpacing: -1,
+                  fontFamily: SANS,
+                  lineHeight: 1.1,
+                }}
+              >
+                {clamp(toolB.name, 18)}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <Chip borderColor="rgba(255,106,0,0.45)" color={C.ember}>
+            SIDE BY SIDE COMPARISON
+          </Chip>
+          <Chip borderColor={C.white18} color={C.white70}>
+            RATINGS & FEATURES
+          </Chip>
+        </div>
+        {bottomBar}
+      </div>
+    ) : tool ? (
+      <div style={shell}>
+        {topBar}
+        <div style={{ display: "flex", alignItems: "center", gap: 44 }}>
         <div
           style={{
             width: 176,
@@ -210,13 +429,39 @@ export async function GET(req: Request) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 88,
+            backgroundColor: "#141312",
             border: "2px solid rgba(255,255,255,0.16)",
-            backgroundImage: `linear-gradient(135deg, ${tool.gradient[0]}, ${tool.gradient[1]})`,
             boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+            overflow: "hidden",
           }}
         >
-          {tool.emoji}
+          {tool.logoUrl ? (
+            <img
+              src={tool.logoUrl.startsWith("http") ? tool.logoUrl : `${origin}${tool.logoUrl}`}
+              alt={tool.name}
+              width={120}
+              height={120}
+              style={{
+                width: 120,
+                height: 120,
+                objectFit: "contain",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 88,
+                backgroundImage: `linear-gradient(135deg, ${tool.gradient[0]}, ${tool.gradient[1]})`,
+              }}
+            >
+              {tool.emoji}
+            </div>
+          )}
         </div>
         <div
           style={{

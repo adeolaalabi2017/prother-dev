@@ -1,5 +1,5 @@
 /**
- * Prother taxonomy: 7 primary categories for the search & discovery
+ * Prother taxonomy: 8 primary categories for the search & discovery
  * directory. Hardcoded for the ticker + browse chips + ⌘K palette.
  * `name` mirrors the seeded Category rows so search/labels stay consistent.
  * `helper` = one-line radio helper in the submission wizard.

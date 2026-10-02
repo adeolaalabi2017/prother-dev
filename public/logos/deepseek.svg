@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="#0C121E"/>
+  <!-- DeepSeek Whale Glyph -->
+  <g transform="translate(5, 7)">
+    <path d="M1 9C1 5 5 2 11 2C17 2 21 6 21 10C21 14 17 17 12 17C7 17 4 15 1 18V9Z" fill="#1D4ED8"/>
+    <path d="M11 2C17 2 21 6 21 10C21 13 18.5 15.5 15 16.5C12 14.5 10 12 10 9C10 6 10.5 3.5 11 2Z" fill="#3B82F6"/>
+    <circle cx="6.5" cy="7.5" r="1.2" fill="#FFFFFF"/>
+    <path d="M19 10C20.5 8.5 22 8 22 8C22 8 21.5 9.5 20.5 11C19.8 11.8 19 12 19 12V10Z" fill="#60A5FA"/>
+  </g>
+</svg>

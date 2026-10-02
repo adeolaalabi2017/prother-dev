@@ -5,7 +5,7 @@
  */
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { isoFromMs } from "./shared";
+import { isoFromMs, reviewAggregate } from "./shared";
 
 function docId<T extends { legacyId?: string; _id: string }>(d: T): string {
   return d.legacyId ?? d._id;
@@ -89,6 +89,7 @@ export const ogTool = query({
       tagline: tool.tagline,
       emoji: tool.logoEmoji,
       gradient: tool.logoGradient,
+      logoUrl: tool.logoUrl ?? null,
       category: { slug: cat.slug, name: cat.name, emoji: cat.emoji },
       editorsPick: tool.editorsPick,
     };
@@ -307,3 +308,36 @@ export const metaEntities = query({
     };
   },
 });
+
+export const badgeTool = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const tool = await ctx.db
+      .query("tools")
+      .withIndex("by_slug", (i) => i.eq("slug", slug))
+      .unique();
+    if (!tool || tool.status !== "live") return null;
+
+    const reviews = await ctx.db
+      .query("reviews")
+      .withIndex("by_tool_status", (i) =>
+        i.eq("toolId", tool._id).eq("status", "published"),
+      )
+      .collect();
+
+    const stats = reviewAggregate(
+      reviews.map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
+    );
+
+    return {
+      slug: tool.slug,
+      name: tool.name,
+      editorsPick: tool.editorsPick,
+      curated: tool.curated,
+      claimed: tool.claimed,
+      rating: stats.aggregate ? stats.aggregate.overall : null,
+      reviewCount: reviews.length,
+    };
+  },
+});
+

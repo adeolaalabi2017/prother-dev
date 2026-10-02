@@ -4,16 +4,16 @@ import { shadowSitemapData } from "@/lib/data";
 import { CATEGORIES } from "@/components/prother/categories";
 
 /**
- * Auto sitemap (PRD NFR: SEO — auto sitemaps). Metadata route, not a page.
+ * Auto sitemap (PRD NFR: SEO - auto sitemaps). Metadata route, not a page.
  * Indexes: homepage, the dedicated routes (/tools, /forums, /journal, /about,
- * /submit), live tool deep-links (/tools/[slug] — Task 25),
+ * /submit), live tool deep-links (/tools/[slug] - Task 25),
  * category pages (/categories/[slug]), published journal posts (real
  * /journal/[slug] routes + legacy ?post=slug), and forum threads. Tools get
  * honest lastmod dates from their listing date; posts from
  * publishedAt/updatedAt.
  *
  * ORDER NOTE: the tool block follows the Convex index scan order, which
- * differs from the old SQLite rowid order — but the URL SET is identical
+ * differs from the old SQLite rowid order - but the URL SET is identical
  * (verified during the cutover). Sitemap order is
  * non-contractual for crawlers, so this is whitelisted, not normalized.
  */
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 /**
  * Slugs that are seeded fixtures or QA placeholders rather than real
  * products. They may still be `status: "live"` in the database, so they must
- * be filtered here — a sitemap entry is an explicit "index this" signal and
+ * be filtered here - a sitemap entry is an explicit "index this" signal and
  * the fastest way to get a junk page indexed.
  *
  * Delete a slug from this list once its database row is actually removed.
@@ -98,6 +98,32 @@ function buildSitemap(
       changeFrequency: "weekly" as const,
       priority: 0.7,
     })),
+    // Popular pairwise "VS" comparisons
+    ...[
+      "cursor-vs-windsurf",
+      "chatgpt-vs-claude",
+      "deepseek-vs-chatgpt",
+      "deepseek-vs-claude",
+      "perplexity-vs-chatgpt",
+      "aider-vs-cline",
+      "vllm-vs-ollama",
+      "groq-vs-vllm",
+      "litellm-vs-openrouter",
+      "aider-vs-cursor",
+      "cline-vs-cursor",
+    ]
+      .filter((pair) => {
+        const [a, b] = pair.split("-vs-");
+        return (
+          data.tools.some((t) => t.slug === a) &&
+          data.tools.some((t) => t.slug === b)
+        );
+      })
+      .map((pair) => ({
+        url: `${base}/compare/${pair}`,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+      })),
     {
       url: `${base}/forums`,
       lastModified: new Date(),
@@ -122,7 +148,7 @@ function buildSitemap(
     { url: `${base}/about#faq`, changeFrequency: "monthly", priority: 0.4 },
   ];
 
-  // Tools live at their real /tools/[slug] routes (Task 25) — the /?tool=
+  // Tools live at their real /tools/[slug] routes (Task 25) - the /?tool=
   // overlay serves homepage HTML and canonicalizes there.
   const toolUrls: MetadataRoute.Sitemap = data.tools.map((t) => ({
     url: `${base}/tools/${encodeURIComponent(t.slug)}`,
@@ -131,14 +157,14 @@ function buildSitemap(
     priority: 0.8,
   }));
 
-  // Category browse pages (/categories/[slug] — Task 25).
+  // Category browse pages (/categories/[slug] - Task 25).
   const categoryUrls: MetadataRoute.Sitemap = data.categories.map((c) => ({
     url: `${base}/categories/${encodeURIComponent(c.slug)}`,
     changeFrequency: "weekly" as const,
     priority: 0.7,
   }));
 
-  // Journal articles live at their real /journal/[slug] routes — the
+  // Journal articles live at their real /journal/[slug] routes - the
   // /?post= overlay serves homepage HTML and canonicalizes there, so it
   // must NOT be listed as a separate URL.
   const postUrls: MetadataRoute.Sitemap = data.posts.map((p) => ({

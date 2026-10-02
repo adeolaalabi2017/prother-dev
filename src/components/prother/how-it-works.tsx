@@ -25,7 +25,7 @@ const STEPS = [
   {
     n: "01 · SEARCH",
     title: "Query or browse",
-    body: "Search the whole directory, or browse the seven categories from chatbots to dev platforms.",
+    body: "Search the whole directory, or browse the eight categories from chatbots to dev platforms.",
     highlight: false,
   },
   {

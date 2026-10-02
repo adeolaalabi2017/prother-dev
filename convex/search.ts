@@ -45,14 +45,27 @@ export const search = query({
     }
 
     const toolHits = liveTools
-      .filter((t) => matchTokens([t.name], tokens))
+      .filter((t) => {
+        const cat = catById.get(t.categoryId);
+        return matchTokens(
+          [
+            t.name,
+            t.tagline,
+            t.tags.join(" "),
+            t.description,
+            cat?.name,
+            cat?.slug,
+          ],
+          tokens,
+        );
+      })
       .map((t) => ({
         t,
         score: relevanceScore(tokens, {
           name: t.name,
-          tagline: "",
-          tags: "",
-          description: null,
+          tagline: t.tagline,
+          tags: t.tags.join(" "),
+          description: t.description ?? null,
         }),
       }))
       .sort(

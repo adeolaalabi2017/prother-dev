@@ -64,6 +64,13 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   computer: "/logos/computer.svg",
   overlay: "/logos/overlay.png",
   "naive-n0-5-flash": "/logos/naive-n0-5-flash.svg",
+  perplexity: "/logos/perplexity.svg",
+  n8n: "/logos/n8n.svg",
+  litellm: "/logos/litellm.svg",
+  groq: "/logos/groq.svg",
+  qdrant: "/logos/qdrant.svg",
+  langfuse: "/logos/langfuse.svg",
+  deepseek: "/logos/deepseek.svg",
 };
 
 export function cleanLogoUrl(
@@ -249,13 +256,34 @@ export async function shadowToolDetail(
   };
 }
 
-export function shadowCompareMatrix(
+export async function shadowCompareMatrix(
   c: Client,
   category: string,
   tools: string[],
 ) {
-  if (!category) return Promise.resolve({ error: "category_required" });
-  return c.query(api.compare.matrix, { category, tools });
+  if (!category) return { error: "category_required" as const };
+  const [res, logoMap] = await Promise.all([
+    c.query(api.compare.matrix, { category, tools }),
+    getToolLogoMap(c),
+  ]);
+  if (res && !("error" in res)) {
+    return {
+      ...res,
+      options: Array.isArray(res.options)
+        ? res.options.map((o: any) => ({
+            ...o,
+            logoUrl: cleanLogoUrl((o as any).logoUrl, o.slug, logoMap),
+          }))
+        : res.options,
+      tools: Array.isArray(res.tools)
+        ? res.tools.map((t: any) => ({
+            ...t,
+            logoUrl: cleanLogoUrl((t as any).logoUrl, t.slug, logoMap),
+          }))
+        : res.tools,
+    };
+  }
+  return res;
 }
 
 export function shadowCompareCategories(c: Client) {
@@ -599,6 +627,10 @@ export function shadowOgPost(c: Client, slug: string) {
 
 export function shadowBlogDetail(c: Client, slug: string) {
   return c.query(api.seo.blogDetail, { slug });
+}
+
+export function shadowBadgeTool(c: Client, slug: string) {
+  return c.query(api.seo.badgeTool, { slug });
 }
 
 export function convexPostBumpViews(c: Client, args: { slug: string }) {

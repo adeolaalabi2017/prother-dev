@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Flame } from "lucide-react";
-import { useExplorer } from "./explorer-store";
 import { ToolLogo } from "./tool-logo";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +56,6 @@ function reasonLine(
 }
 
 export function TrendingStrip() {
-  const openTool = useExplorer((s) => s.openTool);
   const [window, setWindow] = useState<TrendingWindow>("week");
   // null → loading (skeletons); [] → fetch failed or nothing to show (render null)
   const [rows, setRows] = useState<TrendingRow[] | null>(null);
@@ -172,14 +171,13 @@ export function TrendingStrip() {
               />
 
               <div className="min-w-0 flex-1">
-                <button
-                  type="button"
-                  onClick={() => openTool(row.slug)}
+                <Link
+                  href={`/tools/${row.slug}`}
                   aria-label={`Open ${row.name} on Prother`}
                   className="block max-w-full truncate text-left text-sm font-bold text-white transition-colors hover:text-ember"
                 >
                   {row.name}
-                </button>
+                </Link>
                 <p className="truncate text-xs text-white/55">{row.tagline}</p>
               </div>
 

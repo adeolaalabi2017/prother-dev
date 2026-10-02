@@ -11,7 +11,7 @@ import {
 const FAQS = [
   {
     q: "What is Prother?",
-    a: "A curated search and discovery directory for AI products and tools. Every listing is indexed across seven categories (conversational AI, generative content, NLP utilities, computer vision, analytics, automation, and developer platforms) with honest pricing, real reviews, and side-by-side comparisons.",
+    a: "A curated search and discovery directory for AI products and tools. Every listing is indexed across eight categories (AI models, conversational AI, generative content, NLP utilities, computer vision, data analytics, automation, and developer platforms) with honest pricing, real reviews, and side-by-side comparisons.",
   },
   {
     q: "How are tools ranked?",
