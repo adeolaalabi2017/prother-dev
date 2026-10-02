@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { ArrowRight, Compass, Scale, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  Compass,
+  Scale,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import GatewayFlow from "@/components/ui/gateway-flow";
 
 // Client-only: hero-search subscribes via convex/react, whose module
@@ -16,7 +22,12 @@ const HeroSearch = dynamic(
   { ssr: false },
 );
 
-export type SiteStats = { tools: number; categories: number; reviews: number; comments: number };
+export type SiteStats = {
+  tools: number;
+  categories: number;
+  reviews: number;
+  comments: number;
+};
 
 export type HeroProps = {
   initialStats?: SiteStats | null;
@@ -42,7 +53,10 @@ export function formatAnnouncement(
     formatted = formatted.replace(/\b\d+(\s+tools\b)/gi, `${stats.tools}$1`);
   }
   if (stats && stats.categories > 0) {
-    formatted = formatted.replace(/\b\d+(\s+categories\b)/gi, `${stats.categories}$1`);
+    formatted = formatted.replace(
+      /\b\d+(\s+categories\b)/gi,
+      `${stats.categories}$1`,
+    );
   }
   return formatted;
 }
@@ -64,7 +78,13 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
   useEffect(() => {
     let alive = true;
     fetch("/api/site")
-      .then((r) => r.json() as Promise<{ settings: Record<string, string>; stats?: SiteStats }>)
+      .then(
+        (r) =>
+          r.json() as Promise<{
+            settings: Record<string, string>;
+            stats?: SiteStats;
+          }>,
+      )
       .then((d) => {
         if (!alive) return;
         if (d.settings) {
@@ -90,7 +110,10 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
   return (
     <section id="top" className="relative pt-12 pb-16 md:pt-16 md:pb-20">
       {/* Gateway Flow background — subtle ember particles and convergence */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
         <div
           className="absolute inset-0"
           style={{
@@ -119,7 +142,9 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
               aria-hidden
             />
             <span className="font-semibold text-ember">VERIFIED REGISTRY</span>
-            <span className="text-white/20">/</span>
+            <span aria-hidden className="text-white/50">
+              /
+            </span>
             <span>{announcement}</span>
           </div>
 
@@ -131,8 +156,13 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
 
           {/* Clear Value Proposition: What it is + Who it is for + Why it matters */}
           <p className="mx-auto mt-5 max-w-2xl text-base text-white/75 sm:text-lg sm:leading-relaxed text-pretty">
-            The independent software & model directory for engineers, founders, and technical teams.
-            Compare production specs, verified pricing, and real developer reviews—with <strong className="font-semibold text-white">zero pay-to-play ranking</strong>.
+            The independent software & model directory for engineers, founders,
+            and technical teams. Compare production specs, verified pricing, and
+            real developer reviews—with{" "}
+            <strong className="font-semibold text-white">
+              zero pay-to-play ranking
+            </strong>
+            .
           </p>
 
           {/* Clear Next Steps: Primary & Secondary CTAs */}

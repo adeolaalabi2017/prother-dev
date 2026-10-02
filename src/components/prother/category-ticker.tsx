@@ -10,11 +10,15 @@ function TickerContent({ hidden }: { hidden?: boolean }) {
         <Link
           key={c.slug}
           href={`/categories/${c.slug}`}
-          className="group mx-6 flex items-center gap-2 font-mono text-xs tracking-wider whitespace-nowrap text-white/50 transition-colors hover:text-white uppercase"
+          className="group mx-6 flex items-center gap-2 py-2 font-mono text-xs tracking-wider whitespace-nowrap text-white/60 transition-colors hover:text-white uppercase"
         >
           <span className="size-1 rounded-full bg-ember/60 transition-transform group-hover:scale-150 group-hover:bg-ember" />
-          <span className="group-hover:text-ember transition-colors">{c.name}</span>
-          <span className="text-white/20">/</span>
+          <span className="group-hover:text-ember transition-colors">
+            {c.name}
+          </span>
+          <span aria-hidden className="text-white/50">
+            /
+          </span>
         </Link>
       ))}
     </div>

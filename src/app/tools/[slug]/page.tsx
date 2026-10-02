@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import {
   ArrowUpRight,
@@ -18,6 +19,7 @@ import { ToolDetailActions } from "@/components/prother/tool-detail-actions";
 import { ToolInstallBox } from "@/components/prother/tool-install-box";
 import { ToolReviewsSection } from "@/components/prother/tool-reviews-section";
 import { AboutClamp } from "@/components/prother/about-clamp";
+import { ClaimListing } from "@/components/prother/claim-listing";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowToolPageData } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
@@ -46,8 +48,18 @@ const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
 // ── Formatting helpers (server-only, deterministic UTC — hydration-safe) ─
 
 const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ] as const;
 
 function utcDateLabel(v: Date | string): string {
@@ -82,11 +94,12 @@ function pricingLine(model: string, price: string | null): string {
 function chipCx(extra?: string): string {
   return cn(
     "inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider uppercase",
-    extra
+    extra,
   );
 }
 
-const SECTION_HEAD = "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
+const SECTION_HEAD =
+  "font-mono text-xs uppercase tracking-[0.25em] text-white/60";
 
 // ── Convex-only SSR bundle (Prisma-shaped for untouched render code):
 // tags re-joined to the pipe string, Date-expected fields rebuilt as Dates,
@@ -120,7 +133,10 @@ type ConvexBundle = {
     createdAt: Date;
     category: { slug: string; name: string; emoji: string };
   };
-  stats: { count: number; aggregate: import("@/lib/community").ReviewAggregate | null };
+  stats: {
+    count: number;
+    aggregate: import("@/lib/community").ReviewAggregate | null;
+  };
   reviews: {
     id: string;
     author: string;
@@ -157,50 +173,61 @@ type ConvexBundle = {
   alternatives: import("@/lib/tool-editorial").AlternativeRow[];
 };
 
-async function getConvexBundle(slug: string): Promise<ConvexBundle | null> {
-  // Convex-only (tool detail cutover): null surfaces as notFound downstream.
-  try {
-    const res = await shadowToolPageData(createServerConvexClient()!, slug);
-    if ("error" in res) return null;
-    const isoOrNull = (v: string | null): Date | null =>
-      v ? new Date(v) : null;
-    return {
-      tool: {
-        ...res.tool,
-        tags: res.tool.tags.join("|"),
-        createdAt: new Date(res.tool.createdAt),
-      },
-      stats: res.stats,
-      reviews: res.reviews,
-      threads: res.threads,
-      relatedRows: res.related,
-      mediaMap: new Map([
-        [
-          res.tool.id,
-          { logoUrl: res.logoUrl, screenshotUrls: res.screenshots },
-        ],
-      ]),
-      editorialMap: new Map([
-        [
-          res.tool.id,
-          {
-            longDescription: res.editorial.longDescription,
-            useCases: res.editorial.useCases,
-            pros: res.editorial.pros,
-            cons: res.editorial.cons,
-            alternativeSlugs: res.editorial.alternativeSlugs,
-            pricingCheckedAt: isoOrNull(res.editorial.pricingCheckedAt),
-            contentUpdatedAt: isoOrNull(res.editorial.contentUpdatedAt),
-          },
-        ],
-      ]),
-      categoryToolCount: res.categoryToolCount,
-      alternatives: res.alternatives,
-    };
-  } catch {
-    return null;
-  }
-}
+/**
+ * Per-request memo for the Convex bundle.
+ *
+ * generateMetadata() and ToolPage() both need the same tool, and Next runs
+ * them concurrently. Without this they issue two identical Convex round trips
+ * per page view. React's `cache()` scopes the memo to a single server request,
+ * so the second caller awaits the first call's promise instead of starting a
+ * duplicate fetch.
+ */
+const getConvexBundle = cache(
+  async (slug: string): Promise<ConvexBundle | null> => {
+    // Convex-only (tool detail cutover): null surfaces as notFound downstream.
+    try {
+      const res = await shadowToolPageData(createServerConvexClient()!, slug);
+      if ("error" in res) return null;
+      const isoOrNull = (v: string | null): Date | null =>
+        v ? new Date(v) : null;
+      return {
+        tool: {
+          ...res.tool,
+          tags: res.tool.tags.join("|"),
+          createdAt: new Date(res.tool.createdAt),
+        },
+        stats: res.stats,
+        reviews: res.reviews,
+        threads: res.threads,
+        relatedRows: res.related,
+        mediaMap: new Map([
+          [
+            res.tool.id,
+            { logoUrl: res.logoUrl, screenshotUrls: res.screenshots },
+          ],
+        ]),
+        editorialMap: new Map([
+          [
+            res.tool.id,
+            {
+              longDescription: res.editorial.longDescription,
+              useCases: res.editorial.useCases,
+              pros: res.editorial.pros,
+              cons: res.editorial.cons,
+              alternativeSlugs: res.editorial.alternativeSlugs,
+              pricingCheckedAt: isoOrNull(res.editorial.pricingCheckedAt),
+              contentUpdatedAt: isoOrNull(res.editorial.contentUpdatedAt),
+            },
+          ],
+        ]),
+        categoryToolCount: res.categoryToolCount,
+        alternatives: res.alternatives,
+      };
+    } catch {
+      return null;
+    }
+  },
+);
 
 // ── Metadata ──────────────────────────────────────────────────────────────
 
@@ -232,7 +259,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       type: "article",
       siteName: "Prother",
       images: [
-        { url: `/api/og?tool=${encodeURIComponent(slug)}`, width: 1200, height: 630 },
+        {
+          url: `/api/og?tool=${encodeURIComponent(slug)}`,
+          width: 1200,
+          height: 630,
+        },
       ],
     },
     twitter: {
@@ -254,39 +285,48 @@ export default async function ToolPage({ params }: Params) {
   const name = tool.name;
 
   // ── Full live listing — everything below is server-rendered ────────────
-  const [stats, reviews, threads, relatedRows, mediaMap, editorialMap, categoryToolCount] =
-    [
-      bundle.stats,
-      bundle.reviews,
-      bundle.threads,
-      bundle.relatedRows,
-      bundle.mediaMap,
-      bundle.editorialMap,
-      bundle.categoryToolCount,
-    ];
+  const [
+    stats,
+    reviews,
+    threads,
+    relatedRows,
+    mediaMap,
+    editorialMap,
+    categoryToolCount,
+  ] = [
+    bundle.stats,
+    bundle.reviews,
+    bundle.threads,
+    bundle.relatedRows,
+    bundle.mediaMap,
+    bundle.editorialMap,
+    bundle.categoryToolCount,
+  ];
 
   const logoUrl = mediaMap.get(tool.id)?.logoUrl ?? null;
   const screenshots = mediaMap.get(tool.id)?.screenshotUrls ?? [];
 
   // Editorial enrichment (Task 35-c). editorialByToolIds always maps every
   // requested id, so this only falls back defensively.
-  const editorial =
-    editorialMap.get(tool.id) ?? {
-      longDescription: null,
-      useCases: [],
-      pros: [],
-      cons: [],
-      alternativeSlugs: [],
-      pricingCheckedAt: null,
-      contentUpdatedAt: null,
-    };
+  const editorial = editorialMap.get(tool.id) ?? {
+    longDescription: null,
+    useCases: [],
+    pros: [],
+    cons: [],
+    alternativeSlugs: [],
+    pricingCheckedAt: null,
+    contentUpdatedAt: null,
+  };
   // Alternatives arrive resolved in the Convex bundle; the fallback below
   // only runs when editors listed slugs the bundle didn't resolve — and it
   // must never break the page (it still hits the legacy Prisma reader).
   let alternatives = bundle.alternatives;
   if (alternatives.length === 0 && editorial.alternativeSlugs.length > 0) {
     try {
-      alternatives = await resolveAlternatives(editorial.alternativeSlugs, tool.slug);
+      alternatives = await resolveAlternatives(
+        editorial.alternativeSlugs,
+        tool.slug,
+      );
     } catch {
       alternatives = [];
     }
@@ -307,7 +347,10 @@ export default async function ToolPage({ params }: Params) {
     editorsPick: r.editorsPick,
     logoUrl: r.logoUrl ?? null,
   }));
-  const tags = tool.tags.split("|").map((t) => t.trim()).filter(Boolean);
+  const tags = tool.tags
+    .split("|")
+    .map((t) => t.trim())
+    .filter(Boolean);
 
   // JSON-LD — SoftwareApplication. aggregateRating appears ONLY when the
   // real aggregate exists (≥3 published reviews); ratings are never faked.
@@ -377,24 +420,39 @@ export default async function ToolPage({ params }: Params) {
                 <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
                   {name}
                 </h1>
-                <p className="mt-1 text-base text-white/65 sm:text-lg">{tool.tagline}</p>
+                <p className="mt-1 text-base text-white/65 sm:text-lg">
+                  {tool.tagline}
+                </p>
               </div>
             </div>
 
             {/* Badge chips — mirror tool-full-page.tsx */}
-            <ul className="flex flex-wrap items-center gap-1.5" aria-label="Badges">
+            <ul
+              className="flex flex-wrap items-center gap-1.5"
+              aria-label="Badges"
+            >
               {tool.editorsPick && (
-                <li className={chipCx("border-ember/30 bg-ember/15 text-ember")}>
+                <li
+                  className={chipCx("border-ember/30 bg-ember/15 text-ember")}
+                >
                   <Star className="size-3" aria-hidden /> Editors pick
                 </li>
               )}
               {tool.curated && (
-                <li className={chipCx("border-yellow-500/30 bg-yellow-500/10 text-yellow-500")}>
+                <li
+                  className={chipCx(
+                    "border-yellow-500/30 bg-yellow-500/10 text-yellow-500",
+                  )}
+                >
                   Curated
                 </li>
               )}
-              {!tool.claimed && <li className={chipCx("text-white/60")}>Unclaimed</li>}
-              {tool.hasApi && <li className={chipCx("text-white/60")}>API ✓</li>}
+              {!tool.claimed && (
+                <li className={chipCx("text-white/60")}>Unclaimed</li>
+              )}
+              {tool.hasApi && (
+                <li className={chipCx("text-white/60")}>API ✓</li>
+              )}
               {tool.pricingModel === "open_source" && (
                 <li className={chipCx("text-white/60")}>Open source</li>
               )}
@@ -405,7 +463,10 @@ export default async function ToolPage({ params }: Params) {
 
             {/* Mono meta line: pricing · maker · listed date (UTC, static) */}
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs uppercase tracking-wider text-white/60">
-              <span title={tool.pricingNote ?? undefined} className="text-white/85">
+              <span
+                title={tool.pricingNote ?? undefined}
+                className="text-white/85"
+              >
                 {pricingLine(tool.pricingModel, tool.startingPrice)}
               </span>
               {editorial.pricingCheckedAt && (
@@ -428,7 +489,10 @@ export default async function ToolPage({ params }: Params) {
               <span aria-hidden className="text-white/55">
                 ·
               </span>
-              <span>Updated {utcDateLabel(editorial.contentUpdatedAt ?? tool.createdAt)}</span>
+              <span>
+                Updated{" "}
+                {utcDateLabel(editorial.contentUpdatedAt ?? tool.createdAt)}
+              </span>
             </p>
 
             {/* Category chip + rating — a real link to the crawlable category page */}
@@ -509,7 +573,9 @@ export default async function ToolPage({ params }: Params) {
                   )}
                 </div>
                 {tool.pricingNote && (
-                  <p className="text-sm leading-relaxed text-white/60">{tool.pricingNote}</p>
+                  <p className="text-sm leading-relaxed text-white/60">
+                    {tool.pricingNote}
+                  </p>
                 )}
                 {editorial.pricingCheckedAt && (
                   <p
@@ -527,7 +593,10 @@ export default async function ToolPage({ params }: Params) {
           {/* b2. Screenshots (Task 35-c layout) — crawlable link grid; each
               shot opens full size in a new tab. */}
           {screenshots.length > 0 && (
-            <section aria-label={`Screenshots of ${name}`} className="space-y-3">
+            <section
+              aria-label={`Screenshots of ${name}`}
+              className="space-y-3"
+            >
               <h2 className={SECTION_HEAD}>Screenshots</h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 {screenshots.map((src, i) => (
@@ -568,8 +637,12 @@ export default async function ToolPage({ params }: Params) {
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-medium text-white/90">{u.title}</h3>
-                      <p className="mt-1 text-sm leading-relaxed text-white/60">{u.body}</p>
+                      <h3 className="text-sm font-medium text-white/90">
+                        {u.title}
+                      </h3>
+                      <p className="mt-1 text-sm leading-relaxed text-white/60">
+                        {u.body}
+                      </p>
                     </div>
                   </li>
                 ))}
@@ -579,7 +652,10 @@ export default async function ToolPage({ params }: Params) {
 
           {/* b4. Pros and cons (Task 35-c) — side-by-side verdict panels. */}
           {(editorial.pros.length > 0 || editorial.cons.length > 0) && (
-            <section aria-label={`Pros and cons of ${name}`} className="space-y-3">
+            <section
+              aria-label={`Pros and cons of ${name}`}
+              className="space-y-3"
+            >
               <h2 className={SECTION_HEAD}>Pros and cons</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 {editorial.pros.length > 0 && (
@@ -593,7 +669,10 @@ export default async function ToolPage({ params }: Params) {
                           key={i}
                           className="flex items-start gap-2.5 text-sm leading-relaxed text-white/75"
                         >
-                          <Check className="mt-0.5 size-3.5 shrink-0 text-mint" aria-hidden />
+                          <Check
+                            className="mt-0.5 size-3.5 shrink-0 text-mint"
+                            aria-hidden
+                          />
                           <span>{pro}</span>
                         </li>
                       ))}
@@ -611,7 +690,10 @@ export default async function ToolPage({ params }: Params) {
                           key={i}
                           className="flex items-start gap-2.5 text-sm leading-relaxed text-white/75"
                         >
-                          <X className="mt-0.5 size-3.5 shrink-0 text-ember" aria-hidden />
+                          <X
+                            className="mt-0.5 size-3.5 shrink-0 text-ember"
+                            aria-hidden
+                          />
                           <span>{con}</span>
                         </li>
                       ))}
@@ -635,6 +717,16 @@ export default async function ToolPage({ params }: Params) {
               </ul>
             </section>
           )}
+
+          {/* c2. Ownership claim. The full flow lives in the ?tool= overlay;
+              this is the entry point on the crawlable page, which is where a
+              maker arriving from a search result actually lands. Renders
+              nothing once the listing is claimed. */}
+          <ClaimListing
+            slug={tool.slug}
+            maker={tool.makerHandle}
+            claimed={tool.claimed}
+          />
 
           {/* d. Links */}
           <section aria-label="Links" className="space-y-3">
@@ -737,7 +829,10 @@ export default async function ToolPage({ params }: Params) {
           {/* g2. Alternatives (Task 35-c) — editor-picked rivals resolved to
               live listings only (unknown slugs are skipped by the helper). */}
           {alternatives.length > 0 && (
-            <section aria-label={`Alternatives to ${name}`} className="space-y-3">
+            <section
+              aria-label={`Alternatives to ${name}`}
+              className="space-y-3"
+            >
               <h2 className={SECTION_HEAD}>Alternatives</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {alternatives.map((a) => (
@@ -787,7 +882,10 @@ export default async function ToolPage({ params }: Params) {
               panel carries the crawlable category intro and live listing
               count; the sibling grid below stays the one "more in" surface,
               so no duplicate chip list of the same tools is rendered. */}
-          <section aria-label={`More in ${tool.category.name}`} className="space-y-4">
+          <section
+            aria-label={`More in ${tool.category.name}`}
+            className="space-y-4"
+          >
             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Link
@@ -797,7 +895,9 @@ export default async function ToolPage({ params }: Params) {
                   <span aria-hidden>{tool.category.emoji}</span>
                   {tool.category.name}
                 </Link>
-                <span className={chipCx("text-white/55")}>{categoryToolCount} tools</span>
+                <span className={chipCx("text-white/55")}>
+                  {categoryToolCount} tools
+                </span>
               </div>
               <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-white/60">
                 {blurbFor(tool.category.slug, tool.category.name)}
@@ -831,7 +931,10 @@ export default async function ToolPage({ params }: Params) {
                             aria-label="Editor's Pick"
                             className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase"
                           >
-                            <Star className="size-2.5 fill-current" aria-hidden />
+                            <Star
+                              className="size-2.5 fill-current"
+                              aria-hidden
+                            />
                             Pick
                           </span>
                         )}

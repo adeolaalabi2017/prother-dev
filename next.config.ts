@@ -30,6 +30,42 @@ const nextConfig: NextConfig = {
       "convex/browser": "./node_modules/convex/dist/esm/browser/index.js",
     },
   },
+  // Every page route is `force-dynamic`, so Next stamps HTML with
+  // `private, no-cache, no-store, max-age=0, must-revalidate` and nothing is
+  // cacheable at the edge. That is a dev-grade policy on a read-mostly
+  // directory: it forces a fresh origin render + Convex round trip on every
+  // crawler hit and every page view.
+  //
+  // These overrides let the CDN serve a stale copy while it revalidates in the
+  // background (stale-while-revalidate), so the user gets a fast TTFB and
+  // crawlers stop hitting the origin on every request. The window is short
+  // (60s fresh / 300s stale) to bound how long an edit or a newly-submitted
+  // tool can take to appear.
+  //
+  // NOT applied to /api/* (per-user, bookmark, analytics, admin) or to
+  // /admin — those stay no-store. Static assets under /_next and /logos keep
+  // Next's own immutable handling.
+  async headers() {
+    return [
+      {
+        source:
+          "/:path((?!api|admin|_next|logos|favicon.ico|robots.txt|sitemap.xml).*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+          },
+        ],
+      },
+      {
+        // /admin is an authenticated console. Next's static-asset default
+        // (s-maxage=31536000) would otherwise pin a stale shell for a year,
+        // so force it back to no-store alongside the /api/* routes above.
+        source: "/admin/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

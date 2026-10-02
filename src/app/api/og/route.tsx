@@ -7,20 +7,26 @@ import {
 } from "@/lib/og";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowOgPost, shadowOgTool } from "@/lib/data";
+import { CATEGORIES } from "@/components/prother/categories";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/og            → branded site card (1200×630)
- * GET /api/og?tool=slug  → per-tool directory card for share unfurls
+ * GET /api/og                    → branded site card (1200×630)
+ * GET /api/og?tool=slug          → per-tool directory card for share unfurls
+ * GET /api/og?post=slug          → per-article card
+ * GET /api/og?category=slug      → per-category / per-compare card
  *
  * Rendered with next/og (satori) using the Prother design tokens:
  * ink black, ember orange, mono labels. Referenced from layout metadata
  * and the ?tool= generateMetadata on the root page.
+ *
+ * The ?category= variant exists because the category and comparison pages
+ * have no per-entity card otherwise — they all unfurl as the generic site
+ * image, which makes every share of a category look identical.
  */
 
-const MONO =
-  'ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace';
+const MONO = 'ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace';
 const SANS =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif';
 
@@ -85,8 +91,13 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const postSlug = sp.get("post");
   const slug = sp.get("tool");
+  const categorySlug = sp.get("category");
   const tool = postSlug ? null : slug ? await getToolData(slug) : null;
   const post = postSlug ? await getPostData(postSlug) : null;
+  const category =
+    !tool && !post && categorySlug
+      ? CATEGORIES.find((c) => c.slug === categorySlug)
+      : undefined;
 
   // Shared shell: ink canvas, ember glow top-left, faint dot texture.
   const shell = {
@@ -265,6 +276,68 @@ export async function GET(req: Request) {
       </div>
       {bottomBar}
     </div>
+  ) : category ? (
+    // Category / comparison card. ?compare=1 renders the same art with
+    // compare framing, since /compare/[category] is the highest-share page
+    // in this family.
+    <div style={shell}>
+      {topBar}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <div
+          style={{
+            display: "flex",
+            fontFamily: MONO,
+            fontSize: 22,
+            letterSpacing: 6,
+            color: C.ember,
+            marginBottom: 20,
+          }}
+        >
+          {sp.get("compare") === "1"
+            ? "PROTHER · COMPARE"
+            : "PROTHER · CATEGORY"}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontSize:
+              category.name.length > 24
+                ? 66
+                : category.name.length > 14
+                  ? 78
+                  : 92,
+            fontWeight: 900,
+            color: C.white,
+            letterSpacing: -3,
+            lineHeight: 1.04,
+            fontFamily: SANS,
+          }}
+        >
+          <span>
+            {category.emoji} {category.name}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 30,
+            color: C.white70,
+            marginTop: 24,
+            lineHeight: 1.35,
+            maxWidth: 900,
+            fontFamily: SANS,
+          }}
+        >
+          {clamp(category.helper, 96)}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <Chip borderColor="rgba(255,106,0,0.45)" color={C.ember}>
+          {sp.get("compare") === "1" ? "SIDE BY SIDE" : "TOOLS INDEXED"}
+        </Chip>
+      </div>
+      {bottomBar}
+    </div>
   ) : post ? (
     <div style={shell}>
       {topBar}
@@ -307,7 +380,8 @@ export async function GET(req: Request) {
           <div
             style={{
               display: "flex",
-              fontSize: post.title.length > 44 ? 56 : post.title.length > 26 ? 68 : 80,
+              fontSize:
+                post.title.length > 44 ? 56 : post.title.length > 26 ? 68 : 80,
               fontWeight: 900,
               color: C.white,
               letterSpacing: -2,
@@ -384,8 +458,7 @@ export async function GET(req: Request) {
             fontFamily: SANS,
           }}
         >
-          Search, compare, and choose from the best AI tools, rated by
-          reviews.
+          Search, compare, and choose from the best AI tools, rated by reviews.
         </div>
       </div>
       {bottomBar}

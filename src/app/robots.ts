@@ -13,6 +13,11 @@ export default function robots(): MetadataRoute.Robots {
           "/api/admin",
           "/api/editor",
           "/api/auth/dev-inbox", // sandbox magic-link inbox — never crawl
+          // Test/QA fixtures must never be indexed. vorflux-test-2 is a
+          // seeded placeholder row that is still "live" in the database;
+          // it is excluded from the sitemap (see sitemap.ts) and blocked
+          // here so crawlers cannot reach it via the URL bar either.
+          "/tools/vorflux-test-2",
         ],
       },
     ],

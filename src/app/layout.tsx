@@ -32,7 +32,15 @@ import { shadowSite } from "@/lib/data";
  * Typography: the SF Pro family. SF Pro is Apple's system font, so instead of
  * a webfont download we point --font-sans (globals.css @theme) at the native
  * SF Pro stack: Apple devices render SF Pro Display/Text, other platforms get
- * their tuned system equivalent. See globals.css --font-sans/--font-mono.
+ * their tuned system equivalent.
+ *
+ * The tradeoff, stated plainly: the display type uses weight 900 with negative
+ * tracking, which only resolves as designed on SF Pro. Stacks that top out at
+ * 700 synthesize the extra weight, and tight tracking looks loose on wider
+ * faces. That is accepted for a zero-download, zero-CLS font strategy, and the
+ * fallback chain in globals.css is ordered to minimise the gap. If a webfont
+ * is ever worth the request, `next/font/google` is already available and
+ * Inter is the closest free match to SF Pro's metrics.
  */
 
 /**
@@ -55,7 +63,8 @@ export async function generateMetadata(): Promise<Metadata> {
   }
   if (map) {
     if (map["seo.defaultTitle"]) title = map["seo.defaultTitle"];
-    if (map["seo.defaultDescription"]) description = map["seo.defaultDescription"];
+    if (map["seo.defaultDescription"])
+      description = map["seo.defaultDescription"];
     faviconUrl = map["branding.faviconUrl"] ?? "";
   }
 
@@ -63,7 +72,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(
       // Same fallback as robots.ts/sitemap.ts — a mismatched default would put
       // localhost into every og:image/canonical URL in production.
-      siteUrl()
+      siteUrl(),
     ),
     title,
     description,
@@ -118,33 +127,33 @@ export default function RootLayout({
             class is set pre-hydration by our inline theme script, so
             there is no first-paint flash. */}
         <ThemeProvider>
-        <AuthProvider>
-          <ConvexClientProvider>
-          <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
-            <ScrollProgress />
-            <SiteHeader />
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
-            <ToolExplorerHost />
-            <SubmitWizard />
-            <StatusTracker />
-            <EditorConsole />
-            <CompareTray />
-            <DeepLinkHost />
-            {/* Full-page deep-link stack — each renders null when closed */}
-            <CollectionsMineFullPage />
-            <SavedFullPage />
-            <CollectionFullPage />
-            <CategoryFullPage />
-            <CompareFullPage />
-            <PostFullPage />
-            <ToolFullPage />
-            <BackToTop />
-            {/* First-party, cookieless pageview ping (Task 28) — renders null */}
-            <AnalyticsPing />
-          </div>
-          </ConvexClientProvider>
-        </AuthProvider>
+          <AuthProvider>
+            <ConvexClientProvider>
+              <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
+                <ScrollProgress />
+                <SiteHeader />
+                <main className="flex-1">{children}</main>
+                <SiteFooter />
+                <ToolExplorerHost />
+                <SubmitWizard />
+                <StatusTracker />
+                <EditorConsole />
+                <CompareTray />
+                <DeepLinkHost />
+                {/* Full-page deep-link stack — each renders null when closed */}
+                <CollectionsMineFullPage />
+                <SavedFullPage />
+                <CollectionFullPage />
+                <CategoryFullPage />
+                <CompareFullPage />
+                <PostFullPage />
+                <ToolFullPage />
+                <BackToTop />
+                {/* First-party, cookieless pageview ping (Task 28) — renders null */}
+                <AnalyticsPing />
+              </div>
+            </ConvexClientProvider>
+          </AuthProvider>
         </ThemeProvider>
         <Toaster />
       </body>

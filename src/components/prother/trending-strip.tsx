@@ -36,16 +36,22 @@ const WINDOWS: { value: TrendingWindow; label: string }[] = [
 /** Human reason line, e.g. "3 new reviews · 5 saves this week". */
 function reasonLine(
   signals: TrendingRow["signals"],
-  window: TrendingWindow
+  window: TrendingWindow,
 ): string {
   const span = window === "month" ? "this month" : "this week";
   const parts: string[] = [];
   if (signals.reviews > 0)
-    parts.push(`${signals.reviews} new review${signals.reviews === 1 ? "" : "s"}`);
+    parts.push(
+      `${signals.reviews} new review${signals.reviews === 1 ? "" : "s"}`,
+    );
   if (signals.saves > 0)
-    parts.push(`${signals.saves} save${signals.saves === 1 ? "" : "s"} ${span}`);
+    parts.push(
+      `${signals.saves} save${signals.saves === 1 ? "" : "s"} ${span}`,
+    );
   if (signals.comments > 0)
-    parts.push(`${signals.comments} comment${signals.comments === 1 ? "" : "s"}`);
+    parts.push(
+      `${signals.comments} comment${signals.comments === 1 ? "" : "s"}`,
+    );
   return parts.join(" · ");
 }
 
@@ -79,11 +85,21 @@ export function TrendingStrip() {
     setRows(null); // skeletons while refetching
   };
 
-  // Failure or empty feed — the section quietly disappears.
-  if (rows !== null && rows.length === 0) return null;
+  // Failure, empty feed, or nothing that actually happened in the window.
+  //
+  // With no comments/reviews/saves every score is 0, and a wall of "+0.0"
+  // rows reads as fake telemetry — worse than no section. Hide it until
+  // there is genuine engagement to show.
+  const engaged = rows?.filter(
+    (r) => r.signals.comments + r.signals.reviews + r.signals.saves > 0,
+  );
+  if (rows !== null && (engaged?.length ?? 0) === 0) return null;
 
   return (
-    <section id="trending" className="border-t border-white/[0.08] bg-ink py-20 md:py-24">
+    <section
+      id="trending"
+      className="border-t border-white/[0.08] bg-ink py-20 md:py-24"
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
@@ -97,12 +113,17 @@ export function TrendingStrip() {
             </h2>
             <p className="mt-3 max-w-xl text-sm text-white/60 text-pretty">
               Ranked by real engagement (comments, reviews, and collection
-              saves), recalculated continuously, not by editorial whim.
+              saves) over the selected window. No paid placement, no editorial
+              weighting — a tool ranks here because people used it.
             </p>
           </div>
 
           {/* window toggle - precision segmented control */}
-          <div className="flex rounded-lg border border-white/10 bg-white/[0.03] p-1" role="group" aria-label="Trending window">
+          <div
+            className="flex rounded-lg border border-white/10 bg-white/[0.03] p-1"
+            role="group"
+            aria-label="Trending window"
+          >
             {WINDOWS.map((w) => (
               <button
                 key={w.value}
@@ -113,7 +134,7 @@ export function TrendingStrip() {
                   "rounded-md px-3.5 py-1 font-mono text-xs font-medium tracking-wider uppercase transition-all",
                   window === w.value
                     ? "bg-ember text-coal font-semibold shadow-sm"
-                    : "text-white/60 hover:text-white"
+                    : "text-white/60 hover:text-white",
                 )}
               >
                 {w.label}
@@ -132,12 +153,12 @@ export function TrendingStrip() {
               />
             ))}
 
-          {rows?.slice(0, 8).map((row, i) => (
+          {engaged?.slice(0, 8).map((row, i) => (
             <div
               key={row.slug}
               className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] p-3 transition-colors hover:border-ember/40 hover:bg-white/[0.04]"
             >
-              <span className="w-6 shrink-0 text-center font-mono text-xs font-bold text-white/40 tabular-nums">
+              <span className="w-6 shrink-0 text-center font-mono text-xs font-bold text-white/60 tabular-nums">
                 {String(i + 1).padStart(2, "0")}
               </span>
 

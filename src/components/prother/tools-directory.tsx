@@ -1,6 +1,14 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { ArrowUpRight, Compass, Search, SearchX, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,6 +41,17 @@ export type ToolsDirectoryProps = {
   hideHeader?: boolean;
   /** Query the page already rendered results for (mirrored into the input). */
   initialQuery?: string;
+  /**
+   * Server-rendered filters the page is already scoped to. The homepage intent
+   * cards link here as /tools?tag=…, so without these the SSR pass would render
+   * the unfiltered directory and then the client would silently drop the tag on
+   * its first fetch — the visitor would land on "all 107 tools" instead of the
+   * 15 they asked for.
+   */
+  initialCategory?: string;
+  initialTag?: string;
+  initialPricing?: string;
+  initialSort?: string;
   /** Server-gated ad island (Task 27) — rendered as a full-width cell after
    *  the first row of tool cards. undefined when ad serving is off. */
   sponsorSlot?: ReactNode;
@@ -74,6 +93,10 @@ export function ToolsDirectory({
   initialTotal,
   hideHeader = false,
   initialQuery,
+  initialCategory,
+  initialTag,
+  initialPricing,
+  initialSort,
   sponsorSlot,
 }: ToolsDirectoryProps) {
   // Hydration-safe: the server rendered the same value via the initialQuery
@@ -86,10 +109,16 @@ export function ToolsDirectory({
         ? ""
         : (new URLSearchParams(window.location.search).get("q") ?? "")
             .trim()
-            .slice(0, 64))
+            .slice(0, 64)),
   );
-  const [category, setCategory] = useState<string>("all");
-  const [sort, setSort] = useState<Sort>("featured");
+  // Tag/pricing are entered via the URL (?tag=…&pricing=…) from the homepage
+  // intent cards, so they seed state and — unlike the category chips — are not
+  // user-clearable in the toolbar. The active-tag chip below is their escape
+  // hatch: clicking it resets to "all" and drops both from the URL.
+  const [tag, setTag] = useState<string>(initialTag ?? "");
+  const [pricing, setPricing] = useState<string>(initialPricing ?? "");
+  const [category, setCategory] = useState<string>(initialCategory ?? "all");
+  const [sort, setSort] = useState<Sort>((initialSort as Sort) ?? "featured");
   const [rows, setRows] = useState<DirectoryRow[] | null>(initialRows ?? null);
   const [total, setTotal] = useState(initialTotal ?? 0);
   const [failed, setFailed] = useState(false);
@@ -106,14 +135,22 @@ export function ToolsDirectory({
     const q = query.trim();
     const ctrl = new AbortController();
     const t = window.setTimeout(() => {
-      window.history.replaceState(
-        null,
-        "",
-        q ? `/tools?q=${encodeURIComponent(q)}` : "/tools"
-      );
+      // Mirror every active filter into the URL so the scoped view stays
+      // shareable. Previously only ?q= was written, which meant a
+      // /tools?tag=… link lost its tag the moment the visitor touched a chip.
+      const url = new URLSearchParams();
+      if (q) url.set("q", q);
+      if (category !== "all") url.set("category", category);
+      if (tag) url.set("tag", tag);
+      if (pricing) url.set("pricing", pricing);
+      if (sort !== "featured") url.set("sort", sort);
+      const qs = url.toString();
+      window.history.replaceState(null, "", qs ? `/tools?${qs}` : "/tools");
       const sp = new URLSearchParams({ sort, pageSize: String(PAGE_LIMIT) });
       if (q) sp.set("q", q);
       if (category !== "all") sp.set("category", category);
+      if (tag) sp.set("tag", tag);
+      if (pricing) sp.set("pricing", pricing);
       fetch(`/api/tools?${sp.toString()}`, { signal: ctrl.signal })
         .then((r) => {
           if (!r.ok) throw new Error(`directory failed: ${r.status}`);
@@ -134,13 +171,14 @@ export function ToolsDirectory({
       ctrl.abort();
       window.clearTimeout(t);
     };
-  }, [query, category, sort, initialRows]);
+  }, [query, category, tag, pricing, sort, initialRows]);
 
   const activeCat = useMemo(
     () => CATEGORIES.find((c) => c.slug === category) ?? null,
-    [category]
+    [category],
   );
-  const hasFilters = query.trim() !== "" || category !== "all";
+  const hasFilters =
+    query.trim() !== "" || category !== "all" || tag !== "" || pricing !== "";
   const loading = rows === null;
   const count = rows?.length ?? 0;
 
@@ -148,15 +186,14 @@ export function ToolsDirectory({
     interactedRef.current = true;
     setQuery("");
     setCategory("all");
+    setTag("");
+    setPricing("");
   }, []);
 
-  const openCategoryInDirectory = useCallback(
-    (slug: string) => {
-      interactedRef.current = true;
-      setCategory(slug);
-    },
-    []
-  );
+  const openCategoryInDirectory = useCallback((slug: string) => {
+    interactedRef.current = true;
+    setCategory(slug);
+  }, []);
 
   return (
     <section className="bg-ink">
@@ -181,6 +218,49 @@ export function ToolsDirectory({
 
       {/* Sticky toolbar */}
       <div className="sticky top-16 z-30 mt-8 border-y border-white/10 bg-ink/90 backdrop-blur-md">
+        {/* Active intent scope. The homepage intent cards link to
+            /tools?tag=…; without this the visitor sees a filtered list with
+            no indication of why it is short or how to get back to everything. */}
+        {(tag || pricing) && (
+          <div className="mx-auto max-w-6xl px-4 pt-3 sm:px-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-[11px] tracking-widest text-white/55 uppercase">
+                Showing
+              </span>
+              {tag && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    interactedRef.current = true;
+                    setTag("");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-ember/40 bg-ember/10 px-3 py-1 font-mono text-[11px] font-medium text-ember transition-colors hover:bg-ember/20"
+                >
+                  {tag}
+                  <X className="size-3" aria-hidden />
+                  <span className="sr-only">Clear tag filter</span>
+                </button>
+              )}
+              {pricing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    interactedRef.current = true;
+                    setPricing("");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-ember/40 bg-ember/10 px-3 py-1 font-mono text-[11px] font-medium text-ember capitalize transition-colors hover:bg-ember/20"
+                >
+                  {pricing}
+                  <X className="size-3" aria-hidden />
+                  <span className="sr-only">Clear pricing filter</span>
+                </button>
+              )}
+              <span className="font-mono text-[11px] text-white/50">
+                {total} {total === 1 ? "tool" : "tools"}
+              </span>
+            </div>
+          </div>
+        )}
         <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             {/* Search */}
@@ -244,7 +324,7 @@ export function ToolsDirectory({
                     "rounded-md px-3 py-1.5 font-mono text-xs tracking-wider uppercase transition-colors",
                     sort === s.key
                       ? "bg-ember font-semibold text-coal"
-                      : "text-white/55 hover:text-white"
+                      : "text-white/55 hover:text-white",
                   )}
                 >
                   {s.label}
@@ -263,7 +343,7 @@ export function ToolsDirectory({
                 "shrink-0 rounded-full border px-3 py-1.5 font-mono text-sm tracking-wider uppercase transition-all active:scale-95",
                 category === "all"
                   ? "border-ember bg-ember font-semibold text-coal"
-                  : "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-white"
+                  : "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-white",
               )}
             >
               All
@@ -278,10 +358,12 @@ export function ToolsDirectory({
                   "shrink-0 rounded-full border px-3 py-1.5 font-mono text-sm tracking-wider uppercase transition-all active:scale-95",
                   category === c.slug
                     ? "border-ember bg-ember font-semibold text-coal"
-                    : "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-white"
+                    : "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-white",
                 )}
               >
-                <span aria-hidden className="mr-1">{c.emoji}</span>
+                <span aria-hidden className="mr-1">
+                  {c.emoji}
+                </span>
                 {c.short}
               </button>
             ))}
@@ -429,7 +511,9 @@ export function ToolsDirectory({
                 {/* Directory banner — one full-width sponsored cell after the
                     first row (server-gated; house creative when unsold). */}
                 {sponsorSlot && i === 2 && (
-                  <div className="sm:col-span-2 lg:col-span-3">{sponsorSlot}</div>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    {sponsorSlot}
+                  </div>
                 )}
               </Fragment>
             ))}

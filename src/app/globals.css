@@ -6,13 +6,28 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* SF Pro family: Apple's system font via the native stack. "SF Pro
-     Display"/"Text" resolve on Apple devices; other platforms fall through
-     to their tuned system UI font. No webfont download, zero layout shift. */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  /* Sans: a deliberate fallback chain, not an accident of inheritance.
+     The design leans on weight 900 and negative tracking at display sizes,
+     which only renders as intended on SF Pro (Apple). The chain is ordered so
+     each platform lands on the closest thing it actually ships:
+       - SF Pro Display/Text  → Apple (the intended face)
+       - system-ui            → Windows (Segoe UI Variable), Android (Roboto),
+                                modern Linux — all with real 900-ish weights
+       - Helvetica Neue/Segoe UI/Roboto → older macOS / Windows
+     Adding a webfont would fix the last mile (the 900 weight is synthesized
+     on stacks that top out at 700), but the no-download decision is
+     deliberate: see the Typography note in src/app/layout.tsx. If that
+     tradeoff is ever revisited, `next/font/google` is already a dependency
+     and Inter is the closest free match to SF Pro's metrics. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    system-ui, "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
   /* Mono: ui-monospace IS SF Mono on Apple devices; SF Mono named first for
      other platforms that bundle it. */
-  --font-mono: ui-monospace, "SF Mono", "SF Mono Standard", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-mono:
+    ui-monospace, "SF Mono", "SF Mono Standard", "SFMono-Regular", Menlo,
+    Consolas, "Liberation Mono", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -469,8 +484,10 @@ html.light {
   /* Flip the Tailwind default white token: every white-opacity utility
      (text-white/60, bg-white/5, border-white/10 ...) becomes ink-opacity. */
   --color-white: #26211c;
-  /* Ember reserved for text/borders on paper must pass 4.5:1. */
-  --ember-text: #bc3e00;
+  /* Ember reserved for text/borders on paper must pass 4.5:1. Darkened from
+     #bc3e00 (4.74:1 on paper) to clear 4.5:1 on the translucent hero/stat
+     panels too, which composite to a slightly lighter backdrop. */
+  --ember-text: #b03a00;
   /* shadcn surfaces follow the paper. */
   --background: #f2eee4;
   --foreground: #26211c;

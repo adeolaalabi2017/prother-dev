@@ -36,7 +36,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const count = res.category.toolCount;
   const blurb = blurbFor(slug, name!);
   const title = `${name} · AI tools | Prother`;
-  const description = clamp(`${blurb} ${count} ${count === 1 ? "tool" : "tools"} listed.`, 200);
+  const description = clamp(
+    `${blurb} ${count} ${count === 1 ? "tool" : "tools"} listed.`,
+    200,
+  );
 
   return {
     title,
@@ -53,13 +56,19 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       description,
       siteName: "Prother",
       type: "website",
-      images: [{ url: "/api/og", width: 1200, height: 630 }],
+      images: [
+        {
+          url: `/api/og?category=${encodeURIComponent(slug)}`,
+          width: 1200,
+          height: 630,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/api/og"],
+      images: [`/api/og?category=${encodeURIComponent(slug)}`],
     },
   };
 }
@@ -133,8 +142,8 @@ export default async function CategoryPage({ params }: Params) {
             {blurb}
           </p>
           <p className="mt-4 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
-            {tools.length} {tools.length === 1 ? "tool" : "tools"} listed · curated
-            daily
+            {tools.length} {tools.length === 1 ? "tool" : "tools"} listed ·
+            curated daily
           </p>
           <div className="mt-5">
             <Link
@@ -166,7 +175,8 @@ export default async function CategoryPage({ params }: Params) {
                 Nothing listed here yet
               </p>
               <p className="mt-2 text-sm text-white/60">
-                New {category.name.toLowerCase()} tools appear as they&apos;re approved.{" "}
+                New {category.name.toLowerCase()} tools appear as they&apos;re
+                approved.{" "}
                 <Link href="/submit" className="text-ember hover:underline">
                   Submit yours
                 </Link>
@@ -232,10 +242,7 @@ export default async function CategoryPage({ params }: Params) {
 
           {/* Cross-links — the directory stays one hop away */}
           <p className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
-            <Link
-              href="/tools"
-              className="transition-colors hover:text-ember"
-            >
+            <Link href="/tools" className="transition-colors hover:text-ember">
               Browse the full directory
             </Link>
             <span aria-hidden>/</span>

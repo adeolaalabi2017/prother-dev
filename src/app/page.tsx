@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero } from "@/components/prother/hero";
 import { CategoryTicker } from "@/components/prother/category-ticker";
+import { IntentPath } from "@/components/prother/intent-path";
 import { TrendingStrip } from "@/components/prother/trending-strip";
 import { SubmitOpenButton } from "@/components/prother/submit-open-button";
 import { CATEGORIES } from "@/components/prother/categories";
@@ -10,11 +11,7 @@ import { clamp } from "@/lib/og";
 import { cn } from "@/lib/utils";
 import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
 import { createServerConvexClient } from "@/lib/convex";
-import {
-  shadowHomepage,
-  shadowMetaEntities,
-  shadowSite,
-} from "@/lib/data";
+import { shadowHomepage, shadowMetaEntities, shadowSite } from "@/lib/data";
 
 /** Convex-only entity lookups for deep-link metadata (null on failure —
  *  the homepage never 500s on a metadata read). */
@@ -65,7 +62,10 @@ export async function generateMetadata({
 
   // Phase 5: one Convex fetch for every deep-link branch (Prisma-shaped
   // adapters below; each branch still falls back to its Prisma lookup).
-  const [cmpA, cmpB] = (compareRaw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const [cmpA, cmpB] = (compareRaw ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const convexMeta = await metaEntities({
     toolSlug: toolSlug ?? undefined,
     postSlug: postSlug && !toolSlug ? postSlug : undefined,
@@ -80,7 +80,12 @@ export async function generateMetadata({
     const cxPost = convexMeta?.post;
     const post =
       cxPost && cxPost.status === "published"
-        ? { ...cxPost, publishedAt: cxPost.publishedAt ? new Date(cxPost.publishedAt) : null }
+        ? {
+            ...cxPost,
+            publishedAt: cxPost.publishedAt
+              ? new Date(cxPost.publishedAt)
+              : null,
+          }
         : null;
     if (post && post.status === "published") {
       const title = post.seoTitle || `${post.title} | Prother Journal`;
@@ -89,7 +94,10 @@ export async function generateMetadata({
         title,
         description,
         keywords: post.keywords
-          ? post.keywords.split(",").map((k) => k.trim()).filter(Boolean)
+          ? post.keywords
+              .split(",")
+              .map((k) => k.trim())
+              .filter(Boolean)
           : undefined,
         // The overlay serves homepage HTML — fold it into the real article.
         alternates: { canonical: `/journal/${post.slug}` },
@@ -100,7 +108,11 @@ export async function generateMetadata({
           publishedTime: post.publishedAt?.toISOString(),
           authors: [post.author],
           images: [
-            { url: `/api/og?post=${encodeURIComponent(post.slug)}`, width: 1200, height: 630 },
+            {
+              url: `/api/og?post=${encodeURIComponent(post.slug)}`,
+              width: 1200,
+              height: 630,
+            },
           ],
         },
         twitter: {
@@ -133,7 +145,11 @@ export async function generateMetadata({
           description,
           type: "article",
           images: [
-            { url: `/api/og?tool=${encodeURIComponent(toolSlug)}`, width: 1200, height: 630 },
+            {
+              url: `/api/og?tool=${encodeURIComponent(toolSlug)}`,
+              width: 1200,
+              height: 630,
+            },
           ],
         },
         twitter: {
@@ -149,7 +165,10 @@ export async function generateMetadata({
 
   // Compare deep link (?compare=a,b) — "A vs B" head-to-head unfurl.
   if (compareRaw) {
-    const [aSlug, bSlug] = compareRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    const [aSlug, bSlug] = compareRaw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (aSlug && bSlug) {
       const [a, b] = [convexMeta?.compareA, convexMeta?.compareB];
       if (a && b) {
@@ -158,7 +177,13 @@ export async function generateMetadata({
           `Side-by-side comparison of ${a.name} (${a.tagline}) and ${b.name} (${b.tagline}): pricing, ratings, and features.`,
           200,
         );
-        return { title, description, alternates: { canonical: `/?compare=${encodeURIComponent(compareRaw)}` } };
+        return {
+          title,
+          description,
+          alternates: {
+            canonical: `/?compare=${encodeURIComponent(compareRaw)}`,
+          },
+        };
       }
     }
     return {};
@@ -182,7 +207,9 @@ export async function generateMetadata({
       return {
         title,
         description,
-        alternates: { canonical: `/?collection=${encodeURIComponent(collectionSlug)}` },
+        alternates: {
+          canonical: `/?collection=${encodeURIComponent(collectionSlug)}`,
+        },
       };
     }
     return {};
@@ -200,12 +227,17 @@ export async function generateMetadata({
     if (cat) {
       const blurb = CATEGORY_BLURBS[cat.slug] ?? "";
       const title = `${cat.name} · AI tools, ranked | Prother`;
-      const description = clamp(`${blurb} ${cat._count.tools} tools listed.`, 200);
+      const description = clamp(
+        `${blurb} ${cat._count.tools} tools listed.`,
+        200,
+      );
       return {
         title,
         description,
         // Categories live at their real /categories/[slug] routes (Task 25).
-        alternates: { canonical: `/categories/${encodeURIComponent(categorySlug)}` },
+        alternates: {
+          canonical: `/categories/${encodeURIComponent(categorySlug)}`,
+        },
       };
     }
     return {};
@@ -242,6 +274,16 @@ async function liveCountByCategory(): Promise<Map<string, number>> {
     return new Map(counts.map((c) => [c.slug, c.count]));
   } catch {
     return new Map(); // grid renders with 0 counts rather than 500ing
+  }
+}
+
+/** Live tool count per tag, for the homepage intent cards. Empty on failure. */
+async function liveCountByTag(): Promise<Record<string, number>> {
+  try {
+    const { tagCounts } = await shadowHomepage(createServerConvexClient()!);
+    return (tagCounts ?? {}) as Record<string, number>;
+  } catch {
+    return {};
   }
 }
 
@@ -287,7 +329,10 @@ function AccentHeading({
   className?: string;
   accent?: boolean;
 }) {
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   return (
     <h2 className={className}>
       {lines.map((line, li) => {
@@ -312,18 +357,23 @@ function AccentHeading({
 
 function EngineeringStandards() {
   return (
-    <section aria-label="Core Standards" className="border-y border-white/[0.08] bg-white/[0.015] py-12">
+    <section
+      aria-label="Core Standards"
+      className="border-y border-white/[0.08] bg-white/[0.015] py-12"
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           <div className="group relative border-l-2 border-ember/60 pl-4 sm:pl-5">
             <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-ember uppercase">
               <span>01 / INTEGRITY</span>
             </div>
-            <h3 className="mt-2 text-base font-bold text-white">
+            <h2 className="mt-2 text-base font-bold text-white">
               Zero Pay-to-Play Rankings
-            </h3>
+            </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
-              No sponsored top slots, launch-day manipulation, or affiliate bias. Placements reflect genuine developer adoption, utility, and verified reviews.
+              No sponsored top slots, launch-day manipulation, or affiliate
+              bias. Placements reflect genuine developer adoption, utility, and
+              verified reviews.
             </p>
           </div>
 
@@ -331,11 +381,13 @@ function EngineeringStandards() {
             <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-white/60 uppercase">
               <span>02 / TELEMETRY</span>
             </div>
-            <h3 className="mt-2 text-base font-bold text-white">
+            <h2 className="mt-2 text-base font-bold text-white">
               Production-Ready Specs
-            </h3>
+            </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
-              Inspect context window sizes, API throughput, self-hosting requirements, and honest pricing tiers before introducing dependencies to your codebase.
+              Inspect context window sizes, API throughput, self-hosting
+              requirements, and honest pricing tiers before introducing
+              dependencies to your codebase.
             </p>
           </div>
 
@@ -343,11 +395,14 @@ function EngineeringStandards() {
             <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-white/60 uppercase">
               <span>03 / VERIFICATION</span>
             </div>
-            <h3 className="mt-2 text-base font-bold text-white">
-              Tested by Practicing Engineers
-            </h3>
+            <h2 className="mt-2 text-base font-bold text-white">
+              Specs You Can Check
+            </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
-              Every tool is independently reviewed by human developers in active projects. Zero hallucinated AI summaries or unverified crawler imports.
+              Every listing states its pricing model, context window, API
+              access, and self-hosting path, with the date we last checked them.
+              No AI-written blurbs and no scraped imports — if a spec is wrong,
+              the maker can claim the listing and fix it.
             </p>
           </div>
         </div>
@@ -372,11 +427,13 @@ function CategoryGrid({
               TAXONOMY & DIRECTORY
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
-              {copy["home.categoriesHeading"] || "Browse by architecture & domain."}
+              {copy["home.categoriesHeading"] ||
+                "Browse by architecture & domain."}
             </h2>
           </div>
           <p className="max-w-md text-sm text-white/60 text-pretty">
-            Eight specialized intelligence domains indexed with verified specs, API access, and community ratings.
+            Eight specialized intelligence domains indexed with verified specs,
+            API access, and community ratings.
           </p>
         </div>
 
@@ -394,8 +451,8 @@ function CategoryGrid({
                 >
                   <div>
                     {/* Index header */}
-                    <div className="flex items-center justify-between font-mono text-xs text-white/40">
-                      <span className="font-semibold text-ember/80 group-hover:text-ember">
+                    <div className="flex items-center justify-between font-mono text-xs text-white/50">
+                      <span className="font-semibold text-ember group-hover:text-ember-hot">
                         {indexStr}
                       </span>
                       <span className="rounded bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium tracking-wider text-white/70 tabular-nums uppercase group-hover:bg-ember/15 group-hover:text-ember">
@@ -406,7 +463,10 @@ function CategoryGrid({
                     {/* Category Title */}
                     <h3 className="mt-4 flex items-center justify-between text-base font-bold text-white transition-colors group-hover:text-ember">
                       <span>{c.name}</span>
-                      <span className="font-mono text-xs text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-ember">
+                      <span
+                        aria-hidden
+                        className="font-mono text-xs text-white/55 transition-transform group-hover:translate-x-0.5 group-hover:text-ember"
+                      >
                         →
                       </span>
                     </h3>
@@ -419,7 +479,7 @@ function CategoryGrid({
 
                   {/* Bottom hairline accent */}
                   <div className="mt-6 border-t border-white/[0.06] pt-3">
-                    <span className="font-mono text-[11px] font-medium tracking-wider text-white/40 uppercase group-hover:text-white/80">
+                    <span className="font-mono text-[11px] font-medium tracking-wider text-white/60 uppercase group-hover:text-white/80">
                       View Domain Index
                     </span>
                   </div>
@@ -451,27 +511,33 @@ function EditorsPicks({
 }) {
   if (picks.length === 0) return null;
   return (
-    <section id="picks" className="border-t border-white/[0.08] bg-ink py-20 md:py-24">
+    <section
+      id="picks"
+      className="border-t border-white/[0.08] bg-ink py-20 md:py-24"
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <div className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
               <span>★</span>
-              <span>VERIFIED BENCHMARKS</span>
+              <span>EDITOR&apos;S PICKS</span>
             </div>
             <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
-              {copy["home.picksHeading"] || "Hand-tested by our engineering team."}
+              {copy["home.picksHeading"] || "Six tools worth your time."}
             </h2>
           </div>
           <p className="max-w-md text-sm text-white/60 text-pretty">
-            Highlighted tools audited for production viability, responsive APIs, and transparent pricing terms.
+            A small, deliberate set. Pricing models, API access, and specs are
+            listed on every page and dated — check them before you commit.
           </p>
         </div>
 
         {/* Precision Editorial Benchmark Matrix */}
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {picks.map((p) => {
-            const pricingClean = p.pricingModel.replace(/_/g, " ").toUpperCase();
+            const pricingClean = p.pricingModel
+              .replace(/_/g, " ")
+              .toUpperCase();
             return (
               <Link
                 key={p.slug}
@@ -513,11 +579,10 @@ function EditorsPicks({
 
                 {/* Footer spec bar */}
                 <div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-3">
-                  <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ember-tint">
-                    <span className="size-1 rounded-full bg-ember-tint" aria-hidden />
-                    Verified Spec
+                  <span className="font-mono text-[11px] text-white/50">
+                    Specs &amp; pricing
                   </span>
-                  <span className="font-mono text-xs text-white/40 transition-colors group-hover:text-ember">
+                  <span className="font-mono text-xs text-white/60 transition-colors group-hover:text-ember">
                     Inspect Tool →
                   </span>
                 </div>
@@ -538,13 +603,18 @@ function ClosingBand({ copy }: { copy: Record<string, string> }) {
           COMMUNITY INDEX
         </p>
         <h2 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl text-balance">
-          {copy["home.closingHeadline"] || "Building an AI tool for production?"}
+          {copy["home.closingHeadline"] ||
+            "Building an AI tool for production?"}
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-base text-white/65 text-pretty">
-          {copy["home.closingSub"] || "Submit your tool for an independent technical audit. Submissions are free forever and reviewed by human engineers."}
+          {copy["home.closingSub"] ||
+            "Submit your tool for an independent technical audit. Submissions are free forever and reviewed by human engineers."}
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
-          <SubmitOpenButton label="Submit Your Tool for Review" className="h-11 px-6 text-sm font-semibold" />
+          <SubmitOpenButton
+            label="Submit Your Tool for Review"
+            className="h-11 px-6 text-sm font-semibold"
+          />
           <Link
             href="/tools"
             className="inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-6 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white"
@@ -600,10 +670,11 @@ export default async function Page() {
     ],
   };
 
-  const [counts, picks, siteData] = await Promise.all([
+  const [counts, picks, siteData, tagCounts] = await Promise.all([
     liveCountByCategory(),
     getEditorsPicks(),
     getSiteData(),
+    liveCountByTag(),
   ]);
 
   return (
@@ -613,6 +684,7 @@ export default async function Page() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Hero initialStats={siteData.stats} initialSettings={siteData.settings} />
+      <IntentPath counts={tagCounts} />
       <EngineeringStandards />
       <CategoryTicker />
       <CategoryGrid counts={counts} copy={siteData.settings} />

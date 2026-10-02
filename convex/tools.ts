@@ -45,12 +45,17 @@ function docId<T extends { legacyId?: string; _id: string }>(d: T): string {
 type Ctx = GenericQueryCtx<DataModel>;
 
 async function publishedReviewsByTool(ctx: Ctx, toolIds: string[]) {
-  const byTool = new Map<string, { ease: number; power: number; value: number }[]>();
+  const byTool = new Map<
+    string,
+    { ease: number; power: number; value: number }[]
+  >();
   await Promise.all(
     toolIds.map(async (toolId) => {
       const list = await ctx.db
         .query("reviews")
-        .withIndex("by_tool_status", (i) => i.eq("toolId", toolId as any).eq("status", "published"))
+        .withIndex("by_tool_status", (i) =>
+          i.eq("toolId", toolId as any).eq("status", "published"),
+        )
         .collect();
       if (list.length > 0) {
         byTool.set(
@@ -130,7 +135,8 @@ export const directory = query({
 
     if (sort === "newest") {
       matching.sort(
-        (a, b) => b.createdAt - a.createdAt || a._creationTime - b._creationTime,
+        (a, b) =>
+          b.createdAt - a.createdAt || a._creationTime - b._creationTime,
       );
     } else if (sort === "top-rated") {
       const avg = (id: string): number | null => {
@@ -149,7 +155,9 @@ export const directory = query({
         if (aa == null) return 1;
         if (bb == null) return -1;
         return (
-          bb - aa || b.createdAt - a.createdAt || a._creationTime - b._creationTime
+          bb - aa ||
+          b.createdAt - a.createdAt ||
+          a._creationTime - b._creationTime
         );
       });
     } else if (sort === "trending") {
@@ -168,15 +176,14 @@ export const directory = query({
       for (const r of reviews)
         if (r.status === "published") bump(r.toolId, 5, r.createdAt);
       for (const i of items) bump(i.toolId, 4, i.createdAt);
-      const score = (id: string, editorsPick: boolean, curated: boolean) =>
-        (recent.get(id) ?? 0) +
-        (editorsPick ? 2 : 0) +
-        (curated ? 1 : 0) +
-        ((reviewsByTool.get(id) ?? []).length * 0.5);
+      // Engagement only — no editorsPick/curated bonus. Those flags are set on
+      // most of the directory, so they added a near-constant to every row and
+      // turned an engagement sort into an editorial one. Mirrors convex/trending.ts.
+      const score = (id: string) =>
+        (recent.get(id) ?? 0) + (reviewsByTool.get(id) ?? []).length * 0.5;
       matching.sort(
         (a, b) =>
-          round1(score(b._id, b.editorsPick, b.curated)) -
-            round1(score(a._id, a.editorsPick, a.curated)) ||
+          round1(score(b._id)) - round1(score(a._id)) ||
           b.createdAt - a.createdAt ||
           a._creationTime - b._creationTime,
       );
@@ -318,20 +325,25 @@ export const detail = query({
           a._creationTime - b._creationTime,
       )
       .slice(0, 3);
-    const toolCount = allLive.filter((t) => t.categoryId === tool.categoryId).length;
+    const toolCount = allLive.filter(
+      (t) => t.categoryId === tool.categoryId,
+    ).length;
 
-    const items = viewerEmail != null && collections.length > 0
-      ? (
-          await Promise.all(
-            collections.map((col) =>
-              ctx.db
-                .query("collectionItems")
-                .withIndex("by_collection", (i) => i.eq("collectionId", col._id))
-                .collect(),
-            ),
-          )
-        ).flat()
-      : [];
+    const items =
+      viewerEmail != null && collections.length > 0
+        ? (
+            await Promise.all(
+              collections.map((col) =>
+                ctx.db
+                  .query("collectionItems")
+                  .withIndex("by_collection", (i) =>
+                    i.eq("collectionId", col._id),
+                  )
+                  .collect(),
+              ),
+            )
+          ).flat()
+        : [];
 
     const published = reviews
       .filter((r) => r.toolId === tool._id && r.status === "published")
@@ -427,8 +439,11 @@ export const detail = query({
             const positions = items
               .filter((i) => i.collectionId === c._id && i.toolId === tool._id)
               .map((i) => i.position);
-            if (c.ownerEmail !== viewerEmail || positions.length === 0) return [];
-            return [{ slug: c.slug, name: c.name, position: Math.min(...positions) }];
+            if (c.ownerEmail !== viewerEmail || positions.length === 0)
+              return [];
+            return [
+              { slug: c.slug, name: c.name, position: Math.min(...positions) },
+            ];
           })
           .sort((a, b) => a.position - b.position)
           .slice(0, 50)
@@ -480,7 +495,7 @@ export const detail = query({
  * media/editorial columns, alternatives, and the category live count.
  * Timestamps ship as ISO strings; tags as arrays (the Next adapter reshapes
  * the two Date-expected spots and the pipe-split call sites).
- */export const pageData = query({
+ */ export const pageData = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
     const tool = await ctx.db
@@ -508,7 +523,10 @@ export const detail = query({
 
     const published = reviews
       .filter((r) => r.toolId === tool._id && r.status === "published")
-      .sort((a, b) => b.createdAt - a.createdAt || a._creationTime - b._creationTime);
+      .sort(
+        (a, b) =>
+          b.createdAt - a.createdAt || a._creationTime - b._creationTime,
+      );
     const stats = reviewAggregate(
       published.map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
     );
@@ -521,7 +539,10 @@ export const detail = query({
           (t.title.toLowerCase().includes(nameLower) ||
             t.body.toLowerCase().includes(nameLower)),
       )
-      .sort((a, b) => b.createdAt - a.createdAt || a._creationTime - b._creationTime)
+      .sort(
+        (a, b) =>
+          b.createdAt - a.createdAt || a._creationTime - b._creationTime,
+      )
       .slice(0, 3)
       .map((t) => ({
         slug: t.slug,
@@ -614,20 +635,30 @@ export const detail = query({
         cons: tool.cons,
         alternativeSlugs: tool.alternatives,
         pricingCheckedAt:
-          tool.pricingCheckedAt != null ? isoFromMs(tool.pricingCheckedAt) : null,
+          tool.pricingCheckedAt != null
+            ? isoFromMs(tool.pricingCheckedAt)
+            : null,
         contentUpdatedAt:
-          tool.contentUpdatedAt != null ? isoFromMs(tool.contentUpdatedAt) : null,
+          tool.contentUpdatedAt != null
+            ? isoFromMs(tool.contentUpdatedAt)
+            : null,
       },
       alternatives,
-      categoryToolCount: liveTools.filter((t) => t.categoryId === tool.categoryId).length,
+      categoryToolCount: liveTools.filter(
+        (t) => t.categoryId === tool.categoryId,
+      ).length,
     };
   },
 });
 
 /**
- * Homepage server sections (Phase 5): live counts per category +
- * Editor's Picks (pinned first, then newest, max 6). Mirrors
+ * Homepage server sections (Phase 5): live counts per category, live counts
+ * per tag, and Editor's Picks (pinned first, then newest, max 6). Mirrors
  * liveCountByCategory/getEditorsPicks in src/app/page.tsx.
+ *
+ * tagCounts feeds the homepage intent cards, which link to /tools?tag=…. They
+ * are computed here rather than by N separate /api/tools?tag= calls so the
+ * homepage render stays at one Convex round trip.
  */
 export const homepage = query({
   args: {},
@@ -642,9 +673,16 @@ export const homepage = query({
     const catById = new Map(categories.map((c) => [c._id, c]));
     const counts: { slug: string; count: number }[] = [];
     const bySlug = new Map<string, number>();
+    // Tags are stored as a v.array(v.string()); normalise to lowercase so
+    // ?tag=lookups match regardless of how an editor capitalised the entry.
+    const tagCounts = new Map<string, number>();
     for (const t of live) {
       const slug = catById.get(t.categoryId)?.slug;
       if (slug) bySlug.set(slug, (bySlug.get(slug) ?? 0) + 1);
+      for (const raw of t.tags) {
+        const tag = raw.trim().toLowerCase();
+        if (tag) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+      }
     }
     for (const c of categories) {
       counts.push({ slug: c.slug, count: bySlug.get(c.slug) ?? 0 });
@@ -666,7 +704,11 @@ export const homepage = query({
           category: { slug: cat.slug, name: cat.name, emoji: cat.emoji },
         };
       });
-    return { counts, picks };
+    return {
+      counts,
+      picks,
+      tagCounts: Object.fromEntries(tagCounts),
+    };
   },
 });
 
@@ -700,7 +742,9 @@ export const serp = query({
         editorial:
           (t.editorsPick ? 3 : 0) + (t.curated ? 2 : 0) + (t.pinned ?? 0),
       }))
-      .sort((a, b) => b.score * 1000 + b.editorial - (a.score * 1000 + a.editorial));
+      .sort(
+        (a, b) => b.score * 1000 + b.editorial - (a.score * 1000 + a.editorial),
+      );
     const total = scored.length;
     const pages = Math.max(1, Math.ceil(total / pageSize));
     const safePage = Math.min(Math.max(1, page), pages);

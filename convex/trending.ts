@@ -1,9 +1,20 @@
 /**
  * Convex read: trending tools over a rolling window.
  * Shadows GET /api/trending — score formula mirrors lib/trending.ts exactly:
- *   recentComments*3 + recentReviews*5 + recentSaves*4 + editorial + total*0.5
+ *   recentComments*3 + recentReviews*5 + recentSaves*4 + totalReviews*0.5
  * (rounded 1dp). Reads live documents (not the denormalized counters) so the
  * shadow also validates the Phase 2 counter backfill indirectly via scores.
+ *
+ * SCOPE: the score is ENGAGEMENT ONLY. It deliberately carries no editorial
+ * bonus (editorsPick / curated). Those flags are set on most or all of the
+ * directory, so folding them in added a constant to every row — which made
+ * every tool tie on an identical score and meant the "ranked by real
+ * engagement" copy was describing an editorial ranking. The UI's headline
+ * claim is that trending is not editorial; the formula now matches it.
+ *
+ * A tool with no comments, reviews, or saves scores 0. Such rows are still
+ * returned (the caller decides what to do with them) but the UI hides the
+ * section rather than showing a fabricated delta.
  */
 import { query } from "./_generated/server";
 import { v } from "convex/values";
@@ -18,17 +29,16 @@ export const list = query({
     const days = window === "month" ? 30 : 7;
     const sinceMs = Date.now() - days * 86_400_000;
 
-    const [tools, categories, comments, reviews, items] =
-      await Promise.all([
-        ctx.db
-          .query("tools")
-          .withIndex("by_status_category", (q) => q.eq("status", "live"))
-          .collect(),
-        ctx.db.query("categories").collect(),
-        ctx.db.query("comments").collect(),
-        ctx.db.query("reviews").collect(),
-        ctx.db.query("collectionItems").collect(),
-      ]);
+    const [tools, categories, comments, reviews, items] = await Promise.all([
+      ctx.db
+        .query("tools")
+        .withIndex("by_status_category", (q) => q.eq("status", "live"))
+        .collect(),
+      ctx.db.query("categories").collect(),
+      ctx.db.query("comments").collect(),
+      ctx.db.query("reviews").collect(),
+      ctx.db.query("collectionItems").collect(),
+    ]);
 
     const catById = new Map(categories.map((c) => [c._id, c]));
 
@@ -63,11 +73,10 @@ export const list = query({
       const commentsN = recentComments.get(t._id) ?? 0;
       const reviewsN = recentReviews.get(t._id) ?? 0;
       const savesN = recentSaves.get(t._id) ?? 0;
-      const editorial = (t.editorsPick ? 2 : 0) + (t.curated ? 1 : 0);
       const base = (totalByTool.get(t._id) ?? 0) * 0.5;
       scoreOf.set(
         t._id,
-        round1(commentsN * 3 + reviewsN * 5 + savesN * 4 + editorial + base),
+        round1(commentsN * 3 + reviewsN * 5 + savesN * 4 + base),
       );
     }
     ranked.sort((a, b) => scoreOf.get(b.t._id)! - scoreOf.get(a.t._id)!);

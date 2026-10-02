@@ -54,8 +54,7 @@ const COLS: { title: string; links: FooterLink[] }[] = [
 ];
 
 function FooterAnchor({ link }: { link: FooterLink }) {
-  const className =
-    "text-sm text-white/50 transition-colors hover:text-ember";
+  const className = "text-sm text-white/50 transition-colors hover:text-ember";
   if (link.external) {
     return (
       <a href={link.href} className={className}>
@@ -100,12 +99,14 @@ export function SiteFooter() {
               ) : (
                 <Hexagon className="size-6 fill-ember text-ember" aria-hidden />
               )}
-              <span className="text-lg font-black tracking-tight text-white">Prother</span>
+              <span className="text-lg font-black tracking-tight text-white">
+                Prother
+              </span>
             </div>
-            <p className="mt-3 max-w-xs text-sm text-white/50">
-              {tagline}
+            <p className="mt-3 max-w-xs text-sm text-white/50">{tagline}</p>
+            <p className="mt-4 font-mono text-xs text-white/55">
+              @PROTHER_DEV · PROTHER.DEV
             </p>
-            <p className="mt-4 font-mono text-xs text-white/55">@PROTHER_DEV · PROTHER.DEV</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <kbd className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-xs tracking-wider text-white/60 transition-colors hover:border-ember/40 hover:text-ember">
                 <span className="text-white/80">⌘K</span> SEARCH
@@ -125,7 +126,9 @@ export function SiteFooter() {
 
           {COLS.map((col) => (
             <nav key={col.title} aria-label={col.title}>
-              <h3 className="mb-3 text-sm font-semibold text-white">{col.title}</h3>
+              <h2 className="mb-3 text-sm font-semibold text-white">
+                {col.title}
+              </h2>
               <ul className="space-y-2">
                 {col.links.map((l) => (
                   <li key={l.label}>
@@ -151,7 +154,7 @@ export function SiteFooter() {
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col justify-between gap-3 px-4 py-6 sm:px-6 md:flex-row md:items-center">
           <p className="font-mono text-xs text-white/60">
-           © 2026 Prother. {note}
+            © 2026 Prother. {note}
           </p>
           <div className="flex items-center gap-2 font-mono text-xs text-white/60">
             <span>STANDARDS · PRIVACY · STATUS</span>

@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Compass, SearchX, Star } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  Compass,
+  SearchX,
+  Star,
+} from "lucide-react";
 import { ToolsDirectory } from "@/components/prother/tools-directory";
 import { AdSlot } from "@/components/prother/ad-slot";
 import type { DirectoryRow } from "@/app/api/tools/route";
@@ -27,6 +34,17 @@ export type SerpToolRow = {
 };
 
 export const dynamic = "force-dynamic";
+
+/** Mirrors GET /api/tools so a hand-edited URL can't reach an invalid value. */
+const PRICING_FILTERS = new Set(["free", "freemium", "paid", "open_source"]);
+const DIRECTORY_SORTS = new Set([
+  "featured",
+  "newest",
+  "top-rated",
+  "trending",
+] as const);
+type DirectorySort =
+  typeof DIRECTORY_SORTS extends ReadonlySet<infer T> ? T : never;
 
 export const metadata: Metadata = {
   alternates: {
@@ -92,13 +110,18 @@ function isNewListing(iso: string): boolean {
  * Rendered into the HTML so /tools carries real crawlable content before any
  * client fetch, then handed to <ToolsDirectory /> as its initial state.
  */
-async function directoryInitialRows(): Promise<{ rows: DirectoryRow[]; total: number }> {
+async function directoryInitialRows(filters: {
+  categorySlug: string | null;
+  tag: string | null;
+  pricing: string | null;
+  sort: DirectorySort;
+}): Promise<{ rows: DirectoryRow[]; total: number }> {
   const res = await shadowToolsDirectory(createServerConvexClient()!, {
-    categorySlug: null,
+    categorySlug: filters.categorySlug,
     q: null,
-    pricing: null,
-    tag: null,
-    sort: "featured",
+    pricing: filters.pricing,
+    tag: filters.tag,
+    sort: filters.sort,
     page: 1,
     pageSize: DIRECTORY_PAGE_LIMIT,
   });
@@ -155,7 +178,8 @@ function SerpResultCard({ row }: { row: SerpToolRow }) {
           {pricingLabel(row.pricingModel, row.startingPrice)}
         </span>
         <span className="ml-auto inline-flex items-center gap-1 font-mono text-xs tracking-wider text-white/55 uppercase">
-          Listed {new Date(row.listedAt).toLocaleDateString("en-US", {
+          Listed{" "}
+          {new Date(row.listedAt).toLocaleDateString("en-US", {
             month: "short",
             year: "numeric",
             timeZone: "UTC",
@@ -184,7 +208,15 @@ function serpPageNumbers(page: number, pages: number): (number | "gap")[] {
 }
 
 /** Real-link pagination — no client JS; crawlers and JS users both work. */
-function SerpPagination({ q, page, pages }: { q: string; page: number; pages: number }) {
+function SerpPagination({
+  q,
+  page,
+  pages,
+}: {
+  q: string;
+  page: number;
+  pages: number;
+}) {
   if (pages <= 1) return null;
   const href = (p: number) =>
     `/tools?${new URLSearchParams({ q, page: String(p) }).toString()}`;
@@ -195,14 +227,29 @@ function SerpPagination({ q, page, pages }: { q: string; page: number; pages: nu
     "inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 font-mono text-xs transition-colors";
 
   return (
-    <nav aria-label="Search result pages" className="mt-10 flex flex-wrap items-center justify-center gap-2">
+    <nav
+      aria-label="Search result pages"
+      className="mt-10 flex flex-wrap items-center justify-center gap-2"
+    >
       {page > 1 ? (
-        <Link href={href(page - 1)} className={cn(navBtn, "border-white/10 bg-white/[0.03] text-white/60 hover:border-ember/40 hover:text-ember")}>
+        <Link
+          href={href(page - 1)}
+          className={cn(
+            navBtn,
+            "border-white/10 bg-white/[0.03] text-white/60 hover:border-ember/40 hover:text-ember",
+          )}
+        >
           <ChevronLeft className="size-3.5" aria-hidden />
           Prev
         </Link>
       ) : (
-        <span aria-disabled="true" className={cn(navBtn, "cursor-not-allowed border-white/5 bg-transparent text-white/55")}>
+        <span
+          aria-disabled="true"
+          className={cn(
+            navBtn,
+            "cursor-not-allowed border-white/5 bg-transparent text-white/55",
+          )}
+        >
           <ChevronLeft className="size-3.5" aria-hidden />
           Prev
         </span>
@@ -210,14 +257,21 @@ function SerpPagination({ q, page, pages }: { q: string; page: number; pages: nu
 
       {serpPageNumbers(page, pages).map((p, i) =>
         p === "gap" ? (
-          <span key={`gap-${i}`} aria-hidden className="px-1 font-mono text-xs text-white/55">
+          <span
+            key={`gap-${i}`}
+            aria-hidden
+            className="px-1 font-mono text-xs text-white/55"
+          >
             …
           </span>
         ) : p === page ? (
           <span
             key={p}
             aria-current="page"
-            className={cn(numBtn, "border-ember bg-ember font-semibold text-coal")}
+            className={cn(
+              numBtn,
+              "border-ember bg-ember font-semibold text-coal",
+            )}
           >
             {p}
           </span>
@@ -225,20 +279,35 @@ function SerpPagination({ q, page, pages }: { q: string; page: number; pages: nu
           <Link
             key={p}
             href={href(p)}
-            className={cn(numBtn, "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-ember")}
+            className={cn(
+              numBtn,
+              "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-ember",
+            )}
           >
             {p}
           </Link>
-        )
+        ),
       )}
 
       {page < pages ? (
-        <Link href={href(page + 1)} className={cn(navBtn, "border-white/10 bg-white/[0.03] text-white/60 hover:border-ember/40 hover:text-ember")}>
+        <Link
+          href={href(page + 1)}
+          className={cn(
+            navBtn,
+            "border-white/10 bg-white/[0.03] text-white/60 hover:border-ember/40 hover:text-ember",
+          )}
+        >
           Next
           <ChevronRight className="size-3.5" aria-hidden />
         </Link>
       ) : (
-        <span aria-disabled="true" className={cn(navBtn, "cursor-not-allowed border-white/5 bg-transparent text-white/55")}>
+        <span
+          aria-disabled="true"
+          className={cn(
+            navBtn,
+            "cursor-not-allowed border-white/5 bg-transparent text-white/55",
+          )}
+        >
           Next
           <ChevronRight className="size-3.5" aria-hidden />
         </span>
@@ -312,8 +381,8 @@ export default async function ToolsPage({
               className="mt-4 font-mono text-xs tracking-[0.25em] text-white/60 uppercase"
               aria-live="polite"
             >
-              {serp.total} {serp.total === 1 ? "result" : "results"} · page {serp.page} of{" "}
-              {serp.pages}
+              {serp.total} {serp.total === 1 ? "result" : "results"} · page{" "}
+              {serp.page} of {serp.pages}
             </p>
           </div>
 
@@ -325,7 +394,8 @@ export default async function ToolsPage({
                   No results for &ldquo;{q}&rdquo;
                 </p>
                 <p className="mt-2 text-sm text-white/60">
-                  Try a shorter query, check the spelling, or browse the full directory.
+                  Try a shorter query, check the spelling, or browse the full
+                  directory.
                 </p>
                 <Link
                   href="/tools"
@@ -366,7 +436,24 @@ export default async function ToolsPage({
   }
 
   // ── Default directory: SSR the first page the client browser would fetch ──
-  const initial = await directoryInitialRows();
+  // ?tag=/?pricing=/?sort= arrive from the homepage intent cards, so the
+  // server render has to honour them or the visitor gets the unfiltered
+  // directory in their HTML and the client silently drops the scope.
+  const tagParam = first(params.tag).slice(0, 48);
+  const pricingParam = first(params.pricing);
+  const sortParam = first(params.sort);
+  const dirPricing =
+    pricingParam && PRICING_FILTERS.has(pricingParam) ? pricingParam : null;
+  const dirSort = (
+    DIRECTORY_SORTS.has(sortParam as DirectorySort) ? sortParam : "featured"
+  ) as DirectorySort;
+
+  const initial = await directoryInitialRows({
+    categorySlug: null,
+    tag: tagParam || null,
+    pricing: dirPricing,
+    sort: dirSort,
+  });
 
   const itemListJsonLd = {
     "@context": "https://schema.org",
@@ -392,6 +479,9 @@ export default async function ToolsPage({
       <ToolsDirectory
         initialRows={initial.rows}
         initialTotal={initial.total}
+        initialTag={tagParam || undefined}
+        initialPricing={dirPricing ?? undefined}
+        initialSort={dirSort}
         sponsorSlot={
           directoryBannerOn ? (
             <AdSlot placement="directory_banner" variant="bar" />

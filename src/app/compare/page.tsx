@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { clamp } from "@/lib/og";
 import type { CompareMatrix } from "@/lib/compare";
 import { CompareMatrixView } from "@/components/prother/compare-matrix";
+import { CATEGORIES } from "@/components/prother/categories";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowCompareCategories, shadowCompareMatrix } from "@/lib/data";
 
@@ -29,12 +31,21 @@ function firstParam(v: string | string[] | undefined): string {
 
 /** Deduped, trimmed tool slugs (max 4 — mirrors MAX_COMPARE_TOOLS). */
 function toolSlugsFrom(raw: string): string[] {
-  return [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))].slice(0, 4);
+  return [
+    ...new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 4);
 }
 
 // ── Metadata ──────────────────────────────────────────────────────────────
 
-export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: PageProps): Promise<Metadata> {
   const sp = await searchParams;
   const category = firstParam(sp.category).trim();
   const toolSlugs = toolSlugsFrom(firstParam(sp.tools));
@@ -56,7 +67,11 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 
       // Head-to-head deep link: name both tools when exactly two resolve.
       if (toolSlugs.length === 2) {
-        const matrix = await shadowCompareMatrix(client, category, toolSlugs).catch(() => null);
+        const matrix = await shadowCompareMatrix(
+          client,
+          category,
+          toolSlugs,
+        ).catch(() => null);
         const rows =
           matrix && !("error" in matrix)
             ? toolSlugs.map((s) => matrix.tools.find((t) => t.slug === s)?.name)
@@ -74,7 +89,12 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   return {
     title,
     description: finalDescription,
-    keywords: ["compare AI tools", "AI tool comparison", "AI tools directory", "AI tools"],
+    keywords: [
+      "compare AI tools",
+      "AI tool comparison",
+      "AI tools directory",
+      "AI tools",
+    ],
     alternates: {
       canonical: category
         ? `/compare?category=${encodeURIComponent(category)}`
@@ -132,8 +152,27 @@ export default async function ComparePage({ searchParams }: PageProps) {
   const category = firstParam(sp.category).trim();
   const requestedTools = toolSlugsFrom(firstParam(sp.tools));
 
-  let categories: { slug: string; name: string; emoji: string; toolCount: number }[] = [];
-  categories = await getCategories();
+  let categories: {
+    slug: string;
+    name: string;
+    emoji: string;
+    toolCount: number;
+  }[] = [];
+  // The static CATEGORIES list defines which landing pages exist; Convex only
+  // supplies live tool counts. Without this merge a category whose count query
+  // comes back short silently loses its /compare/<slug> page and its sitemap
+  // entry. See src/app/compare/[category]/page.tsx for the same helper.
+  const liveCats = await getCategories();
+  const byslug = new Map(liveCats.map((c) => [c.slug, c]));
+  categories = CATEGORIES.map(
+    (c) =>
+      byslug.get(c.slug) ?? {
+        slug: c.slug,
+        name: c.name,
+        emoji: c.emoji,
+        toolCount: 0,
+      },
+  );
 
   let initialMatrix: CompareMatrix | null = null;
   let initialTools: string[] = [];
@@ -179,6 +218,35 @@ export default async function ComparePage({ searchParams }: PageProps) {
             We couldn&apos;t find that category (it may have been renamed or
             removed). Pick one below to start a comparison.
           </p>
+        )}
+
+        {/* Landing state: no ?category= yet, so the matrix above is an empty
+            shell. These real links give crawlers (and no-JS visitors) a way
+            into the eight indexable per-category comparison pages. */}
+        {!initialMatrix && categories.length > 0 && (
+          <nav aria-label="Compare by category" className="mt-10">
+            <h2 className="font-mono text-xs uppercase tracking-[0.25em] text-white/60">
+              Start a comparison
+            </h2>
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {categories.map((c) => (
+                <li key={c.slug}>
+                  <Link
+                    href={`/compare/${c.slug}`}
+                    className="group flex h-full flex-col justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-white/[0.05]"
+                  >
+                    <span className="flex items-center gap-2 text-base font-bold text-white transition-colors group-hover:text-ember">
+                      <span aria-hidden>{c.emoji}</span>
+                      {c.name}
+                    </span>
+                    <span className="font-mono text-xs text-white/55">
+                      {c.toolCount} tools
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         )}
 
         <div className="mt-10">

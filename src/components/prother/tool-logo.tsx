@@ -17,7 +17,24 @@ export interface ToolLogoProps {
   imageClassName?: string;
 }
 
-const SIZE_STYLES: Record<ToolLogoSize, { box: string; pad: string; emoji: string }> = {
+/**
+ * Rendered box edge length per size, in px. Used as the img's intrinsic
+ * width/height so the browser reserves the correct aspect-ratio box before
+ * the file decodes (the surrounding `size-*` class then scales it). Without
+ * this, a lazy-loaded logo is a late layout shift on every card.
+ */
+const SIZE_PX: Record<ToolLogoSize, number> = {
+  xs: 24,
+  sm: 28,
+  md: 40,
+  lg: 48,
+  xl: 80,
+};
+
+const SIZE_STYLES: Record<
+  ToolLogoSize,
+  { box: string; pad: string; emoji: string }
+> = {
   xs: {
     box: "size-6 rounded-md",
     pad: "p-0.5",
@@ -75,13 +92,15 @@ export function ToolLogo({
         showImage
           ? cn("border border-white/10 bg-white/[0.04]", style.pad)
           : cn("bg-gradient-to-br", style.emoji, gradient),
-        className
+        className,
       )}
     >
       {showImage ? (
         <img
           src={resolvedUrl!}
           alt={`${name} logo`}
+          width={SIZE_PX[size]}
+          height={SIZE_PX[size]}
           loading="lazy"
           onError={() => setHasError(true)}
           className={cn("size-full object-contain", imageClassName)}

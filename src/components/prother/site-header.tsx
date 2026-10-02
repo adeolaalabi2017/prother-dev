@@ -30,7 +30,16 @@ import { usePrivileged } from "./use-privileged";
  * on the homepage is neutral.
  */
 const NAV_LINKS = [
-  { label: "Categories", href: "/#categories", id: "categories", icon: Grid2x2 },
+  {
+    label: "Categories",
+    // Must match the id on the CategoryGrid <section> in src/app/page.tsx.
+    // These used to disagree (`/#categories` vs id="directory"), so the link
+    // silently did nothing. globals.css already sets scroll-margin-top on
+    // section[id] to clear the sticky header.
+    href: "/#directory",
+    id: "categories",
+    icon: Grid2x2,
+  },
   { label: "Tools", href: "/tools", id: "tools", icon: Compass },
   { label: "Compare", href: "/compare", id: "compare", icon: Scale },
   { label: "Journal", href: "/journal", id: "journal", icon: Feather },
@@ -54,7 +63,7 @@ export function SiteHeader() {
   const isActive = (id: string) => {
     const link = NAV_LINKS.find((l) => l.id === id);
     if (!link) return false;
-    // Anchor shortcuts (Categories → /#categories) are scroll helpers, not
+    // Anchor shortcuts (Categories → /#directory) are scroll helpers, not
     // routes — they never light up, keeping the homepage default neutral.
     if (link.href.startsWith("/#")) return false;
     // Route links stay active on their sub-routes too (/journal/<slug>,
@@ -77,16 +86,23 @@ export function SiteHeader() {
             <img
               src={brandingLogoUrl}
               alt="Prother logo"
+              width={28}
+              height={28}
               onError={() => setLogoError(true)}
               className="size-7 rounded-md object-contain"
             />
           ) : (
             <Hexagon className="size-6 fill-ember text-ember" aria-hidden />
           )}
-          <span className="text-lg font-black tracking-tight text-white">Prother</span>
+          <span className="text-lg font-black tracking-tight text-white">
+            Prother
+          </span>
         </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-5 md:flex lg:gap-7 xl:gap-8">
+        <nav
+          aria-label="Main"
+          className="hidden items-center gap-5 md:flex lg:gap-7 xl:gap-8"
+        >
           {NAV_LINKS.map((l) => (
             <Link
               key={l.href}
@@ -94,7 +110,9 @@ export function SiteHeader() {
               aria-current={isActive(l.id) ? "true" : undefined}
               className={cn(
                 "relative py-1 text-sm font-medium transition-colors",
-                isActive(l.id) ? "text-ember" : "text-white/70 hover:text-white"
+                isActive(l.id)
+                  ? "text-ember"
+                  : "text-white/70 hover:text-white",
               )}
             >
               {l.label}
@@ -103,7 +121,7 @@ export function SiteHeader() {
                 aria-hidden
                 className={cn(
                   "absolute inset-x-0 -bottom-0.5 h-0.5 origin-center rounded-full bg-ember transition-transform duration-200",
-                  isActive(l.id) ? "scale-x-100" : "scale-x-0"
+                  isActive(l.id) ? "scale-x-100" : "scale-x-0",
                 )}
               />
             </Link>
@@ -140,7 +158,11 @@ export function SiteHeader() {
             aria-label={open ? "Close menu" : "Open menu"}
             className="inline-flex size-10 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white md:hidden"
           >
-            {open ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
+            {open ? (
+              <X className="size-5" aria-hidden />
+            ) : (
+              <Menu className="size-5" aria-hidden />
+            )}
           </button>
         </div>
       </div>
@@ -149,7 +171,7 @@ export function SiteHeader() {
       <div
         className={cn(
           "absolute inset-x-0 top-full border-b border-white/10 bg-ink shadow-xl transition-all md:hidden",
-          open ? "visible opacity-100" : "invisible -translate-y-2 opacity-0"
+          open ? "visible opacity-100" : "invisible -translate-y-2 opacity-0",
         )}
       >
         <nav aria-label="Mobile" className="flex flex-col gap-1 px-4 py-4">
@@ -161,7 +183,7 @@ export function SiteHeader() {
               aria-current={isActive(l.id) ? "true" : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-white/5 hover:text-white",
-                isActive(l.id) ? "text-ember" : "text-white/80"
+                isActive(l.id) ? "text-ember" : "text-white/80",
               )}
             >
               <l.icon className="size-4 text-ember" aria-hidden />
