@@ -547,7 +547,7 @@ function EditorsPicks({
                 <div>
                   {/* Top Bar: Logo + Name + Pricing Badge */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <ToolLogo
                         slug={p.slug}
                         name={p.name}
@@ -556,17 +556,21 @@ function EditorsPicks({
                         gradient={p.logoGradient}
                         size="md"
                       />
-                      <div>
-                        <h3 className="text-base font-bold text-white transition-colors group-hover:text-ember">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-bold text-white transition-colors group-hover:text-ember">
                           {p.name}
                         </h3>
-                        <p className="font-mono text-[11px] text-white/45">
+                        <p className="truncate font-mono text-[11px] text-white/45">
                           {p.category.name}
                         </p>
                       </div>
                     </div>
 
-                    <span className="rounded border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wider text-white/80 uppercase">
+                    {/* shrink-0 + nowrap: "OPEN SOURCE" is the longest label
+                        and was wrapping to two lines once the name beside it
+                        grew. The name truncates instead — the price is the
+                        scannable part and must never wrap. */}
+                    <span className="shrink-0 whitespace-nowrap rounded border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wider text-white/80 uppercase">
                       {pricingClean}
                     </span>
                   </div>

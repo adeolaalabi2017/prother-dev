@@ -1,6 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="7" fill="#0F172A"/>
-  <circle cx="16" cy="16" r="10" fill="#1E293B" stroke="#38BDF8" stroke-width="1.5"/>
-  <path d="M12 14.5L15 17.5L20 12.5" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="21" cy="10" r="2.5" fill="#F43F5E"/>
+  <title>Cline</title>
+  <rect width="32" height="32" rx="6" fill="#0B0D12"/>
+  <!-- official brand artwork, scaled from the source viewBox; foreground set light for the dark plate (AGENTS.md 1.3) -->
+  <g transform="translate(4 4) scale(0.75)" fill="#F1EDE4">
+    <path d="m23.365 13.556-1.442-2.895V8.994c0-2.764-2.218-5.002-4.954-5.002h-2.464c.178-.367.276-.779.276-1.213A2.77 2.77 0 0 0 12.018 0a2.77 2.77 0 0 0-2.763 2.779c0 .434.098.846.276 1.213H7.067c-2.736 0-4.954 2.238-4.954 5.002v1.667L.64 13.549c-.149.29-.149.636 0 .927l1.472 2.855v1.667C2.113 21.762 4.33 24 7.067 24h9.902c2.736 0 4.954-2.238 4.954-5.002V17.33l1.44-2.865c.143-.286.143-.622.002-.91m-12.854 2.36a2.27 2.27 0 0 1-2.261 2.273 2.27 2.27 0 0 1-2.261-2.273v-4.042A2.27 2.27 0 0 1 8.249 9.6a2.267 2.267 0 0 1 2.262 2.274zm7.285 0a2.27 2.27 0 0 1-2.26 2.273 2.27 2.27 0 0 1-2.262-2.273v-4.042A2.267 2.267 0 0 1 15.535 9.6a2.267 2.267 0 0 1 2.261 2.274z"/>
+  </g>
+  <!-- source: https://cdn.simpleicons.org/cline -->
 </svg>
