@@ -158,7 +158,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
           <p className="mx-auto mt-5 max-w-2xl text-base text-white/75 sm:text-lg sm:leading-relaxed text-pretty">
             The independent software & model directory for engineers, founders,
             and technical teams. Compare production specs, verified pricing, and
-            real developer reviews—with{" "}
+            real developer reviews, with{" "}
             <strong className="font-semibold text-white">
               zero pay-to-play ranking
             </strong>
@@ -193,7 +193,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
           <div className="mx-auto mt-10 max-w-3xl border-t border-white/[0.08] pt-6">
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div className="text-center">
-                <dt className="font-mono text-[10px] tracking-widest text-white/40 uppercase">
+                <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
                   VERIFIED INDEX
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-bold text-white tabular-nums">
@@ -201,7 +201,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
                 </dd>
               </div>
               <div className="text-center">
-                <dt className="font-mono text-[10px] tracking-widest text-white/40 uppercase">
+                <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
                   RANKING INTEGRITY
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-bold text-ember">
@@ -209,7 +209,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
                 </dd>
               </div>
               <div className="text-center">
-                <dt className="font-mono text-[10px] tracking-widest text-white/40 uppercase">
+                <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
                   TAXONOMY
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-bold text-white tabular-nums">
@@ -217,7 +217,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
                 </dd>
               </div>
               <div className="text-center">
-                <dt className="font-mono text-[10px] tracking-widest text-white/40 uppercase">
+                <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
                   ACCESS MODEL
                 </dt>
                 <dd className="mt-1 font-mono text-sm font-bold text-mint">

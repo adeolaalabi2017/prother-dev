@@ -14,8 +14,6 @@ import { useCompareTrayVisible } from "./compare-store";
  * Hidden whenever any full page (tool / post / mine) is stacked on top.
  */
 
-type DirectoryRow = { slug: string; name: string };
-
 export function CompareTray() {
   const visible = useCompareTrayVisible();
   const slugs = useExplorer((s) => s.compare);
@@ -24,29 +22,43 @@ export function CompareTray() {
   const reducedMotion = useReducedMotion();
   const [names, setNames] = useState<Record<string, string>>({});
 
-  // Resolve slug → display name from the public directory (graceful: the
-  // tray falls back to the raw slug if the directory is unreachable).
+  // Resolve slug -> display name by fetching only the specific tools in the
+  // compare list (graceful: the tray falls back to the raw slug if the
+  // individual endpoint is unreachable).
   useEffect(() => {
     if (!visible || slugs.length === 0) return;
     let alive = true;
-    fetch("/api/tools?limit=60&sort=votes")
-      .then(async (res) => {
-        if (!res.ok) throw new Error("directory unavailable");
-        return (await res.json()) as { rows: DirectoryRow[] };
-      })
-      .then((data) => {
-        if (!alive) return;
-        const map: Record<string, string> = {};
-        for (const r of data.rows ?? []) map[r.slug] = r.name;
-        setNames(map);
-      })
-      .catch(() => {
-        /* tray still works — chips fall back to slugs */
+
+    // Only fetch slugs we haven't resolved yet
+    const missing = slugs.filter((s) => !names[s]);
+    if (missing.length === 0) return;
+
+    Promise.allSettled(
+      missing.map((slug) =>
+        fetch(`/api/tools/${encodeURIComponent(slug)}`).then(async (res) => {
+          if (!res.ok) return null;
+          const data = (await res.json()) as { slug: string; name: string };
+          return { slug: data.slug ?? slug, name: data.name };
+        })
+      )
+    ).then((results) => {
+      if (!alive) return;
+      setNames((prev) => {
+        const next = { ...prev };
+        for (const r of results) {
+          if (r.status === "fulfilled" && r.value?.name) {
+            next[r.value.slug] = r.value.name;
+          }
+        }
+        return next;
       });
+    });
+
     return () => {
       alive = false;
     };
-  }, [visible, slugs.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, slugs.join(",")]);
 
   const nameOf = (slug: string) => names[slug] ?? slug;
 

@@ -24,6 +24,7 @@ import { ToolBadgeEmbed } from "@/components/prother/tool-badge-embed";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowToolPageData } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
+import { getTopicBySlug } from "@/lib/topics";
 
 /**
  * /tools/[slug] - the real, crawlable tool detail page (Task 25).
@@ -362,7 +363,7 @@ export default async function ToolPage({ params }: Params) {
     name,
     description: tool.description || tool.tagline,
     applicationCategory: tool.category.name,
-    operatingSystem: "Web",
+    operatingSystem: "Web-based",
     url: `${SITE_BASE}/tools/${tool.slug}`,
     offers: {
       "@type": "Offer",
@@ -710,11 +711,23 @@ export default async function ToolPage({ params }: Params) {
             <section aria-label="Tags" className="space-y-3">
               <h2 className={SECTION_HEAD}>Tags</h2>
               <ul className="flex flex-wrap items-center gap-1.5">
-                {tags.map((t) => (
-                  <li key={t} className={chipCx("text-white/50")}>
-                    {t}
-                  </li>
-                ))}
+                {tags.map((t) => {
+                  const topic = getTopicBySlug(t);
+                  const href = topic ? `/topics/${t}` : `/tools?tag=${encodeURIComponent(t)}`;
+                  return (
+                    <li key={t}>
+                      <Link
+                        href={href}
+                        className={cn(
+                          chipCx("text-white/60 transition-colors hover:border-ember/40 hover:text-ember"),
+                          topic && "border-ember/20 text-ember/80",
+                        )}
+                      >
+                        {topic ? `${topic.emoji} ${t}` : t}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           )}

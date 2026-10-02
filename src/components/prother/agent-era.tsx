@@ -187,7 +187,7 @@ export function AgentEra() {
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
             <span className="size-3 rounded-full bg-white/15" aria-hidden />
-            <span className="ml-2 font-mono text-xs text-white/50">discovery — zsh</span>
+            <span className="ml-2 font-mono text-xs text-white/50">discovery - zsh</span>
           </div>
           <div
             className="space-y-1.5 p-5 font-mono text-[13px] text-white/90"

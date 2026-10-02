@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowSitemapData } from "@/lib/data";
 import { CATEGORIES } from "@/components/prother/categories";
+import { POPULAR_SHOWDOWNS } from "@/lib/showdowns";
+import { TOPICS } from "@/lib/topics";
 
 /**
  * Auto sitemap (PRD NFR: SEO - auto sitemaps). Metadata route, not a page.
@@ -99,31 +101,29 @@ function buildSitemap(
       priority: 0.7,
     })),
     // Popular pairwise "VS" comparisons
-    ...[
-      "cursor-vs-windsurf",
-      "chatgpt-vs-claude",
-      "deepseek-vs-chatgpt",
-      "deepseek-vs-claude",
-      "perplexity-vs-chatgpt",
-      "aider-vs-cline",
-      "vllm-vs-ollama",
-      "groq-vs-vllm",
-      "litellm-vs-openrouter",
-      "aider-vs-cursor",
-      "cline-vs-cursor",
-    ]
-      .filter((pair) => {
-        const [a, b] = pair.split("-vs-");
-        return (
-          data.tools.some((t) => t.slug === a) &&
-          data.tools.some((t) => t.slug === b)
-        );
-      })
-      .map((pair) => ({
-        url: `${base}/compare/${pair}`,
+    ...POPULAR_SHOWDOWNS
+      .filter(
+        (s) =>
+          data.tools.some((t) => t.slug === s.toolA) &&
+          data.tools.some((t) => t.slug === s.toolB),
+      )
+      .map((s) => ({
+        url: `${base}/compare/${s.slug}`,
         changeFrequency: "weekly" as const,
         priority: 0.8,
       })),
+    // Curated topic & intent hubs (programmatic SEO)
+    {
+      url: `${base}/topics`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    },
+    ...TOPICS.map((topic) => ({
+      url: `${base}/topics/${encodeURIComponent(topic.slug)}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    })),
     {
       url: `${base}/forums`,
       lastModified: new Date(),

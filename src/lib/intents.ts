@@ -8,7 +8,7 @@
  *
  * `tag` values are verified against the live index (GET /api/tools?tag=…):
  * every entry below returns at least one result. Counts are shown at build
- * time from the same source and are indicative, not authoritative — the link
+ * time from the same source and are indicative, not authoritative - the link
  * is what matters.
  *
  * Keep this list short and specific. A long list of vague intents ("work
@@ -23,7 +23,7 @@ export type Intent = {
   /** One line, written as the user's own words, not ours. */
   blurb: string;
   emoji: string;
-  /** Appended to /tools as ?tag= — verified to return results. */
+  /** Appended to /tools as ?tag= - verified to return results. */
   tag: string;
   /** Optional second filter, e.g. pricing=free. */
   pricing?: string;
@@ -41,7 +41,7 @@ export const INTENTS: Intent[] = [
     blurb: "Autonomous agents that take a task and return a finished change.",
     emoji: "🤖",
     // "agents" (12 tools), not "autonomous" (2) or "autonomous-agent" (1).
-    // The index uses all three spellings for the same concept — an
+    // The index uses all three spellings for the same concept: an
     // editorial inconsistency worth normalising at the source. Until then,
     // route on the one with enough depth to be worth a card.
     tag: "agents",
@@ -66,14 +66,20 @@ export const INTENTS: Intent[] = [
   },
   {
     label: "Start free, decide later",
-    blurb: "Genuinely usable at no cost — no trial clock, no card.",
+    blurb: "Genuinely usable at no cost - no trial clock, no card.",
     emoji: "🆓",
     tag: "free-tier",
   },
 ];
 
-/** Build the /tools href for an intent. */
+import { getTopicBySlug } from "./topics";
+
+/** Build the destination href for an intent: dedicated topic hub if available, else filtered /tools. */
 export function intentHref(intent: Intent): string {
+  const topic = getTopicBySlug(intent.tag);
+  if (topic && !intent.pricing) {
+    return `/topics/${topic.slug}`;
+  }
   const params = new URLSearchParams({ tag: intent.tag });
   if (intent.pricing) params.set("pricing", intent.pricing);
   return `/tools?${params.toString()}`;

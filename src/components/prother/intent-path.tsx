@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { INTENTS, intentHref } from "@/lib/intents";
 
 /**
- * IntentPath — "what should I use?" entry points.
+ * IntentPath: "what should I use?" entry points.
  *
  * Sits directly under the hero, above the standards band, because it answers
  * the question people actually arrive with. The category grid further down
@@ -11,7 +11,7 @@ import { INTENTS, intentHref } from "@/lib/intents";
  * worded as the visitor's own problem rather than ours.
  *
  * Each card links into the existing /tools?tag= filter, so these are real
- * navigations — the destination is server-rendered and scoped, not a client
+ * navigations: the destination is server-rendered and scoped, not a client
  * island. Counts come from the same index and are indicative.
  */
 export function IntentPath({

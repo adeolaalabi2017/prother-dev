@@ -365,7 +365,7 @@ export function StatusTracker() {
 
           {searchedFor && items && items.length > 0 && (
             <p className="mt-4 border-t border-white/10 pt-3 text-center font-mono text-xs tracking-wider text-white/55">
-              ALSO SENT TO {searchedFor.toUpperCase()} · REVIEW USUALLY TAKES 1–2 DAYS
+              ALSO SENT TO {searchedFor.toUpperCase()} · REVIEW USUALLY TAKES 1-2 DAYS
             </p>
           )}
         </div>

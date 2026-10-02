@@ -121,8 +121,8 @@ function fmtMoney(cents: number | null | undefined): string {
 }
 
 function fmtWindow(c: AdCampaign): string {
-  const s = c.startsAt ? c.startsAt.slice(0, 10) : "—";
-  const e = c.endsAt ? c.endsAt.slice(0, 10) : "—";
+  const s = c.startsAt ? c.startsAt.slice(0, 10) : "-";
+  const e = c.endsAt ? c.endsAt.slice(0, 10) : "-";
   return `${s} → ${e}`;
 }
 
@@ -356,7 +356,7 @@ function CampaignDialog({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Weight (1–10)">
+            <Field label="Weight (1-10)">
               <Input
                 value={f.weight}
                 type="number"
@@ -429,7 +429,7 @@ function CampaignDialog({
             </Button>
             {!valid && (
               <p className="hidden font-mono text-xs text-white/55 sm:block">
-                NAME · ADVERTISER · HEADLINE · VALID URL · WEIGHT 1–10 REQUIRED
+                NAME · ADVERTISER · HEADLINE · VALID URL · WEIGHT 1-10 REQUIRED
               </p>
             )}
           </div>
@@ -660,7 +660,7 @@ function MeasurementCard({ m }: { m: Measurement | null }) {
                   )}
                   title="Unfill rate: (house + unfilled) / requested"
                 >
-                  {requested === 0 ? "—" : `${row.unfillRate}% unfill`}
+                  {requested === 0 ? "-" : `${row.unfillRate}% unfill`}
                 </span>
               </span>
             </div>

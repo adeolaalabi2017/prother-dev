@@ -115,9 +115,9 @@ export default async function AdvertisePage() {
   notFound();
   const stats = await getStats();
   const statCards = [
-    { label: "TOOLS LISTED", value: stats.tools > 0 ? `${stats.tools}` : "—" },
+    { label: "TOOLS LISTED", value: stats.tools > 0 ? `${stats.tools}` : "-" },
     { label: "CATEGORIES", value: `${stats.categories}` },
-    { label: "REVIEWS READ", value: stats.reviews > 0 ? stats.reviews.toLocaleString("en-US") : "—" },
+    { label: "REVIEWS READ", value: stats.reviews > 0 ? stats.reviews.toLocaleString("en-US") : "-" },
     { label: "JOURNAL POSTS", value: `${stats.posts}` },
   ];
 

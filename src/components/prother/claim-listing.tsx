@@ -98,7 +98,7 @@ export function ClaimListing({
         return;
       }
       setState((s) => ({ ...(s ?? {}), claim: data.claim }));
-      toast({ title: "Claim started — add the meta tag to your site." });
+      toast({ title: "Claim started: add the meta tag to your site." });
     } catch {
       toast({
         title: "Could not start the claim",

@@ -499,7 +499,7 @@ function NewThreadDialog({
       if (!res.ok) {
         setError(
           res.status === 422
-            ? "Titles are 3–120 characters, bodies 10–5000."
+            ? "Titles are 3-120 characters, bodies 10-5000."
             : "Could not post the thread. Try again."
         );
         return;

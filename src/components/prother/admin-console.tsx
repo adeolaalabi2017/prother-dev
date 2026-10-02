@@ -1063,7 +1063,7 @@ function ListingEditor({
   return (
     <div className="space-y-4 border-t border-white/10 p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Tagline (5–60)">
+        <Field label="Tagline (5-60)">
           <Input
             value={f.tagline}
             maxLength={60}
@@ -1874,7 +1874,7 @@ function PostEditor({
         </Field>
       </div>
 
-      <Field label="Excerpt (20–200 · cards + meta description)">
+      <Field label="Excerpt (20-200 · cards + meta description)">
         <Textarea value={f.excerpt} rows={2} maxLength={200} onChange={(e) => setF({ ...f, excerpt: e.target.value })} className={inputCx} />
         <p className="text-xs text-white/55">{f.excerpt.length}/200</p>
       </Field>
@@ -2971,7 +2971,7 @@ function ActivityCard({
                     {a.entityId ? `…${a.entityId.slice(-4)}` : ""}
                   </TableCell>
                   <TableCell className="max-w-[180px] truncate py-2.5 text-xs text-white/60">
-                    {a.meta || "—"}
+                    {a.meta || "-"}
                   </TableCell>
                 </TableRow>
               );

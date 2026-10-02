@@ -42,6 +42,7 @@ const LOGO_UPDATES: Record<string, string> = {
   computer: "/logos/computer.svg",
   overlay: "/logos/overlay.png",
   "naive-n0-5-flash": "/logos/naive-n0-5-flash.svg",
+  unsloth: "/logos/unsloth.png",
 };
 
 async function main() {

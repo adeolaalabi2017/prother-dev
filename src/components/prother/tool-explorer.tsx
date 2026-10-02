@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Check,
   MailSearch,
+  Scale,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
@@ -22,6 +23,8 @@ import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
 import { useExplorer } from "./explorer-store";
 import { ToolLogo } from "./tool-logo";
+import { POPULAR_SHOWDOWNS } from "@/lib/showdowns";
+import { TOPICS } from "@/lib/topics";
 import type { SearchToolHit } from "@/app/api/search/route";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api.js";
@@ -29,7 +32,7 @@ import { api } from "../../../convex/_generated/api.js";
 /**
  * Phase 4 step 2: realtime palette. With a Convex URL baked in, trending
  * and results subscribe via useQuery; otherwise the /api fetch fallback
- * serves (same shapes — the shadow harness pins them equal).
+ * serves (same shapes: the shadow harness pins them equal).
  */
 const CONVEX_LIVE =
   typeof process.env.NEXT_PUBLIC_CONVEX_URL === "string" &&
@@ -48,7 +51,7 @@ type TrendingRow = {
   category: { slug: string; name: string; emoji: string };
 };
 
-/** Mono right-side chip for a tool row — honest pricing, no vote counters. */
+/** Mono right-side chip for a tool row: honest pricing, no vote counters. */
 function pricingChip(model: string, price: string | null): string {
   if (model === "paid" && price) return `FROM ${price}`;
   return model.replace(/_/g, " ").toUpperCase();
@@ -83,8 +86,7 @@ function CommandPalette() {
     if (!searchOpen) return;
     if (CONVEX_LIVE) return; // subscription above owns trending
     // Trending rows load once per open (async setState in the fetch callback).
-    // Trending rows load once per open (async setState in the fetch callback).
-    // Input/results reset happens in the dialog's onOpenChange close handler —
+    // Input/results reset happens in the dialog's onOpenChange close handler:
     // synchronous setState inside an effect body is a cascading-render hazard.
     let alive = true;
     fetch("/api/trending?window=week&limit=6")
@@ -102,13 +104,13 @@ function CommandPalette() {
 
   // ── Debounced live search (180ms, ≥2 chars) ───────────────────────────
   // Results carry the query they answered, so stale rows self-invalidate via
-  // the `results.q === q` derivation below — no synchronous clearing needed.
+  // the `results.q === q` derivation below: no synchronous clearing needed.
   // When live, the debounce feeds the subscription; otherwise the fetch.
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
       // Deferred (not synchronous) so the effect never triggers a cascading
-      // render pass — behavior unchanged, it still clears on the next tick.
+      // render pass: behavior unchanged, it still clears on the next tick.
       const t = window.setTimeout(() => setDebouncedQ(""), 0);
       return () => window.clearTimeout(t);
     }
@@ -134,13 +136,13 @@ function CommandPalette() {
   const pickTool = useCallback(
     (slug: string) => {
       setSearch(false);
-      // Let the command dialog finish closing before opening the detail page.
-      window.setTimeout(() => openTool(slug), 80);
+      // Navigate directly to the canonical tool detail page.
+      window.setTimeout(() => router.push(`/tools/${slug}`), 80);
     },
-    [setSearch, openTool],
+    [setSearch, router],
   );
 
-  // The palette works on every route — jump targets are real navigation.
+  // The palette works on every route: jump targets are real navigation.
   const goTo = useCallback(
     (href: string) => {
       setSearch(false);
@@ -264,6 +266,41 @@ function CommandPalette() {
         </CommandGroup>
 
         <CommandSeparator />
+        <CommandGroup heading="Showdowns & Comparisons">
+          {POPULAR_SHOWDOWNS.map((s) => (
+            <CommandItem
+              key={s.slug}
+              value={`compare vs showdown ${s.title} ${s.toolA} ${s.toolB} ${s.categoryName}`}
+              onSelect={() => goTo(`/compare/${s.slug}`)}
+            >
+              <Scale aria-hidden className="size-4 text-ember shrink-0" />
+              <span className="font-semibold">{s.title}</span>
+              <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-white/50">
+                VS SHOWDOWN
+              </span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
+        <CommandSeparator />
+        <CommandGroup heading="Curated Topics & Workflows">
+          {TOPICS.map((t) => (
+            <CommandItem
+              key={t.slug}
+              value={`topic hub ${t.name} ${t.tag} ${t.tagline}`}
+              onSelect={() => goTo(`/topics/${t.slug}`)}
+            >
+              <span aria-hidden>{t.emoji}</span>
+              <span className="font-semibold">{t.name}</span>
+              <span className="truncate text-white/60">{t.tagline}</span>
+              <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-white/50">
+                TOPIC
+              </span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
+        <CommandSeparator />
         <CommandGroup heading="Actions">
           <CommandItem
             value="submit a tool to the directory listing wizard"
@@ -340,7 +377,7 @@ export function ToolExplorer() {
   }, [router]);
 
   // Legacy shared links (?cat=<slug>) used to filter the retired homepage
-  // feed — they now land on the matching category page instead.
+  // feed: they now land on the matching category page instead.
   useEffect(() => {
     const cat = new URLSearchParams(window.location.search).get("cat");
     if (cat && CATEGORIES.some((c) => c.slug === cat)) {

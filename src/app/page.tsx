@@ -41,8 +41,11 @@ async function metaEntities(args: {
  *
  * force-dynamic: the server-rendered sections read the CMS-managed site copy
  * (SiteSetting KV, Task 32), so editor saves must appear on the next request.
+ *
+ * ISR with revalidate=60 balances freshness with performance: editor saves
+ * appear within a minute, and visitors get near-instant TTFB from the cache.
  */
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export async function generateMetadata({
   searchParams,
@@ -528,7 +531,7 @@ function EditorsPicks({
           </div>
           <p className="max-w-md text-sm text-white/60 text-pretty">
             A small, deliberate set. Pricing models, API access, and specs are
-            listed on every page and dated — check them before you commit.
+            listed on every page and dated; check them before you commit.
           </p>
         </div>
 

@@ -129,8 +129,18 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2.5">
-          {/* No search box in the bar — the hero search, /tools directory and
-              the global ⌘K palette (mounted in layout.tsx) already cover it. */}
+          <button
+            type="button"
+            onClick={() => setSearch(true)}
+            className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-white/60 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white sm:flex"
+            aria-label="Search tools (⌘K)"
+          >
+            <Search className="size-3.5 text-white/50" aria-hidden />
+            <span className="font-medium">Search...</span>
+            <kbd className="ml-0.5 inline-flex items-center gap-0.5 rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/50">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </button>
           <AuthMenu />
           <ThemeToggle />
           {privileged && (

@@ -50,7 +50,7 @@ export default function PrivacyPage() {
 
         <H>Accounts</H>
         <P>
-          Signing in is optional — browsing, searching, and comparing work
+          Signing in is optional: browsing, searching, and comparing work
           without an account. If you create one (email magic link or Google
           OAuth), we store your email address, plus the name, handle, bio, and
           avatar you choose. Google sign-in additionally receives the basic
@@ -68,11 +68,11 @@ export default function PrivacyPage() {
           everyone, including search engines.
         </P>
 
-        <H>Analytics — cookieless by design</H>
+        <H>Analytics: cookieless by design</H>
         <P>
           We count page views in aggregate (page × day) to understand traffic
           and report it to advertisers. We store no cookies, IP addresses, or
-          user-agent strings for analytics — there is nothing personal to
+          user-agent strings for analytics: there is nothing personal to
           leak, so no consent banner is needed.
         </P>
 

@@ -106,7 +106,7 @@ export function PurgeTab({
           Deletes every account except the owner&apos;s, plus all
           user-attributable content and demo campaigns. Tools, categories,
           journal, settings, analytics and the audit trail survive. There is
-          no undo — preview first.
+          no undo: preview first.
         </p>
       </div>
 

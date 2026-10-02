@@ -11,7 +11,7 @@ type FooterLink = {
   href: string;
   /** Opens the maker status tracker overlay instead of navigating. */
   tracker?: boolean;
-  /** External / non-route href (mailto:, /api/*) — rendered as <a>. */
+  /** External / non-route href (mailto:, /api/*): rendered as <a>. */
   external?: boolean;
 };
 
@@ -20,6 +20,7 @@ const COLS: { title: string; links: FooterLink[] }[] = [
     title: "Directory",
     links: [
       { label: "All tools", href: "/tools" },
+      { label: "Topic collections", href: "/topics" },
       { label: "Compare tools", href: "/compare" },
       { label: "Conversational AI", href: "/categories/conversational-ai" },
       { label: "Generative Content", href: "/categories/generative-content" },
@@ -72,17 +73,17 @@ function FooterAnchor({ link }: { link: FooterLink }) {
 export function SiteFooter() {
   const setEditorOpen = useExplorer((s) => s.setEditorOpen);
   const setTrackOpen = useExplorer((s) => s.setTrackOpen);
-  // CMS-managed copy (Task 32) — blanks keep the locked defaults.
+  // CMS-managed copy (Task 32): blanks keep the locked defaults.
   const settings = useSiteSettings();
   const tagline =
     settings["footer.tagline"] ||
     "The curated directory for AI tools. Search, compare, and save your stack.";
   const note = settings["footer.note"] || "Curated, human-reviewed.";
   // Owner-only entries (admin gear, editor access) render solely for
-  // unlocked tabs — guests get no trace of either console in the DOM.
+  // unlocked tabs: guests get no trace of either console in the DOM.
   const privileged = usePrivileged();
   // Same brand mark as the header (Task 35): CMS logo URL wins, hexagon
-  // glyph is the fallback — header and footer never disagree.
+  // glyph is the fallback: header and footer never disagree.
   const brandingLogoUrl = settings["branding.logoUrl"] ?? "";
   return (
     <footer className="mt-auto border-t border-white/10 bg-ink">
@@ -157,7 +158,11 @@ export function SiteFooter() {
             © 2026 Prother. {note}
           </p>
           <div className="flex items-center gap-2 font-mono text-xs text-white/60">
-            <span>STANDARDS · PRIVACY · STATUS</span>
+            <Link href="/about" className="transition-colors hover:text-ember">STANDARDS</Link>
+            <span aria-hidden>·</span>
+            <Link href="/privacy" className="transition-colors hover:text-ember">PRIVACY</Link>
+            <span aria-hidden>·</span>
+            <span>STATUS</span>
             {privileged && (
               <>
                 <span aria-hidden>·</span>

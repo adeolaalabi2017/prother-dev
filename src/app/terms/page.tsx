@@ -60,7 +60,7 @@ export default function TermsPage() {
         <H>Listings and maker claims</H>
         <P>
           Tool listings must describe real, publicly usable products.
-          Ownership claims must be truthful — claiming a tool you don&apos;t
+          Ownership claims must be truthful: claiming a tool you don&apos;t
           control, or submitting misleading pricing, features, or reviews,
           leads to removal and may lead to a ban. Listings are free; editors
           review every submission against our published listing standards
@@ -70,7 +70,7 @@ export default function TermsPage() {
         <H>Your content</H>
         <P>
           Reviews, comments, forum posts, and collections must be honest,
-          lawful, and yours to share — no spam, harassment, hate, private
+          lawful, and yours to share: no spam, harassment, hate, private
           data, or infringing material. You grant Prother a worldwide,
           non-exclusive license to display content you post, so the site can
           function (including search indexing and excerpts). You can delete
@@ -89,7 +89,7 @@ export default function TermsPage() {
         <H>Service as-is</H>
         <P>
           Prother is provided &ldquo;as is&rdquo; without warranties. Tool
-          information (pricing, features, availability) changes quickly — we
+          information (pricing, features, availability) changes quickly; we
           fact-check but can&apos;t guarantee every detail. To the maximum
           extent permitted by law, Prother is not liable for decisions you
           make based on directory content, nor for downtime or data loss.

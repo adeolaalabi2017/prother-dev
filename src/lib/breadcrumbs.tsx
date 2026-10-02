@@ -1,14 +1,14 @@
 import Link from "next/link";
 
 /**
- * Shared server-safe breadcrumbs (Task 25) — a plain React component (no
+ * Shared server-safe breadcrumbs (Task 25): a plain React component (no
  * "use client", no dependencies) so it can render inside any server page.
  *
  * Renders BOTH:
  *  (a) a visible <nav aria-label="Breadcrumb"> in the site's mono
- *      uppercase micro-label language (links dim → ember on hover, the
+ *      uppercase micro-label language (links dim -> ember on hover, the
  *      current page is plain text with aria-current="page"), and
- *  (b) one <script type="application/ld+json"> BreadcrumbList — absolute
+ *  (b) one <script type="application/ld+json"> BreadcrumbList: absolute
  *      item URLs; the last crumb (current page) carries no `item`.
  *
  * Pages own their container: drop <Breadcrumbs /> inside the standard
@@ -28,7 +28,7 @@ export function Breadcrumbs({ trail }: { trail: Crumb[] }) {
         "@type": "ListItem",
         position: i + 1,
         name: crumb.name,
-        // Only ancestors get an `item` URL — the current page has none.
+        // Only ancestors get an `item` URL: the current page has none.
         ...(crumb.href && !isLast ? { item: `${SITE_BASE}${crumb.href}` } : {}),
       };
     }),

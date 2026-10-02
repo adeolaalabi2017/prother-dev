@@ -76,14 +76,14 @@ const TIMELINE = [
   {
     n: "02",
     title: "Standards review",
-    body: "A human editor checks the listing against S1–S6, the public quality bar below. Rejections come back with the exact standards failed and a one-click resubmit.",
+    body: "A human editor checks the listing against S1-S6, the public quality bar below. Rejections come back with the exact standards failed and a one-click resubmit.",
     minutes: "In submission order",
   },
   {
     n: "03",
     title: "Editor decision",
-    body: "Review usually takes 1–2 days. Approved listings go live immediately: no calendar, no waiting room.",
-    minutes: "1–2 days",
+    body: "Review usually takes 1-2 days. Approved listings go live immediately: no calendar, no waiting room.",
+    minutes: "1-2 days",
   },
   {
     n: "04",
@@ -102,7 +102,7 @@ const REASSURANCE = [
   {
     icon: Clock3,
     q: "How long does review take?",
-    a: "Review usually takes 1–2 days. Approved listings go live immediately. Track your position any time with the status tracker: same email, no account needed.",
+    a: "Review usually takes 1-2 days. Approved listings go live immediately. Track your position any time with the status tracker: same email, no account needed.",
   },
   {
     icon: RefreshCcw,

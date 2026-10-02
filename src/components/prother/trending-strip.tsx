@@ -113,7 +113,7 @@ export function TrendingStrip() {
             <p className="mt-3 max-w-xl text-sm text-white/60 text-pretty">
               Ranked by real engagement (comments, reviews, and collection
               saves) over the selected window. No paid placement, no editorial
-              weighting — a tool ranks here because people used it.
+              weighting: a tool ranks here because people used it.
             </p>
           </div>
 

@@ -80,7 +80,7 @@ function Row({ label, cells }: { label: React.ReactNode; cells: React.ReactNode[
 function MissingValue({ title }: { title: string }) {
   return (
     <span className="text-white/40" title={title}>
-      —
+      -
     </span>
   );
 }

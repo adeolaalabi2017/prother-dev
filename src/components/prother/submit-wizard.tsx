@@ -406,7 +406,7 @@ export function SubmitWizard() {
               <span className="font-semibold text-white">{form.name.trim()}</span> is
               in the moderation queue. Editors check the six standards and reply
               to <span className="font-mono text-white">{form.email.trim()}</span>,
-              typically within 24h. Review usually takes 1–2 days. Approved
+              typically within 24h. Review usually takes 1-2 days. Approved
               listings go live immediately, free forever.
             </p>
             <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-3">
@@ -901,8 +901,8 @@ export function SubmitWizard() {
                         {[
                           ["Name", form.name.trim()],
                           ["URL", domainOf(form.websiteUrl) ?? form.websiteUrl],
-                          ["Category", CATEGORIES.find((c) => c.slug === form.categorySlug)?.name ?? "—"],
-                          ["Pricing", PRICING_MODELS.find((p) => p.value === form.pricingModel)?.label ?? "—"],
+                          ["Category", CATEGORIES.find((c) => c.slug === form.categorySlug)?.name ?? "-"],
+                          ["Pricing", PRICING_MODELS.find((p) => p.value === form.pricingModel)?.label ?? "-"],
                           ["Tags", form.tags.length ? form.tags.join(", ") : "none"],
                           ["Contact", form.email.trim()],
                         ].map(([k, v]) => (
@@ -951,9 +951,9 @@ export function SubmitWizard() {
                           }}
                           className="text-ember underline-offset-2 hover:underline"
                         >
-                          Listing Standards (S1–S6)
+                          Listing Standards (S1-S6)
                         </a>{" "}
-                        and my listing is honest, complete, and in English (S3–S6).
+                        and my listing is honest, complete, and in English (S3-S6).
                       </span>
                     </label>
                     <FieldError msg={errors.agreedStandards} />

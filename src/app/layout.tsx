@@ -110,6 +110,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased bg-background text-foreground">
+        {/* Skip-to-content: WCAG 2.4.1 bypass block. Visually hidden until
+            focused, then renders as a fixed top-bar link so keyboard users
+            can jump past the sticky header in one Tab press. */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-ember focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-coal focus:shadow-lg focus:outline-none"
+        >
+          Skip to main content
+        </a>
         {/* Dark is the brand default; the header toggle flips to the warm
             paper light theme (globals.css html.light token remap). The
             class is set pre-hydration by our inline theme script, so
@@ -120,7 +129,7 @@ export default function RootLayout({
               <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
                 <ScrollProgress />
                 <SiteHeader />
-                <main className="flex-1">{children}</main>
+                <main id="main-content" className="flex-1">{children}</main>
                 <SiteFooter />
                 <GlobalOverlays />
                 {/* First-party, cookieless pageview ping (Task 28) - renders null */}

@@ -183,7 +183,7 @@ export function ForumThreadActions({
         return;
       }
       if (!res.ok) {
-        setError(res.status === 422 ? "Replies are 1–3000 characters." : "Could not post the reply. Try again.");
+        setError(res.status === 422 ? "Replies are 1-3000 characters." : "Could not post the reply. Try again.");
         return;
       }
       const j = (await res.json()) as { reply: ForumReplyRow };
