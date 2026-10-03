@@ -57,7 +57,6 @@ export function CompareTray() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, slugs.join(",")]);
 
   const nameOf = (slug: string) => names[slug] ?? slug;
