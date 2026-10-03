@@ -37,41 +37,8 @@ export async function shadowSite(c: Client) {
   return res;
 }
 
-export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
-  openchamber: "/logos/openchamber.svg",
-  nebula: "/logos/nebula.svg",
-  "open-slide": "/logos/open-slide.png",
-  paperclip: "/logos/paperclip.svg",
-  linear: "/logos/linear.svg",
-  openviking: "/logos/openviking.png",
-  "julia-1": "/logos/julia-1.svg",
-  jev: "/logos/jev.png",
-  supermemory: "/logos/supermemory.svg",
-  antigravity: "/logos/antigravity.png",
-  aider: "/logos/aider.png",
-  cursor: "/logos/cursor.svg",
-  windsurf: "/logos/windsurf.svg",
-  vllm: "/logos/vllm.svg",
-  "open-webui": "/logos/open-webui.svg",
-  plane: "/logos/plane.png",
-  chatbase: "/logos/chatbase.svg",
-  "mimo-v2-6": "/logos/mimo-v2-6.png",
-  notra: "/logos/notra.svg",
-  openbot: "/logos/openbot.svg",
-  openship: "/logos/openship.png",
-  opencode: "/logos/opencode.svg",
-  "minimax-m3-1-flash": "/logos/minimax-m3-1-flash.svg",
-  computer: "/logos/computer.svg",
-  overlay: "/logos/overlay.png",
-  "naive-n0-5-flash": "/logos/naive-n0-5-flash.svg",
-  perplexity: "/logos/perplexity.svg",
-  n8n: "/logos/n8n.svg",
-  litellm: "/logos/litellm.svg",
-  groq: "/logos/groq.svg",
-  qdrant: "/logos/qdrant.svg",
-  langfuse: "/logos/langfuse.svg",
-  deepseek: "/logos/deepseek.svg",
-};
+import { KNOWN_LOCAL_LOGOS } from "@/lib/logos";
+export { KNOWN_LOCAL_LOGOS };
 
 export function cleanLogoUrl(
   raw: string | null | undefined,
