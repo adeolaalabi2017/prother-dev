@@ -43,6 +43,7 @@ const LOGO_UPDATES: Record<string, string> = {
   overlay: "/logos/overlay.png",
   "naive-n0-5-flash": "/logos/naive-n0-5-flash.svg",
   unsloth: "/logos/unsloth.png",
+  "microsoft-clarity": "/logos/microsoft-clarity.png",
 };
 
 async function main() {

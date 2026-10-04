@@ -42,4 +42,5 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   claude: "/logos/claude.svg",
   gemini: "/logos/gemini.svg",
   midjourney: "/logos/midjourney.svg",
+  "microsoft-clarity": "/logos/microsoft-clarity.png",
 };

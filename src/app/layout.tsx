@@ -9,6 +9,7 @@ import { SiteHeader } from "@/components/prother/site-header";
 import { SiteFooter } from "@/components/prother/site-footer";
 import { GlobalOverlays } from "@/components/prother/global-overlays";
 import { AnalyticsPing } from "@/components/prother/analytics-ping";
+import { ClarityAnalytics } from "@/components/prother/clarity-analytics";
 import { siteUrl } from "@/lib/site-url";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowSite } from "@/lib/data";
@@ -134,6 +135,8 @@ export default function RootLayout({
                 <GlobalOverlays />
                 {/* First-party, cookieless pageview ping (Task 28) - renders null */}
                 <AnalyticsPing />
+                {/* Microsoft Clarity user behavior, heatmaps and session recordings - renders null */}
+                <ClarityAnalytics />
               </div>
             </ConvexClientProvider>
           </AuthProvider>
