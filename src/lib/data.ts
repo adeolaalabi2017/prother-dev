@@ -121,7 +121,7 @@ export async function shadowTrending(c: Client | null | undefined, window: "week
   if (!c) {
     const logoMap = await getToolLogoMap(c);
     try {
-      const tools = await db.tool.findMany({ where: { status: "published" }, take: limit, orderBy: { createdAt: "desc" }, include: { category: true } });
+      const tools = await db.tool.findMany({ where: { status: "live" }, take: limit, orderBy: { createdAt: "desc" }, include: { category: true } });
       return {
         rows: tools.map((t: any) => ({
           id: t.id,
@@ -177,7 +177,7 @@ export async function shadowSearch(c: Client | null | undefined, q: string) {
     try {
       const tools = await db.tool.findMany({
         where: {
-          status: "published",
+          status: "live",
           OR: [{ name: { contains: q } }, { tagline: { contains: q } }, { description: { contains: q } }],
         },
         take: 20,
@@ -226,7 +226,7 @@ export async function shadowToolsDirectory(c: Client | null | undefined,
   if (!c) {
     const logoMap = await getToolLogoMap(c);
     try {
-      const where: any = { status: "published" };
+      const where: any = { status: "live" };
       if (args.categorySlug) where.category = { slug: args.categorySlug };
       if (args.pricing) where.pricingModel = args.pricing;
       if (args.tag) where.tags = { contains: args.tag };
