@@ -14,10 +14,24 @@ import type { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api.js";
 import { STANDARD_DEFS } from "@/lib/standards";
 import { blurbFor } from "@/lib/category-blurbs";
+import { db } from "@/lib/db";
 
 type Client = ConvexHttpClient;
 
-export async function shadowSite(c: Client) {
+export async function shadowSite(c: Client | null | undefined) {
+  if (!c) {
+    try {
+      const [tools, categories] = await Promise.all([db.tool.count(), db.category.count()]);
+      return {
+        settings: {
+          "hero.announcement": `Discover ${tools} AI tools across ${categories} categories`,
+        } as Record<string, string>,
+        stats: { tools, categories, reviews: 0, comments: 0 },
+      };
+    } catch {
+      return { settings: {} as Record<string, string>, stats: { tools: 0, categories: 0, reviews: 0, comments: 0 } };
+    }
+  }
   const res = await c.query(api.site.get, {});
   if (res && res.settings && res.stats) {
     const template = res.settings["hero.announcement"];
@@ -58,7 +72,17 @@ export function cleanLogoUrl(
 let cachedLogoMap: { map: Map<string, string>; expiry: number } | null = null;
 let pendingLogoMapPromise: Promise<Map<string, string>> | null = null;
 
-export async function getToolLogoMap(c: Client): Promise<Map<string, string>> {
+export async function getToolLogoMap(c: Client | null | undefined): Promise<Map<string, string>> {
+  if (!c) {
+    const map = new Map<string, string>(Object.entries(KNOWN_LOCAL_LOGOS));
+    try {
+      const tools = await db.tool.findMany({ select: { slug: true, logoUrl: true } });
+      for (const t of tools) {
+        if (t.slug && t.logoUrl) map.set(t.slug, t.logoUrl);
+      }
+    } catch {}
+    return map;
+  }
   const now = Date.now();
   if (cachedLogoMap && cachedLogoMap.expiry > now) {
     return cachedLogoMap.map;
@@ -93,7 +117,39 @@ export async function getToolLogoMap(c: Client): Promise<Map<string, string>> {
   return pendingLogoMapPromise;
 }
 
-export async function shadowTrending(c: Client, window: "week" | "month", limit: number) {
+export async function shadowTrending(c: Client | null | undefined, window: "week" | "month", limit: number) {
+  if (!c) {
+    const logoMap = await getToolLogoMap(c);
+    try {
+      const tools = await db.tool.findMany({ where: { status: "published" }, take: limit, orderBy: { createdAt: "desc" }, include: { category: true } });
+      return {
+        rows: tools.map((t: any) => ({
+          id: t.id,
+          slug: t.slug,
+          name: t.name,
+          tagline: t.tagline,
+          description: t.description,
+          websiteUrl: t.websiteUrl,
+          category: { id: t.category.id, slug: t.category.slug, name: t.category.name },
+          pricingModel: t.pricingModel,
+          startingPrice: t.startingPrice,
+          pricingNote: t.pricingNote,
+          hasApi: t.hasApi,
+          logoEmoji: t.logoEmoji,
+          logoGradient: t.logoGradient,
+          logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
+          tags: t.tags ? t.tags.split("|") : [],
+          makerHandle: t.makerHandle,
+          status: t.status,
+          editorsPick: t.editorsPick,
+          curated: t.curated,
+          createdAt: t.createdAt.toISOString(),
+        })),
+      };
+    } catch {
+      return { rows: [] };
+    }
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.trending.list, { window, limit }),
     getToolLogoMap(c),
@@ -110,11 +166,36 @@ export async function shadowTrending(c: Client, window: "week" | "month", limit:
   return res;
 }
 
-export function shadowBlog(c: Client, limit: number, category: string | null) {
+export function shadowBlog(c: Client | null | undefined, limit: number, category: string | null) {
+  if (!c) return { posts: [] };
   return c.query(api.posts.list, { limit, category: category ?? undefined });
 }
 
-export async function shadowSearch(c: Client, q: string) {
+export async function shadowSearch(c: Client | null | undefined, q: string) {
+  if (!c) {
+    const logoMap = await getToolLogoMap(c);
+    try {
+      const tools = await db.tool.findMany({
+        where: {
+          status: "published",
+          OR: [{ name: { contains: q } }, { tagline: { contains: q } }, { description: { contains: q } }],
+        },
+        take: 20,
+      });
+      return {
+        tools: tools.map((t: any) => ({
+          id: t.id,
+          slug: t.slug,
+          name: t.name,
+          tagline: t.tagline,
+          description: t.description,
+          logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
+        })),
+      };
+    } catch {
+      return { tools: [] };
+    }
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.search.search, { q }),
     getToolLogoMap(c),
@@ -131,8 +212,7 @@ export async function shadowSearch(c: Client, q: string) {
   return res;
 }
 
-export async function shadowToolsDirectory(
-  c: Client,
+export async function shadowToolsDirectory(c: Client | null | undefined,
   args: {
     categorySlug: string | null;
     q: string | null;
@@ -143,6 +223,74 @@ export async function shadowToolsDirectory(
     pageSize: number;
   },
 ) {
+  if (!c) {
+    const logoMap = await getToolLogoMap(c);
+    try {
+      const where: any = { status: "published" };
+      if (args.categorySlug) where.category = { slug: args.categorySlug };
+      if (args.pricing) where.pricingModel = args.pricing;
+      if (args.tag) where.tags = { contains: args.tag };
+      if (args.q) {
+        where.OR = [
+          { name: { contains: args.q } },
+          { tagline: { contains: args.q } },
+          { description: { contains: args.q } },
+        ];
+      }
+      const [allTools, totalCount] = await Promise.all([
+        db.tool.findMany({
+          where,
+          include: { category: true },
+          orderBy: { createdAt: "desc" },
+          skip: (args.page - 1) * args.pageSize,
+          take: args.pageSize,
+        }),
+        db.tool.count({ where }),
+      ]);
+      const rows = allTools.map((t: any) => ({
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        tagline: t.tagline,
+        description: t.description,
+        websiteUrl: t.websiteUrl,
+        category: { id: t.category.id, slug: t.category.slug, name: t.category.name },
+        pricingModel: t.pricingModel,
+        startingPrice: t.startingPrice,
+        pricingNote: t.pricingNote,
+        hasApi: t.hasApi,
+        logoEmoji: t.logoEmoji,
+        logoGradient: t.logoGradient,
+        logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
+        tags: t.tags ? t.tags.split("|") : [],
+        makerHandle: t.makerHandle,
+        status: t.status,
+        editorsPick: t.editorsPick,
+        curated: t.curated,
+        createdAt: t.createdAt.toISOString(),
+        reviewStats: { rating: 5, count: 0 },
+      }));
+      return {
+        rows,
+        total: totalCount,
+        hasMore: args.page * args.pageSize < totalCount,
+        page: args.page,
+        pageSize: args.pageSize,
+        ...(args.categorySlug && allTools[0]?.category
+          ? {
+              categoryMeta: {
+                id: allTools[0].category.id,
+                slug: allTools[0].category.slug,
+                name: allTools[0].category.name,
+                blurb: blurbFor(allTools[0].category.slug, allTools[0].category.name),
+              },
+            }
+          : {}),
+      };
+    } catch (err: any) {
+      return { error: err?.message ?? "Database error" };
+    }
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.directory, {
       categorySlug: args.categorySlug ?? undefined,
@@ -177,10 +325,11 @@ export async function shadowToolsDirectory(
 }
 
 export async function shadowToolDetail(
-  c: Client,
+  c: Client | null | undefined,
   slug: string,
   viewer?: { id: string; email: string; handle: string } | null,
 ) {
+  if (!c) return shadowToolPageData(c, slug) as any;
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.detail, {
       slug,
@@ -224,10 +373,11 @@ export async function shadowToolDetail(
 }
 
 export async function shadowCompareMatrix(
-  c: Client,
+  c: Client | null | undefined,
   category: string,
   tools: string[],
 ) {
+  if (!c) return { category: null, tools: [], options: [] } as any;
   if (!category) return { error: "category_required" as const };
   const [res, logoMap] = await Promise.all([
     c.query(api.compare.matrix, { category, tools }),
@@ -253,7 +403,7 @@ export async function shadowCompareMatrix(
   return res;
 }
 
-export function shadowCompareCategories(c: Client) {
+export function shadowCompareCategories(c: Client | null | undefined) { if (!c) return null as any;
   return c.query(api.compare.categories, {});
 }
 
@@ -266,7 +416,7 @@ export function shadowForumList(
   return c.query(api.forum.list, { topic, sort, voterKey });
 }
 
-export function shadowAdminOverview(c: Client) {
+export function shadowAdminOverview(c: Client) { if (!c) return null as any;
   return c.query(api.admin.overview, {});
 }
 
@@ -281,7 +431,7 @@ export function shadowAdminTools(
 
 // ── Phase 4 step 3 — community reads (dual-write verification + cutover) ──
 
-export function shadowComments(c: Client, toolSlug: string) {
+export function shadowComments(c: Client, toolSlug: string) { if (!c) return null as any;
   return c.query(api.community.commentsList, { toolSlug });
 }
 
@@ -312,15 +462,15 @@ export function shadowForumThread(
   return c.query(api.community.forumThread, { slug, voterKey });
 }
 
-export function shadowBookmarks(c: Client, ownerKey: string) {
+export function shadowBookmarks(c: Client, ownerKey: string) { if (!c) return null as any;
   return c.query(api.community.bookmarksList, { ownerKey });
 }
 
-export function shadowFollows(c: Client, userEmail: string) {
+export function shadowFollows(c: Client, userEmail: string) { if (!c) return null as any;
   return c.query(api.community.followsList, { userEmail });
 }
 
-export function shadowCollectionsMine(c: Client, ownerEmail?: string) {
+export function shadowCollectionsMine(c: Client, ownerEmail?: string) { if (!c) return null as any;
   return c.query(api.community.collectionsMine, {
     ownerEmail,
   });
@@ -356,11 +506,12 @@ export async function shadowCollectionDetail(
 }
 
 export async function shadowCompareView(
-  c: Client,
+  c: Client | null | undefined,
   aSlug: string,
   bSlug: string,
   limit: number,
 ) {
+  if (!c) return { a: null, b: null, popular: [] } as any;
   const [res, logoMap] = await Promise.all([
     c.query(api.community.compareView, { aSlug, bSlug, limit }),
     getToolLogoMap(c),
@@ -384,7 +535,118 @@ export async function shadowCompareView(
   return res;
 }
 
-export async function shadowToolPageData(c: Client, slug: string) {
+export async function shadowToolPageData(c: Client | null | undefined, slug: string) {
+  if (!c) {
+    const logoMap = await getToolLogoMap(c);
+    try {
+      const t = await db.tool.findUnique({ where: { slug }, include: { category: true } });
+      if (!t) return { error: "not_found" };
+      let altSlugs: string[] = [];
+      try {
+        if (t.alternatives) altSlugs = JSON.parse(t.alternatives);
+      } catch {}
+      const altTools = altSlugs.length > 0 ? await db.tool.findMany({ where: { slug: { in: altSlugs } }, include: { category: true } }) : [];
+      const relatedTools = await db.tool.findMany({ where: { categoryId: t.categoryId, NOT: { id: t.id } }, take: 4, include: { category: true } });
+
+      let useCases: any[] = [];
+      let pros: string[] = [];
+      let cons: string[] = [];
+      try { if (t.useCases) useCases = JSON.parse(t.useCases); } catch {}
+      try { if (t.pros) pros = JSON.parse(t.pros); } catch {}
+      try { if (t.cons) cons = JSON.parse(t.cons); } catch {}
+
+      const toolObj = {
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        tagline: t.tagline,
+        description: t.description,
+        websiteUrl: t.websiteUrl,
+        githubUrl: t.githubUrl,
+        docsUrl: null,
+        twitterUrl: null,
+        categoryId: t.categoryId,
+        category: { id: t.category.id, slug: t.category.slug, name: t.category.name, emoji: t.category.emoji || "⚡", blurb: blurbFor(t.category.slug, t.category.name) },
+        pricingModel: t.pricingModel,
+        startingPrice: t.startingPrice,
+        pricingNote: t.pricingNote,
+        hasApi: t.hasApi,
+        logoEmoji: t.logoEmoji,
+        logoGradient: t.logoGradient,
+        logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
+        tags: t.tags ? t.tags.split("|") : [],
+        makerHandle: t.makerHandle,
+        status: t.status,
+        editorsPick: t.editorsPick,
+        curated: t.curated,
+        track: "standard",
+        claimed: false,
+        createdAt: t.createdAt.toISOString(),
+        longDescription: t.longDescription,
+        useCases,
+        pros,
+        cons,
+        pricingCheckedAt: t.pricingCheckedAt ? t.pricingCheckedAt.toISOString() : null,
+        contentUpdatedAt: t.contentUpdatedAt ? t.contentUpdatedAt.toISOString() : null,
+      };
+
+      const altRows = altTools.map((a: any) => ({
+        id: a.id,
+        slug: a.slug,
+        name: a.name,
+        tagline: a.tagline,
+        logoEmoji: a.logoEmoji,
+        logoGradient: a.logoGradient,
+        pricingModel: a.pricingModel,
+        startingPrice: a.startingPrice,
+        editorsPick: a.editorsPick,
+        logoUrl: cleanLogoUrl(a.logoUrl, a.slug, logoMap),
+      }));
+
+      const catToolCount = await db.tool.count({ where: { categoryId: t.categoryId } });
+
+      return {
+        tool: toolObj,
+        category: {
+          id: t.category.id,
+          slug: t.category.slug,
+          name: t.category.name,
+          blurb: blurbFor(t.category.slug, t.category.name),
+        },
+        logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
+        screenshots: [],
+        editorial: {
+          longDescription: t.longDescription,
+          useCases,
+          pros,
+          cons,
+          alternativeSlugs: altSlugs,
+          pricingCheckedAt: t.pricingCheckedAt ? t.pricingCheckedAt.toISOString() : null,
+          contentUpdatedAt: t.contentUpdatedAt ? t.contentUpdatedAt.toISOString() : null,
+        },
+        categoryToolCount: catToolCount,
+        alternatives: altRows,
+        related: relatedTools.map((r: any) => ({
+          id: r.id,
+          slug: r.slug,
+          name: r.name,
+          tagline: r.tagline,
+          logoEmoji: r.logoEmoji,
+          logoGradient: r.logoGradient,
+          editorsPick: r.editorsPick,
+          logoUrl: cleanLogoUrl(r.logoUrl, r.slug, logoMap),
+        })),
+        stats: { count: 0, aggregate: null },
+        reviewStats: { rating: 5, count: 0 },
+        reviews: [],
+        threads: [],
+        forumMentions: [],
+        maker: { claimed: false, makerEmail: null, makerHandle: t.makerHandle },
+      };
+    } catch (err: any) {
+      return { error: err?.message ?? "Database error" };
+    }
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.pageData, { slug }),
     getToolLogoMap(c),
@@ -428,7 +690,7 @@ export function shadowClaimLatest(
   return c.query(api.claims.claimLatest, { toolSlug, userEmail });
 }
 
-export function shadowClaimById(c: Client, id: string) {
+export function shadowClaimById(c: Client, id: string) { if (!c) return null as any;
   return c.query(api.claims.claimByIdQ, { id });
 }
 
@@ -475,17 +737,17 @@ export function shadowMediaTable(
   return c.query(api.media.mediaTable, args);
 }
 
-export function shadowMediaById(c: Client, id: string) {
+export function shadowMediaById(c: Client, id: string) { if (!c) return null as any;
   return c.query(api.media.mediaById, { id });
 }
 
 /** Short-lived direct-to-storage upload URL (route PUTs validated bytes). */
-export function convexMediaUploadUrl(c: Client) {
+export function convexMediaUploadUrl(c: Client) { if (!c) return null as any;
   return c.mutation(api.media.mediaUploadUrl, {});
 }
 
 /** Public serve URL for a row's storage bytes (null = disk fallback). */
-export function shadowMediaServeUrl(c: Client, id: string) {
+export function shadowMediaServeUrl(c: Client, id: string) { if (!c) return null as any;
   return c.query(api.media.mediaServeUrl, { id });
 }
 
@@ -508,13 +770,13 @@ export function convexMediaCreate(
   return c.mutation(api.media.mediaCreate, args);
 }
 
-export function convexMediaDeleteFull(c: Client, args: { id: string }) {
+export function convexMediaDeleteFull(c: Client, args: { id: string }) { if (!c) return null as any;
   return c.mutation(api.media.mediaDeleteFull, args);
 }
 
 // ── Phase 5 — remaining SSR surfaces ──
 
-export async function shadowCategoryDetail(c: Client, slug: string) {
+export async function shadowCategoryDetail(c: Client | null | undefined, slug: string) { if (!c) return null as any;
   const [res, logoMap] = await Promise.all([
     c.query(api.categories.detail, { slug }),
     getToolLogoMap(c),
@@ -531,7 +793,7 @@ export async function shadowCategoryDetail(c: Client, slug: string) {
   return res;
 }
 
-export async function shadowHomepage(c: Client) {
+export async function shadowHomepage(c: Client | null | undefined) { if (!c) return null as any;
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.homepage, {}),
     getToolLogoMap(c),
@@ -546,13 +808,14 @@ export async function shadowHomepage(c: Client) {
 }
 
 export function shadowSerp(
-  c: Client,
+  c: Client | null | undefined,
   args: { q: string; page: number; pageSize: number },
 ) {
+  if (!c) return { tools: [] } as any;
   return c.query(api.tools.serp, args);
 }
 
-export function shadowAdvertiseStats(c: Client) {
+export function shadowAdvertiseStats(c: Client) { if (!c) return null as any;
   return c.query(api.seo.advertiseStats, {});
 }
 
@@ -570,47 +833,47 @@ export function shadowMetaEntities(
   return c.query(api.seo.metaEntities, args);
 }
 
-export function shadowJournalList(c: Client, limit: number) {
+export function shadowJournalList(c: Client, limit: number) { if (!c) return null as any;
   return c.query(api.posts.list, { limit });
 }
 
 // ── Phase 4 step 7 — SEO reads + bridge-adjacent writes ──
 
-export function shadowSitemapData(c: Client) {
+export function shadowSitemapData(c: Client) { if (!c) return null as any;
   return c.query(api.seo.sitemapData, {});
 }
 
-export function shadowRssPosts(c: Client, limit: number) {
+export function shadowRssPosts(c: Client, limit: number) { if (!c) return null as any;
   return c.query(api.seo.rssPosts, { limit });
 }
 
-export function shadowOgTool(c: Client, slug: string) {
+export function shadowOgTool(c: Client, slug: string) { if (!c) return null as any;
   return c.query(api.seo.ogTool, { slug });
 }
 
-export function shadowOgPost(c: Client, slug: string) {
+export function shadowOgPost(c: Client, slug: string) { if (!c) return null as any;
   return c.query(api.seo.ogPost, { slug });
 }
 
-export function shadowBlogDetail(c: Client, slug: string) {
+export function shadowBlogDetail(c: Client, slug: string) { if (!c) return null as any;
   return c.query(api.seo.blogDetail, { slug });
 }
 
-export function shadowBadgeTool(c: Client, slug: string) {
+export function shadowBadgeTool(c: Client, slug: string) { if (!c) return null as any;
   return c.query(api.seo.badgeTool, { slug });
 }
 
-export function convexPostBumpViews(c: Client, args: { slug: string }) {
+export function convexPostBumpViews(c: Client, args: { slug: string }) { if (!c) return null as any;
   return c.mutation(api.seo.postBumpViews, args);
 }
 
 // ── Phase 4 step 6 — admin console reads ──
 
-export function shadowAdminCategories(c: Client) {
+export function shadowAdminCategories(c: Client) { if (!c) return null as any;
   return c.query(api.adminCrud.categoriesTable, {});
 }
 
-export function shadowAdminPosts(c: Client, status: string) {
+export function shadowAdminPosts(c: Client, status: string) { if (!c) return null as any;
   return c.query(api.adminCrud.postsTable, { status });
 }
 
@@ -621,15 +884,15 @@ export function shadowAdminUsers(
   return c.query(api.adminCrud.usersTable, args);
 }
 
-export function shadowAdminReports(c: Client, status: string) {
+export function shadowAdminReports(c: Client, status: string) { if (!c) return null as any;
   return c.query(api.adminCrud.reportsTable, { status });
 }
 
-export function shadowAdminAds(c: Client) {
+export function shadowAdminAds(c: Client) { if (!c) return null as any;
   return c.query(api.adminCrud.campaignsTable, {});
 }
 
-export function shadowAdminIntegrations(c: Client) {
+export function shadowAdminIntegrations(c: Client) { if (!c) return null as any;
   return c.query(api.adminCrud.integrationsTable, {});
 }
 
@@ -637,16 +900,16 @@ export function shadowAdminIntegrations(c: Client) {
  * Raw stored configJson for the sentinel merge (server-only — never sent
  * to clients; see convex/adminCrud.ts integrationRaw).
  */
-export function shadowAdminIntegrationRaw(c: Client, key: string) {
+export function shadowAdminIntegrationRaw(c: Client, key: string) { if (!c) return null as any;
   return c.query(api.adminCrud.integrationRaw, { key });
 }
 
-export function shadowAdminSettings(c: Client) {
+export function shadowAdminSettings(c: Client) { if (!c) return null as any;
   return c.query(api.adminCrud.settingsTable, {});
 }
 
 /** Bulk curate every listing — admin-key enforced route-side. */
-export function convexAdminMarkAllCurated(c: Client) {
+export function convexAdminMarkAllCurated(c: Client) { if (!c) return null as any;
   return c.mutation(api.admin.markAllCurated, {});
 }
 
@@ -723,7 +986,7 @@ export function convexToolPatch(
   return c.mutation(api.adminCrud.toolPatch, args as never);
 }
 
-export function convexToolRemove(c: Client, args: { toolLegacyId: string }) {
+export function convexToolRemove(c: Client, args: { toolLegacyId: string }) { if (!c) return null as any;
   return c.mutation(api.adminCrud.toolRemove, args);
 }
 
@@ -741,7 +1004,7 @@ export function convexCategoryUpsert(
   return c.mutation(api.adminCrud.categoryUpsert, args);
 }
 
-export function convexCategoryDelete(c: Client, args: { legacyId: string }) {
+export function convexCategoryDelete(c: Client, args: { legacyId: string }) { if (!c) return null as any;
   return c.mutation(api.adminCrud.categoryDelete, args);
 }
 
@@ -783,7 +1046,7 @@ export function convexPostPatch(
   return c.mutation(api.adminCrud.postPatch, args as never);
 }
 
-export function convexPostDelete(c: Client, args: { postLegacyId: string }) {
+export function convexPostDelete(c: Client, args: { postLegacyId: string }) { if (!c) return null as any;
   return c.mutation(api.adminCrud.postDelete, args);
 }
 
@@ -873,7 +1136,7 @@ export function convexIntegrationUpsert(
   return c.mutation(api.adminCrud.integrationUpsert, args);
 }
 
-export function convexIntegrationDelete(c: Client, args: { key: string }) {
+export function convexIntegrationDelete(c: Client, args: { key: string }) { if (!c) return null as any;
   return c.mutation(api.adminCrud.integrationDelete, args);
 }
 
@@ -893,11 +1156,11 @@ export function convexAdServe(
   return c.mutation(api.ads.serve, args);
 }
 
-export function convexAdClick(c: Client, args: { id: string }) {
+export function convexAdClick(c: Client, args: { id: string }) { if (!c) return null as any;
   return c.mutation(api.ads.registerClick, args);
 }
 
-export function convexAdViewable(c: Client, args: { id: string }) {
+export function convexAdViewable(c: Client, args: { id: string }) { if (!c) return null as any;
   return c.mutation(api.ads.recordViewable, args);
 }
 
@@ -908,17 +1171,17 @@ export function convexPageView(
   return c.mutation(api.ads.recordPageView, args);
 }
 
-export function shadowTrafficReadout(c: Client) {
+export function shadowTrafficReadout(c: Client) { if (!c) return null as any;
   return c.query(api.ads.trafficReadout, {});
 }
 
-export function shadowPlacementMeasurement(c: Client) {
+export function shadowPlacementMeasurement(c: Client) { if (!c) return null as any;
   return c.query(api.ads.placementMeasurement, {});
 }
 
 // ── Phase 4 step 4 — submit flow + editor console ──
 
-export function shadowSubmitCheck(c: Client, domain: string) {
+export function shadowSubmitCheck(c: Client, domain: string) { if (!c) return null as any;
   return c.query(api.submissions.checkDuplicate, { domain });
 }
 
@@ -930,11 +1193,11 @@ export function shadowSubmissionCountSince(
   return c.query(api.submissions.submissionCountSince, { email, sinceMs });
 }
 
-export function shadowSubmissionsByEmail(c: Client, email: string) {
+export function shadowSubmissionsByEmail(c: Client, email: string) { if (!c) return null as any;
   return c.query(api.submissions.submissionsByEmail, { email });
 }
 
-export function shadowEditorQueue(c: Client) {
+export function shadowEditorQueue(c: Client) { if (!c) return null as any;
   return c.query(api.submissions.editorQueue, {});
 }
 
@@ -1139,7 +1402,7 @@ export function convexCollectionUpdate(
   return c.mutation(api.community.collectionUpdate, args);
 }
 
-export function convexCollectionDelete(c: Client, args: { slug: string }) {
+export function convexCollectionDelete(c: Client, args: { slug: string }) { if (!c) return null as any;
   return c.mutation(api.community.collectionDelete, args);
 }
 
@@ -1180,11 +1443,11 @@ export function convexCompareBump(
 
 // ── Auth phase (option C): NextAuth store (see convex/authStore.ts) ──
 
-export function convexAuthUserById(c: Client, id: string) {
+export function convexAuthUserById(c: Client, id: string) { if (!c) return null as any;
   return c.query(api.authStore.authUserById, { id });
 }
 
-export function convexAuthUserByEmail(c: Client, email: string) {
+export function convexAuthUserByEmail(c: Client, email: string) { if (!c) return null as any;
   return c.query(api.authStore.authUserByEmail, { email });
 }
 
@@ -1195,11 +1458,11 @@ export function convexAuthUserByAccount(
   return c.query(api.authStore.authUserByAccount, args);
 }
 
-export function convexAuthHandlesTaken(c: Client) {
+export function convexAuthHandlesTaken(c: Client) { if (!c) return null as any;
   return c.query(api.authStore.authHandlesTaken, {});
 }
 
-export function convexAuthUserByHandle(c: Client, handle: string) {
+export function convexAuthUserByHandle(c: Client, handle: string) { if (!c) return null as any;
   return c.query(api.authStore.authUserByHandle, { handle });
 }
 
@@ -1260,7 +1523,7 @@ export function convexAuthSessionCreate(
   return c.mutation(api.authStore.authSessionCreate, args);
 }
 
-export function convexAuthSessionAndUser(c: Client, sessionToken: string) {
+export function convexAuthSessionAndUser(c: Client, sessionToken: string) { if (!c) return null as any;
   return c.query(api.authStore.authSessionAndUser, { sessionToken });
 }
 
@@ -1271,11 +1534,11 @@ export function convexAuthSessionPatch(
   return c.mutation(api.authStore.authSessionPatch, args);
 }
 
-export function convexAuthSessionDelete(c: Client, sessionToken: string) {
+export function convexAuthSessionDelete(c: Client, sessionToken: string) { if (!c) return null as any;
   return c.mutation(api.authStore.authSessionDelete, { sessionToken });
 }
 
-export function convexAuthSessionsDeleteByUser(c: Client, userLegacyId: string) {
+export function convexAuthSessionsDeleteByUser(c: Client, userLegacyId: string) { if (!c) return null as any;
   return c.mutation(api.authStore.authSessionsDeleteByUser, { userLegacyId });
 }
 

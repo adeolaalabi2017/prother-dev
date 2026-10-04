@@ -116,7 +116,7 @@ async function directoryInitialRows(filters: {
   pricing: string | null;
   sort: DirectorySort;
 }): Promise<{ rows: DirectoryRow[]; total: number }> {
-  const res = await shadowToolsDirectory(createServerConvexClient()!, {
+  const res = await shadowToolsDirectory(createServerConvexClient(), {
     categorySlug: filters.categorySlug,
     q: null,
     pricing: filters.pricing,

@@ -42,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // a failed settings read falls back to the locked defaults below.
   let map: Record<string, string> | null = null;
   try {
-    map = (await shadowSite(createServerConvexClient()!)).settings;
+    map = (await shadowSite(createServerConvexClient())).settings;
   } catch {
     map = null;
   }
