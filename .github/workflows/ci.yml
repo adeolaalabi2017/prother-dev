@@ -43,6 +43,9 @@ jobs:
       - name: Typecheck
         run: bunx tsc --noEmit -p tsconfig.json
 
+      - name: Run unit tests
+        run: bun test
+
       - name: Production build
         run: bun run build
 

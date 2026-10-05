@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { sanitizeSvg } from "@/lib/sanitize-svg";
 
