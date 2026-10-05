@@ -6,6 +6,7 @@ import { siteUrl } from "@/lib/site-url";
 import { placementEnabled } from "@/lib/ad-config";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowForumList } from "@/lib/data";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,7 @@ export default async function ForumsPage() {
     <div className="bg-ink pb-16 md:pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <ForumIndex
         initial={initial}

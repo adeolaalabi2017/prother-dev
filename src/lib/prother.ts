@@ -68,16 +68,13 @@ export type ToolDetailResponse = {
 
 /**
  * Admin/editor gate key. `ADMIN_KEY` (fallback: legacy `EDITOR_KEY`) must be
- * set in production — when it is absent there is NO valid key and every
- * guarded route 401s (fail closed). Local dev falls back to "ember-dev"
- * so the console works without extra setup. Never commit a real key:
- * production sets it via `wrangler secret put` / server env.
+ * set in ALL environments: when it is absent there is NO valid key and every
+ * guarded route 401s (fail closed). Set it via `wrangler secret put`, server
+ * env, or `.env.local` for local dev. Never commit a real key.
  */
 export function editorKey(): string | null {
   const v = (process.env.ADMIN_KEY ?? process.env.EDITOR_KEY ?? "").trim();
-  if (v) return v;
-  if (process.env.NODE_ENV === "production") return null;
-  return "ember-dev";
+  return v || null;
 }
 
 /** Unique slug for an approved tool (name → slug, -2/-3 on collision). */

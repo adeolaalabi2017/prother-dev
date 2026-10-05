@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { placementEnabled } from "@/lib/ad-config";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowJournalList } from "@/lib/data";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,7 @@ export default async function JournalPage() {
     <div className="pb-16 md:pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(blogJsonLd) }}
       />
       <JournalIndex
         initialPosts={cards}

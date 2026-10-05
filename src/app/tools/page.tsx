@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowSerp, shadowToolsDirectory } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /** One scored result row on the /tools?q= SERP. */
 export type SerpToolRow = {
@@ -364,7 +365,7 @@ export default async function ToolsPage({
       <div className="pb-16 md:pb-0">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(serpJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(serpJsonLd) }}
         />
 
         {/* Results header — the page's single H1 (the directory's hero is hidden) */}
@@ -474,7 +475,7 @@ export default async function ToolsPage({
     <div className="pb-16 md:pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(itemListJsonLd) }}
       />
       <ToolsDirectory
         initialRows={initial.rows}

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowUpRight, CalendarDays, Clock3, Feather } from "lucide-react";
 import { useExplorer } from "./explorer-store";
 import { cn } from "@/lib/utils";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /**
  * The Prother Journal — SEO content layer (BlogPosting JSON-LD + cards).
@@ -91,7 +92,7 @@ export function Journal() {
       {blogJsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(blogJsonLd) }}
         />
       )}
       <div className="mx-auto max-w-6xl px-4 sm:px-6">

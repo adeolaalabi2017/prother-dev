@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowHomepage, shadowMetaEntities, shadowSite } from "@/lib/data";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /** Convex-only entity lookups for deep-link metadata (null on failure —
  *  the homepage never 500s on a metadata read). */
@@ -688,7 +689,7 @@ export default async function Page() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <Hero initialStats={siteData.stats} initialSettings={siteData.settings} />
       <IntentPath counts={tagCounts} />

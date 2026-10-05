@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /**
  * Shared server-safe breadcrumbs (Task 25): a plain React component (no
@@ -38,7 +39,7 @@ export function Breadcrumbs({ trail }: { trail: Crumb[] }) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <nav aria-label="Breadcrumb" className="scroll-mt-20">
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs uppercase tracking-[0.2em]">

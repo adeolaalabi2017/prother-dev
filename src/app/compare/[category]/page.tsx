@@ -14,6 +14,7 @@ import {
   shadowCompareView,
 } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /**
  * /compare/[category] - dual purpose indexable comparison route:
@@ -225,11 +226,11 @@ export default async function CompareCategoryPage({ params }: Params) {
       <div className="bg-ink pb-20 text-white md:pb-12">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(webPageJsonLd) }}
         />
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           {/* Breadcrumb Navigation */}

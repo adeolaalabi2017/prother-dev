@@ -25,6 +25,7 @@ import { createServerConvexClient } from "@/lib/convex";
 import { shadowToolPageData } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
 import { getTopicBySlug } from "@/lib/topics";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /**
  * /tools/[slug] - the real, crawlable tool detail page (Task 25).
@@ -394,7 +395,7 @@ export default async function ToolPage({ params }: Params) {
     <div className="bg-ink pb-16 md:pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(softwareAppJsonLd) }}
       />
 
       <div className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">

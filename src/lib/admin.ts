@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { editorKey } from "@/lib/prother";
 import { createServerConvexClient } from "@/lib/convex";
 import { api } from "../../convex/_generated/api.js";
@@ -7,10 +8,18 @@ import { api } from "../../convex/_generated/api.js";
  * Admin auth + audit helpers for the Admin Console APIs.
  * Single gate everywhere: the `x-editor-key` header must equal the
  * server-side admin key (ADMIN_KEY env; fail-closed in production).
+ *
+ * Uses constant-time comparison to prevent timing side-channel attacks
+ * that could leak the key value byte-by-byte.
  */
 export function isAdmin(req: Request): boolean {
   const key = editorKey();
-  return key != null && req.headers.get("x-editor-key") === key;
+  const supplied = req.headers.get("x-editor-key");
+  if (key == null || supplied == null) return false;
+  const a = new TextEncoder().encode(key);
+  const b = new TextEncoder().encode(supplied);
+  if (a.byteLength !== b.byteLength) return false;
+  return timingSafeEqual(a, b);
 }
 
 export function unauthorized() {

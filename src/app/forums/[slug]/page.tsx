@@ -11,6 +11,7 @@ import {
   ForumThreadActions,
   ForumTime,
 } from "@/components/prother/forum-thread-actions";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -160,7 +161,7 @@ export default async function ForumThreadPage({ params }: Params) {
     <div className="bg-ink pb-16 md:pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">

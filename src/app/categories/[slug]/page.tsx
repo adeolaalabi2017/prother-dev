@@ -11,6 +11,7 @@ import { placementEnabled } from "@/lib/ad-config";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowCategoryDetail } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /**
  * /categories/[slug] - the real, crawlable category page (Task 25).
@@ -118,7 +119,7 @@ export default async function CategoryPage({ params }: Params) {
     <div className="bg-ink pb-16 md:pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(itemListJsonLd) }}
       />
 
       <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">

@@ -13,6 +13,7 @@ import {
   formatBytes,
   isFaviconMime,
 } from "@/lib/media-limits";
+import { sanitizeSvg } from "@/lib/sanitize-svg";
 
 /**
  * Shared multipart upload handler for POST /api/admin/upload and
@@ -112,7 +113,14 @@ export async function handleMediaUpload(
     Number.isInteger(height) && height > 0 && height <= 20000 ? height : null;
 
   const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
+  let bytes: Uint8Array = new Uint8Array(arrayBuffer);
+
+  // Sanitize SVG uploads to prevent stored XSS (script tags, event handlers,
+  // javascript: URIs, data: URIs with scripts, and external entity refs).
+  if (mime === "image/svg+xml") {
+    bytes = sanitizeSvg(bytes);
+  }
+
   const row = await createMediaRow({
     kind,
     mimeType: mime,

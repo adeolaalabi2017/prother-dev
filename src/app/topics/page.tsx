@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Compass, Sparkles } from "lucide-react";
 import { TOPICS } from "@/lib/topics";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default function TopicsIndexPage() {
     <div className="min-h-screen bg-ink pb-20">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       <div className="mx-auto max-w-6xl px-4 pt-10 sm:px-6">

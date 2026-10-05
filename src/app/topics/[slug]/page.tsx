@@ -9,6 +9,7 @@ import { ToolLogo } from "@/components/prother/tool-logo";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowToolsDirectory } from "@/lib/data";
 import type { DirectoryRow } from "@/app/api/tools/route";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +118,7 @@ export default async function TopicPage({ params }: Params) {
     <div className="min-h-screen bg-ink pb-20">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(itemListJsonLd) }}
       />
 
       {/* Header banner */}
