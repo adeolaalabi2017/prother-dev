@@ -169,7 +169,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <a
               href="#directory"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ember px-6 text-sm font-semibold text-coal shadow-[0_0_24px_rgba(255,106,0,0.28)] transition-all hover:bg-ember-hot hover:shadow-[0_0_32px_rgba(255,106,0,0.4)]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ember px-6 text-sm font-semibold text-coal shadow-[0_0_24px_rgba(255,106,0,0.28)] transition-all hover:bg-ember-hot hover:shadow-[0_0_32px_rgba(255,106,0,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
             >
               <Compass className="size-4" />
               <span>Explore {stats ? stats.tools : 108}+ Vetted Tools</span>
@@ -177,7 +177,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
             </a>
             <Link
               href="/compare"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-5 text-sm font-medium text-white/90 backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/[0.08]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-5 text-sm font-medium text-white/90 backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
             >
               <Scale className="size-4 text-ember-tint" />
               <span>Compare Stacks</span>

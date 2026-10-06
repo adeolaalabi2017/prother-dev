@@ -204,7 +204,7 @@ export default async function CategoryPage({ params }: Params) {
                     <span className="text-xs font-semibold text-white/85 group-hover:text-ember">
                       {tA.name}
                     </span>
-                    <span className="font-mono text-[10px] text-white/40 uppercase">
+                    <span className="font-mono text-[10px] text-white/55 uppercase">
                       vs
                     </span>
                     <ToolLogo
@@ -221,7 +221,7 @@ export default async function CategoryPage({ params }: Params) {
                   </div>
 
                   <ArrowUpRight
-                    className="size-3.5 text-white/40 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+                    className="size-3.5 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
                     aria-hidden
                   />
                 </Link>

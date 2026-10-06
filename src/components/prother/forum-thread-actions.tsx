@@ -335,7 +335,7 @@ export function ForumThreadActions({
                 rows={4}
                 maxLength={3000}
                 placeholder="Add a specific, honest take: what you did and what happened."
-                className="mt-2 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/30"
+                className="mt-2 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/60 focus-visible:border-ember/50 focus-visible:ring-ember/30"
               />
               <div className="mt-3 flex items-center justify-between gap-3">
                 <span className="font-mono text-xs text-white/55">

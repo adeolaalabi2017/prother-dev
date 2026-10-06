@@ -78,7 +78,7 @@ export function IntentPath({
                   </span>
                 </span>
                 <ArrowRight
-                  className="mt-1 size-4 shrink-0 text-white/30 transition-colors group-hover:text-ember"
+                  className="mt-1 size-4 shrink-0 text-white/55 transition-colors group-hover:text-ember"
                   aria-hidden
                 />
               </Link>

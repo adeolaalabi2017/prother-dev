@@ -281,7 +281,7 @@ export function ToolsDirectory({
                 placeholder="Search tools…"
                 autoComplete="off"
                 spellCheck={false}
-                className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.04] pl-10 pr-9 text-sm text-white outline-none transition-colors placeholder:text-white/55 focus:border-ember/60 focus:ring-2 focus:ring-ember/25"
+                className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.04] pl-10 pr-9 text-sm text-white outline-none transition-colors placeholder:text-white/60 focus:border-ember/60 focus:ring-2 focus:ring-ember/25"
               />
               {query && (
                 <button
@@ -334,7 +334,7 @@ export function ToolsDirectory({
           </div>
 
           {/* Category chips */}
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-3 flex gap-2 overflow-x-auto scroll-px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_88%,transparent)] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => openCategoryInDirectory("all")}

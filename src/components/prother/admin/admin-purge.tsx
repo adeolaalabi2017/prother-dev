@@ -191,7 +191,7 @@ export function PurgeTab({
                   placeholder='Type PURGE to confirm'
                   autoComplete="off"
                   spellCheck={false}
-                  className="h-10 w-44 rounded-lg border-red-500/40 bg-transparent font-mono text-sm tracking-widest text-white placeholder:text-white/40 focus-visible:border-red-400/60 focus-visible:ring-0"
+                  className="h-10 w-44 rounded-lg border-red-500/40 bg-transparent font-mono text-sm tracking-widest text-white placeholder:text-white/60 focus-visible:border-red-400/60 focus-visible:ring-0"
                 />
                 <Button
                   type="button"

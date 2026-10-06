@@ -272,7 +272,7 @@ export function AdminMediaTab({
         <MediaSkeleton />
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
-          <Images className="mx-auto size-8 text-white/40" aria-hidden />
+          <Images className="mx-auto size-8 text-white/55" aria-hidden />
           <p className="mt-3 font-mono text-sm text-white/60">No media yet.</p>
           <p className="mt-1 text-xs text-white/55">
             Upload images or videos above to build the library.

@@ -285,7 +285,7 @@ export function StatusTracker() {
             inputMode="email"
             autoComplete="email"
             aria-label="Submission email"
-            className="border-white/10 bg-white/5 text-white placeholder:text-white/55"
+            className="border-white/10 bg-white/5 text-white placeholder:text-white/60"
           />
           <Button
             type="submit"

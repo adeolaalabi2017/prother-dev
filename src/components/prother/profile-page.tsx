@@ -173,7 +173,7 @@ function ProfileEditForm({
               maxLength={40}
               autoComplete="name"
               disabled={saving}
-              className="mt-1 h-11 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+              className="mt-1 h-11 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/60 focus-visible:border-ember/50 focus-visible:ring-ember/20"
               placeholder="Your name"
             />
           </div>
@@ -196,7 +196,7 @@ function ProfileEditForm({
                 autoComplete="off"
                 spellCheck={false}
                 disabled={saving}
-                className="h-11 rounded-lg border-white/15 bg-white/[0.03] pl-7 text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+                className="h-11 rounded-lg border-white/15 bg-white/[0.03] pl-7 text-sm text-white placeholder:text-white/60 focus-visible:border-ember/50 focus-visible:ring-ember/20"
                 placeholder="handle"
               />
             </div>
@@ -223,7 +223,7 @@ function ProfileEditForm({
             maxLength={BIO_MAX}
             rows={3}
             disabled={saving}
-            className="mt-1 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+            className="mt-1 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/60 focus-visible:border-ember/50 focus-visible:ring-ember/20"
             placeholder="What are you building?"
           />
         </div>

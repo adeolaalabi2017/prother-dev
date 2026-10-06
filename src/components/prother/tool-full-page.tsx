@@ -813,7 +813,7 @@ function Discussion({
           maxLength={COMMENT_BODY_MAX}
           aria-label="Write a comment"
           className={cn(
-            "mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-white placeholder:text-white/55 focus:outline-none",
+            "mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-white placeholder:text-white/60 focus:outline-none",
             body.length >= COMMENT_BODY_MAX && "text-red-300"
           )}
         />
@@ -1851,7 +1851,7 @@ export function ToolFullPage() {
                     </span>
                     <span className="truncate">{detail.category.name}</span>
                     <ArrowUpRight
-                      className="size-3.5 shrink-0 text-white/40 transition-colors group-hover:text-ember"
+                      className="size-3.5 shrink-0 text-white/55 transition-colors group-hover:text-ember"
                       aria-hidden
                     />
                   </Link>

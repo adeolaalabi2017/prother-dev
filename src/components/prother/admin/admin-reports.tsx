@@ -298,7 +298,7 @@ export function ReportsTab({ apiKey, onChanged }: { apiKey: string; onChanged: (
                         maxLength={300}
                         placeholder="Optional note for the moderation record…"
                         aria-label="Resolution note"
-                        className="mt-3 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+                        className="mt-3 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/60"
                       />
                     )}
                     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">

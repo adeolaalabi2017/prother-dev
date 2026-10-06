@@ -451,7 +451,7 @@ function CategoryGrid({
                 <Link
                   key={c.slug}
                   href={`/categories/${c.slug}`}
-                  className="group relative flex flex-col justify-between bg-ink p-6 transition-all duration-150 hover:bg-white/[0.035]"
+                  className="group relative flex flex-col justify-between bg-ink p-6 transition-all duration-150 hover:bg-white/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-inset"
                 >
                   <div>
                     {/* Index header */}
@@ -546,7 +546,7 @@ function EditorsPicks({
               <Link
                 key={p.slug}
                 href={`/tools/${p.slug}`}
-                className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.025] p-6 transition-all duration-200 hover:border-ember/50 hover:bg-white/[0.045] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+                className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.025] p-6 transition-all duration-200 hover:border-ember/50 hover:bg-white/[0.045] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
               >
                 <div>
                   {/* Top Bar: Logo + Name + Pricing Badge */}
@@ -625,7 +625,7 @@ function ClosingBand({ copy }: { copy: Record<string, string> }) {
           />
           <Link
             href="/tools"
-            className="inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-6 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white"
+            className="inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-6 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
           >
             Browse Full Directory
           </Link>

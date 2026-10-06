@@ -75,3 +75,20 @@ db/auth.db-shm
 
 # Wrangler local preview vars (machine-specific URLs — never commit)
 .dev.vars
+
+# agent/bot workspace artifacts
+.zscripts/
+agent-ctx/
+tool-results/
+mini-services/
+upload/
+download/
+db/*.db
+db/*.db-wal
+db/*.db-shm
+examples/
+qa/
+/skills/
+worklog.md
+Caddyfile
+*.pid

@@ -133,7 +133,7 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
           placeholder="Editor key"
           type="password"
           aria-label="Editor key"
-          className="border-white/10 bg-white/5 font-mono text-white placeholder:text-white/55"
+          className="border-white/10 bg-white/5 font-mono text-white placeholder:text-white/60"
         />
         <Button
           type="submit"
@@ -433,7 +433,7 @@ function PendingCard({
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Optional note for the maker…"
                     maxLength={500}
-                    className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+                    className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/60"
                   />
                   <div className="flex gap-2">
                     <Button
@@ -611,7 +611,7 @@ function ClaimCard({ claim, onDone }: { claim: EditorClaim; onDone: () => void }
             onChange={(e) => setNote(e.target.value)}
             placeholder="Reason shown to the claimant…"
             maxLength={500}
-            className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+            className="border-white/10 bg-white/5 text-sm text-white placeholder:text-white/60"
           />
           <div className="flex gap-2">
             <Button

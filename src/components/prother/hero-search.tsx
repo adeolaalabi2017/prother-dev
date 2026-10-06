@@ -505,7 +505,7 @@ export function HeroSearch() {
             }
             autoComplete="off"
             spellCheck={false}
-            className="h-full w-full bg-transparent text-base text-white outline-none placeholder:text-white/55"
+            className="h-full w-full bg-transparent text-base text-white outline-none placeholder:text-white/60"
           />
           <div className="absolute right-3 flex items-center gap-2">
             {loading && <Loader2 className="size-4 animate-spin text-ember" aria-hidden />}

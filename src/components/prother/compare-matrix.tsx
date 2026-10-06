@@ -79,7 +79,7 @@ function Row({ label, cells }: { label: React.ReactNode; cells: React.ReactNode[
 /** No-data glyph (the one allowed dash: a placeholder, not punctuation). */
 function MissingValue({ title }: { title: string }) {
   return (
-    <span className="text-white/40" title={title}>
+    <span className="text-white/55" title={title}>
       -
     </span>
   );

@@ -347,7 +347,7 @@ export function AuthMenu() {
             onChange={(e) => setEmail(e.target.value)}
             aria-invalid={error ? true : undefined}
             disabled={sending}
-            className="h-9 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/20"
+            className="h-9 rounded-lg border-white/15 bg-white/[0.03] text-sm text-white placeholder:text-white/60 focus-visible:border-ember/50 focus-visible:ring-ember/20"
           />
           <Button
             type="submit"
@@ -405,7 +405,7 @@ export function AuthMenu() {
               type="button"
               disabled={sending || resendIn > 0}
               onClick={() => void sendMagicLink(sentTo)}
-              className="mt-2 inline-flex items-center gap-1.5 font-mono text-sm uppercase tracking-[0.25em] text-ember transition-colors hover:text-ember-hot disabled:cursor-not-allowed disabled:text-white/40"
+              className="mt-2 inline-flex items-center gap-1.5 font-mono text-sm uppercase tracking-[0.25em] text-ember transition-colors hover:text-ember-hot disabled:cursor-not-allowed disabled:text-white/55"
             >
               {sending && <Loader2 className="size-3 animate-spin" aria-hidden />}
               {sending ? "Resending…" : resendIn > 0 ? `Resend in ${resendIn}s` : "Resend"}

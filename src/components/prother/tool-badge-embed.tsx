@@ -122,7 +122,7 @@ export function ToolBadgeEmbed({ slug, name }: ToolBadgeEmbedProps) {
         {/* Live Badge Preview */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-white/5 bg-black/40 p-3 sm:px-4">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-xs uppercase tracking-wider text-white/40">
+            <span className="font-mono text-xs uppercase tracking-wider text-white/55">
               Preview:
             </span>
             <img

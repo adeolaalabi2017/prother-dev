@@ -76,7 +76,7 @@ function StarPicker({
               aria-hidden
               className={cn(
                 "size-5 transition-colors",
-                n <= value ? "fill-ember text-ember" : "text-white/40"
+                n <= value ? "fill-ember text-ember" : "text-white/55"
               )}
             />
           </button>
@@ -113,7 +113,7 @@ function Stars({ value, size = 3 }: { value: number; size?: number }) {
           key={n}
           className={cn(
             "size-3",
-            n <= value ? "fill-ember text-ember" : "text-white/30"
+            n <= value ? "fill-ember text-ember" : "text-white/55"
           )}
           aria-hidden
         />
@@ -329,7 +329,7 @@ export function ToolReviewsSection({
             <li key={r.id} className={cn(PANEL, "p-4 space-y-2")}>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-white/90">
-                  <User className="size-3 text-white/40" />
+                  <User className="size-3 text-white/55" />
                   {r.author}
                 </span>
                 {r.mine && (
@@ -409,7 +409,7 @@ export function ToolReviewsSection({
               onChange={(e) => setBody(e.target.value.slice(0, REVIEW_BODY_MAX))}
               rows={4}
               placeholder="What does this tool do well? Where does it fall short? Practical, specific details help the community most."
-              className="resize-none border-white/10 bg-transparent text-sm text-white placeholder:text-white/40 focus-visible:border-ember/50"
+              className="resize-none border-white/10 bg-transparent text-sm text-white placeholder:text-white/60 focus-visible:border-ember/50"
             />
             <div className="mt-1.5 flex items-center justify-between">
               <span className="font-mono text-xs text-white/50">

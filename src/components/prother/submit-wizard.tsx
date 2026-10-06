@@ -77,7 +77,7 @@ function FieldError({ msg }: { msg?: string }) {
 }
 
 const inputCls =
-  "border-white/10 bg-white/5 text-white placeholder:text-white/55 focus-visible:border-ember/60 focus-visible:ring-ember/20";
+  "border-white/10 bg-white/5 text-white placeholder:text-white/60 focus-visible:border-ember/60 focus-visible:ring-ember/20";
 
 // ── Live preview (right rail — updates every keystroke, PRD §11) ─────────
 

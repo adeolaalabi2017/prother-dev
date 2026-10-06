@@ -71,7 +71,7 @@ export default function TopicsIndexPage() {
                 <span className="text-3xl" aria-hidden>
                   {topic.emoji}
                 </span>
-                <span className="font-mono text-xs uppercase tracking-wider text-white/40 group-hover:text-ember">
+                <span className="font-mono text-xs uppercase tracking-wider text-white/55 group-hover:text-ember">
                   View Hub
                 </span>
               </div>

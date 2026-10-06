@@ -803,7 +803,7 @@ function FeaturesEditor({
           placeholder="Custom row name"
           aria-label="Custom feature name"
           maxLength={60}
-          className="w-44 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+          className="w-44 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/60"
         />
         <Button
           size="sm"
@@ -2314,7 +2314,7 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
                 )
               }
               placeholder="Comparison axes, pipe-separated: Context window|Voice input"
-              className="w-full border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
+              className="w-full border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/60"
             />
             <p className="w-full font-mono text-xs tracking-wider text-white/45 uppercase">
               Comparison axes · rows on the /compare matrix
@@ -2346,19 +2346,19 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
               })
             }
             placeholder="Name"
-            className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+            className="min-w-40 flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/60"
           />
           <Input
             value={draft.slug}
             onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
             placeholder="slug"
-            className="w-40 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
+            className="w-40 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/60"
           />
           <Input
             value={draft.features}
             onChange={(e) => setDraft({ ...draft, features: e.target.value })}
             placeholder="Comparison axes (optional): Context window|Voice input"
-            className="min-w-56 flex-1 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
+            className="min-w-56 flex-1 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/60"
           />
           <Button
             disabled={!draft.name || draft.name.length < 2}
@@ -2596,13 +2596,13 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
             value={extra.key}
             onChange={(e) => setExtra({ ...extra, key: e.target.value })}
             placeholder="e.g. og.imageNote"
-            className="w-48 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/55"
+            className="w-48 border-white/10 bg-white/5 font-mono text-xs text-white placeholder:text-white/60"
           />
           <Input
             value={extra.value}
             onChange={(e) => setExtra({ ...extra, value: e.target.value })}
             placeholder="value"
-            className="flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/55"
+            className="flex-1 border-white/10 bg-white/5 text-sm text-white placeholder:text-white/60"
           />
         </div>
       </div>
@@ -3396,7 +3396,7 @@ function SidebarContent({
           onChange={(e) => setQ(e.target.value)}
           placeholder="Jump to…"
           aria-label="Filter admin sections"
-          className="h-9 border-white/10 bg-white/5 pl-8 pr-10 text-sm text-white placeholder:text-white/55"
+          className="h-9 border-white/10 bg-white/5 pl-8 pr-10 text-sm text-white placeholder:text-white/60"
         />
         <kbd
           aria-hidden

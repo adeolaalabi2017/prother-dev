@@ -267,7 +267,7 @@ export default async function CompareCategoryPage({ params }: Params) {
               <div>
                 <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
                   {toolA.name}{" "}
-                  <span className="text-white/40">vs</span>{" "}
+                  <span className="text-white/55">vs</span>{" "}
                   {toolB.name}
                 </h1>
                 <p className="mt-3 max-w-3xl text-base leading-relaxed text-white/65 sm:text-lg">
@@ -371,7 +371,7 @@ export default async function CompareCategoryPage({ params }: Params) {
                           {toolA.rating.overall} / 5 ({toolA.reviewCount})
                         </>
                       ) : (
-                        <span className="text-white/40 text-xs font-normal">
+                        <span className="text-white/55 text-xs font-normal">
                           {toolA.reviewCount} reviews
                         </span>
                       )}
@@ -385,7 +385,7 @@ export default async function CompareCategoryPage({ params }: Params) {
                       "inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-xs",
                       toolA.hasApi
                         ? "border border-mint/30 bg-mint/10 text-mint"
-                        : "border border-white/10 bg-white/[0.02] text-white/40",
+                        : "border border-white/10 bg-white/[0.02] text-white/55",
                     )}
                   >
                     {toolA.hasApi ? (
@@ -481,7 +481,7 @@ export default async function CompareCategoryPage({ params }: Params) {
                           {toolB.rating.overall} / 5 ({toolB.reviewCount})
                         </>
                       ) : (
-                        <span className="text-white/40 text-xs font-normal">
+                        <span className="text-white/55 text-xs font-normal">
                           {toolB.reviewCount} reviews
                         </span>
                       )}
@@ -495,7 +495,7 @@ export default async function CompareCategoryPage({ params }: Params) {
                       "inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-xs",
                       toolB.hasApi
                         ? "border border-mint/30 bg-mint/10 text-mint"
-                        : "border border-white/10 bg-white/[0.02] text-white/40",
+                        : "border border-white/10 bg-white/[0.02] text-white/55",
                     )}
                   >
                     {toolB.hasApi ? (
@@ -589,7 +589,7 @@ export default async function CompareCategoryPage({ params }: Params) {
                       <span className="text-xs font-semibold text-white/85 group-hover:text-ember">
                         {p.aName}
                       </span>
-                      <span className="font-mono text-[10px] text-white/40 uppercase">
+                      <span className="font-mono text-[10px] text-white/55 uppercase">
                         vs
                       </span>
                       <ToolLogo
@@ -606,7 +606,7 @@ export default async function CompareCategoryPage({ params }: Params) {
                     </div>
 
                     <ArrowUpRight
-                      className="size-3.5 text-white/40 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
+                      className="size-3.5 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
                       aria-hidden
                     />
                   </Link>

@@ -55,7 +55,8 @@ const COLS: { title: string; links: FooterLink[] }[] = [
 ];
 
 function FooterAnchor({ link }: { link: FooterLink }) {
-  const className = "text-sm text-white/50 transition-colors hover:text-ember";
+  const className =
+    "text-sm text-white/50 transition-colors hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink rounded-sm";
   if (link.external) {
     return (
       <a href={link.href} className={className}>
@@ -158,9 +159,9 @@ export function SiteFooter() {
             © 2026 Prother. {note}
           </p>
           <div className="flex items-center gap-2 font-mono text-xs text-white/60">
-            <Link href="/about" className="transition-colors hover:text-ember">STANDARDS</Link>
+            <Link href="/about" className="rounded-sm transition-colors hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink">STANDARDS</Link>
             <span aria-hidden>·</span>
-            <Link href="/privacy" className="transition-colors hover:text-ember">PRIVACY</Link>
+            <Link href="/privacy" className="rounded-sm transition-colors hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink">PRIVACY</Link>
             <span aria-hidden>·</span>
             <span>STATUS</span>
             {privileged && (

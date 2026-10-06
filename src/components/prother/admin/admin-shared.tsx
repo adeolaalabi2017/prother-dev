@@ -76,7 +76,7 @@ export function adminFetch(key: string, url: string, init?: RequestInit) {
 // ── dark form atoms ──────────────────────────────────────────────────────
 
 export const inputCx =
-  "border-white/10 bg-white/5 text-white placeholder:text-white/55 text-sm";
+  "border-white/10 bg-white/5 text-white placeholder:text-white/60 text-sm";
 export const labelCx =
   "font-mono text-xs tracking-[0.2em] text-white/60 uppercase";
 

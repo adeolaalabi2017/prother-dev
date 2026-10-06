@@ -543,7 +543,7 @@ function NewThreadDialog({
               onChange={(e) => setTitle(e.target.value)}
               maxLength={120}
               placeholder="Ask a question or name what you shipped"
-              className="mt-1.5 border-white/10 bg-white/[0.03] text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/30"
+              className="mt-1.5 border-white/10 bg-white/[0.03] text-white placeholder:text-white/60 focus-visible:border-ember/50 focus-visible:ring-ember/30"
             />
             <p className="mt-1 font-mono text-xs text-white/55">
               {title.trim().length}/120
@@ -582,7 +582,7 @@ function NewThreadDialog({
               rows={7}
               maxLength={5000}
               placeholder="The details: numbers, stack, timelines, what surprised you."
-              className="mt-1.5 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/55 focus-visible:border-ember/50 focus-visible:ring-ember/30"
+              className="mt-1.5 resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-white/60 focus-visible:border-ember/50 focus-visible:ring-ember/30"
             />
             <p className="mt-1 font-mono text-xs text-white/55">
               {body.trim().length}/5000

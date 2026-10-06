@@ -203,7 +203,7 @@ export function ToolInstallBox({
                 </button>
               </div>
               <div className="flex items-center gap-2 font-mono text-xs text-white/90">
-                <span className="select-none text-white/40">$</span>
+                <span className="select-none text-white/55">$</span>
                 <code>{info.sdkCommand}</code>
               </div>
             </div>

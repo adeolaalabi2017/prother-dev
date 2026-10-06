@@ -109,7 +109,7 @@ export function SiteHeader() {
               href={l.href}
               aria-current={isActive(l.id) ? "true" : undefined}
               className={cn(
-                "relative py-1 text-sm font-medium transition-colors",
+                "relative rounded-sm py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink",
                 isActive(l.id)
                   ? "text-ember"
                   : "text-white/70 hover:text-white",
@@ -149,7 +149,7 @@ export function SiteHeader() {
               prefetch={false}
               aria-label="Admin console"
               title="Admin console (⌘⇧A)"
-              className="inline-flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:border-ember/40 hover:text-ember"
+              className="inline-flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:border-ember/40 hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
             >
               <Settings2 className="size-4" aria-hidden />
             </Link>
@@ -157,7 +157,7 @@ export function SiteHeader() {
           <Button
             asChild
             variant="outline"
-            className="hidden h-9 rounded-lg border-white/15 bg-white/[0.04] px-3.5 font-mono text-xs uppercase tracking-wider text-white/80 transition-colors hover:border-ember/40 hover:bg-white/[0.08] hover:text-ember sm:inline-flex"
+            className="hidden h-9 rounded-lg border-white/15 bg-white/[0.04] px-3.5 font-mono text-xs uppercase tracking-wider text-white/80 transition-colors hover:border-ember/40 hover:bg-white/[0.08] hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink sm:inline-flex"
           >
             <Link href="/submit">Submit Tool</Link>
           </Button>
