@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/prother";
 import { guard, logAudit } from "@/lib/admin";
 import { convexSettingsPut, shadowAdminSettings } from "@/lib/data";
-import { createServerConvexClient } from "@/lib/convex";
+import { requireServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +24,7 @@ export async function GET(req: Request) {
   if (denied) return denied;
 
   // Convex-only read (admin cutover).
-  const res = await shadowAdminSettings(createServerConvexClient()!);
+  const res = await shadowAdminSettings(requireServerConvexClient());
   return NextResponse.json(res, {
     headers: { "x-data-backend": "convex" },
   });
@@ -44,23 +43,10 @@ export async function PUT(req: NextRequest) {
       ? Object.entries(parsed.data.settings)
       : [[parsed.data.key, parsed.data.value] as const];
 
-  // Convex-first (the served store). The Prisma backup is best-effort:
-  // on Workers there is no local database file, so it always fails there
-  // by design — and that must never fail the save.
-  await convexSettingsPut(createServerConvexClient()!, {
+  // Convex is the only store (Phase A 2026-10-06: Prisma backup path retired).
+  await convexSettingsPut(requireServerConvexClient(), {
     entries: entries.map(([key, value]) => ({ key, value })),
   });
-  try {
-    for (const [key, value] of entries) {
-      await db.siteSetting.upsert({
-        where: { key },
-        update: { value },
-        create: { key, value },
-      });
-    }
-  } catch (err) {
-    console.error("[settings] prisma backup failed (non-fatal):", err);
-  }
   logAudit("settings.update", "settings", "", entries.map(([k]) => k).join(", "));
   return NextResponse.json({ ok: true, updated: entries.length });
 }

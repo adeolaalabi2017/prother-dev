@@ -80,6 +80,11 @@ function iso(v: unknown): Date | null {
 export async function editorialByToolIds(
   ids: string[]
 ): Promise<Map<string, ToolEditorial>> {
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
+    throw new Error(
+      "[tool-editorial] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06)."
+    );
+  }
   const map = new Map<string, ToolEditorial>();
   if (ids.length === 0) return map;
   const rows = await db.$queryRaw<{
@@ -135,6 +140,11 @@ export async function resolveAlternatives(
   slugs: string[],
   excludeSlug?: string
 ): Promise<AlternativeRow[]> {
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
+    throw new Error(
+      "[tool-editorial] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06)."
+    );
+  }
   const wanted = [...new Set(slugs)].filter((s) => s && s !== excludeSlug);
   if (wanted.length === 0) return [];
   const rows = await db.$queryRaw<{
@@ -287,6 +297,11 @@ export async function applyToolEditorial(
     patch.cons !== undefined ||
     patch.alternatives !== undefined ||
     patch.pricingChecked !== undefined;
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
+    throw new Error(
+      "[tool-editorial] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06)."
+    );
+  }
   if (sets.length === 0) return;
   if (editorialTouch) {
     sets.push("contentUpdatedAt = ?");

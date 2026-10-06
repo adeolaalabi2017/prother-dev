@@ -2,7 +2,6 @@
  * Prother shared domain logic + types — search & discovery directory.
  * (Launch/vote machinery removed in the directory repositioning.)
  */
-import { db } from "@/lib/db";
 import type { ForumTopic } from "@/lib/forum-topics";
 import type { AlternativeRow, ToolUseCase } from "@/lib/tool-editorial";
 
@@ -120,4 +119,3 @@ export type ForumListResponse = {
   counts: { all: number; general: number; vibecoding: number; show: number; introduce: number };
 };
 
-export { db };

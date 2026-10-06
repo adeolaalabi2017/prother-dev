@@ -14,23 +14,12 @@ import type { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api.js";
 import { STANDARD_DEFS } from "@/lib/standards";
 import { blurbFor } from "@/lib/category-blurbs";
-import { db } from "@/lib/db";
 
 type Client = ConvexHttpClient;
 
 export async function shadowSite(c: Client | null | undefined) {
   if (!c) {
-    try {
-      const [tools, categories] = await Promise.all([db.tool.count(), db.category.count()]);
-      return {
-        settings: {
-          "hero.announcement": `Discover ${tools} AI tools across ${categories} categories`,
-        } as Record<string, string>,
-        stats: { tools, categories, reviews: 0, comments: 0 },
-      };
-    } catch {
-      return { settings: {} as Record<string, string>, stats: { tools: 0, categories: 0, reviews: 0, comments: 0 } };
-    }
+    throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
   }
   const res = await c.query(api.site.get, {});
   if (res && res.settings && res.stats) {
@@ -74,14 +63,7 @@ let pendingLogoMapPromise: Promise<Map<string, string>> | null = null;
 
 export async function getToolLogoMap(c: Client | null | undefined): Promise<Map<string, string>> {
   if (!c) {
-    const map = new Map<string, string>(Object.entries(KNOWN_LOCAL_LOGOS));
-    try {
-      const tools = await db.tool.findMany({ select: { slug: true, logoUrl: true } });
-      for (const t of tools) {
-        if (t.slug && t.logoUrl) map.set(t.slug, t.logoUrl);
-      }
-    } catch {}
-    return map;
+    throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
   }
   const now = Date.now();
   if (cachedLogoMap && cachedLogoMap.expiry > now) {
@@ -119,36 +101,7 @@ export async function getToolLogoMap(c: Client | null | undefined): Promise<Map<
 
 export async function shadowTrending(c: Client | null | undefined, window: "week" | "month", limit: number) {
   if (!c) {
-    const logoMap = await getToolLogoMap(c);
-    try {
-      const tools = await db.tool.findMany({ where: { status: "live" }, take: limit, orderBy: { createdAt: "desc" }, include: { category: true } });
-      return {
-        rows: tools.map((t: any) => ({
-          id: t.id,
-          slug: t.slug,
-          name: t.name,
-          tagline: t.tagline,
-          description: t.description,
-          websiteUrl: t.websiteUrl,
-          category: { id: t.category.id, slug: t.category.slug, name: t.category.name },
-          pricingModel: t.pricingModel,
-          startingPrice: t.startingPrice,
-          pricingNote: t.pricingNote,
-          hasApi: t.hasApi,
-          logoEmoji: t.logoEmoji,
-          logoGradient: t.logoGradient,
-          logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
-          tags: t.tags ? t.tags.split("|") : [],
-          makerHandle: t.makerHandle,
-          status: t.status,
-          editorsPick: t.editorsPick,
-          curated: t.curated,
-          createdAt: t.createdAt.toISOString(),
-        })),
-      };
-    } catch {
-      return { rows: [] };
-    }
+    throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
   }
   const [res, logoMap] = await Promise.all([
     c.query(api.trending.list, { window, limit }),
@@ -173,28 +126,7 @@ export function shadowBlog(c: Client | null | undefined, limit: number, category
 
 export async function shadowSearch(c: Client | null | undefined, q: string) {
   if (!c) {
-    const logoMap = await getToolLogoMap(c);
-    try {
-      const tools = await db.tool.findMany({
-        where: {
-          status: "live",
-          OR: [{ name: { contains: q } }, { tagline: { contains: q } }, { description: { contains: q } }],
-        },
-        take: 20,
-      });
-      return {
-        tools: tools.map((t: any) => ({
-          id: t.id,
-          slug: t.slug,
-          name: t.name,
-          tagline: t.tagline,
-          description: t.description,
-          logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
-        })),
-      };
-    } catch {
-      return { tools: [] };
-    }
+    throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
   }
   const [res, logoMap] = await Promise.all([
     c.query(api.search.search, { q }),
@@ -224,72 +156,7 @@ export async function shadowToolsDirectory(c: Client | null | undefined,
   },
 ) {
   if (!c) {
-    const logoMap = await getToolLogoMap(c);
-    try {
-      const where: any = { status: "live" };
-      if (args.categorySlug) where.category = { slug: args.categorySlug };
-      if (args.pricing) where.pricingModel = args.pricing;
-      if (args.tag) where.tags = { contains: args.tag };
-      if (args.q) {
-        where.OR = [
-          { name: { contains: args.q } },
-          { tagline: { contains: args.q } },
-          { description: { contains: args.q } },
-        ];
-      }
-      const [allTools, totalCount] = await Promise.all([
-        db.tool.findMany({
-          where,
-          include: { category: true },
-          orderBy: { createdAt: "desc" },
-          skip: (args.page - 1) * args.pageSize,
-          take: args.pageSize,
-        }),
-        db.tool.count({ where }),
-      ]);
-      const rows = allTools.map((t: any) => ({
-        id: t.id,
-        slug: t.slug,
-        name: t.name,
-        tagline: t.tagline,
-        description: t.description,
-        websiteUrl: t.websiteUrl,
-        category: { id: t.category.id, slug: t.category.slug, name: t.category.name },
-        pricingModel: t.pricingModel,
-        startingPrice: t.startingPrice,
-        pricingNote: t.pricingNote,
-        hasApi: t.hasApi,
-        logoEmoji: t.logoEmoji,
-        logoGradient: t.logoGradient,
-        logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
-        tags: t.tags ? t.tags.split("|") : [],
-        makerHandle: t.makerHandle,
-        status: t.status,
-        editorsPick: t.editorsPick,
-        curated: t.curated,
-        createdAt: t.createdAt.toISOString(),
-        reviewStats: { rating: 5, count: 0 },
-      }));
-      return {
-        rows,
-        total: totalCount,
-        hasMore: args.page * args.pageSize < totalCount,
-        page: args.page,
-        pageSize: args.pageSize,
-        ...(args.categorySlug && allTools[0]?.category
-          ? {
-              categoryMeta: {
-                id: allTools[0].category.id,
-                slug: allTools[0].category.slug,
-                name: allTools[0].category.name,
-                blurb: blurbFor(allTools[0].category.slug, allTools[0].category.name),
-              },
-            }
-          : {}),
-      };
-    } catch (err: any) {
-      return { error: err?.message ?? "Database error" };
-    }
+    throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
   }
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.directory, {
@@ -537,115 +404,7 @@ export async function shadowCompareView(
 
 export async function shadowToolPageData(c: Client | null | undefined, slug: string) {
   if (!c) {
-    const logoMap = await getToolLogoMap(c);
-    try {
-      const t = await db.tool.findUnique({ where: { slug }, include: { category: true } });
-      if (!t) return { error: "not_found" };
-      let altSlugs: string[] = [];
-      try {
-        if (t.alternatives) altSlugs = JSON.parse(t.alternatives);
-      } catch {}
-      const altTools = altSlugs.length > 0 ? await db.tool.findMany({ where: { slug: { in: altSlugs } }, include: { category: true } }) : [];
-      const relatedTools = await db.tool.findMany({ where: { categoryId: t.categoryId, NOT: { id: t.id } }, take: 4, include: { category: true } });
-
-      let useCases: any[] = [];
-      let pros: string[] = [];
-      let cons: string[] = [];
-      try { if (t.useCases) useCases = JSON.parse(t.useCases); } catch {}
-      try { if (t.pros) pros = JSON.parse(t.pros); } catch {}
-      try { if (t.cons) cons = JSON.parse(t.cons); } catch {}
-
-      const toolObj = {
-        id: t.id,
-        slug: t.slug,
-        name: t.name,
-        tagline: t.tagline,
-        description: t.description,
-        websiteUrl: t.websiteUrl,
-        githubUrl: t.githubUrl,
-        docsUrl: null,
-        twitterUrl: null,
-        categoryId: t.categoryId,
-        category: { id: t.category.id, slug: t.category.slug, name: t.category.name, emoji: t.category.emoji || "⚡", blurb: blurbFor(t.category.slug, t.category.name) },
-        pricingModel: t.pricingModel,
-        startingPrice: t.startingPrice,
-        pricingNote: t.pricingNote,
-        hasApi: t.hasApi,
-        logoEmoji: t.logoEmoji,
-        logoGradient: t.logoGradient,
-        logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
-        tags: t.tags ? t.tags.split("|") : [],
-        makerHandle: t.makerHandle,
-        status: t.status,
-        editorsPick: t.editorsPick,
-        curated: t.curated,
-        track: "standard",
-        claimed: false,
-        createdAt: t.createdAt.toISOString(),
-        longDescription: t.longDescription,
-        useCases,
-        pros,
-        cons,
-        pricingCheckedAt: t.pricingCheckedAt ? t.pricingCheckedAt.toISOString() : null,
-        contentUpdatedAt: t.contentUpdatedAt ? t.contentUpdatedAt.toISOString() : null,
-      };
-
-      const altRows = altTools.map((a: any) => ({
-        id: a.id,
-        slug: a.slug,
-        name: a.name,
-        tagline: a.tagline,
-        logoEmoji: a.logoEmoji,
-        logoGradient: a.logoGradient,
-        pricingModel: a.pricingModel,
-        startingPrice: a.startingPrice,
-        editorsPick: a.editorsPick,
-        logoUrl: cleanLogoUrl(a.logoUrl, a.slug, logoMap),
-      }));
-
-      const catToolCount = await db.tool.count({ where: { categoryId: t.categoryId } });
-
-      return {
-        tool: toolObj,
-        category: {
-          id: t.category.id,
-          slug: t.category.slug,
-          name: t.category.name,
-          blurb: blurbFor(t.category.slug, t.category.name),
-        },
-        logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
-        screenshots: [],
-        editorial: {
-          longDescription: t.longDescription,
-          useCases,
-          pros,
-          cons,
-          alternativeSlugs: altSlugs,
-          pricingCheckedAt: t.pricingCheckedAt ? t.pricingCheckedAt.toISOString() : null,
-          contentUpdatedAt: t.contentUpdatedAt ? t.contentUpdatedAt.toISOString() : null,
-        },
-        categoryToolCount: catToolCount,
-        alternatives: altRows,
-        related: relatedTools.map((r: any) => ({
-          id: r.id,
-          slug: r.slug,
-          name: r.name,
-          tagline: r.tagline,
-          logoEmoji: r.logoEmoji,
-          logoGradient: r.logoGradient,
-          editorsPick: r.editorsPick,
-          logoUrl: cleanLogoUrl(r.logoUrl, r.slug, logoMap),
-        })),
-        stats: { count: 0, aggregate: null },
-        reviewStats: { rating: 5, count: 0 },
-        reviews: [],
-        threads: [],
-        forumMentions: [],
-        maker: { claimed: false, makerEmail: null, makerHandle: t.makerHandle },
-      };
-    } catch (err: any) {
-      return { error: err?.message ?? "Database error" };
-    }
+    throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
   }
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.pageData, { slug }),

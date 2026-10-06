@@ -33,3 +33,18 @@ export function createServerConvexClient(): ConvexHttpClient | null {
   if (!url) return null;
   return new ConvexHttpClient(url);
 }
+
+/**
+ * Phase A (2026-10-06): Convex is required. Throws when
+ * NEXT_PUBLIC_CONVEX_URL is missing instead of silently falling back to
+ * Prisma/SQLite (db/custom.db).
+ */
+export function requireServerConvexClient(): ConvexHttpClient {
+  const client = createServerConvexClient();
+  if (!client) {
+    throw new Error(
+      "[convex] NEXT_PUBLIC_CONVEX_URL is not set; the Prisma/custom.db fallback was retired."
+    );
+  }
+  return client;
+}

@@ -4,7 +4,7 @@ import { getAuthUser } from "@/lib/auth";
 import { isUserBanned } from "@/lib/users";
 import { isReviewMaker } from "@/lib/community";
 import { convexReviewUpsert, shadowReviewsData } from "@/lib/data";
-import { createServerConvexClient } from "@/lib/convex";
+import { requireServerConvexClient } from "@/lib/convex";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "tool_required" }, { status: 400 });
   }
 
-  const client = createServerConvexClient()!;
+  const client = requireServerConvexClient();
   const user = await getAuthUser();
 
   try {
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const client = createServerConvexClient()!;
+  const client = requireServerConvexClient();
   try {
     const lookup = await shadowReviewsData(client, toolSlug);
     if ("error" in lookup) {
