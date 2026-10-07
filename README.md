@@ -118,7 +118,6 @@ flowchart TD
 │   ├── lib/                    # Business logic, SEO generators, standards, Convex client
 │   └── types/                  # Shared domain TypeScript definitions
 ├── docs/                       # Architectural specs, migration guides, and content strategies
-├── prisma/                     # Legacy schema and seeding utilities for local migration
 └── open-next.config.ts         # Cloudflare Workers OpenNext configuration
 ```
 
