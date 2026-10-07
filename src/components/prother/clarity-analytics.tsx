@@ -1,29 +1,22 @@
-"use client";
+import Script from "next/script";
 
-import { useEffect, useRef } from "react";
-import Clarity from "@microsoft/clarity";
+const CLARITY_PROJECT_ID =
+  process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID?.trim() || "yslcfr3lfm";
 
 /**
- * ClarityAnalytics mounts Microsoft Clarity tracking on client hydration.
- * Configured via process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID.
- * If the environment variable is unset, it remains idle and safe.
+ * ClarityAnalytics injects the official Microsoft Clarity tracking script.
+ * Configured with project ID "yslcfr3lfm" (and configurable via NEXT_PUBLIC_CLARITY_PROJECT_ID).
  */
 export function ClarityAnalytics() {
-  const initialized = useRef(false);
+  if (!CLARITY_PROJECT_ID) return null;
 
-  useEffect(() => {
-    const projectId = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID?.trim();
-    if (!projectId || initialized.current) return;
-
-    try {
-      Clarity.init(projectId);
-      initialized.current = true;
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("Microsoft Clarity initialization error:", err);
-      }
-    }
-  }, []);
-
-  return null;
+  return (
+    <Script
+      id="microsoft-clarity"
+      strategy="afterInteractive"
+      dangerouslySetInnerHTML={{
+        __html: `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", "${CLARITY_PROJECT_ID}");`,
+      }}
+    />
+  );
 }
