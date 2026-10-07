@@ -3,15 +3,12 @@
  * writes and the public tool pages render: long description, use cases,
  * pros/cons, alternatives, pricing fact-check and update timestamps.
  *
- * Post-boot columns (longDescription, useCases, pros, cons, alternatives,
- * pricingCheckedAt, contentUpdatedAt) are invisible to the cached
- * PrismaClient — ALL access here is raw SQL (stale-PrismaClient rule,
- * see the note in lib/features.ts).
+ * Phase B (2026-10-07): all bodies rewired to Convex via
+ * requireServerConvexClient(); the Prisma/custom.db path is gone.
  */
 
-import { Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
-import { toolMediaByIds } from "@/lib/media";
+import { api } from "../../convex/_generated/api.js";
+import { requireServerConvexClient } from "@/lib/convex";
 
 export interface ToolUseCase {
   title: string;
@@ -38,86 +35,38 @@ const EMPTY: ToolEditorial = {
   contentUpdatedAt: null,
 };
 
-function parseStringArray(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function parseUseCases(raw: string | null): ToolUseCase[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    if (!Array.isArray(v)) return [];
-    return v
-      .filter(
-        (x): x is ToolUseCase =>
-          x != null &&
-          typeof x === "object" &&
-          typeof (x as ToolUseCase).title === "string" &&
-          typeof (x as ToolUseCase).body === "string"
-      )
-      .map((u) => ({ title: u.title, body: u.body }));
-  } catch {
-    return [];
-  }
-}
-
-function iso(v: unknown): Date | null {
-  if (v instanceof Date) return v;
-  if (typeof v === "string" || typeof v === "number") {
-    const d = new Date(v);
-    if (!Number.isNaN(d.getTime())) return d;
-  }
-  return null;
-}
-
 /** Editorial fields for many tools, keyed by tool id. Missing ids map to EMPTY. */
 export async function editorialByToolIds(
   ids: string[]
 ): Promise<Map<string, ToolEditorial>> {
-  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
-    throw new Error(
-      "[tool-editorial] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06)."
-    );
-  }
+  const client = requireServerConvexClient();
   const map = new Map<string, ToolEditorial>();
   if (ids.length === 0) return map;
-  const rows = await db.$queryRaw<{
-    id: string;
-    longDescription: string | null;
-    useCases: string | null;
-    pros: string | null;
-    cons: string | null;
-    alternatives: string | null;
-    pricingCheckedAt: Date | string | null;
-    contentUpdatedAt: Date | string | null;
-  }[]>`
-    SELECT id, longDescription, useCases, pros, cons, alternatives,
-           pricingCheckedAt, contentUpdatedAt
-    FROM Tool
-    WHERE id IN (${Prisma.join(ids)})`;
-
-  for (const r of rows) {
-    map.set(r.id, {
-      longDescription: r.longDescription,
-      useCases: parseUseCases(r.useCases),
-      pros: parseStringArray(r.pros),
-      cons: parseStringArray(r.cons),
-      alternativeSlugs: (r.alternatives ?? "")
-        .split("|")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      pricingCheckedAt: iso(r.pricingCheckedAt),
-      contentUpdatedAt: iso(r.contentUpdatedAt),
-    });
-  }
   for (const id of ids) {
-    if (!map.has(id)) map.set(id, { ...EMPTY });
+    const doc = (await client.query(api.import.byLegacy, {
+      table: "tools",
+      legacyId: id,
+    })) as any;
+    if (!doc) {
+      map.set(id, { ...EMPTY });
+      continue;
+    }
+    map.set(id, {
+      longDescription: doc.longDescription ?? null,
+      useCases: Array.isArray(doc.useCases)
+        ? doc.useCases
+            .filter(
+              (u: any) =>
+                u && typeof u.title === "string" && typeof u.body === "string"
+            )
+            .map((u: any) => ({ title: u.title, body: u.body }))
+        : [],
+      pros: Array.isArray(doc.pros) ? doc.pros : [],
+      cons: Array.isArray(doc.cons) ? doc.cons : [],
+      alternativeSlugs: Array.isArray(doc.alternatives) ? doc.alternatives : [],
+      pricingCheckedAt: doc.pricingCheckedAt != null ? new Date(doc.pricingCheckedAt) : null,
+      contentUpdatedAt: doc.contentUpdatedAt != null ? new Date(doc.contentUpdatedAt) : null,
+    });
   }
   return map;
 }
@@ -140,50 +89,29 @@ export async function resolveAlternatives(
   slugs: string[],
   excludeSlug?: string
 ): Promise<AlternativeRow[]> {
-  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
-    throw new Error(
-      "[tool-editorial] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06)."
-    );
-  }
+  const client = requireServerConvexClient();
   const wanted = [...new Set(slugs)].filter((s) => s && s !== excludeSlug);
   if (wanted.length === 0) return [];
-  const rows = await db.$queryRaw<{
-    id: string;
-    slug: string;
-    name: string;
-    tagline: string;
-    logoEmoji: string;
-    logoGradient: string;
-    pricingModel: string;
-    startingPrice: string | null;
-    editorsPick: boolean;
-  }[]>`
-    SELECT id, slug, name, tagline, logoEmoji, logoGradient, pricingModel,
-           startingPrice, editorsPick
-    FROM Tool
-    WHERE slug IN (${Prisma.join(wanted)}) AND status = 'live'`;
-  // toolMediaByIds is keyed by Tool.id (cuid), so resolve media per id.
-  const media = await toolMediaByIds(rows.map((r) => r.id));
-  const bySlug = new Map(
-    rows.map((r) => [
-      r.slug,
-      {
-        slug: r.slug,
-        name: r.name,
-        tagline: r.tagline,
-        logoEmoji: r.logoEmoji,
-        logoGradient: r.logoGradient,
-        pricingModel: r.pricingModel,
-        startingPrice: r.startingPrice,
-        editorsPick: r.editorsPick,
-        logoUrl: media.get(r.id)?.logoUrl ?? null,
-      },
-    ])
-  );
+  const bySlug = new Map<string, AlternativeRow>();
+  for (const s of wanted) {
+    const d = (await client.query(api.tools.detail, { slug: s })) as any;
+    if (!d || "error" in d) continue;
+    bySlug.set(s, {
+      slug: d.slug,
+      name: d.name,
+      tagline: d.tagline,
+      logoEmoji: d.emoji,
+      logoGradient: d.gradient,
+      logoUrl: d.logoUrl ?? null,
+      pricingModel: d.pricing?.model ?? "",
+      startingPrice: d.pricing?.price ?? null,
+      editorsPick: d.badges?.editorsPick === true,
+    });
+  }
   // Preserve the editorial order from the alternatives column.
   return wanted
     .map((s) => bySlug.get(s))
-    .filter((r): r is AlternativeRow & { logoUrl: string | null } => r != null);
+    .filter((r): r is AlternativeRow => r != null);
 }
 
 export interface ToolEditorialPatch {
@@ -260,57 +188,28 @@ export async function applyToolEditorial(
   toolId: string,
   patch: ToolEditorialPatch
 ): Promise<void> {
-  const sets: string[] = [];
-  const args: (string | null | Date)[] = [];
-
-  if (patch.longDescription !== undefined) {
-    const t = patch.longDescription?.trim() ?? "";
-    sets.push("longDescription = ?");
-    args.push(t.length > 0 ? t : null);
-  }
-  if (patch.useCases !== undefined) {
-    sets.push("useCases = ?");
-    args.push(JSON.stringify(patch.useCases));
-  }
-  if (patch.pros !== undefined) {
-    sets.push("pros = ?");
-    args.push(JSON.stringify(patch.pros));
-  }
-  if (patch.cons !== undefined) {
-    sets.push("cons = ?");
-    args.push(JSON.stringify(patch.cons));
-  }
-  if (patch.alternatives !== undefined) {
-    sets.push("alternatives = ?");
-    args.push(patch.alternatives.join("|"));
-  }
-  if (patch.pricingChecked !== undefined) {
-    sets.push("pricingCheckedAt = ?");
-    args.push(patch.pricingChecked ? new Date() : null);
-  }
-
-  // Only editorial saves stamp the content update date.
-  const editorialTouch =
+  const client = requireServerConvexClient();
+  const touches =
     patch.longDescription !== undefined ||
     patch.useCases !== undefined ||
     patch.pros !== undefined ||
     patch.cons !== undefined ||
     patch.alternatives !== undefined ||
     patch.pricingChecked !== undefined;
-  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
-    throw new Error(
-      "[tool-editorial] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06)."
-    );
-  }
-  if (sets.length === 0) return;
-  if (editorialTouch) {
-    sets.push("contentUpdatedAt = ?");
-    args.push(new Date());
-  }
-
-  args.push(toolId);
-  await db.$executeRawUnsafe(
-    `UPDATE Tool SET ${sets.join(", ")} WHERE id = ?`,
-    ...args
-  );
+  if (!touches) return;
+  await client.mutation(api.adminCrud.toolPatch, {
+    toolLegacyId: toolId,
+    data: {},
+    editorial: {
+      ...(patch.longDescription !== undefined
+        ? { longDescription: patch.longDescription?.trim() ? patch.longDescription.trim() : null }
+        : {}),
+      ...(patch.useCases !== undefined ? { useCases: patch.useCases } : {}),
+      ...(patch.pros !== undefined ? { pros: patch.pros } : {}),
+      ...(patch.cons !== undefined ? { cons: patch.cons } : {}),
+      ...(patch.alternatives !== undefined ? { alternatives: patch.alternatives } : {}),
+      ...(patch.pricingChecked !== undefined ? { pricingChecked: patch.pricingChecked } : {}),
+    },
+    nowMs: Date.now(),
+  } as any);
 }

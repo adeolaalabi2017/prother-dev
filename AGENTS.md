@@ -13,7 +13,7 @@ This document records persistent rules, architecture invariants, and asset handl
 ### Asset Location & URL Specification
 1. **Local Static Storage (`public/logos/`)**:
    - Every tool must have an authentic vector logo (`/logos/<slug>.svg`) or high-resolution official brand PNG (`/logos/<slug>.png`) committed to `public/logos/`.
-   - The `logoUrl` field in both Convex and SQLite (`db/custom.db`) MUST be set to `/logos/<slug>.<ext>` (e.g., `/logos/openchamber.svg`, `/logos/linear.svg`, `/logos/aider.png`).
+   - The `logoUrl` field in Convex MUST be set to `/logos/<slug>.<ext>` (e.g., `/logos/openchamber.svg`, `/logos/linear.svg`, `/logos/aider.png`).
 2. **NO Manual Convex Storage URL Concatenation**:
    - NEVER generate or store URLs like `https://<deployment>.convex.cloud/api/storage/<storageId>` where `<storageId>` is an internal Convex document ID (e.g. `kg2...`).
    - Convex public storage endpoints return `HTTP 400 InvalidStoragePath` for internal IDs. This 400 error causes `<ToolLogo>` to trigger its error boundary and fall back to emoji gradient tiles.
@@ -24,7 +24,7 @@ This document records persistent rules, architecture invariants, and asset handl
 ### Verification Checklist for Any New or Modified Tool
 Before completing any task that adds or edits a tool:
 1. Verify the logo file exists under `public/logos/<slug>.<ext>`.
-2. Verify `logoUrl` is set to `/logos/<slug>.<ext>` in both Convex and SQLite.
+2. Verify `logoUrl` is set to `/logos/<slug>.<ext>` in Convex.
 3. Verify `curl -sI http://localhost:3000/logos/<slug>.<ext>` (or live `https://prother.dev/logos/<slug>.<ext>`) returns `HTTP 200`.
 4. Run `bun run scripts/patch-all-tool-logos.ts` or equivalent script to verify Convex query output matches `/logos/<slug>.<ext>`.
 
@@ -41,11 +41,10 @@ Before completing any task that adds or edits a tool:
 
 ---
 
-## 3. Database Dual-Write & Synchronization
+## 3. Database Source of Truth
 
-- Prother maintains both Convex (production reactive database) and SQLite (`db/custom.db`) for shadow/local compatibility.
-- Any mutations, tools additions, or metadata updates must be applied to both data stores.
-- When committing changes, ensure both `db/custom.db` and the corresponding scripts/files are committed and pushed to `main`.
+- Convex is the ONLY data store for the app (Phase B, 2026-10-07). The legacy Prisma/SQLite store (`db/custom.db`) is archived outside the repo; do not dual-write or read it.
+- Any mutations, tool additions, or metadata updates apply to Convex only.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -5,7 +5,6 @@ import { isUserBanned } from "@/lib/users";
 import { isReviewMaker } from "@/lib/community";
 import { convexReviewUpsert, shadowReviewsData } from "@/lib/data";
 import { requireServerConvexClient } from "@/lib/convex";
-import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -148,47 +147,6 @@ export async function POST(req: Request) {
       createdAt: now,
       updatedAt: now,
     });
-
-    // SQLite dual-write (AGENTS.md requirement)
-    try {
-      const targetTool = await db.tool.findUnique({ where: { slug: toolSlug } });
-      if (targetTool) {
-        const existingReview = await db.review.findFirst({
-          where: { toolId: targetTool.id, userId: user.id },
-        });
-        if (existingReview) {
-          await db.review.update({
-            where: { id: existingReview.id },
-            data: {
-              ease,
-              power,
-              value,
-              body,
-              status,
-              updatedAt: new Date(now),
-            },
-          });
-        } else {
-          await db.review.create({
-            data: {
-              id: crypto.randomUUID(),
-              toolId: targetTool.id,
-              userId: user.id,
-              author: `@${user.handle}`,
-              ease,
-              power,
-              value,
-              body,
-              status,
-              createdAt: new Date(now),
-              updatedAt: new Date(now),
-            },
-          });
-        }
-      }
-    } catch (dbErr) {
-      console.error("[api:reviews] SQLite dual-write failed:", dbErr);
-    }
 
     return NextResponse.json(
       {
