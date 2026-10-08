@@ -189,7 +189,8 @@ const getConvexBundle = cache(
   async (slug: string): Promise<ConvexBundle | null> => {
     // Convex-only (tool detail cutover): null surfaces as notFound downstream.
     try {
-      const res = await shadowToolPageData(createServerConvexClient(), slug);
+      const resolved = slug === "claude-haiku-5-5" ? "haiku-5-5" : slug;
+      const res = await shadowToolPageData(createServerConvexClient(), resolved);
       if ("error" in res) return null;
       const isoOrNull = (v: string | null): Date | null =>
         v ? new Date(v) : null;

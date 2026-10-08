@@ -41,16 +41,58 @@ export function renderMarkdown(src: string): string {
   while (i < lines.length) {
     const line = lines[i];
 
-    // fenced code block
-    if (line.trim().startsWith("```")) {
-      const lang = line.trim().slice(3).trim();
+    // fenced code block or carousel
+    if (line.trim().startsWith("```") || line.trim().startsWith(":::carousel")) {
+      const isColonBlock = line.trim().startsWith(":::carousel");
+      const lang = isColonBlock ? "carousel" : line.trim().replace(/^`+/, "").trim();
+      const endMarker = isColonBlock ? ":::" : "```";
       const buf: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+      while (i < lines.length && !lines[i].trim().startsWith(endMarker)) {
         buf.push(lines[i]);
         i++;
       }
       i++; // closing fence
+
+      if (lang === "carousel") {
+        const content = buf.join("\n");
+        const imgRegex = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g;
+        let match: RegExpExecArray | null;
+        const slides: { alt: string; src: string }[] = [];
+        while ((match = imgRegex.exec(content)) !== null) {
+          slides.push({ alt: match[1], src: match[2] });
+        }
+        if (slides.length > 0) {
+          let carouselHtml = '<div class="md-carousel-container my-8 rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-6 overflow-hidden">';
+          carouselHtml += '<div class="md-carousel-header mb-4 flex items-center justify-between gap-3">';
+          carouselHtml += '<div class="flex items-center gap-2">';
+          carouselHtml += '<span class="inline-block size-2 rounded-full bg-ember animate-pulse"></span>';
+          carouselHtml += '<span class="font-mono text-xs uppercase tracking-wider text-ember-tint font-bold">Model Benchmarks &amp; Visuals Carousel</span>';
+          carouselHtml += '</div>';
+          carouselHtml += '<div class="flex items-center gap-2">';
+          carouselHtml += '<button type="button" class="md-carousel-btn md-carousel-prev rounded-lg border border-white/15 px-2.5 py-1 text-xs font-mono text-white/80 transition-colors hover:border-ember hover:text-ember cursor-pointer" onclick="this.closest(\'.md-carousel-container\').querySelector(\'.md-carousel-track\').scrollBy({left: -420, behavior: \'smooth\'})" aria-label="Previous slide">← Prev</button>';
+          carouselHtml += '<button type="button" class="md-carousel-btn md-carousel-next rounded-lg border border-white/15 px-2.5 py-1 text-xs font-mono text-white/80 transition-colors hover:border-ember hover:text-ember cursor-pointer" onclick="this.closest(\'.md-carousel-container\').querySelector(\'.md-carousel-track\').scrollBy({left: 420, behavior: \'smooth\'})" aria-label="Next slide">Next →</button>';
+          carouselHtml += '</div>';
+          carouselHtml += '</div>';
+          carouselHtml += '<div class="md-carousel-track flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 pt-1 scroll-smooth no-scrollbar">';
+          for (const s of slides) {
+            carouselHtml += '<div class="md-carousel-slide min-w-[85%] sm:min-w-[70%] md:min-w-[60%] snap-center shrink-0 flex flex-col justify-between rounded-xl border border-white/10 bg-black/40 p-3 shadow-xl">';
+            carouselHtml += '<div class="overflow-hidden rounded-lg bg-black/60 flex items-center justify-center">';
+            carouselHtml += `<img src="${esc(s.src)}" alt="${esc(s.alt)}" class="w-full h-auto max-h-[460px] object-contain rounded-lg" loading="lazy" />`;
+            carouselHtml += '</div>';
+            if (s.alt) {
+              carouselHtml += `<p class="mt-3 text-center font-mono text-xs text-white/80 font-medium">${inline(esc(s.alt))}</p>`;
+            }
+            carouselHtml += '</div>';
+          }
+          carouselHtml += '</div>';
+          carouselHtml += `<div class="mt-2 text-right font-mono text-[11px] text-white/40 tracking-wider">Swipe or click arrows to view all ${slides.length} slides</div>`;
+          carouselHtml += '</div>';
+          out.push(carouselHtml);
+          continue;
+        }
+      }
+
       out.push(
         `<pre class="md-pre"${lang ? ` data-lang="${esc(lang)}"` : ""}><code>${esc(
           buf.join("\n")
@@ -155,6 +197,7 @@ export function renderMarkdown(src: string): string {
       lines[i].trim() !== "" &&
       !/^(#{2,4})\s+/.test(lines[i]) &&
       !lines[i].trim().startsWith("```") &&
+      !lines[i].trim().startsWith(":::carousel") &&
       !lines[i].startsWith("> ") &&
       !/^[-*]\s+/.test(lines[i]) &&
       !/^\d+\.\s+/.test(lines[i]) &&

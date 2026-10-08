@@ -459,6 +459,23 @@
 .post-body table tr:hover td {
   background: rgba(255, 255, 255, 0.02);
 }
+.post-body .md-carousel-container {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+.post-body .md-carousel-btn {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+}
+.post-body .md-carousel-btn:hover {
+  border-color: #ff6a00;
+  color: #ffb877;
+  background: rgba(255, 106, 0, 0.1);
+}
+.post-body .md-carousel-slide {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 10, 0.7);
+}
 
 /* post-body qa marker */
 
@@ -674,6 +691,27 @@ html.light .post-body table td {
 }
 html.light .post-body table tr:hover td {
   background-color: rgba(0, 0, 0, 0.02);
+}
+html.light .post-body .md-carousel-container {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.02);
+}
+html.light .post-body .md-carousel-btn {
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.04);
+  color: #3c3730;
+}
+html.light .post-body .md-carousel-btn:hover {
+  border-color: var(--brand-ember);
+  color: var(--brand-ember);
+  background: rgba(255, 106, 0, 0.08);
+}
+html.light .post-body .md-carousel-slide {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+}
+html.light .post-body .md-carousel-slide p {
+  color: #3c3730;
 }
 
 /* light-theme rebuild marker */
