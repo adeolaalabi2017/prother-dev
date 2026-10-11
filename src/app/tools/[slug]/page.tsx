@@ -421,7 +421,7 @@ export default async function ToolPage({ params }: Params) {
                 size="xl"
               />
               <div className="min-w-0 flex-1">
-                <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                   {name}
                 </h1>
                 <p className="mt-1 text-base text-white/65 sm:text-lg">
@@ -505,7 +505,6 @@ export default async function ToolPage({ params }: Params) {
                 href={`/categories/${tool.category.slug}`}
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-sm tracking-wider text-white/60 uppercase transition-colors hover:border-ember/40 hover:text-ember"
               >
-                <span aria-hidden>{tool.category.emoji}</span>
                 {tool.category.name}
               </Link>
               {aggregate ? (
@@ -571,7 +570,7 @@ export default async function ToolPage({ params }: Params) {
                     {PRICING_LABEL[tool.pricingModel] ?? "Free"}
                   </span>
                   {tool.startingPrice && (
-                    <span className="text-2xl font-black tracking-tight text-white">
+                    <span className="text-2xl font-semibold tracking-tight text-white">
                       {tool.startingPrice}
                     </span>
                   )}
@@ -725,7 +724,7 @@ export default async function ToolPage({ params }: Params) {
                           topic && "border-ember/20 text-ember/80",
                         )}
                       >
-                        {topic ? `${topic.emoji} ${t}` : t}
+                        {t}
                       </Link>
                     </li>
                   );
@@ -924,7 +923,6 @@ export default async function ToolPage({ params }: Params) {
                   href={`/categories/${tool.category.slug}`}
                   className="inline-flex items-center gap-1.5 font-mono text-sm tracking-wider text-white/85 uppercase transition-colors hover:text-ember"
                 >
-                  <span aria-hidden>{tool.category.emoji}</span>
                   {tool.category.name}
                 </Link>
                 <span className={chipCx("text-white/55")}>

@@ -112,7 +112,7 @@ export default async function ForumThreadPage({ params }: Params) {
             <div className="mt-8 flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-10 text-center">
               <span
                 aria-hidden
-                className="grid size-12 place-items-center rounded-2xl border border-white/15 bg-white/[0.03]"
+                className="grid size-12 place-items-center rounded-lg border border-white/15 bg-white/[0.03]"
               >
                 <ShieldX className="size-5 text-white/60" />
               </span>
@@ -200,7 +200,7 @@ export default async function ForumThreadPage({ params }: Params) {
             )}
           </div>
 
-          <h1 className="mt-4 text-3xl leading-tight font-black tracking-tight text-white sm:text-4xl">
+          <h1 className="mt-4 text-3xl leading-tight font-semibold tracking-tight text-white sm:text-4xl">
             {thread.title}
           </h1>
 

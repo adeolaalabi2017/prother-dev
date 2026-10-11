@@ -57,7 +57,7 @@ export function HowItWorks() {
         <div className="grid items-end gap-10 lg:grid-cols-2">
           <motion.h2
             {...fadeUp}
-            className="text-5xl leading-[0.95] font-black tracking-tighter md:text-6xl"
+            className="text-5xl leading-[0.95] font-semibold tracking-tighter md:text-6xl"
           >
             One directory.
             <br />
@@ -87,8 +87,8 @@ export function HowItWorks() {
                 <div
                   className={
                     step.highlight
-                      ? "rounded-2xl bg-ember p-6 text-coal transition-transform duration-200 hover:scale-[1.02]"
-                      : "rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+                      ? "rounded-lg bg-ember p-6 text-coal transition-transform duration-200 hover:scale-[1.02]"
+                      : "rounded-lg border border-white/10 bg-white/[0.03] p-6"
                   }
                 >
                   <p
@@ -100,7 +100,7 @@ export function HowItWorks() {
                   </p>
                   <h3
                     className={`mt-2 text-xl ${
-                      step.highlight ? "font-black" : "font-bold"
+                      step.highlight ? "font-semibold" : "font-bold"
                     }`}
                   >
                     {step.title}
@@ -138,9 +138,9 @@ export function HowItWorks() {
               key={s.title}
               {...fadeUp}
               transition={{ duration: 0.55, delay: i * 0.08, ease: "easeOut" }}
-              className="rounded-2xl border border-black/10 bg-white p-6"
+              className="rounded-lg border border-black/10 bg-white p-6"
             >
-              <p className="text-5xl font-black text-[#A83E00]">{s.value}</p>
+              <p className="text-5xl font-semibold text-[#A83E00]">{s.value}</p>
               <h3 className="mt-3 font-bold">{s.title}</h3>
               <p className="mt-1 text-sm text-black/70">{s.body}</p>
             </motion.div>

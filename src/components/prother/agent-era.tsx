@@ -149,7 +149,7 @@ export function AgentEra() {
           <p className="font-mono text-xs tracking-[0.3em] text-ember/80">
             BUILT FOR THE DISCOVERY ERA
           </p>
-          <h2 className="mt-4 text-5xl leading-[0.95] font-black tracking-tighter text-white md:text-6xl">
+          <h2 className="mt-4 text-5xl leading-[0.95] font-semibold tracking-tighter text-white md:text-6xl">
             Your tool deserves to be found, not just linked.
           </h2>
           <p className="mt-6 text-lg text-white/70">
@@ -179,7 +179,7 @@ export function AgentEra() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
-          className="overflow-hidden rounded-2xl border border-white/10 bg-ink shadow-2xl ring-1 ring-white/[0.03]"
+          className="overflow-hidden rounded-lg border border-white/10 bg-ink shadow-2xl ring-1 ring-white/[0.03]"
           aria-label={TRANSCRIPT}
         >
           <p className="sr-only">{TRANSCRIPT}</p>

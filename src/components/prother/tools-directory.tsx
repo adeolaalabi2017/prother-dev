@@ -204,7 +204,7 @@ export function ToolsDirectory({
             <Compass className="size-3.5" aria-hidden />
             The directory
           </p>
-          <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
+          <h1 className="mt-3 text-5xl font-semibold tracking-tighter text-white md:text-6xl">
             Every AI tool.
             <br />
             One shelf.
@@ -361,9 +361,6 @@ export function ToolsDirectory({
                     : "border-white/10 bg-white/[0.03] text-white/55 hover:border-ember/40 hover:text-white",
                 )}
               >
-                <span aria-hidden className="mr-1">
-                  {c.emoji}
-                </span>
                 {c.short}
               </button>
             ))}
@@ -397,14 +394,14 @@ export function ToolsDirectory({
             {Array.from({ length: 9 }).map((_, i) => (
               <div
                 key={i}
-                className="h-40 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]"
+                className="h-40 animate-pulse rounded-lg border border-white/10 bg-white/[0.03]"
               />
             ))}
           </div>
         )}
 
         {!loading && failed && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center">
+          <div className="rounded-lg border border-white/10 bg-white/[0.02] p-10 text-center">
             <p className="font-mono text-sm text-white/60">
               Couldn&apos;t load the directory. Please refresh the page.
             </p>
@@ -412,7 +409,7 @@ export function ToolsDirectory({
         )}
 
         {!loading && !failed && count === 0 && (
-          <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
+          <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
             <SearchX className="mx-auto size-8 text-white/55" aria-hidden />
             <p className="mt-4 font-mono text-sm tracking-wider text-white/60 uppercase">
               No tools match
@@ -440,7 +437,7 @@ export function ToolsDirectory({
                 <Link
                   href={`/tools/${row.slug}`}
                   aria-label={`${row.name}: ${row.tagline}. Open full listing.`}
-                  className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
+                  className="group flex h-full w-full flex-col rounded-lg border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <ToolLogo
@@ -471,7 +468,7 @@ export function ToolsDirectory({
                       title={`Category: ${row.category.name}`}
                       className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase"
                     >
-                      {row.category.emoji} {row.category.name}
+                      {row.category.name}
                     </span>
                     <span
                       title={`Pricing: ${pricingLabel(row)}`}

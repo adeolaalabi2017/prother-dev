@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, Clock3, Feather } from "lucide-react";
 import { clamp } from "@/lib/og";
 import { renderMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
+import { INITIALS_TILE, initialsOf } from "@/components/prother/initials";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { PostViewPing } from "@/components/prother/post-view-ping";
 import { AdSlot } from "@/components/prother/ad-slot";
@@ -140,13 +141,13 @@ export default async function JournalArticlePage({ params }: Params) {
             <div
               aria-hidden
               className={cn(
-                "flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-inner",
-                post.coverGradient
+                INITIALS_TILE,
+                "size-16 text-lg",
               )}
             >
-              {post.coverEmoji}
+              {initialsOf(post.title)}
             </div>
-            <h1 className="min-w-0 text-3xl leading-tight font-black tracking-tight text-white sm:text-4xl">
+            <h1 className="min-w-0 text-3xl leading-tight font-semibold tracking-tight text-white sm:text-4xl">
               {post.title}
             </h1>
           </div>
@@ -169,7 +170,7 @@ export default async function JournalArticlePage({ params }: Params) {
           {/* Uploaded cover art (Task 34) — hero banner; the emoji tile above
               stays as the fallback when the post has no image. */}
           {coverUrl && (
-            <div className="mt-8 overflow-hidden rounded-2xl border border-white/10">
+            <div className="mt-8 overflow-hidden rounded-lg border border-white/10">
               <img
                 src={coverUrl}
                 alt={`${post.title} cover`}

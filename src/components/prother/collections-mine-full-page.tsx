@@ -301,7 +301,7 @@ export function CollectionsMinePanel({ active }: { active: boolean }) {
                 type="button"
                 onClick={() => void create()}
                 disabled={newName.trim().length < 2 || creating}
-                className="h-10 bg-ember px-5 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+                className="h-10 bg-ember px-5 font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
               >
                 {creating ? (
                   <>
@@ -368,7 +368,7 @@ export function CollectionsMinePanel({ active }: { active: boolean }) {
                       size="sm"
                       onClick={() => openCollection(c.slug)}
                       aria-label={`Open collection ${c.name}`}
-                      className="h-9 bg-ember px-3.5 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+                      className="h-9 bg-ember px-3.5 font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
                     >
                       OPEN →
                     </Button>
@@ -508,11 +508,11 @@ export function CollectionsMineFullPage() {
         <div className="flex flex-col items-center gap-4 py-16 text-center">
           <span
             aria-hidden
-            className="grid size-14 place-items-center rounded-2xl border border-ember/30 bg-ember/[0.06]"
+            className="grid size-14 place-items-center rounded-lg border border-ember/30 bg-ember/[0.06]"
           >
             <FolderHeart className="size-6 text-ember" />
           </span>
-          <h1 className="text-2xl font-black tracking-tight text-white">SIGN IN REQUIRED</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">SIGN IN REQUIRED</h1>
           <p className="max-w-sm text-sm leading-relaxed text-white/55">
             Collections and follows live in your account. Sign in to keep your
             picks across visits.
@@ -520,7 +520,7 @@ export function CollectionsMineFullPage() {
           <Button
             type="button"
             onClick={openAuth}
-            className="h-11 bg-ember px-6 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+            className="h-11 bg-ember px-6 font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
           >
             SIGN IN →
           </Button>

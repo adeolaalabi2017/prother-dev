@@ -43,7 +43,7 @@ export default function AboutPage() {
           <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             About Prother
           </p>
-          <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
+          <h1 className="mt-3 text-5xl font-semibold tracking-tighter text-white md:text-6xl">
             Find the right AI tool.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-white/60">

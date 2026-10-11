@@ -94,7 +94,7 @@ import { ImageUploadField } from "./image-upload-field";
  * KPI-stat row → charts row → data-table row layout.
  *
  * Everything is painted with Prother tokens ONLY (ink/coal panels,
- * white/10 borders, rounded-2xl, ember #FF6A00 as the single accent,
+ * white/10 borders, rounded-lg, ember #FF6A00 as the single accent,
  * cream text moments, mono micro-labels) — semantic green/red appear
  * only in positive/negative delta pills, as elsewhere on the site.
  * Demo key auth (`x-editor-key`) shared with the editor desk; NextAuth P2.
@@ -108,14 +108,14 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
   const [value, setValue] = useState("");
   return (
     <div className="flex min-h-[68vh] items-center justify-center px-1 py-10">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-coal p-6 text-center shadow-2xl shadow-black/50 sm:p-8">
+      <div className="w-full max-w-sm rounded-lg border border-white/10 bg-coal p-6 text-center shadow-2xl shadow-black/50 sm:p-8">
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-ember/30 bg-ember/10">
           <KeyRound className="size-5 text-ember" aria-hidden />
         </div>
         <p className="mt-4 font-mono text-xs tracking-[0.3em] text-ember uppercase">
           Restricted
         </p>
-        <h2 className="mt-1 text-xl font-black tracking-tight text-white">
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">
           Enter the backstage
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-white/50">
@@ -2699,14 +2699,14 @@ function StatCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border p-4 sm:p-5",
+        "rounded-lg border p-4 sm:p-5",
         accent ? "border-ember/40 bg-ember/[0.06]" : "border-white/10 bg-white/[0.02]"
       )}
     >
       <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
         {label}
       </p>
-      <p className="mt-1.5 text-3xl font-black tracking-tight text-white">
+      <p className="mt-1.5 text-3xl font-semibold tracking-tight text-white">
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
       {spark && <MiniSpark data={spark} className="mt-3" />}
@@ -2879,7 +2879,7 @@ function PricingDonutCard({ mix }: { mix: { model: string; count: number }[] }) 
           style={{ background: total > 0 ? `conic-gradient(${stops.join(",")})` : "rgba(255,255,255,0.05)" }}
         >
           <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-ink">
-            <span className="text-2xl font-black tracking-tight text-white">
+            <span className="text-2xl font-semibold tracking-tight text-white">
               {total.toLocaleString()}
             </span>
             <span className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
@@ -3006,7 +3006,7 @@ function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number 
       </div>
       {oldest ? (
         <>
-          <p className="mt-3 text-3xl font-black tracking-tight text-white">
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-white">
             {ageH}
             <span className="ml-1 text-base font-bold text-white/60">h</span>
           </p>
@@ -3038,17 +3038,17 @@ function OverviewSkeleton() {
     <div className="space-y-4 sm:space-y-5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-[118px] rounded-2xl bg-white/[0.04]" />
+          <Skeleton key={i} className="h-[118px] rounded-lg bg-white/[0.04]" />
         ))}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-64 rounded-2xl bg-white/[0.04]" />
+          <Skeleton key={i} className="h-64 rounded-lg bg-white/[0.04]" />
         ))}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
-        <Skeleton className="h-72 rounded-2xl bg-white/[0.04] lg:col-span-2" />
-        <Skeleton className="h-72 rounded-2xl bg-white/[0.04]" />
+        <Skeleton className="h-72 rounded-lg bg-white/[0.04] lg:col-span-2" />
+        <Skeleton className="h-72 rounded-lg bg-white/[0.04]" />
       </div>
     </div>
   );
@@ -3379,7 +3379,7 @@ function SidebarContent({
         >
           <Hexagon className="size-4 text-ember" />
         </span>
-        <span className="text-base font-black tracking-tight text-white">Prother</span>
+        <span className="text-base font-semibold tracking-tight text-white">Prother</span>
         <span className="rounded border border-ember/30 bg-ember/10 px-1.5 py-px font-mono text-xs tracking-[0.2em] text-ember">
           ADMIN
         </span>
@@ -3582,7 +3582,7 @@ export function AdminDashboard() {
                 <p className="font-mono text-xs tracking-[0.3em] text-ember uppercase">
                   Prother admin
                 </p>
-                <h1 className="truncate text-xl font-black tracking-tight text-white sm:text-2xl">
+                <h1 className="truncate text-xl font-semibold tracking-tight text-white sm:text-2xl">
                   {SECTION_TITLES[section]}
                 </h1>
               </div>
@@ -3629,7 +3629,7 @@ export function AdminDashboard() {
                   {SECTION_NOTES.overview}
                 </p>
                 {overviewError ? (
-                  <div className="rounded-2xl border border-red-400/25 bg-red-400/[0.04] p-10 text-center">
+                  <div className="rounded-lg border border-red-400/25 bg-red-400/[0.04] p-10 text-center">
                     <p className="font-mono text-xs tracking-[0.25em] text-red-300 uppercase">
                       Overview unavailable
                     </p>

@@ -59,7 +59,10 @@ export async function GET(req: Request) {
   try {
     const payload = await shadowSearch(createServerConvexClient()!, q);
     return NextResponse.json(payload, {
-      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+      headers: {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "x-data-backend": "convex",
+      },
     });
   } catch (err) {
     console.error("[api:search] failed:", err);

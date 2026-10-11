@@ -111,10 +111,10 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
   const [value, setValue] = useState("");
   return (
     <div className="flex flex-col items-center px-8 py-16 text-center">
-      <div className="flex size-14 items-center justify-center rounded-2xl border border-ember/30 bg-ember/10">
+      <div className="flex size-14 items-center justify-center rounded-lg border border-ember/30 bg-ember/10">
         <KeyRound className="size-6 text-ember" aria-hidden />
       </div>
-      <h2 className="mt-5 text-xl font-black tracking-tight text-white">
+      <h2 className="mt-5 text-xl font-semibold tracking-tight text-white">
         Editor access
       </h2>
       <p className="mt-1.5 max-w-xs text-sm text-white/50">
@@ -899,7 +899,7 @@ export function EditorConsole() {
                 <p className="font-mono text-xs tracking-[0.25em] text-ember">
                   EDITOR CONSOLE
                 </p>
-                <h2 className="mt-1 text-xl font-black tracking-tight text-white">
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">
                   Review queue
                 </h2>
               </div>

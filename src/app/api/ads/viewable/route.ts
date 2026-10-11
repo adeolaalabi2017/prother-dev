@@ -16,7 +16,11 @@ export async function POST(req: NextRequest) {
   if (!body || !campaignIdOk(body.id)) {
     return NextResponse.json({ ok: false, error: "invalid_id" }, { status: 400 });
   }
-  // Convex-only, fire-and-forget (a failed ping never surfaces).
-  void convexAdViewable(createServerConvexClient()!, { id: body.id }).catch(() => {});
+  // D1-primary (wave 3): awaited (see pv/route.ts - void promises die on Workers).
+  try {
+    await convexAdViewable(createServerConvexClient()!, { id: body.id });
+  } catch {
+    // a failed ping never surfaces
+  }
   return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 }

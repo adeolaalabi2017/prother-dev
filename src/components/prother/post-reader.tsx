@@ -12,6 +12,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { renderMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
+import { INITIALS_TILE, initialsOf } from "@/components/prother/initials";
 import { useExplorer } from "./explorer-store";
 
 /**
@@ -197,11 +198,11 @@ export function PostReader() {
               <div
                 aria-hidden
                 className={cn(
-                  "flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-inner",
-                  post.coverGradient
+                  INITIALS_TILE,
+                  "size-14 text-base",
                 )}
               >
-                {post.coverEmoji}
+                {initialsOf(post.title)}
               </div>
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tracking-[0.25em] text-ember-tint uppercase">
@@ -210,7 +211,7 @@ export function PostReader() {
                   </span>
                   <span className="text-white/55">{post.category}</span>
                 </p>
-                <h2 className="mt-1.5 text-xl leading-tight font-black tracking-tight text-white sm:text-2xl">
+                <h2 className="mt-1.5 text-xl leading-tight font-semibold tracking-tight text-white sm:text-2xl">
                   {post.title}
                 </h2>
               </div>

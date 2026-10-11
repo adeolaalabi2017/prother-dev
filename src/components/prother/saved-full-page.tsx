@@ -185,7 +185,7 @@ export function SavedPanel() {
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-white/15 p-10 text-center">
             <span
               aria-hidden
-              className="grid size-12 place-items-center rounded-2xl border border-ember/30 bg-ember/[0.06]"
+              className="grid size-12 place-items-center rounded-lg border border-ember/30 bg-ember/[0.06]"
             >
               <Bookmark className="size-5 text-ember" />
             </span>
@@ -296,7 +296,7 @@ export function SavedFullPage() {
     >
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
             Saved
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">

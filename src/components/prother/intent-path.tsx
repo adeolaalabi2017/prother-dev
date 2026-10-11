@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { INTENTS, intentHref } from "@/lib/intents";
 
 /**
@@ -39,7 +38,7 @@ export function IntentPath({
           <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
             Start here
           </p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
             What are you trying to do?
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-white/65">
@@ -53,20 +52,11 @@ export function IntentPath({
             <li key={intent.tag}>
               <Link
                 href={intentHref(intent)}
-                className="group flex h-full items-start gap-4 rounded-xl border border-white/10 bg-white/[0.025] p-5 transition-colors hover:border-ember/50 hover:bg-white/[0.05]"
+                className="group flex h-full items-start gap-4 rounded-lg border border-white/10 bg-white/[0.025] p-5 transition-colors hover:border-ember/50 hover:bg-white/[0.05]"
               >
-                <span
-                  aria-hidden
-                  className="text-2xl leading-none"
-                  // Nudge the emoji optical baseline: at 2xl it otherwise
-                  // sits a few px low against the 15px label beside it.
-                  style={{ marginTop: "-2px" }}
-                >
-                  {intent.emoji}
-                </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-3">
-                    <span className="text-base font-bold text-white transition-colors group-hover:text-ember">
+                    <span className="text-base font-semibold text-white transition-colors group-hover:text-ember">
                       {intent.label}
                     </span>
                     <span className="shrink-0 font-mono text-[11px] tabular-nums text-white/50">
@@ -77,10 +67,6 @@ export function IntentPath({
                     {intent.blurb}
                   </span>
                 </span>
-                <ArrowRight
-                  className="mt-1 size-4 shrink-0 text-white/55 transition-colors group-hover:text-ember"
-                  aria-hidden
-                />
               </Link>
             </li>
           ))}

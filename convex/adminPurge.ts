@@ -30,10 +30,10 @@ export const purgeUsers = mutation({
       (u) => (u.email ?? "").toLowerCase() === keepEmail
     );
     if (kept.length === 0) {
-      throw new Error("protected account not found — refusing to purge");
+      throw new Error("protected account not found: refusing to purge");
     }
     if (a.execute && a.confirm !== "PURGE") {
-      throw new Error("confirmation mismatch — refusing to purge");
+      throw new Error("confirmation mismatch: refusing to purge");
     }
 
     const purged = users.filter(

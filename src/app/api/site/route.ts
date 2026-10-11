@@ -13,13 +13,16 @@ export async function GET() {
   try {
     const payload = await shadowSite(createServerConvexClient()!);
     return NextResponse.json(payload, {
-      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+      headers: {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "x-data-backend": "convex",
+      },
     });
   } catch {
     // Never 500 — the hero consumes this route on every page load.
     return NextResponse.json(
       { settings: {}, stats: { tools: 0, categories: 0, reviews: 0, comments: 0 } },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "public, s-maxage=60" } }
     );
   }
 }

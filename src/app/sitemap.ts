@@ -20,6 +20,7 @@ import { TOPICS } from "@/lib/topics";
  * non-contractual for crawlers, so this is whitelisted, not normalized.
  */
 export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 /**
  * Slugs that are seeded fixtures or QA placeholders rather than real

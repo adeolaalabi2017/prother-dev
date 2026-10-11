@@ -155,7 +155,7 @@ export function CollectionFullPage() {
       <div className="space-y-8">
         {/* Header */}
         <header className="space-y-3">
-          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
             {detail.name}
           </h1>
           {detail.description && (

@@ -110,7 +110,7 @@ export function ToolDetailActions({
         target="_blank"
         rel="noopener noreferrer nofollow"
         aria-label={`Visit ${name} website`}
-        className="inline-flex h-11 items-center gap-2 rounded-full bg-ember px-5 text-sm font-black tracking-wide text-[#0A0A0A] transition hover:bg-ember-hot"
+        className="inline-flex h-11 items-center gap-2 rounded-full bg-ember px-5 text-sm font-semibold tracking-wide text-[#0A0A0A] transition hover:bg-ember-hot"
       >
         Visit website
         <ArrowUpRight className="size-4" aria-hidden />

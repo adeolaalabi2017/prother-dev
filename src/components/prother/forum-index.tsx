@@ -173,7 +173,7 @@ export function ForumIndex({
               <MessagesSquare className="size-3.5" aria-hidden />
               Prother Forums
             </p>
-            <h1 className="mt-3 text-4xl font-black tracking-tighter text-white sm:text-5xl md:text-6xl">
+            <h1 className="mt-3 text-4xl font-semibold tracking-tighter text-white sm:text-5xl md:text-6xl">
               Compare notes with
               <br />
               the AI builder crowd.
@@ -523,7 +523,7 @@ function NewThreadDialog({
         aria-describedby={undefined}
       >
         <DialogHeader className="border-b border-white/10 p-5 text-left">
-          <DialogTitle className="text-lg font-black tracking-tight">
+          <DialogTitle className="text-lg font-semibold tracking-tight">
             Start a new thread
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm text-white/50">

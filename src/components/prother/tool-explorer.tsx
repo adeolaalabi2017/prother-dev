@@ -256,7 +256,6 @@ function CommandPalette() {
               value={`category ${c.slug} ${c.name}`}
               onSelect={() => goTo(`/categories/${c.slug}`)}
             >
-              <span aria-hidden>{c.emoji}</span>
               <span>{c.name}</span>
               <span className="ml-auto font-mono text-xs text-white/55">
                 BROWSE
@@ -290,7 +289,6 @@ function CommandPalette() {
               value={`topic hub ${t.name} ${t.tag} ${t.tagline}`}
               onSelect={() => goTo(`/topics/${t.slug}`)}
             >
-              <span aria-hidden>{t.emoji}</span>
               <span className="font-semibold">{t.name}</span>
               <span className="truncate text-white/60">{t.tagline}</span>
               <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-white/50">

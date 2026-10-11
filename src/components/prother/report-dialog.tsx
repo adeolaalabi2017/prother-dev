@@ -143,7 +143,7 @@ export function ReportDialog(props: {
         aria-describedby={undefined}
       >
         <DialogHeader className="border-b border-white/10 p-5 text-left">
-          <DialogTitle className="flex items-center gap-2 text-lg font-black tracking-tight">
+          <DialogTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
             <Flag className="size-4 text-ember" aria-hidden />
             Report {targetType}
           </DialogTitle>

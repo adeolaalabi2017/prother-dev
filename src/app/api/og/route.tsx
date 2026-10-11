@@ -13,6 +13,17 @@ import { siteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
+/** Name initials for tool/post fallback tiles: no emoji, no gradient. */
+function ogInitials(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+}
+
 /**
  * GET /api/og                    → branded site card (1200×630)
  * GET /api/og?tool=slug          → per-tool directory card for share unfurls
@@ -268,11 +279,14 @@ export async function GET(req: Request) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 54,
-                    backgroundImage: `linear-gradient(135deg, ${toolA.gradient[0]}, ${toolA.gradient[1]})`,
+                    fontSize: 40,
+                    fontWeight: 700,
+                    letterSpacing: -1,
+                    color: "#F1EDE4",
+                    background: "rgba(255,255,255,0.06)",
                   }}
                 >
-                  {toolA.emoji}
+                  {ogInitials(toolA.name)}
                 </div>
               )}
             </div>
@@ -372,11 +386,14 @@ export async function GET(req: Request) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 54,
-                    backgroundImage: `linear-gradient(135deg, ${toolB.gradient[0]}, ${toolB.gradient[1]})`,
+                    fontSize: 40,
+                    fontWeight: 700,
+                    letterSpacing: -1,
+                    color: "#F1EDE4",
+                    background: "rgba(255,255,255,0.06)",
                   }}
                 >
-                  {toolB.emoji}
+                  {ogInitials(toolB.name)}
                 </div>
               )}
             </div>
@@ -455,11 +472,14 @@ export async function GET(req: Request) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 88,
-                backgroundImage: `linear-gradient(135deg, ${tool.gradient[0]}, ${tool.gradient[1]})`,
+                fontSize: 64,
+                fontWeight: 700,
+                letterSpacing: -2,
+                color: "#F1EDE4",
+                background: "rgba(255,255,255,0.06)",
               }}
             >
-              {tool.emoji}
+              {ogInitials(tool.name)}
             </div>
           )}
         </div>
@@ -511,7 +531,7 @@ export async function GET(req: Request) {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <Chip borderColor={C.white18} color={C.white70}>
-          {tool.category.emoji} {tool.category.name.toUpperCase()}
+          {tool.category.name.toUpperCase()}
         </Chip>
         {tool.editorsPick ? (
           <Chip borderColor="rgba(255,106,0,0.45)" color={C.ember}>
@@ -559,7 +579,7 @@ export async function GET(req: Request) {
           }}
         >
           <span>
-            {category.emoji} {category.name}
+            {category.name}
           </span>
         </div>
         <div
@@ -591,17 +611,20 @@ export async function GET(req: Request) {
           style={{
             width: 156,
             height: 156,
-            borderRadius: 36,
+            borderRadius: 24,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 80,
+            fontSize: 56,
+            fontWeight: 700,
+            letterSpacing: -2,
+            color: "#F1EDE4",
             border: "2px solid rgba(255,255,255,0.16)",
-            backgroundImage: `linear-gradient(135deg, ${post.gradient[0]}, ${post.gradient[1]})`,
+            background: "rgba(255,255,255,0.06)",
             boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
           }}
         >
-          {post.emoji}
+          {ogInitials(post.title)}
         </div>
         <div
           style={{

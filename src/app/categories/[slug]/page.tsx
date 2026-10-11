@@ -133,10 +133,7 @@ export default async function CategoryPage({ params }: Params) {
             <Compass className="size-3.5" aria-hidden />
             Category
           </p>
-          <h1 className="mt-3 text-4xl font-black tracking-tighter text-white sm:text-5xl md:text-6xl">
-            <span aria-hidden className="mr-3">
-              {category.emoji}
-            </span>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tighter text-white sm:text-5xl md:text-6xl">
             {category.name}
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-white/60 sm:text-lg">
@@ -161,7 +158,7 @@ export default async function CategoryPage({ params }: Params) {
         {tools.length >= 2 && (
           <section
             aria-label={`Compare ${category.name} tools`}
-            className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6"
+            className="mt-8 rounded-lg border border-white/10 bg-white/[0.02] p-5 sm:p-6"
           >
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -244,7 +241,7 @@ export default async function CategoryPage({ params }: Params) {
         {/* Ranked grid - real links to the SSR tool pages */}
         <div className="pb-24 pt-8">
           {tools.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
+            <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
               <p className="font-mono text-sm tracking-wider text-white/60 uppercase">
                 Nothing listed here yet
               </p>
@@ -264,7 +261,7 @@ export default async function CategoryPage({ params }: Params) {
                   key={t.slug}
                   href={`/tools/${t.slug}`}
                   aria-label={`${t.name}: ${t.tagline}. Rank ${i + 1} in ${category.name}.`}
-                  className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
+                  className="group flex h-full flex-col rounded-lg border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <ToolLogo

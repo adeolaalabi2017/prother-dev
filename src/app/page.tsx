@@ -368,10 +368,10 @@ function EngineeringStandards() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           <div className="group relative border-l-2 border-ember/60 pl-4 sm:pl-5">
-            <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-ember uppercase">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-widest text-ember uppercase">
               <span>01 / INTEGRITY</span>
             </div>
-            <h2 className="mt-2 text-base font-bold text-white">
+            <h2 className="mt-2 text-base font-semibold text-white">
               Zero Pay-to-Play Rankings
             </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
@@ -382,10 +382,10 @@ function EngineeringStandards() {
           </div>
 
           <div className="group relative border-l-2 border-white/20 pl-4 transition-colors group-hover:border-ember sm:pl-5">
-            <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-white/60 uppercase">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-widest text-white/60 uppercase">
               <span>02 / TELEMETRY</span>
             </div>
-            <h2 className="mt-2 text-base font-bold text-white">
+            <h2 className="mt-2 text-base font-semibold text-white">
               Production-Ready Specs
             </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
@@ -396,16 +396,16 @@ function EngineeringStandards() {
           </div>
 
           <div className="group relative border-l-2 border-white/20 pl-4 transition-colors group-hover:border-ember sm:pl-5">
-            <div className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-widest text-white/60 uppercase">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-widest text-white/60 uppercase">
               <span>03 / VERIFICATION</span>
             </div>
-            <h2 className="mt-2 text-base font-bold text-white">
+            <h2 className="mt-2 text-base font-semibold text-white">
               Specs You Can Check
             </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-white/65 text-pretty">
               Every listing states its pricing model, context window, API
               access, and self-hosting path, with the date we last checked them.
-              No AI-written blurbs and no scraped imports — if a spec is wrong,
+              No AI-written blurbs and no scraped imports. If a spec is wrong,
               the maker can claim the listing and fix it.
             </p>
           </div>
@@ -430,7 +430,7 @@ function CategoryGrid({
             <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
               TAXONOMY & DIRECTORY
             </p>
-            <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
               {copy["home.categoriesHeading"] ||
                 "Browse by architecture & domain."}
             </h2>
@@ -442,7 +442,7 @@ function CategoryGrid({
         </div>
 
         {/* Architectural Workbench Grid (Replacing generic floating rounded cards) */}
-        <div className="mt-10 overflow-hidden rounded-xl border border-white/10 bg-white/10">
+        <div className="mt-10 overflow-hidden rounded-lg border border-white/10 bg-white/10">
           <div className="grid gap-px bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
             {CATEGORIES.map((c, idx) => {
               const count = counts.get(c.slug) ?? 0;
@@ -465,7 +465,7 @@ function CategoryGrid({
                     </div>
 
                     {/* Category Title */}
-                    <h3 className="mt-4 flex items-center justify-between text-base font-bold text-white transition-colors group-hover:text-ember">
+                    <h3 className="mt-4 flex items-center justify-between text-base font-semibold text-white transition-colors group-hover:text-ember">
                       <span>{c.name}</span>
                       <span
                         aria-hidden
@@ -526,7 +526,7 @@ function EditorsPicks({
               <span>★</span>
               <span>EDITOR&apos;S PICKS</span>
             </div>
-            <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
               {copy["home.picksHeading"] || "Six tools worth your time."}
             </h2>
           </div>
@@ -546,7 +546,7 @@ function EditorsPicks({
               <Link
                 key={p.slug}
                 href={`/tools/${p.slug}`}
-                className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.025] p-6 transition-all duration-200 hover:border-ember/50 hover:bg-white/[0.045] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+                className="group relative flex flex-col justify-between rounded-lg border border-white/10 bg-white/[0.025] p-6 transition-all duration-200 hover:border-ember/50 hover:bg-white/[0.045] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
               >
                 <div>
                   {/* Top Bar: Logo + Name + Pricing Badge */}
@@ -561,7 +561,7 @@ function EditorsPicks({
                         size="md"
                       />
                       <div className="min-w-0">
-                        <h3 className="truncate text-base font-bold text-white transition-colors group-hover:text-ember">
+                        <h3 className="truncate text-base font-semibold text-white transition-colors group-hover:text-ember">
                           {p.name}
                         </h3>
                         <p className="truncate font-mono text-[11px] text-white/45">
@@ -605,30 +605,36 @@ function EditorsPicks({
 
 function ClosingBand({ copy }: { copy: Record<string, string> }) {
   return (
-    <section id="submit" className="border-t border-white/[0.08] bg-ink py-24">
-      <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
-        <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
-          COMMUNITY INDEX
-        </p>
-        <h2 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl text-balance">
-          {copy["home.closingHeadline"] ||
-            "Building an AI tool for production?"}
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-base text-white/65 text-pretty">
-          {copy["home.closingSub"] ||
-            "Submit your tool for an independent technical audit. Submissions are free forever and reviewed by human engineers."}
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
-          <SubmitOpenButton
-            label="Submit Your Tool for Review"
-            className="h-11 px-6 text-sm font-semibold"
-          />
-          <Link
-            href="/tools"
-            className="inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-6 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
-          >
-            Browse Full Directory
-          </Link>
+    <section id="submit" className="border-t border-white/[0.08] bg-ink py-20 md:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Asymmetric closing: copy leads left, action sits right, so the
+            page ends on a decisive beat instead of another centered column. */}
+        <div className="grid items-end gap-8 md:grid-cols-[1fr_auto]">
+          <div className="max-w-2xl">
+            <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
+              COMMUNITY INDEX
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
+              {copy["home.closingHeadline"] ||
+                "Building an AI tool for production?"}
+            </h2>
+            <p className="mt-4 max-w-xl text-base text-white/65 text-pretty">
+              {copy["home.closingSub"] ||
+                "Submit your tool for an independent technical audit. Submissions are free forever and reviewed by human engineers."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3.5 md:justify-end">
+            <SubmitOpenButton
+              label="Submit Your Tool for Review"
+              className="h-11 px-6 text-sm font-semibold"
+            />
+            <Link
+              href="/tools"
+              className="pressable inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-6 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+            >
+              Browse Full Directory
+            </Link>
+          </div>
         </div>
       </div>
     </section>

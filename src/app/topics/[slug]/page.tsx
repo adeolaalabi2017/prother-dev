@@ -129,10 +129,9 @@ export default async function TopicPage({ params }: Params) {
           <div className="mt-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div className="max-w-3xl">
               <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-ember">
-                <span className="text-sm" aria-hidden>{topic.emoji}</span>
                 Topic Directory
               </p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
                 {topic.h1}
               </h1>
               <p className="mt-4 text-base leading-relaxed text-white/70 sm:text-lg">
@@ -160,7 +159,7 @@ export default async function TopicPage({ params }: Params) {
       <div className="mx-auto max-w-6xl px-4 pt-10 sm:px-6">
         {/* Tool grid */}
         {tools.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
+          <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
             <Compass className="mx-auto size-8 text-white/50" aria-hidden />
             <p className="mt-4 font-mono text-sm uppercase tracking-wider text-white/60">
               No tools found for this topic yet
@@ -180,7 +179,7 @@ export default async function TopicPage({ params }: Params) {
             {tools.map((t) => (
               <article
                 key={t.slug}
-                className="group relative flex flex-col justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
+                className="group relative flex flex-col justify-between rounded-lg border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
@@ -217,7 +216,7 @@ export default async function TopicPage({ params }: Params) {
 
                 <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4 text-xs">
                   <span className="font-mono text-white/50 uppercase tracking-wider">
-                    {t.category.emoji} {t.category.name}
+                    {t.category.name}
                   </span>
                   <Link
                     href={`/tools/${t.slug}`}
@@ -298,7 +297,6 @@ export default async function TopicPage({ params }: Params) {
                 className="group flex flex-col rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:border-white/20 hover:bg-white/[0.04]"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xl" aria-hidden>{other.emoji}</span>
                   <h3 className="text-sm font-semibold text-white group-hover:text-ember transition-colors">
                     {other.name}
                   </h3>

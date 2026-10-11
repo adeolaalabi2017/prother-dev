@@ -93,7 +93,7 @@ function MatrixSkeleton() {
       </p>
       <div
         aria-hidden="true"
-        className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]"
       >
         <div className="flex gap-4 border-b border-white/10 p-4">
           <Skeleton className="h-10 w-24 shrink-0" />
@@ -270,7 +270,7 @@ export function CompareMatrixView({
   return (
     <section aria-label="Feature comparison" className="space-y-6">
       {/* Picker panel: category select, counter, tool chips */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-6">
+      <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="w-full max-w-sm">
             <label
@@ -294,9 +294,6 @@ export function CompareMatrixView({
                     value={c.slug}
                     className="text-sm text-white/80 focus:bg-white/10 focus:text-white"
                   >
-                    <span aria-hidden className="mr-1">
-                      {c.emoji}
-                    </span>
                     {c.name}
                     <span className="ml-1 font-mono text-xs text-white/55">
                       ({c.toolCount})
@@ -401,7 +398,7 @@ export function CompareMatrixView({
       ) : loading && tools.length < 2 ? (
         <MatrixSkeleton />
       ) : tools.length < 2 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
+        <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
           <p className="font-mono text-sm uppercase tracking-[0.2em] text-white/60">
             Select at least 2 tools to compare
           </p>
@@ -443,7 +440,7 @@ export function CompareMatrixView({
 
           {/* Matrix table (horizontal scroll; sticky feature column) */}
           <div
-            className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]"
+            className="overflow-x-auto rounded-lg border border-white/10 bg-white/[0.02]"
             aria-busy={loading}
           >
             <table className="w-full border-collapse text-sm">

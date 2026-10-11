@@ -42,11 +42,11 @@ function SignInPrompt() {
     <div className="flex flex-col items-center gap-4 py-16 text-center">
       <span
         aria-hidden
-        className="grid size-14 place-items-center rounded-2xl border border-ember/30 bg-ember/[0.06]"
+        className="grid size-14 place-items-center rounded-lg border border-ember/30 bg-ember/[0.06]"
       >
         <UserRound className="size-6 text-ember" />
       </span>
-      <h1 className="text-2xl font-black tracking-tight text-white">SIGN IN REQUIRED</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-white">SIGN IN REQUIRED</h1>
       <p className="max-w-sm text-sm leading-relaxed text-white/55">
         Your profile, collections, and follows live in your account. Sign in
         to pick up where you left off.
@@ -54,7 +54,7 @@ function SignInPrompt() {
       <Button
         type="button"
         onClick={openAuth}
-        className="h-11 bg-ember px-6 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+        className="h-11 bg-ember px-6 font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
       >
         SIGN IN →
       </Button>
@@ -130,7 +130,7 @@ function ProfileEditForm({
   return (
     <section
       aria-label="Edit profile"
-      className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-6"
+      className="rounded-lg border border-white/10 bg-white/[0.02] p-4 sm:p-6"
     >
       <p className={MONO}>Edit profile</p>
       <form
@@ -343,7 +343,7 @@ export function ProfilePage() {
   if (status === "loading") {
     return (
       <div className="space-y-3 pt-8" aria-label="Loading profile">
-        <div className="h-36 animate-pulse rounded-2xl bg-white/[0.04]" />
+        <div className="h-36 animate-pulse rounded-lg bg-white/[0.04]" />
         <div className="h-10 w-64 animate-pulse rounded-lg bg-white/[0.04]" />
         <div className="h-24 animate-pulse rounded-xl bg-white/[0.04]" />
       </div>
@@ -362,7 +362,7 @@ export function ProfilePage() {
           <Button
             type="button"
             onClick={openAuth}
-            className="h-10 shrink-0 bg-ember px-5 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+            className="h-10 shrink-0 bg-ember px-5 font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
           >
             SIGN IN →
           </Button>
@@ -396,7 +396,7 @@ export function ProfilePage() {
     <div className="space-y-8 pt-8">
       {/* ── Header: banner + avatar + identity (per sketch) ── */}
       <section aria-label="Profile header">
-        <div className="relative h-36 overflow-hidden rounded-2xl border border-white/10 bg-coal">
+        <div className="relative h-36 overflow-hidden rounded-lg border border-white/10 bg-coal">
           {shown?.coverImage ? (
             <img
               src={shown.coverImage}
@@ -415,18 +415,18 @@ export function ProfilePage() {
             <img
               src={shown.image}
               alt=""
-              className="size-20 shrink-0 rounded-2xl border border-white/15 object-cover"
+              className="size-20 shrink-0 rounded-lg border border-white/15 object-cover"
             />
           ) : (
             <span
               aria-hidden
-              className="grid size-20 shrink-0 place-items-center rounded-2xl border border-white/15 bg-ember/20 font-mono text-2xl font-bold text-ember"
+              className="grid size-20 shrink-0 place-items-center rounded-lg border border-white/15 bg-ember/20 font-mono text-2xl font-bold text-ember"
             >
               {letter}
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-3xl font-black tracking-tight text-white">
+            <h1 className="truncate text-3xl font-semibold tracking-tight text-white">
               {shown?.name ?? "…"}
             </h1>
             <p className="mt-1 truncate font-mono text-xs tracking-wider text-white/60 uppercase">

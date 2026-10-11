@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowUpRight, CalendarDays, Clock3, Feather } from "lucide-react";
 import { useExplorer } from "./explorer-store";
 import { cn } from "@/lib/utils";
+import { INITIALS_TILE, initialsOf } from "@/components/prother/initials";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /**
@@ -108,7 +109,7 @@ export function Journal() {
               <Feather className="size-3.5" aria-hidden />
               The Prother Journal
             </p>
-            <h2 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
+            <h2 className="mt-3 text-5xl font-semibold tracking-tighter text-white md:text-6xl">
               Notes from
               <br />
               the directory.
@@ -153,12 +154,12 @@ export function Journal() {
             Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="h-72 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]"
+                className="h-72 animate-pulse rounded-lg border border-white/10 bg-white/[0.03]"
               />
             ))}
 
           {posts?.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-dashed border-white/15 p-12 text-center text-white/60">
+            <div className="col-span-full rounded-lg border border-dashed border-white/15 p-12 text-center text-white/60">
               The first issue ships soon.
             </div>
           )}
@@ -174,7 +175,7 @@ export function Journal() {
               <button
                 type="button"
                 onClick={() => openPost(p.slug)}
-                className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-1 hover:border-ember/40 hover:bg-white/[0.04]"
+                className="group flex h-full w-full flex-col rounded-lg border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-1 hover:border-ember/40 hover:bg-white/[0.04]"
               >
                 {/* Uploaded cover art (Task 34) — emoji tile stays as fallback */}
                 {p.coverUrl && (
@@ -198,11 +199,11 @@ export function Journal() {
                     <div
                       aria-hidden
                       className={cn(
-                        "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
-                        p.coverGradient
+                        INITIALS_TILE,
+                        "size-12 text-sm",
                       )}
                     >
-                      {p.coverEmoji}
+                      {initialsOf(p.title)}
                     </div>
                   )}
                   <span className="ml-auto rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">

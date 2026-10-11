@@ -134,7 +134,7 @@ async function directoryInitialRows(filters: {
  *  link (after:absolute inset-0) makes the whole card clickable with no JS. */
 function SerpResultCard({ row }: { row: SerpToolRow }) {
   return (
-    <article className="group relative flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]">
+    <article className="group relative flex h-full flex-col rounded-lg border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]">
       <div className="flex items-start justify-between gap-3">
         <ToolLogo
           slug={row.slug}
@@ -162,7 +162,7 @@ function SerpResultCard({ row }: { row: SerpToolRow }) {
       <h2 className="mt-4 text-lg leading-snug font-bold text-white">
         <a
           href={`/tools/${row.slug}`}
-          className="rounded-2xl outline-none transition-colors after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-ember/60 group-hover:text-ember"
+          className="rounded-lg outline-none transition-colors after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ember/60 group-hover:text-ember"
         >
           {row.name}
         </a>
@@ -173,7 +173,7 @@ function SerpResultCard({ row }: { row: SerpToolRow }) {
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase">
-          {row.category.emoji} {row.category.name}
+          {row.category.name}
         </span>
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase">
           {pricingLabel(row.pricingModel, row.startingPrice)}
@@ -375,7 +375,7 @@ export default async function ToolsPage({
               <Compass className="size-3.5" aria-hidden />
               Search results
             </p>
-            <h1 className="mt-3 break-words text-4xl font-black tracking-tighter text-white md:text-5xl">
+            <h1 className="mt-3 break-words text-4xl font-semibold tracking-tighter text-white md:text-5xl">
               &ldquo;{q}&rdquo; · AI tool search results
             </h1>
             <p
@@ -389,7 +389,7 @@ export default async function ToolsPage({
 
           <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
             {serp.rows.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
+              <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
                 <SearchX className="mx-auto size-8 text-white/55" aria-hidden />
                 <p className="mt-4 font-mono text-sm tracking-wider text-white/60 uppercase">
                   No results for &ldquo;{q}&rdquo;

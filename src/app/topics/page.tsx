@@ -51,7 +51,7 @@ export default function TopicsIndexPage() {
             <Sparkles className="size-3.5" aria-hidden />
             Curated Hubs
           </p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
             Explore AI by Workflow & Intent
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-white/65 sm:text-lg">
@@ -65,12 +65,9 @@ export default function TopicsIndexPage() {
             <Link
               key={topic.slug}
               href={`/topics/${topic.slug}`}
-              className="group relative flex flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-6 transition-all hover:-translate-y-1 hover:border-ember/40 hover:bg-white/[0.04]"
+              className="group relative flex flex-col rounded-lg border border-white/10 bg-white/[0.02] p-6 transition-all hover:-translate-y-1 hover:border-ember/40 hover:bg-white/[0.04]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-3xl" aria-hidden>
-                  {topic.emoji}
-                </span>
                 <span className="font-mono text-xs uppercase tracking-wider text-white/55 group-hover:text-ember">
                   View Hub
                 </span>
@@ -91,7 +88,7 @@ export default function TopicsIndexPage() {
           ))}
         </div>
 
-        <div className="mt-16 rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center sm:p-12">
+        <div className="mt-16 rounded-lg border border-white/10 bg-white/[0.02] p-8 text-center sm:p-12">
           <Compass className="mx-auto size-10 text-ember" aria-hidden />
           <h2 className="mt-4 text-xl font-bold text-white sm:text-2xl">
             Looking for something specific?

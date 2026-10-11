@@ -24,7 +24,7 @@ import {
  * helper, the dark form atoms and the panel chrome.
  *
  * Everything is painted with Prother tokens ONLY (ink/coal panels,
- * white/10 borders, rounded-2xl, ember #FF6A00 as the single accent,
+ * white/10 borders, rounded-lg, ember #FF6A00 as the single accent,
  * mono micro-labels). Demo key auth (`x-editor-key`); NextAuth P2.
  */
 
@@ -117,7 +117,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5",
+        "rounded-lg border border-white/10 bg-white/[0.02] p-4 sm:p-5",
         className
       )}
     >
@@ -146,7 +146,7 @@ export function MiniStat({
       <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
         {label}
       </p>
-      <p className="mt-1 text-xl font-black tracking-tight text-white">
+      <p className="mt-1 text-xl font-semibold tracking-tight text-white">
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
     </div>

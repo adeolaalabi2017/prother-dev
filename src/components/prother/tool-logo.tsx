@@ -33,32 +33,32 @@ const SIZE_PX: Record<ToolLogoSize, number> = {
 
 const SIZE_STYLES: Record<
   ToolLogoSize,
-  { box: string; pad: string; emoji: string }
+  { box: string; pad: string; initials: string }
 > = {
   xs: {
     box: "size-6 rounded-md",
     pad: "p-0.5",
-    emoji: "text-xs",
+    initials: "text-[9px]",
   },
   sm: {
     box: "size-7 rounded-md",
     pad: "p-1",
-    emoji: "text-sm",
+    initials: "text-[10px]",
   },
   md: {
     box: "size-10 rounded-lg",
     pad: "p-1.5",
-    emoji: "text-lg",
+    initials: "text-sm",
   },
   lg: {
-    box: "size-12 rounded-xl",
+    box: "size-12 rounded-lg",
     pad: "p-2",
-    emoji: "text-xl",
+    initials: "text-base",
   },
   xl: {
-    box: "size-16 sm:size-20 rounded-2xl",
+    box: "size-16 sm:size-20 rounded-lg",
     pad: "p-3 sm:p-3.5",
-    emoji: "text-3xl sm:text-4xl",
+    initials: "text-xl sm:text-2xl",
   },
 };
 
@@ -66,8 +66,11 @@ export function ToolLogo({
   slug,
   name,
   logoUrl,
-  emoji,
-  gradient = "from-stone-600 to-orange-700",
+  // `emoji` and `gradient` are legacy data fields; they are accepted for
+  // caller compatibility but are no longer rendered. See the initials
+  // fallback below.
+  emoji: _emoji,
+  gradient: _gradient,
   size = "md",
   className,
   imageClassName,
@@ -82,16 +85,26 @@ export function ToolLogo({
 
   const style = SIZE_STYLES[size];
   const showImage = Boolean(resolvedUrl) && !hasError;
+  // Initials fallback: the listing name's first letters on a quiet, neutral
+  // surface. Per the asset standards (AGENTS.md section 1), a tool with a
+  // missing logo never degrades to an emoji tile or a colored gradient.
+  const initials = name
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]!.toUpperCase())
+    .join("");
 
   return (
     <span
       aria-hidden={!showImage}
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden shadow-inner",
+        "flex shrink-0 items-center justify-center overflow-hidden",
         style.box,
         showImage
-          ? cn("border border-white/10 bg-white/[0.04]", style.pad)
-          : cn("bg-gradient-to-br", style.emoji, gradient),
+          ? cn("border border-white/10 bg-white/[0.04] shadow-inner", style.pad)
+          : "border border-white/10 bg-white/[0.04] text-white/70 font-semibold",
         className,
       )}
     >
@@ -106,7 +119,12 @@ export function ToolLogo({
           className={cn("size-full object-contain", imageClassName)}
         />
       ) : (
-        <span aria-hidden>{emoji || "⬡"}</span>
+        <span
+          aria-hidden
+          className={cn(style.initials, "leading-none tracking-tight")}
+        >
+          {initials || "PRO"}
+        </span>
       )}
     </span>
   );

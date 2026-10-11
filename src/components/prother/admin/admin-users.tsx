@@ -294,7 +294,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                   <span
                     aria-hidden
                     className={cn(
-                      "flex size-9 shrink-0 items-center justify-center rounded-xl border text-sm font-black",
+                      "flex size-9 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold",
                       u.status === "banned"
                         ? "border-red-400/30 bg-red-400/10 text-red-300"
                         : "border-white/10 bg-white/5 text-white/70"

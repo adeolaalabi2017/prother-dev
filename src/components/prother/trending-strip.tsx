@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Flame } from "lucide-react";
 import { ToolLogo } from "./tool-logo";
 import { cn } from "@/lib/utils";
 
@@ -103,11 +102,10 @@ export function TrendingStrip() {
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="inline-flex items-center font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
-              <Flame className="mr-1.5 size-3.5 text-ember-tint" aria-hidden />
+            <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
               Trending telemetry ({window})
             </p>
-            <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
               What the community is testing.
             </h2>
             <p className="mt-3 max-w-xl text-sm text-white/60 text-pretty">
@@ -174,7 +172,7 @@ export function TrendingStrip() {
                 <Link
                   href={`/tools/${row.slug}`}
                   aria-label={`Open ${row.name} on Prother`}
-                  className="block max-w-full truncate text-left text-sm font-bold text-white transition-colors hover:text-ember"
+                  className="block max-w-full truncate text-left text-sm font-semibold text-white transition-colors hover:text-ember"
                 >
                   {row.name}
                 </Link>
@@ -189,8 +187,7 @@ export function TrendingStrip() {
                   +{row.score.toFixed(1)}
                 </span>
                 <span className="whitespace-nowrap font-mono text-[11px] text-white/50">
-                  {reasonLine(row.signals, window) ||
-                    `${row.category.emoji} ${row.category.name}`}
+                  {reasonLine(row.signals, window) || row.category.name}
                 </span>
               </div>
             </div>

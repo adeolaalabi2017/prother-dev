@@ -254,7 +254,7 @@ function CampaignDialog({
         aria-describedby={undefined}
       >
         <DialogHeader className="border-b border-white/10 p-5 text-left">
-          <DialogTitle className="text-lg font-black tracking-tight">
+          <DialogTitle className="text-lg font-semibold tracking-tight">
             {isNew ? "New campaign" : `Edit: ${campaign.name}`}
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm text-white/50">
@@ -366,7 +366,7 @@ function CampaignDialog({
                 className={inputCx}
               />
               {!Number.isNaN(weightNum) && (weightNum < 1 || weightNum > 10) && (
-                <p className="text-xs text-red-400">Pick 1–10. Higher wins the slot</p>
+                <p className="text-xs text-red-400">Pick 1 to 10. Higher wins the slot</p>
               )}
             </Field>
             <Field label="Starts (UTC)">

@@ -294,7 +294,7 @@ function FactsRail({ detail }: { detail: ToolFullDetail }) {
             aria-label={`Browse the ${detail.category.name} category`}
             className="text-left transition-colors hover:text-ember"
           >
-            {detail.category.emoji} {detail.category.name}
+            {detail.category.name}
           </button>
         </Fact>
         <Fact label="Listed">
@@ -451,7 +451,7 @@ function ClaimPanel({
         <Button
           type="button"
           onClick={openAuth}
-          className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+          className="h-10 bg-ember font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
         >
           SIGN IN TO CLAIM →
         </Button>
@@ -472,7 +472,7 @@ function ClaimPanel({
           type="button"
           onClick={() => void startClaim()}
           disabled={starting}
-          className="mt-3 h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+          className="mt-3 h-10 bg-ember font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
         >
           {starting ? (
             <>
@@ -557,7 +557,7 @@ function ClaimPanel({
               type="button"
               onClick={() => void onVerify()}
               disabled={verifying}
-              className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+              className="h-10 bg-ember font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
             >
               {verifying ? (
                 <>
@@ -1297,7 +1297,7 @@ export function ToolFullPage() {
               size="xl"
             />
             <div className="min-w-0 flex-1">
-              <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                 {name}
               </h1>
               <p className="mt-1 text-base text-white/65 sm:text-lg">{detail.tagline}</p>
@@ -1344,7 +1344,7 @@ export function ToolFullPage() {
             <div className={cn(PANEL, "flex flex-wrap items-center gap-x-5 gap-y-3 p-4")} aria-label="Rating summary">
               <span className="inline-flex items-center gap-2">
                 <Star className="size-5 fill-ember text-ember" aria-hidden />
-                <span className="text-2xl font-black tabular-nums text-white">
+                <span className="text-2xl font-semibold tabular-nums text-white">
                   {detail.reviews.aggregate.overall.toFixed(1)}
                   <span className="text-sm text-white/55">/5</span>
                 </span>
@@ -1364,7 +1364,7 @@ export function ToolFullPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               asChild
-              className="h-11 rounded-full bg-ember px-6 text-sm font-black tracking-wide text-[#0A0A0A] hover:bg-ember-hot"
+              className="h-11 rounded-full bg-ember px-6 text-sm font-semibold tracking-wide text-[#0A0A0A] hover:bg-ember-hot"
             >
               <a
                 href={detail.websiteUrl}
@@ -1559,7 +1559,7 @@ export function ToolFullPage() {
         >
           <DialogContent
             aria-describedby={undefined}
-            className="z-[70] overflow-hidden border-white/10 bg-coal p-2 text-white sm:max-w-4xl sm:rounded-2xl sm:p-3"
+            className="z-[70] overflow-hidden border-white/10 bg-coal p-2 text-white sm:max-w-4xl sm:rounded-lg sm:p-3"
           >
             <DialogTitle className="sr-only">
               {shotSrc ? `${name} screenshot` : "Screenshot"}
@@ -1613,7 +1613,7 @@ export function ToolFullPage() {
                     )}
                   </div>
                   {pricing.price && (
-                    <p className="mt-2 text-3xl font-black tracking-tight text-white">
+                    <p className="mt-2 text-3xl font-semibold tracking-tight text-white">
                       {pricing.price}
                     </p>
                   )}
@@ -1845,9 +1845,16 @@ export function ToolFullPage() {
                   >
                     <span
                       aria-hidden
-                      className="grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-lg"
+                      className="grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-xs font-semibold tracking-tight text-white/70"
+                      style={{ lineHeight: 1 }}
                     >
-                      {detail.category.emoji}
+                      {detail.category.name
+                        .replace(/[^a-zA-Z0-9& ]/g, " ")
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((w) => w[0]!.toUpperCase())
+                        .join("")}
                     </span>
                     <span className="truncate">{detail.category.name}</span>
                     <ArrowUpRight

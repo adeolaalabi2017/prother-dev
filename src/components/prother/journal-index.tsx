@@ -67,7 +67,7 @@ export function JournalIndex({
               <Feather className="size-3.5" aria-hidden />
               The Prother Journal
             </p>
-            <h1 className="mt-3 text-5xl font-black tracking-tighter text-white md:text-6xl">
+            <h1 className="mt-3 text-5xl font-semibold tracking-tighter text-white md:text-6xl">
               Notes from
               <br />
               the directory.
@@ -110,7 +110,7 @@ export function JournalIndex({
         {/* cards */}
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {shown.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-dashed border-white/15 p-12 text-center text-white/60">
+            <div className="col-span-full rounded-lg border border-dashed border-white/15 p-12 text-center text-white/60">
               The first issue ships soon.
             </div>
           )}
@@ -125,7 +125,7 @@ export function JournalIndex({
             >
               <Link
                 href={`/journal/${p.slug}`}
-                className="group flex h-full w-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-1 hover:border-ember/40 hover:bg-white/[0.04]"
+                className="group flex h-full w-full flex-col rounded-lg border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-1 hover:border-ember/40 hover:bg-white/[0.04]"
               >
                 {/* Uploaded cover art (Task 34) — wide banner; the emoji tile
                     below stays as the fallback when a post has no image. */}
@@ -149,12 +149,15 @@ export function JournalIndex({
                   {!p.coverUrl && (
                     <div
                       aria-hidden
-                      className={cn(
-                        "flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-inner",
-                        p.coverGradient
-                      )}
+                      className="flex size-12 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-sm font-semibold tracking-tight text-white/70"
                     >
-                      {p.coverEmoji}
+                      {p.title
+                        .replace(/[^a-zA-Z0-9 ]/g, " ")
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((w) => w[0]!.toUpperCase())
+                        .join("")}
                     </div>
                   )}
                   <span className="ml-auto rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">

@@ -129,7 +129,7 @@ export function CompareTray() {
                 <Button
                   type="button"
                   onClick={() => openCompare(slugs[0]!, slugs[1]!)}
-                  className="h-10 shrink-0 rounded-full bg-ember px-4 font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+                  className="h-10 shrink-0 rounded-full bg-ember px-4 font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
                 >
                   COMPARE →
                 </Button>

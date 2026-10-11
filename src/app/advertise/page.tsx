@@ -101,12 +101,12 @@ const PRINCIPLES = [
 
 /** Decorative floating product tiles — the on-brand stand-in for PH's avatar cloud. */
 const FLOAT_TILES = [
-  { emoji: "🤖", cls: "left-[6%] top-[12%] size-16 rotate-[-8deg] from-orange-500/70 to-rose-600/70", delay: "0s" },
-  { emoji: "⚡", cls: "left-[30%] top-[4%] size-12 rotate-[6deg] from-amber-400/70 to-orange-600/70", delay: "0.6s" },
-  { emoji: "🧠", cls: "right-[28%] top-[10%] size-14 rotate-[-5deg] from-fuchsia-500/60 to-purple-700/60", delay: "1.1s" },
-  { emoji: "📊", cls: "right-[8%] top-[28%] size-16 rotate-[9deg] from-emerald-400/60 to-teal-600/60", delay: "0.3s" },
-  { emoji: "🎙", cls: "left-[14%] bottom-[16%] size-14 rotate-[7deg] from-sky-400/60 to-blue-700/60", delay: "0.9s" },
-  { emoji: "✍️", cls: "right-[20%] bottom-[8%] size-12 rotate-[-10deg] from-yellow-400/60 to-amber-600/60", delay: "1.4s" },
+  { cls: "left-[6%] top-[12%] size-16 rotate-[-8deg]", delay: "0s" },
+  { cls: "left-[30%] top-[4%] size-12 rotate-[6deg]", delay: "0.6s" },
+  { cls: "right-[28%] top-[10%] size-14 rotate-[-5deg]", delay: "1.1s" },
+  { cls: "right-[8%] top-[28%] size-16 rotate-[9deg]", delay: "0.3s" },
+  { cls: "left-[14%] bottom-[16%] size-14 rotate-[7deg]", delay: "0.9s" },
+  { cls: "right-[20%] bottom-[8%] size-12 rotate-[-10deg]", delay: "1.4s" },
 ];
 
 export default async function AdvertisePage() {
@@ -131,10 +131,8 @@ export default async function AdvertisePage() {
             <span
               key={i}
               style={{ animationDelay: t.delay }}
-              className={`absolute grid place-items-center rounded-2xl border border-white/15 bg-gradient-to-br text-2xl shadow-lg animate-[float-y_7s_ease-in-out_infinite] ${t.cls}`}
-            >
-              {t.emoji}
-            </span>
+              className={`absolute grid place-items-center rounded-lg border border-white/15 bg-white/[0.03] shadow-lg animate-[float-y_7s_ease-in-out_infinite] ${t.cls}`}
+            />
           ))}
         </div>
         <div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6">
@@ -142,7 +140,7 @@ export default async function AdvertisePage() {
             <span aria-hidden className="h-px w-6 bg-ember/70" />
             Advertise on Prother
           </p>
-          <h1 className="mt-4 max-w-2xl text-4xl font-black tracking-tighter text-white sm:text-5xl">
+          <h1 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tighter text-white sm:text-5xl">
             Put your product in front of people{" "}
             <span className="text-ember">hunting for AI tools.</span>
           </h1>
@@ -168,7 +166,7 @@ export default async function AdvertisePage() {
           </div>
 
           {/* Real, live platform stats */}
-          <dl className="mt-14 grid max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-4">
+          <dl className="mt-14 grid max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10 sm:grid-cols-4">
             {statCards.map((s) => (
               <div key={s.label} className="bg-coal px-5 py-4">
                 <dd className="font-mono text-2xl font-bold tabular-nums text-white">{s.value}</dd>
@@ -186,7 +184,7 @@ export default async function AdvertisePage() {
         <p className="font-mono text-xs uppercase tracking-[0.25em] text-ember">
           Find your audience
         </p>
-        <h2 className="mt-3 text-3xl font-black tracking-tighter text-white sm:text-4xl">
+        <h2 className="mt-3 text-3xl font-semibold tracking-tighter text-white sm:text-4xl">
           Five placements. No clutter.
         </h2>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/55">
@@ -198,7 +196,7 @@ export default async function AdvertisePage() {
           {PLACEMENTS.map((p) => (
             <article
               key={p.title}
-              className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-coal transition-colors hover:border-ember/40"
+              className="flex flex-col overflow-hidden rounded-lg border border-white/10 bg-coal transition-colors hover:border-ember/40"
             >
               {/* mini visual mock per placement */}
               <div className="border-b border-white/10 bg-ink/60 p-4">
@@ -206,7 +204,7 @@ export default async function AdvertisePage() {
                   <div aria-hidden className="space-y-1.5">
                     {/* an organic directory row ... */}
                     <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald-400/60 to-teal-600/60 text-sm">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-sm">
                         🧠
                       </span>
                       <div className="min-w-0 flex-1">
@@ -223,7 +221,7 @@ export default async function AdvertisePage() {
                     </div>
                     {/* ... followed by your labeled sponsored row */}
                     <div className="flex items-center gap-3 rounded-lg border border-ember/30 bg-ember/[0.06] p-2.5">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-orange-500/70 to-rose-600/70 text-sm">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-sm">
                         ⌘
                       </span>
                       <div className="min-w-0 flex-1">
@@ -322,12 +320,12 @@ export default async function AdvertisePage() {
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-ember">
             House rules
           </p>
-          <h2 className="mt-3 text-3xl font-black tracking-tighter text-white sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold tracking-tighter text-white sm:text-4xl">
             Advertising that respects the directory
           </h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {PRINCIPLES.map((pr) => (
-              <div key={pr.title} className="rounded-2xl border border-white/10 bg-ink p-5">
+              <div key={pr.title} className="rounded-lg border border-white/10 bg-ink p-5">
                 <pr.icon className="size-5 text-ember" aria-hidden />
                 <h3 className="mt-3 font-bold text-white">{pr.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-white/50">{pr.body}</p>
@@ -339,7 +337,7 @@ export default async function AdvertisePage() {
 
       {/* ── Final CTA ────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6">
-        <h2 className="text-3xl font-black tracking-tighter text-white sm:text-4xl">
+        <h2 className="text-3xl font-semibold tracking-tighter text-white sm:text-4xl">
           Tell us about your campaign.
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/55">

@@ -49,7 +49,7 @@ export function ToolInstallBox({
   };
 
   return (
-    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5">
+    <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.02] p-4 sm:p-5">
       {/* ── Case 1: Installable Local Tool / Open Source ── */}
       {info.deliveryType === "installable" && info.command && (
         <div className="space-y-3">

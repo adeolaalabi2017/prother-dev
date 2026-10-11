@@ -198,12 +198,19 @@ export function CategoryFullPage() {
             <div className="flex flex-wrap items-start gap-4">
               <div
                 aria-hidden
-                className="grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-ember/25 to-ember/5 text-3xl shadow-inner"
+                className="grid size-16 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-lg font-semibold tracking-tight text-white/70"
+                style={{ lineHeight: 1 }}
               >
-                {meta.emoji}
+                {meta.name
+                  .replace(/[^a-zA-Z0-9& ]/g, " ")
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((w) => w[0]!.toUpperCase())
+                  .join("")}
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-3xl font-black tracking-tight text-white">
+                <h1 className="text-3xl font-semibold tracking-tight text-white">
                   {meta.name}
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">

@@ -36,7 +36,7 @@ export function Faq() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.55, ease: "easeOut" }}
-          className="text-5xl font-black tracking-tighter text-white"
+          className="text-5xl font-semibold tracking-tighter text-white"
         >
           Questions, answered.
         </motion.h2>

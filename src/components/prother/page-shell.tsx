@@ -203,9 +203,9 @@ export function PageSkeleton() {
     <div role="status" aria-live="polite" aria-label="Loading" className="mt-1">
       <span className="sr-only">Loading…</span>
       <div aria-hidden className="flex flex-col gap-4">
-        <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
-        <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
-        <div className="h-64 animate-pulse rounded-2xl bg-white/5" />
+        <div className="h-40 animate-pulse rounded-lg bg-white/5" />
+        <div className="h-24 animate-pulse rounded-lg bg-white/5" />
+        <div className="h-64 animate-pulse rounded-lg bg-white/5" />
       </div>
     </div>
   );

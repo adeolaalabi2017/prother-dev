@@ -122,7 +122,7 @@ function LivePreview({ form }: { form: SubmitForm }) {
           </div>
         </div>
         <p className="mt-3 font-mono text-xs text-white/60">
-          {category ? `${category.emoji} ${category.name}` : "Category"} · {pricing}
+          {category ? category.name : "Category"} · {pricing}
           {form.hasApi && " · API"}
           {form.tags.includes("open-source") && " · OSS"}
           {domainOf(form.websiteUrl) && ` · ${domainOf(form.websiteUrl)}`}
@@ -399,7 +399,7 @@ export function SubmitWizard() {
             >
               <CheckCircle2 className="size-14 text-ember" aria-hidden />
             </motion.div>
-            <h2 className="mt-5 text-2xl font-black tracking-tight">
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight">
               Queued for review
             </h2>
             <p className="mt-2 max-w-sm text-sm text-white/60">
@@ -667,7 +667,7 @@ export function SubmitWizard() {
                             />
                             <span className="min-w-0">
                               <span className="block text-xs font-semibold text-white">
-                                {c.emoji} {c.name}
+                                {c.name}
                               </span>
                               <span className="block text-xs leading-snug text-white/60">
                                 {c.helper}

@@ -202,7 +202,7 @@ export function ClaimListing({
         disabled={starting}
         className={cn(
           "mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-ember px-4",
-          "font-mono text-sm font-black tracking-wider text-[#0A0A0A]",
+          "font-mono text-sm font-semibold tracking-wider text-[#0A0A0A]",
           "transition-colors hover:bg-ember-hot disabled:opacity-60",
         )}
       >

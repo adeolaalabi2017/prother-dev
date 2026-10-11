@@ -51,7 +51,10 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { popular: res.popular },
         {
-          headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+          headers: {
+            "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+            "x-data-backend": "convex",
+          },
         },
       );
     }
@@ -72,9 +75,23 @@ export async function GET(req: Request) {
     }
     const [left, right] =
       res.a.slug <= res.b.slug ? [res.a.slug, res.b.slug] : [res.b.slug, res.a.slug];
-    await convexCompareBump(client, { aSlug: left, bSlug: right });
+    // I/O HOTFIX: view bump is a write (read + patch). Skip for bots.
+    // Awaited, not fire-and-forget (see pv/route.ts - void dies on Workers).
+    const ua = (req.headers.get("user-agent") ?? "").toLowerCase();
+    const isBot =
+      ua.includes("bot") || ua.includes("crawl") || ua.includes("spider") || ua.length === 0;
+    if (!isBot) {
+      try {
+        await convexCompareBump(client, { aSlug: left, bSlug: right });
+      } catch {
+        // view counting must never surface as an error
+      }
+    }
     return NextResponse.json(res, {
-      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+      headers: {
+        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+        "x-data-backend": "convex",
+      },
     });
   } catch (err) {
     console.error("[api:compare] failed:", err);

@@ -478,14 +478,14 @@ export function CompareFullPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-xl font-black text-white">{r.name}</h2>
+                      <h2 className="truncate text-xl font-semibold text-white">{r.name}</h2>
                       <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px font-mono text-xs tracking-wider text-white/50">
                         {i === 0 ? "TOOL A" : "TOOL B"}
                       </span>
                     </div>
                     <p className="mt-0.5 truncate text-sm text-white/55">{r.tagline}</p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-ember/10 px-3 py-1.5 font-mono text-sm font-black tabular-nums text-ember">
+                  <span className="shrink-0 rounded-full bg-ember/10 px-3 py-1.5 font-mono text-sm font-semibold tabular-nums text-ember">
                     {r.rating != null ? (
                       <>★ {r.rating.overall.toFixed(1)}/5</>
                     ) : (
@@ -588,7 +588,7 @@ export function CompareFullPage() {
                     aria-label={`Browse the ${rowA.category.name} category`}
                     className="text-left transition-colors hover:text-ember"
                   >
-                    {rowA.category.emoji} {rowA.category.name}
+                    {rowA.category.name}
                   </button>
                 }
                 b={
@@ -598,7 +598,7 @@ export function CompareFullPage() {
                     aria-label={`Browse the ${rowB.category.name} category`}
                     className="text-left transition-colors hover:text-ember"
                   >
-                    {rowB.category.emoji} {rowB.category.name}
+                    {rowB.category.name}
                   </button>
                 }
               />
@@ -659,8 +659,8 @@ export function CompareFullPage() {
               />
               <MetricRow
                 label="About"
-                a={<span className="line-clamp-3 text-xs leading-relaxed text-white/55">{rowA.description ?? "—"}</span>}
-                b={<span className="line-clamp-3 text-xs leading-relaxed text-white/55">{rowB.description ?? "—"}</span>}
+                a={<span className="line-clamp-3 text-xs leading-relaxed text-white/55">{rowA.description ?? "Not provided"}</span>}
+                b={<span className="line-clamp-3 text-xs leading-relaxed text-white/55">{rowB.description ?? "Not provided"}</span>}
               />
             </div>
           </section>

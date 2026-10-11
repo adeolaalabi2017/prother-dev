@@ -17,7 +17,7 @@ export default function NotFound() {
       <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
         404 · Not found
       </p>
-      <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
+      <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
         That tool isn't listed.
       </h1>
       <p className="mt-4 text-base leading-relaxed text-white/65">

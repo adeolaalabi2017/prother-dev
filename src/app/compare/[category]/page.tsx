@@ -258,14 +258,13 @@ export default async function CompareCategoryPage({ params }: Params) {
                 Head to Head Comparison
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-mono text-xs tracking-wider text-white/60 uppercase">
-                <span aria-hidden>{toolA.category.emoji}</span>
                 {toolA.category.name}
               </span>
             </div>
 
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
                   {toolA.name}{" "}
                   <span className="text-white/55">vs</span>{" "}
                   {toolB.name}
@@ -281,7 +280,7 @@ export default async function CompareCategoryPage({ params }: Params) {
                 <Link
                   href={`/tools/${toolA.slug}`}
                   title={toolA.name}
-                  className="rounded-2xl border border-white/15 bg-white/[0.04] p-3 transition-transform hover:scale-105"
+                  className="rounded-lg border border-white/15 bg-white/[0.04] p-3 transition-transform hover:scale-105"
                 >
                   <ToolLogo
                     slug={toolA.slug}
@@ -292,13 +291,13 @@ export default async function CompareCategoryPage({ params }: Params) {
                     size="lg"
                   />
                 </Link>
-                <div className="flex size-9 items-center justify-center rounded-full border border-ember/40 bg-ember/15 font-mono text-xs font-black text-ember">
+                <div className="flex size-9 items-center justify-center rounded-full border border-ember/40 bg-ember/15 font-mono text-xs font-semibold text-ember">
                   VS
                 </div>
                 <Link
                   href={`/tools/${toolB.slug}`}
                   title={toolB.name}
-                  className="rounded-2xl border border-white/15 bg-white/[0.04] p-3 transition-transform hover:scale-105"
+                  className="rounded-lg border border-white/15 bg-white/[0.04] p-3 transition-transform hover:scale-105"
                 >
                   <ToolLogo
                     slug={toolB.slug}
@@ -321,7 +320,7 @@ export default async function CompareCategoryPage({ params }: Params) {
 
             <div className="mt-4 grid gap-6 md:grid-cols-2">
               {/* Tool A Card */}
-              <div className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
+              <div className="space-y-5 rounded-lg border border-white/10 bg-white/[0.02] p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3.5">
                     <ToolLogo
@@ -431,7 +430,7 @@ export default async function CompareCategoryPage({ params }: Params) {
               </div>
 
               {/* Tool B Card */}
-              <div className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
+              <div className="space-y-5 rounded-lg border border-white/10 bg-white/[0.02] p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3.5">
                     <ToolLogo
@@ -688,8 +687,8 @@ export default async function CompareCategoryPage({ params }: Params) {
             <span aria-hidden className="h-px w-6 bg-ember" />
             Compare
           </p>
-          <h1 className="mt-3 text-4xl font-black tracking-tighter text-white sm:text-5xl">
-            <span aria-hidden>{cat.emoji}</span> {cat.name}{" "}
+          <h1 className="mt-3 text-4xl font-semibold tracking-tighter text-white sm:text-5xl">
+            {cat.name}{" "}
             <span className="text-ember">tools compared.</span>
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/60 sm:text-lg">

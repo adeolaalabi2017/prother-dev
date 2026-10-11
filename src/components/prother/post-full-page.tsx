@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Clock3, Eye, Feather } from "lucide-react";
 import { renderMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
+import { INITIALS_TILE, initialsOf } from "@/components/prother/initials";
 import { useExplorer } from "./explorer-store";
 import { FullPageShell, PageError, PageSkeleton } from "./page-shell";
 
@@ -201,7 +202,7 @@ export function PostFullPage() {
           <header>
             <div className="flex items-start gap-4">
               {post.coverUrl ? (
-                <div className="size-16 shrink-0 overflow-hidden rounded-2xl border border-white/10 shadow-inner sm:size-20">
+                <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-white/10 shadow-inner sm:size-20">
                   <img
                     src={post.coverUrl}
                     alt=""
@@ -213,14 +214,14 @@ export function PostFullPage() {
                 <div
                   aria-hidden
                   className={cn(
-                    "flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-inner",
-                    post.coverGradient
+                    INITIALS_TILE,
+                    "size-16 text-lg sm:size-20 sm:text-xl",
                   )}
                 >
-                  {post.coverEmoji}
+                  {initialsOf(post.title)}
                 </div>
               )}
-              <h1 className="min-w-0 text-3xl leading-tight font-black tracking-tight text-white sm:text-4xl">
+              <h1 className="min-w-0 text-3xl leading-tight font-semibold tracking-tight text-white sm:text-4xl">
                 {post.title}
               </h1>
             </div>

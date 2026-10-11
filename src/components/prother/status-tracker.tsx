@@ -98,12 +98,15 @@ function ResultCard({
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg",
-            item.gradient,
-          )}
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-xs font-semibold tracking-tight text-white/70"
         >
-          {item.emoji}
+          {item.name
+            .replace(/[^a-zA-Z0-9 ]/g, " ")
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((w: string) => w[0]!.toUpperCase())
+            .join("")}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -260,7 +263,7 @@ export function StatusTracker() {
           <p className="font-mono text-xs tracking-widest text-ember">
             MAKERS
           </p>
-          <h2 className="mt-1 text-xl font-black tracking-tight">
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">
             Track your submission
           </h2>
           <p className="mt-1.5 text-sm text-white/50">

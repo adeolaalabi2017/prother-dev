@@ -132,7 +132,7 @@ export default function SubmitPage() {
           <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             For makers
           </p>
-          <h1 className="mt-3 max-w-3xl text-5xl font-black tracking-tighter text-white md:text-6xl">
+          <h1 className="mt-3 max-w-3xl text-5xl font-semibold tracking-tighter text-white md:text-6xl">
             Submit your tool to the directory.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-white/60">
@@ -155,14 +155,14 @@ export default function SubmitPage() {
       {/* Timeline — what happens after you submit */}
       <section className="border-t border-white/10 py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-3xl font-black tracking-tighter text-white md:text-4xl">
+          <h2 className="text-3xl font-semibold tracking-tighter text-white md:text-4xl">
             After you submit.
           </h2>
           <ol className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {TIMELINE.map((step) => (
               <li
                 key={step.n}
-                className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+                className="flex h-full flex-col rounded-lg border border-white/10 bg-white/[0.02] p-6"
               >
                 <div className="flex items-center justify-between">
                   <p className="font-mono text-sm text-ember-tint">{step.n}</p>
@@ -189,10 +189,10 @@ export default function SubmitPage() {
           <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             The quality bar · public
           </p>
-          <h2 className="mt-3 text-3xl font-black tracking-tighter text-white md:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold tracking-tighter text-white md:text-4xl">
             Every tool passes all six. Before it&apos;s listed.
           </h2>
-          <ul role="list" className="mt-8 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02]">
+          <ul role="list" className="mt-8 divide-y divide-white/10 rounded-lg border border-white/10 bg-white/[0.02]">
             {STANDARDS.map((s) => (
               <li key={s.id} className="flex gap-4 p-5">
                 <span className="shrink-0 font-mono text-sm text-ember-tint">{s.id}</span>
@@ -213,14 +213,14 @@ export default function SubmitPage() {
       {/* Reassurance */}
       <section className="border-t border-white/10 py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-3xl font-black tracking-tighter text-white md:text-4xl">
+          <h2 className="text-3xl font-semibold tracking-tighter text-white md:text-4xl">
             Fair questions.
           </h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {REASSURANCE.map((r) => (
               <div
                 key={r.q}
-                className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+                className="rounded-lg border border-white/10 bg-white/[0.02] p-6"
               >
                 <r.icon className="size-5 text-ember-tint" aria-hidden />
                 <h3 className="mt-3 font-bold text-white">{r.q}</h3>
@@ -238,7 +238,7 @@ export default function SubmitPage() {
           className="absolute bottom-0 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-ember/20 blur-[100px]"
         />
         <div className="relative mx-auto max-w-2xl px-4 text-center sm:px-6">
-          <h2 className="text-4xl font-black tracking-tighter text-white md:text-5xl">
+          <h2 className="text-4xl font-semibold tracking-tighter text-white md:text-5xl">
             The directory is open.
           </h2>
           <p className="mt-3 text-white/60">

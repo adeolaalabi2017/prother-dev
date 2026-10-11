@@ -101,7 +101,7 @@ export function SiteFooter() {
               ) : (
                 <Hexagon className="size-6 fill-ember text-ember" aria-hidden />
               )}
-              <span className="text-lg font-black tracking-tight text-white">
+              <span className="text-lg font-semibold tracking-tight text-white">
                 Prother
               </span>
             </div>

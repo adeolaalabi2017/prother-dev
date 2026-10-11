@@ -204,7 +204,7 @@ export default async function ComparePage({ searchParams }: PageProps) {
             <span aria-hidden className="h-px w-6 bg-ember" />
             Compare
           </p>
-          <h1 className="mt-3 text-4xl font-black tracking-tighter text-white sm:text-5xl">
+          <h1 className="mt-3 text-4xl font-semibold tracking-tighter text-white sm:text-5xl">
             Compare AI tools by <span className="text-ember">feature.</span>
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/60 sm:text-lg">
@@ -235,8 +235,7 @@ export default async function ComparePage({ searchParams }: PageProps) {
                     href={`/compare/${c.slug}`}
                     className="group flex h-full flex-col justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-ember/40 hover:bg-white/[0.05]"
                   >
-                    <span className="flex items-center gap-2 text-base font-bold text-white transition-colors group-hover:text-ember">
-                      <span aria-hidden>{c.emoji}</span>
+                    <span className="flex items-center gap-2 text-base font-semibold text-white transition-colors group-hover:text-ember">
                       {c.name}
                     </span>
                     <span className="font-mono text-xs text-white/55">

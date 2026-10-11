@@ -197,7 +197,7 @@ export function PurgeTab({
                   type="button"
                   onClick={() => void run(true)}
                   disabled={executing || confirm !== "PURGE"}
-                  className="h-10 rounded-lg bg-red-600 px-5 font-mono text-sm font-black tracking-wider text-white shadow-none hover:bg-red-500 disabled:opacity-40"
+                  className="h-10 rounded-lg bg-red-600 px-5 font-mono text-sm font-semibold tracking-wider text-white shadow-none hover:bg-red-500 disabled:opacity-40"
                 >
                   {executing ? (
                     <>

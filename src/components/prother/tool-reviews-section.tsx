@@ -38,7 +38,7 @@ type ReviewsResponse = {
   reason: null | "auth" | "maker";
 };
 
-const PANEL = "rounded-2xl border border-white/10 bg-white/[0.02]";
+const PANEL = "rounded-lg border border-white/10 bg-white/[0.02]";
 const MONO = "font-mono text-xs uppercase tracking-[0.2em] text-white/60";
 const REVIEW_BODY_MIN = 20;
 const REVIEW_BODY_MAX = 2000;
@@ -292,7 +292,7 @@ export function ToolReviewsSection({
       {aggregate && (
         <div className={cn(PANEL, "flex flex-col gap-5 p-5 sm:flex-row sm:items-center")}>
           <div className="text-center sm:w-32">
-            <span className="block text-4xl font-black tabular-nums text-white">
+            <span className="block text-4xl font-semibold tabular-nums text-white">
               {aggregate.overall.toFixed(1)}
             </span>
             <div className="mt-1 flex justify-center">
@@ -375,7 +375,7 @@ export function ToolReviewsSection({
           <Button
             type="button"
             onClick={openAuth}
-            className="h-10 bg-ember font-mono text-sm font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+            className="h-10 bg-ember font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
           >
             SIGN IN TO REVIEW →
           </Button>
@@ -435,7 +435,7 @@ export function ToolReviewsSection({
             type="button"
             onClick={() => void submit()}
             disabled={submitting}
-            className="h-10 w-full bg-ember font-mono text-xs font-black tracking-wider text-[#0A0A0A] hover:bg-ember-hot sm:w-auto px-6"
+            className="h-10 w-full bg-ember font-mono text-xs font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot sm:w-auto px-6"
           >
             {submitting ? (
               <>
