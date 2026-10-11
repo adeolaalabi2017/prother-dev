@@ -4,10 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  History,
   Loader2,
   Search,
-  TrendingUp,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -465,7 +463,11 @@ export function HeroSearch() {
           aria-hidden
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { type: "spring", bounce: 0, duration: 0.3 }
+          }
           onClick={() => setOpen(false)}
           className="fixed inset-0 z-30 bg-ink/55 backdrop-blur-md"
         />
@@ -475,9 +477,9 @@ export function HeroSearch() {
         {/* Input shell */}
         <div
           className={cn(
-            "relative flex h-14 items-center rounded-2xl border bg-white/[0.04] pl-12 pr-14 transition-all duration-200",
+            "search-shell relative flex h-14 items-center rounded-lg border bg-white/[0.04] pl-12 pr-14 transition-all duration-200",
             open
-              ? "border-ember/60 shadow-[0_0_0_1px_rgba(255,106,0,0.25),0_12px_48px_-12px_rgba(255,106,0,0.35),0_28px_80px_-12px_rgba(0,0,0,0.85)] ring-2 ring-ember/25"
+              ? "border-ember/60 ring-2 ring-ember/25 shadow-[0_24px_80px_-12px_rgba(0,0,0,0.9)]"
               : "border-white/15 hover:border-white/30"
           )}
         >
@@ -533,10 +535,14 @@ export function HeroSearch() {
         {/* Dropdown */}
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -6 }}
+            initial={reduceMotion ? false : { opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            className="absolute inset-x-0 top-full z-40 mt-3 overflow-hidden rounded-2xl border border-white/10 bg-coal/95 shadow-2xl backdrop-blur-xl"
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : { type: "spring", bounce: 0, duration: 0.3 }
+            }
+            className="search-dropdown absolute inset-x-0 top-full z-40 mt-3 overflow-hidden rounded-lg border border-white/10 bg-coal shadow-2xl"
           >
             <div
               id={LIST_ID}
@@ -562,9 +568,9 @@ export function HeroSearch() {
                           setOpen(false);
                           router.push(`/categories/${c.slug}`);
                         }}
-                        className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-sm text-white/55 transition hover:border-ember/50 hover:text-ember"
+                        className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-sm text-white/55 transition hover:border-ember/50 hover:text-ember"
                       >
-                        {c.emoji} {c.short}
+                        {c.short}
                       </button>
                     ))}
                   </div>
@@ -574,10 +580,6 @@ export function HeroSearch() {
               {groups.map((group) => (
                 <div key={group.label} className={cn(groups.length > 1 && "border-b border-white/[0.06] last:border-b-0")}>
                   <p className="flex items-center gap-2 px-4 pb-1.5 pt-3 font-mono text-xs uppercase tracking-[0.25em] text-white/60">
-                    {group.label === "Trending now" && (
-                      <TrendingUp className="size-3 text-ember" aria-hidden />
-                    )}
-                    {group.label === "Recent" && <History className="size-3 text-ember" aria-hidden />}
                     {group.label}
                     {group.hint && <span className="text-white/55">{group.hint}</span>}
                   </p>
@@ -612,21 +614,19 @@ export function HeroSearch() {
                             className="size-9 rounded-lg"
                           />
                         ) : (
+                          // Category and journal rows are text-first: the group
+                          // heading already states what the list is, so rows
+                          // skip the tile entirely.
                           <span
                             aria-hidden
-                            className={cn(
-                              "flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-base shadow-inner",
-                              "gradient" in item && item.gradient ? item.gradient : "from-white/10 to-white/5"
-                            )}
-                          >
-                            {item.emoji}
-                          </span>
+                            className="size-px shrink-0"
+                          />
                         )}
 
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
                             {rank !== null && (
-                              <span className="font-mono text-xs font-bold text-ember">#{rank}</span>
+              <span className="font-mono text-xs font-semibold text-ember">#{rank}</span>
                             )}
                             <span className="truncate text-sm font-semibold text-white">
                               {"name" in item ? item.name : item.title}

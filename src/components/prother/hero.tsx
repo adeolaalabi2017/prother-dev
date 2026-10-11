@@ -4,13 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import {
-  ArrowRight,
-  Compass,
-  Scale,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
 import GatewayFlow from "@/components/ui/gateway-flow";
 
 // Client-only: hero-search subscribes via convex/react, whose module
@@ -118,14 +111,14 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(circle at 50% 40%, rgba(255,106,0,0.12) 0%, rgba(255,106,0,0.04) 36%, transparent 64%)",
+              "radial-gradient(circle at 50% 40%, rgba(255,106,0,0.07) 0%, rgba(255,106,0,0.03) 36%, transparent 64%)",
           }}
         />
         <GatewayFlow
           className="absolute inset-0"
           speed={0.8}
           density={0.75}
-          opacity={0.85}
+          opacity={0.55}
         />
       </div>
 
@@ -133,10 +126,10 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+          transition={{ type: "spring", bounce: 0, duration: 0.4 }}
         >
-          {/* Architectural Telemetry Badge */}
-          <div className="inline-flex items-center gap-2 rounded border border-ember/30 bg-ember/10 px-3.5 py-1 font-mono text-[11px] font-medium tracking-wider uppercase text-ember-tint shadow-[0_0_16px_rgba(255,106,0,0.15)]">
+          {/* Announcement chip: a quiet eyebrow, no glow. */}
+          <div className="inline-flex items-center gap-2 rounded-lg border border-ember/30 bg-ember/10 px-3.5 py-1 font-mono text-[11px] font-medium tracking-wider uppercase text-ember-tint">
             <span
               className="inline-block size-1.5 rounded-full bg-ember-tint animate-status-pulse"
               aria-hidden
@@ -148,15 +141,16 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
             <span>{announcement}</span>
           </div>
 
-          {/* Balanced High-Impact Headline */}
-          <h1 className="mt-6 text-4xl font-black tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl text-balance">
+          {/* Display headline: size and space carry the hierarchy, weight
+              stays house-standard semibold. */}
+          <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl text-balance">
             {cleanHeadline}
             <span className="text-ember">.</span>
           </h1>
 
           {/* Clear Value Proposition: What it is + Who it is for + Why it matters */}
           <p className="mx-auto mt-5 max-w-2xl text-base text-white/75 sm:text-lg sm:leading-relaxed text-pretty">
-            The independent software & model directory for engineers, founders,
+            The independent software &amp; model directory for engineers, founders,
             and technical teams. Compare production specs, verified pricing, and
             real developer reviews, with{" "}
             <strong className="font-semibold text-white">
@@ -165,21 +159,18 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
             .
           </p>
 
-          {/* Clear Next Steps: Primary & Secondary CTAs */}
+          {/* Clear next steps: text-first CTAs (no decorative icons). */}
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <a
               href="#directory"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ember px-6 text-sm font-semibold text-coal shadow-[0_0_24px_rgba(255,106,0,0.28)] transition-all hover:bg-ember-hot hover:shadow-[0_0_32px_rgba(255,106,0,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+              className="pressable inline-flex h-11 items-center justify-center rounded-lg bg-ember px-6 text-sm font-semibold text-coal transition-colors hover:bg-ember-hot focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:bg-ember-hot"
             >
-              <Compass className="size-4" />
               <span>Explore {stats ? stats.tools : 108}+ Vetted Tools</span>
-              <ArrowRight className="size-4 opacity-70" />
             </a>
             <Link
               href="/compare"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-5 text-sm font-medium text-white/90 backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+              className="pressable inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-5 text-sm font-medium text-white/90 transition-colors hover:border-white/30 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
             >
-              <Scale className="size-4 text-ember-tint" />
               <span>Compare Stacks</span>
             </Link>
           </div>
@@ -196,7 +187,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
                 <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
                   VERIFIED INDEX
                 </dt>
-                <dd className="mt-1 font-mono text-sm font-bold text-white tabular-nums">
+                <dd className="mt-1 font-mono text-sm font-semibold text-white tabular-nums">
                   {stats ? stats.tools : 108} Tools
                 </dd>
               </div>
@@ -204,7 +195,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
                 <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
                   RANKING INTEGRITY
                 </dt>
-                <dd className="mt-1 font-mono text-sm font-bold text-ember">
+                <dd className="mt-1 font-mono text-sm font-semibold text-ember">
                   0% Pay-to-Win
                 </dd>
               </div>
@@ -212,7 +203,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
                 <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
                   TAXONOMY
                 </dt>
-                <dd className="mt-1 font-mono text-sm font-bold text-white tabular-nums">
+                <dd className="mt-1 font-mono text-sm font-semibold text-white tabular-nums">
                   {stats ? stats.categories : 8} Domains
                 </dd>
               </div>
@@ -220,7 +211,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
                 <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
                   ACCESS MODEL
                 </dt>
-                <dd className="mt-1 font-mono text-sm font-bold text-mint">
+                <dd className="mt-1 font-mono text-sm font-semibold text-mint">
                   $0 Free Forever
                 </dd>
               </div>

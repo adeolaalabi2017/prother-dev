@@ -20,7 +20,7 @@ function useMounted() {
  * Theme toggle — dark is the brand default; light is the warm-paper remap
  * (globals.css html.light token flip). Two shapes:
  *   · ThemeToggle      icon button, matches the header utility buttons
- *   · ThemeToggleRow   full-width row, matches the mobile menu rows
+ *   · ThemeToggleRow   full-width text row, matches the mobile menu rows
  * Both render a stable SSR frame (Sun) and swap the icon after mount;
  * the choice persists in localStorage ("prother-theme").
  */
@@ -69,11 +69,6 @@ export function ThemeToggleRow({ onAction }: { onAction?: () => void }) {
       aria-label={`Switch to ${isLight ? "dark" : "light"} theme`}
       className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
     >
-      {isLight ? (
-        <Moon className="size-4 text-ember" aria-hidden />
-      ) : (
-        <Sun className="size-4 text-ember" aria-hidden />
-      )}
       {label}
     </button>
   );

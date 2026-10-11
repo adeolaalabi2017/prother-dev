@@ -76,7 +76,10 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  /* One deliberate corner radius for the whole system: 12px for cards,
+     surfaces, and sheets (10px md, 8px sm derive below). Large 16px+ radii
+     read as stock Tailwind; a single tuned radius reads as a design system. */
+  --radius: 0.75rem;
   /* Prother brand tokens (dark-first). Tailwind utilities reference these
      via the @theme inline indirection above; html.light remaps them. */
   --brand-ember: #ff6a00;
@@ -267,6 +270,42 @@
 
 .animate-float-y {
   animation: float-y 5s ease-in-out infinite;
+}
+
+/* Prother - Apple fluid response: instant press feedback on pointer-down.
+   Scale is compositor-only (transform) so it stays 60fps and interruptible.
+   Pair with `transition-transform duration-100 ease-out` in markup. */
+.pressable {
+  transition:
+    transform 100ms ease-out,
+    background-color 150ms ease-out,
+    border-color 150ms ease-out;
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pressable:active {
+    transform: none;
+  }
+}
+
+/* Prother - translucent chrome legibility: frost solid when the OS asks
+   for less transparency. Covers header, ticker, and search surfaces. */
+@media (prefers-reduced-transparency: reduce) {
+  .site-chrome,
+  .ticker-chrome,
+  .search-shell,
+  .search-dropdown {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .site-chrome {
+    background-color: var(--brand-ink) !important;
+  }
+  .search-dropdown {
+    background-color: var(--brand-coal) !important;
+  }
 }
 
 /* Prother — thin ember scrollbar */

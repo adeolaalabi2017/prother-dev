@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
@@ -23,12 +22,11 @@ export function SubmitOpenButton({
       type="button"
       onClick={() => setSubmitOpen(true)}
       className={cn(
-        "rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal",
+        "pressable rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal",
         className
       )}
     >
       {label}
-      <ArrowRight className="size-4" aria-hidden />
     </Button>
   );
 }

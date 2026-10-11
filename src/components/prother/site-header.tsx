@@ -4,13 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Compass,
-  Feather,
-  Grid2x2,
   Hexagon,
   Menu,
-  MessagesSquare,
-  Scale,
   Search,
   Settings2,
   X,
@@ -38,12 +33,11 @@ const NAV_LINKS = [
     // section[id] to clear the sticky header.
     href: "/#directory",
     id: "categories",
-    icon: Grid2x2,
   },
-  { label: "Tools", href: "/tools", id: "tools", icon: Compass },
-  { label: "Compare", href: "/compare", id: "compare", icon: Scale },
-  { label: "Journal", href: "/journal", id: "journal", icon: Feather },
-  { label: "Forums", href: "/forums", id: "forums", icon: MessagesSquare },
+  { label: "Tools", href: "/tools", id: "tools" },
+  { label: "Compare", href: "/compare", id: "compare" },
+  { label: "Journal", href: "/journal", id: "journal" },
+  { label: "Forums", href: "/forums", id: "forums" },
 ];
 
 export function SiteHeader() {
@@ -72,7 +66,7 @@ export function SiteHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-ink/85 backdrop-blur-md">
+    <header className="site-chrome sticky top-0 z-50 border-b border-white/10 bg-ink/85 shadow-[0_8px_32px_rgba(0,0,0,0.35)] backdrop-blur-xl backdrop-saturate-150">
       {/* Full-bleed header row: the border above/below span the viewport, so the
           content cap is set wider than the page column (max-w-7xl vs max-w-6xl)
           to keep side margins tight and give the nav room to breathe. */}
@@ -94,7 +88,7 @@ export function SiteHeader() {
           ) : (
             <Hexagon className="size-6 fill-ember text-ember" aria-hidden />
           )}
-          <span className="text-lg font-black tracking-tight text-white">
+          <span className="text-lg font-semibold tracking-tight text-white">
             Prother
           </span>
         </Link>
@@ -132,7 +126,7 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={() => setSearch(true)}
-            className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-white/60 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white sm:flex"
+            className="pressable hidden items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-white/60 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white sm:flex"
             aria-label="Search tools (⌘K)"
           >
             <Search className="size-3.5 text-white/50" aria-hidden />
@@ -166,7 +160,7 @@ export function SiteHeader() {
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label={open ? "Close menu" : "Open menu"}
-            className="inline-flex size-10 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white md:hidden"
+            className="pressable inline-flex size-10 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white md:hidden"
           >
             {open ? (
               <X className="size-5" aria-hidden />
@@ -196,7 +190,6 @@ export function SiteHeader() {
                 isActive(l.id) ? "text-ember" : "text-white/80",
               )}
             >
-              <l.icon className="size-4 text-ember" aria-hidden />
               {l.label}
             </Link>
           ))}
