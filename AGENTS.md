@@ -59,6 +59,29 @@ Before completing any task that adds or edits a tool:
   - `adCampaigns` / `adServeStats`: Filter by `by_placement_status` and `by_placement_day`.
   - `tools`: Query using `by_status_category` or `by_slug`.
 
+---
+
+## 5. Deployment Identity (read this before comparing environments)
+
+- **Production reads are Cloudflare D1 first** (binding `DB`, database
+  `prother`), with **Convex prod as cold fallback** (guards in
+  `src/lib/data.ts` fall back when the binding is absent or tables are
+  empty). Writes stay on Convex mutations until the writes wave lands;
+  claims lead D1. Media uploads stay on Convex storage (R2 pending).
+- **`.env.local` points at the Convex DEV deployment
+  (`proper-kangaroo-372`)**, a stale sandbox (currently ~51 tools). It is
+  NOT production data. Never compare a local dev render against the live
+  site to judge catalog state; prod checks require either the Worker
+  (`bunx opennextjs-cloudflare preview` for binding-backed local, reading
+  the same `DB`) or the D1 remote (`bunx wrangler d1 execute prother
+  --remote`) / deployed `x-data-backend` header on https://prother.dev.
+- **Prod Convex deployment identity is CI-only** (CONVEX_DEPLOY_KEY and
+  NEXT_PUBLIC_CONVEX_URL are GitHub secrets; never committed here).
+- Editor-saved site copy drift check: prod `hero.announcement` may hold an
+  older literal (e.g. "48 tools indexed") because announcement counts are
+  re-formatted from live stats on render. Judge tool counts from
+  `stats.tools` / directory rows, not the announced sentence.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
