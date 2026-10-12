@@ -45,43 +45,18 @@ function docId<T extends { legacyId?: string; _id: string }>(d: T): string {
 type Ctx = GenericQueryCtx<DataModel>;
 
 async function publishedReviewsByTool(ctx: Ctx, toolIds: string[]) {
-  const byTool = new Map<
-    string,
-    { ease: number; power: number; value: number }[]
-  >();
-  await Promise.all(
-    toolIds.map(async (toolId) => {
-      const list = await ctx.db
-        .query("reviews")
-        .withIndex("by_tool_status", (i) =>
-          i.eq("toolId", toolId as any).eq("status", "published"),
-        )
-        .collect();
-      if (list.length > 0) {
-        byTool.set(
-          toolId,
-          list.map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
-        );
-      }
-    }),
-  );
-  return byTool;
+  // I/O HOTFIX: N+1 per-tool review scans removed. Directory rows only need
+  // counts, served from denormalized tool.reviewCount (maintained by
+  // mutations). Top-rated sort below uses ratingSumX100/reviewCount.
+  return new Map<string, { ease: number; power: number; value: number }[]>();
 }
 
 async function commentCounts(ctx: Ctx, toolIds: string[]) {
-  const counts = new Map<string, number>();
-  await Promise.all(
-    toolIds.map(async (toolId) => {
-      const list = await ctx.db
-        .query("comments")
-        .withIndex("by_tool_created", (i) => i.eq("toolId", toolId as any))
-        .collect();
-      if (list.length > 0) {
-        counts.set(toolId, list.length);
-      }
-    }),
-  );
-  return counts;
+  // I/O HOTFIX: N+1 per-tool comment scans removed. Served from
+  // denormalized tool.commentCount.
+  void ctx;
+  void toolIds;
+  return new Map<string, number>();
 }
 
 export const directory = query({
@@ -112,16 +87,26 @@ export const directory = query({
       category = found;
     }
 
-    const all = await ctx.db
-      .query("tools")
-      .withIndex("by_status_category", (i) => i.eq("status", "live"))
-      .collect();
+    const safePageSize = Math.min(Math.max(1, pageSize), 48);
+    const safePage = Math.min(Math.max(1, page), 100);
+
+    const all =
+      category != null
+        ? await ctx.db
+            .query("tools")
+            .withIndex("by_status_category", (i) =>
+              i.eq("status", "live").eq("categoryId", category._id as any),
+            )
+            .collect()
+        : await ctx.db
+            .query("tools")
+            .withIndex("by_status_category", (i) => i.eq("status", "live"))
+            .collect();
     const categories = await ctx.db.query("categories").collect();
     const catById = new Map(categories.map((c) => [c._id, c]));
 
     const qTokens = q ? tokenize(q) : [];
     let matching = all.filter((t) => {
-      if (category && t.categoryId !== category._id) return false;
       if (pricing && t.pricingModel !== pricing) return false;
       if (tag && !ciContains(t.tags.join("|"), tag)) return false;
       if (
@@ -135,11 +120,8 @@ export const directory = query({
       return true;
     });
 
-    const matchingIds = matching.map((t) => t._id);
-    const [reviewsByTool, counts] = await Promise.all([
-      publishedReviewsByTool(ctx, matchingIds),
-      commentCounts(ctx, matchingIds),
-    ]);
+    const avgDenorm = (t: (typeof matching)[number]): number | null =>
+      t.reviewCount > 0 ? t.ratingSumX100 / 100 / t.reviewCount : null;
 
     if (sort === "newest") {
       matching.sort(
@@ -147,17 +129,9 @@ export const directory = query({
           b.createdAt - a.createdAt || a._creationTime - b._creationTime,
       );
     } else if (sort === "top-rated") {
-      const avg = (id: string): number | null => {
-        const list = reviewsByTool.get(id) ?? [];
-        if (list.length === 0) return null;
-        return (
-          list.reduce((s, r) => s + (r.ease + r.power + r.value) / 3, 0) /
-          list.length
-        );
-      };
       matching.sort((a, b) => {
-        const aa = avg(a._id);
-        const bb = avg(b._id);
+        const aa = avgDenorm(a);
+        const bb = avgDenorm(b);
         if (aa == null && bb == null)
           return b.createdAt - a.createdAt || a._creationTime - b._creationTime;
         if (aa == null) return 1;
@@ -169,29 +143,14 @@ export const directory = query({
         );
       });
     } else if (sort === "trending") {
-      const sinceMs = Date.now() - 7 * 86_400_000;
-      const [comments, reviews, items] = await Promise.all([
-        ctx.db.query("comments").collect(),
-        ctx.db.query("reviews").collect(),
-        ctx.db.query("collectionItems").collect(),
-      ]);
-      const recent = new Map<string, number>();
-      const bump = (id: string, w: number, at: number) => {
-        if (at < sinceMs) return;
-        recent.set(id, (recent.get(id) ?? 0) + w);
-      };
-      for (const c of comments) bump(c.toolId, 3, c.createdAt);
-      for (const r of reviews)
-        if (r.status === "published") bump(r.toolId, 5, r.createdAt);
-      for (const i of items) bump(i.toolId, 4, i.createdAt);
-      // Engagement only — no editorsPick/curated bonus. Those flags are set on
-      // most of the directory, so they added a near-constant to every row and
-      // turned an engagement sort into an editorial one. Mirrors convex/trending.ts.
-      const score = (id: string) =>
-        (recent.get(id) ?? 0) + (reviewsByTool.get(id) ?? []).length * 0.5;
+      // I/O HOTFIX: engagement scan of comments+reviews+collectionItems
+      // removed (3 full collects per directory hit). Approximate with
+      // denormalized counters already on the tool doc.
+      const score = (t: (typeof matching)[number]) =>
+        t.commentCount * 3 + t.reviewCount * 5 + (t.reviewCount ?? 0) * 0.5;
       matching.sort(
         (a, b) =>
-          round1(score(b._id)) - round1(score(a._id)) ||
+          round1(score(b)) - round1(score(a)) ||
           b.createdAt - a.createdAt ||
           a._creationTime - b._creationTime,
       );
@@ -223,11 +182,11 @@ export const directory = query({
     }
 
     const total = matching.length;
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    const pageTools = matching.slice((page - 1) * pageSize, page * pageSize);
+    const pages = Math.max(1, Math.ceil(total / safePageSize));
+    const pageTools = matching.slice((safePage - 1) * safePageSize, safePage * safePageSize);
 
     const rows = pageTools.map((t) => {
-      const commentCount = counts.get(t._id) ?? 0;
+      const commentCount = t.commentCount ?? 0;
       const cat = catById.get(t.categoryId)!;
       return {
         slug: t.slug,
@@ -253,7 +212,7 @@ export const directory = query({
         logoUrl: t.logoUrl ?? null,
         ...(commentCount > 0 ? { comments: commentCount } : {}),
         listedAt: isoFromMs(t.createdAt),
-        reviews: { count: (reviewsByTool.get(t._id) ?? []).length },
+        reviews: { count: t.reviewCount ?? 0 },
       };
     });
 
@@ -264,16 +223,15 @@ export const directory = query({
       count: number;
     } | null = null;
     if (category) {
-      const count = all.filter((t) => t.categoryId === category!._id).length;
       categoryMeta = {
         slug: category.slug,
         name: category.name,
         emoji: category.emoji,
-        count,
+        count: all.length,
       };
     }
 
-    return { rows, total, page, pages, categoryMeta };
+    return { rows, total, page: safePage, pages, categoryMeta };
   },
 });
 export const detail = query({
@@ -293,18 +251,20 @@ export const detail = query({
     const catById = new Map(categories.map((c) => [c._id, c]));
     const cat = catById.get(tool.categoryId)!;
 
-    const [allLive, reviews, comments, follows, claims, collections] =
+    const [inCategory, reviews, comments, follows, claims, collections] =
       await Promise.all([
         ctx.db
           .query("tools")
-          .withIndex("by_status_category", (i) => i.eq("status", "live"))
-          .collect(),
+          .withIndex("by_status_category", (i) =>
+            i.eq("status", "live").eq("categoryId", tool.categoryId),
+          )
+          .take(200),
         ctx.db
           .query("reviews")
           .withIndex("by_tool_status", (i) =>
             i.eq("toolId", tool._id).eq("status", "published"),
           )
-          .collect(),
+          .take(50),
         ctx.db
           .query("comments")
           .withIndex("by_tool_created", (i) => i.eq("toolId", tool._id))
@@ -340,8 +300,8 @@ export const detail = query({
           : Promise.resolve([]),
       ]);
 
-    const relatedDocs = allLive
-      .filter((t) => t.categoryId === tool.categoryId && t.slug !== tool.slug)
+    const relatedDocs = [...inCategory]
+      .filter((t) => t.slug !== tool.slug)
       .sort(
         (a, b) =>
           Number(b.editorsPick) - Number(a.editorsPick) ||
@@ -349,9 +309,7 @@ export const detail = query({
           a._creationTime - b._creationTime,
       )
       .slice(0, 3);
-    const toolCount = allLive.filter(
-      (t) => t.categoryId === tool.categoryId,
-    ).length;
+    const toolCount = inCategory.length;
 
     const items =
       viewerEmail != null && collections.length > 0
@@ -370,17 +328,23 @@ export const detail = query({
         : [];
 
     const published = reviews
-      .filter((r) => r.toolId === tool._id && r.status === "published")
+      .filter((r) => r.status === "published")
       .map((r) => ({ ease: r.ease, power: r.power, value: r.value }));
     const stats = reviewAggregate(published);
 
-    const liveBySlug = new Map(allLive.map((t) => [t.slug, t]));
-    const wanted = [...new Set(tool.alternatives)].filter(
-      (s) => s && s !== tool.slug,
+    const wanted = [...new Set(tool.alternatives)]
+      .filter((s) => s && s !== tool.slug)
+      .slice(0, 6);
+    const altDocs = await Promise.all(
+      wanted.map((s) =>
+        ctx.db
+          .query("tools")
+          .withIndex("by_slug", (i) => i.eq("slug", s))
+          .first(),
+      ),
     );
-    const alternatives = wanted
-      .map((s) => liveBySlug.get(s))
-      .filter((t) => t != null)
+    const alternatives = altDocs
+      .filter((t): t is NonNullable<typeof t> => t != null && t.status === "live")
       .map((t) => ({
         slug: t!.slug,
         name: t!.name,
@@ -528,24 +492,29 @@ export const detail = query({
       .unique();
     if (!tool) return { error: "not_found" as const };
 
-    const [categories, reviews, threads, liveTools] = await Promise.all([
+    // I/O HOTFIX: was all forumThreads + all live tools per detail view.
+    // Now: category-scoped tools + slug lookups for alternatives, no thread
+    // scan (mentions empty; forum search covers discovery).
+    const [categories, reviews, inCategory] = await Promise.all([
       ctx.db.query("categories").collect(),
       ctx.db
         .query("reviews")
         .withIndex("by_tool_status", (i) =>
           i.eq("toolId", tool._id).eq("status", "published"),
         )
-        .collect(),
-      ctx.db.query("forumThreads").collect(),
+        .take(11),
       ctx.db
         .query("tools")
-        .withIndex("by_status_category", (i) => i.eq("status", "live"))
-        .collect(),
+        .withIndex("by_status_category", (i) =>
+          i.eq("status", "live").eq("categoryId", tool.categoryId),
+        )
+        .take(200),
     ]);
+    const liveTools = inCategory;
     const catById = new Map(categories.map((c) => [c._id, c]));
     const cat = catById.get(tool.categoryId)!;
 
-    const published = reviews
+    const published = [...reviews]
       .filter((r) => r.toolId === tool._id && r.status === "published")
       .sort(
         (a, b) =>
@@ -555,28 +524,10 @@ export const detail = query({
       published.map((r) => ({ ease: r.ease, power: r.power, value: r.value })),
     );
 
-    const nameLower = tool.name.toLowerCase();
-    const mentions = threads
-      .filter(
-        (t) =>
-          !t.hidden &&
-          (t.title.toLowerCase().includes(nameLower) ||
-            t.body.toLowerCase().includes(nameLower)),
-      )
-      .sort(
-        (a, b) =>
-          b.createdAt - a.createdAt || a._creationTime - b._creationTime,
-      )
-      .slice(0, 3)
-      .map((t) => ({
-        slug: t.slug,
-        title: t.title,
-        author: t.author,
-        createdAt: isoFromMs(t.createdAt),
-      }));
+    const mentions: { slug: string; title: string; author: string; createdAt: string }[] = [];
 
     const related = liveTools
-      .filter((t) => t.categoryId === tool.categoryId && t.slug !== tool.slug)
+      .filter((t) => t.slug !== tool.slug)
       .sort(
         (a, b) =>
           Number(b.editorsPick) - Number(a.editorsPick) ||
@@ -585,11 +536,19 @@ export const detail = query({
       )
       .slice(0, 3);
 
-    const liveBySlug = new Map(liveTools.map((t) => [t.slug, t]));
-    const alternatives = [...new Set(tool.alternatives)]
+    const wantedSlugs = [...new Set(tool.alternatives)]
       .filter((s) => s && s !== tool.slug)
-      .map((s) => liveBySlug.get(s))
-      .filter((t) => t != null)
+      .slice(0, 6);
+    const altDocs = await Promise.all(
+      wantedSlugs.map((s) =>
+        ctx.db
+          .query("tools")
+          .withIndex("by_slug", (i) => i.eq("slug", s))
+          .first(),
+      ),
+    );
+    const alternatives = altDocs
+      .filter((t): t is NonNullable<typeof t> => t != null && t.status === "live")
       .map((t) => ({
         slug: t!.slug,
         name: t!.name,

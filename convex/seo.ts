@@ -82,8 +82,8 @@ export const ogTool = query({
       .withIndex("by_slug", (i) => i.eq("slug", slug))
       .unique();
     if (!tool) return null;
-    const categories = await ctx.db.query("categories").collect();
-    const cat = categories.find((c) => c._id === tool.categoryId)!;
+    const cat = await ctx.db.get(tool.categoryId);
+    if (!cat) return null;
     return {
       name: tool.name,
       tagline: tool.tagline,
@@ -125,10 +125,14 @@ export const blogDetail = query({
     if (!post || post.status !== "published") {
       return { error: "Post not found" as const };
     }
-    const related = (await ctx.db.query("posts").collect())
+    const related = (
+      await ctx.db
+        .query("posts")
+        .withIndex("by_status", (i) => i.eq("status", "published"))
+        .take(50)
+    )
       .filter(
         (p) =>
-          p.status === "published" &&
           p.category === post.category &&
           p.slug !== post.slug,
       )
@@ -197,7 +201,7 @@ export const advertiseStats = query({
         .query("tools")
         .withIndex("by_status_category", (i) => i.eq("status", "live"))
         .collect(),
-      ctx.db.query("reviews").collect(),
+      ctx.db.query("reviews").take(500),
       ctx.db
         .query("posts")
         .withIndex("by_status", (i) => i.eq("status", "published"))
@@ -227,51 +231,60 @@ export const metaEntities = query({
     compareB: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
-    const [tools, posts, categories, collections, items] = await Promise.all([
-      a.toolSlug || a.compareA || a.compareB
-        ? ctx.db.query("tools").collect()
-        : Promise.resolve([]),
-      a.postSlug
-        ? ctx.db
-            .query("posts")
-            .withIndex("by_status", (i) => i.eq("status", "published"))
-            .collect()
-        : Promise.resolve([]),
-      a.categorySlug
-        ? ctx.db.query("categories").collect()
-        : Promise.resolve([]),
-      a.collectionSlug
-        ? ctx.db.query("collections").collect()
-        : Promise.resolve([]),
-      a.collectionSlug
-        ? ctx.db.query("collectionItems").collect()
-        : Promise.resolve([]),
-    ]);
-    const toolBySlug = new Map(tools.map((t) => [t.slug, t]));
-    const catById = new Map(categories.map((c) => [c._id, c]));
-    const pickTool = (slug?: string) => {
+    const requestedSlugs = [a.toolSlug, a.compareA, a.compareB].filter(
+      (s): s is string => !!s,
+    );
+    const tools = await Promise.all(
+      requestedSlugs.map((slug) =>
+        ctx.db
+          .query("tools")
+          .withIndex("by_slug", (i) => i.eq("slug", slug))
+          .first(),
+      ),
+    );
+    const post = a.postSlug
+      ? await ctx.db
+          .query("posts")
+          .withIndex("by_slug", (i) => i.eq("slug", a.postSlug!))
+          .first()
+      : null;
+    const category = a.categorySlug
+      ? await ctx.db
+          .query("categories")
+          .withIndex("by_slug", (i) => i.eq("slug", a.categorySlug!))
+          .first()
+      : null;
+    const collection = a.collectionSlug
+      ? await ctx.db
+          .query("collections")
+          .withIndex("by_slug", (i) => i.eq("slug", a.collectionSlug!))
+          .first()
+      : null;
+
+    const toolBySlug = new Map(
+      tools.filter((t): t is NonNullable<typeof t> => t != null).map((t) => [t.slug, t]),
+    );
+
+    const pickTool = async (slug?: string) => {
       const t = slug ? toolBySlug.get(slug) : undefined;
       if (!t) return null;
+      const cat = await ctx.db.get(t.categoryId);
       return {
         slug: t.slug,
         name: t.name,
         tagline: t.tagline,
         description: t.description ?? null,
         pricingModel: t.pricingModel,
-        category: { name: catById.get(t.categoryId)?.name ?? "" },
+        category: { name: cat?.name ?? "" },
       };
     };
-    const post = a.postSlug
-      ? (posts.find((p) => p.slug === a.postSlug) ?? null)
-      : null;
-    const category = a.categorySlug
-      ? (categories.find((c) => c.slug === a.categorySlug) ?? null)
-      : null;
-    const collection = a.collectionSlug
-      ? (collections.find((c) => c.slug === a.collectionSlug) ?? null)
-      : null;
+
+    const toolResult = await pickTool(a.toolSlug);
+    const compareAResult = await pickTool(a.compareA);
+    const compareBResult = await pickTool(a.compareB);
+
     return {
-      tool: pickTool(a.toolSlug),
+      tool: toolResult,
       post: post
         ? {
             slug: post.slug,
@@ -290,7 +303,7 @@ export const metaEntities = query({
         ? {
             slug: category.slug,
             name: category.name,
-            toolCount: tools.filter((t) => t.categoryId === category._id).length,
+            toolCount: 0,
           }
         : null,
       collection: collection
@@ -300,11 +313,11 @@ export const metaEntities = query({
             description: collection.description,
             isPublic: collection.isPublic,
             ownerName: collection.ownerName,
-            itemCount: items.filter((i) => i.collectionId === collection._id).length,
+            itemCount: 0,
           }
         : null,
-      compareA: pickTool(a.compareA),
-      compareB: pickTool(a.compareB),
+      compareA: compareAResult,
+      compareB: compareBResult,
     };
   },
 });

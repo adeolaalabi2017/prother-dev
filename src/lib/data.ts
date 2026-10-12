@@ -18,10 +18,26 @@ import { blurbFor } from "@/lib/category-blurbs";
 type Client = ConvexHttpClient;
 
 export async function shadowSite(c: Client | null | undefined) {
+  // D1-first (Convex migration wave 1): Workers serve site stats from D1
+  // with zero Convex I/O. Local dev without bindings falls back to Convex.
+  try {
+    const { d1SiteGet } = await import("@/lib/d1/queries");
+    const d1 = await d1SiteGet();
+    if (d1) return withAnnouncement(d1);
+  } catch {
+    // fall through to Convex
+  }
   if (!c) {
     throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
   }
   const res = await c.query(api.site.get, {});
+  return withAnnouncement(res);
+}
+
+function withAnnouncement(res: {
+  settings: Record<string, string>;
+  stats: { tools: number; categories: number; reviews: number; comments: number };
+}) {
   if (res && res.settings && res.stats) {
     const template = res.settings["hero.announcement"];
     if (template) {
@@ -59,44 +75,19 @@ export function cleanLogoUrl(
 }
 
 let cachedLogoMap: { map: Map<string, string>; expiry: number } | null = null;
-let pendingLogoMapPromise: Promise<Map<string, string>> | null = null;
 
-export async function getToolLogoMap(c: Client | null | undefined): Promise<Map<string, string>> {
-  if (!c) {
-    throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
-  }
+export async function getToolLogoMap(_c: Client | null | undefined): Promise<Map<string, string>> {
+  // I/O HOTFIX (Oct 2026 overage): previously this issued a full
+  // `api.tools.directory` (pageSize 200, all live tool docs) on every cold
+  // isolate, doubling every shadow* call. Rows already carry logoUrl from
+  // their own query, so the map is fallback-only. Serve locals with zero I/O.
   const now = Date.now();
   if (cachedLogoMap && cachedLogoMap.expiry > now) {
     return cachedLogoMap.map;
   }
-  if (pendingLogoMapPromise) {
-    return pendingLogoMapPromise;
-  }
-  pendingLogoMapPromise = (async () => {
-    try {
-      const dir = await c.query(api.tools.directory, {
-        sort: "featured",
-        page: 1,
-        pageSize: 200,
-      });
-      const map = new Map<string, string>(Object.entries(KNOWN_LOCAL_LOGOS));
-      if (dir && "rows" in dir && Array.isArray(dir.rows)) {
-        for (const r of dir.rows) {
-          if (r.slug && r.logoUrl && !r.logoUrl.startsWith("/api/media/")) {
-            map.set(r.slug, r.logoUrl);
-          }
-        }
-      }
-      cachedLogoMap = { map, expiry: Date.now() + 600_000 };
-      return map;
-    } catch {
-      // return fallback
-    } finally {
-      pendingLogoMapPromise = null;
-    }
-    return cachedLogoMap?.map ?? new Map(Object.entries(KNOWN_LOCAL_LOGOS));
-  })();
-  return pendingLogoMapPromise;
+  const map = new Map<string, string>(Object.entries(KNOWN_LOCAL_LOGOS));
+  cachedLogoMap = { map, expiry: now + 3_600_000 };
+  return map;
 }
 
 export async function shadowTrending(c: Client | null | undefined, window: "week" | "month", limit: number) {
@@ -119,14 +110,37 @@ export async function shadowTrending(c: Client | null | undefined, window: "week
   return res;
 }
 
-export function shadowBlog(c: Client | null | undefined, limit: number, category: string | null) {
+export async function shadowBlog(c: Client | null | undefined, limit: number, category: string | null) {
   if (!c) return { posts: [] };
+  try {
+    const { d1BlogList } = await import("@/lib/d1/content");
+    const d1 = await d1BlogList(limit, category);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.posts.list, { limit, category: category ?? undefined });
 }
 
 export async function shadowSearch(c: Client | null | undefined, q: string) {
   if (!c) {
     throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
+  }
+  try {
+    const { d1Search } = await import("@/lib/d1/queries2");
+    const d1 = await d1Search(q);
+    if (d1) {
+      const logoMap = await getToolLogoMap(c);
+      return {
+        ...d1,
+        tools: d1.tools.map((t: any) => ({
+          ...t,
+          logoUrl: cleanLogoUrl(t.logoUrl, t.slug, logoMap),
+        })),
+      };
+    }
+  } catch {
+    // fall through to Convex
   }
   const [res, logoMap] = await Promise.all([
     c.query(api.search.search, { q }),
@@ -157,6 +171,28 @@ export async function shadowToolsDirectory(c: Client | null | undefined,
 ) {
   if (!c) {
     throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
+  }
+  // D1-first (migration wave 2). Falls back to Convex when bindings are absent.
+  try {
+    const { d1Directory } = await import("@/lib/d1/queries2");
+    const d1 = await d1Directory(args);
+    if (d1 && !("error" in d1)) {
+      const logoMap = await getToolLogoMap(c);
+      const { categoryMeta, ...rest } = d1 as typeof d1 & { categoryMeta?: { slug: string; name: string } };
+      return {
+        ...rest,
+        rows: (d1 as { rows: any[] }).rows.map((r: any) => ({
+          ...r,
+          logoUrl: cleanLogoUrl(r.logoUrl, r.slug, logoMap),
+        })),
+        ...(categoryMeta
+          ? { categoryMeta: { ...categoryMeta, blurb: blurbFor(categoryMeta.slug, categoryMeta.name) } }
+          : {}),
+      };
+    }
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
   }
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.directory, {
@@ -197,6 +233,46 @@ export async function shadowToolDetail(
   viewer?: { id: string; email: string; handle: string } | null,
 ) {
   if (!c) return shadowToolPageData(c, slug) as any;
+  try {
+    const { d1ToolDetail } = await import("@/lib/d1/content");
+    const d1 = await d1ToolDetail(slug, viewer?.email, viewer?.id);
+    if (d1 && !("error" in d1)) {
+      const logoMap = await getToolLogoMap(c);
+      const { viewer: v, ...rest } = d1;
+      return {
+        ...rest,
+        logoUrl: cleanLogoUrl(rest.logoUrl, rest.slug, logoMap),
+        related: Array.isArray(rest.related)
+          ? rest.related.map((r: any) => ({
+              ...r,
+              logoUrl: cleanLogoUrl((r as any).logoUrl, r.slug, logoMap),
+            }))
+          : rest.related,
+        alternatives: Array.isArray(rest.alternatives)
+          ? rest.alternatives.map((a: any) => ({
+              ...a,
+              logoUrl: cleanLogoUrl((a as any).logoUrl, a.slug, logoMap),
+            }))
+          : rest.alternatives,
+        standards: STANDARD_DEFS.map((s) => ({ ...s, passed: true })),
+        viewer:
+          v && viewer
+            ? {
+                isMaker:
+                  (v.maker.claimed && v.maker.makerEmail === viewer.email) ||
+                  v.maker.makerHandle === `@${viewer.handle}`,
+                following: v.following,
+                claim: v.claim,
+                myReview: v.myReview,
+                savedIn: v.savedIn,
+              }
+            : null,
+      };
+    }
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.detail, {
       slug,
@@ -246,6 +322,31 @@ export async function shadowCompareMatrix(
 ) {
   if (!c) return { category: null, tools: [], options: [] } as any;
   if (!category) return { error: "category_required" as const };
+  try {
+    const { d1CompareMatrix } = await import("@/lib/d1/content");
+    const d1 = await d1CompareMatrix(category, tools);
+    if (d1 && !("error" in d1)) {
+      const logoMap = await getToolLogoMap(c);
+      return {
+        ...d1,
+        options: Array.isArray(d1.options)
+          ? d1.options.map((o: any) => ({
+              ...o,
+              logoUrl: cleanLogoUrl((o as any).logoUrl, o.slug, logoMap),
+            }))
+          : d1.options,
+        tools: Array.isArray(d1.tools)
+          ? d1.tools.map((t: any) => ({
+              ...t,
+              logoUrl: cleanLogoUrl((t as any).logoUrl, t.slug, logoMap),
+            }))
+          : d1.tools,
+      };
+    }
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.compare.matrix, { category, tools }),
     getToolLogoMap(c),
@@ -270,16 +371,30 @@ export async function shadowCompareMatrix(
   return res;
 }
 
-export function shadowCompareCategories(c: Client | null | undefined) { if (!c) return null as any;
+export async function shadowCompareCategories(c: Client | null | undefined) { if (!c) return null as any;
+  try {
+    const { d1CompareCategories } = await import("@/lib/d1/content");
+    const d1 = await d1CompareCategories();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.compare.categories, {});
 }
 
-export function shadowForumList(
+export async function shadowForumList(
   c: Client,
   topic: string,
   sort: "hot" | "new" | "top",
   voterKey?: string,
 ) {
+  try {
+    const { d1ForumList } = await import("@/lib/d1/content");
+    const d1 = await d1ForumList(topic, sort, voterKey);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.forum.list, { topic, sort, voterKey });
 }
 
@@ -298,46 +413,97 @@ export function shadowAdminTools(
 
 // ── Phase 4 step 3 — community reads (dual-write verification + cutover) ──
 
-export function shadowComments(c: Client, toolSlug: string) { if (!c) return null as any;
+export async function shadowComments(c: Client, toolSlug: string) { if (!c) return null as any;
+  try {
+    const { d1CommentsList } = await import("@/lib/d1/community");
+    const d1 = await d1CommentsList(toolSlug);
+    if (d1 && !("error" in d1)) return d1;
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.community.commentsList, { toolSlug });
 }
 
-export function shadowCommentsLastAge(
+export async function shadowCommentsLastAge(
   c: Client,
   toolSlug: string,
   author: string,
 ) {
+  try {
+    const { d1CommentsLastAge } = await import("@/lib/d1/community");
+    const d1 = await d1CommentsLastAge(toolSlug, author);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.community.commentsLastAge, { toolSlug, author });
 }
 
-export function shadowReviewsData(
+export async function shadowReviewsData(
   c: Client,
   toolSlug: string,
   viewerUserId?: string,
 ) {
+  try {
+    const { d1ReviewsData } = await import("@/lib/d1/community");
+    const d1 = await d1ReviewsData(toolSlug, viewerUserId);
+    if (d1 && !("error" in d1)) return d1;
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.community.reviewsData, {
     toolSlug,
     viewerUserId,
   });
 }
 
-export function shadowForumThread(
+export async function shadowForumThread(
   c: Client,
   slug: string,
   voterKey?: string,
 ) {
+  try {
+    const { d1ForumThread } = await import("@/lib/d1/content");
+    const d1 = await d1ForumThread(slug, voterKey);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.community.forumThread, { slug, voterKey });
 }
 
-export function shadowBookmarks(c: Client, ownerKey: string) { if (!c) return null as any;
+export async function shadowBookmarks(c: Client, ownerKey: string) { if (!c) return null as any;
+  try {
+    const { d1BookmarksList } = await import("@/lib/d1/content");
+    const d1 = await d1BookmarksList(ownerKey);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.community.bookmarksList, { ownerKey });
 }
 
-export function shadowFollows(c: Client, userEmail: string) { if (!c) return null as any;
+export async function shadowFollows(c: Client, userEmail: string) { if (!c) return null as any;
+  try {
+    const { d1FollowsList } = await import("@/lib/d1/content");
+    const d1 = await d1FollowsList(userEmail);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.community.followsList, { userEmail });
 }
 
-export function shadowCollectionsMine(c: Client, ownerEmail?: string) { if (!c) return null as any;
+export async function shadowCollectionsMine(c: Client, ownerEmail?: string) { if (!c) return null as any;
+  try {
+    const { d1CollectionsMine } = await import("@/lib/d1/community");
+    const d1 = await d1CollectionsMine(ownerEmail);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.community.collectionsMine, {
     ownerEmail,
   });
@@ -348,6 +514,31 @@ export async function shadowCollectionDetail(
   slug: string,
   viewerEmail?: string,
 ) {
+  try {
+    const { d1CollectionDetail } = await import("@/lib/d1/community");
+    const d1 = await d1CollectionDetail(slug, viewerEmail);
+    if (d1 && !("error" in d1)) {
+      const logoMap = await getToolLogoMap(c);
+      return {
+        ...d1,
+        collection: {
+          ...d1.collection,
+          items: d1.collection.items.map((item: any) => ({
+            ...item,
+            tool: item.tool
+              ? {
+                  ...item.tool,
+                  logoUrl: item.tool.logoUrl ?? logoMap.get(item.tool.slug) ?? null,
+                }
+              : item.tool,
+          })),
+        },
+      };
+    }
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.community.collectionDetail, { slug, viewerEmail }),
     getToolLogoMap(c),
@@ -379,6 +570,32 @@ export async function shadowCompareView(
   limit: number,
 ) {
   if (!c) return { a: null, b: null, popular: [] } as any;
+  try {
+    const { d1CompareView } = await import("@/lib/d1/analytics");
+    const d1 = await d1CompareView(aSlug, bSlug, limit);
+    if (d1 && !("error" in d1)) {
+      const logoMap = await getToolLogoMap(c);
+      const attach = (t: any) =>
+        t ? { ...t, logoUrl: t.logoUrl ?? logoMap.get(t.slug) ?? null } : t;
+      return {
+        ...d1,
+        a: attach((d1 as { a: unknown }).a),
+        b: attach((d1 as { b: unknown }).b),
+        popular: Array.isArray((d1 as { popular: unknown }).popular)
+          ? (d1 as { popular: any[] }).popular.map((p: any) => ({
+              ...p,
+              aLogoUrl: p.aLogoUrl ?? logoMap.get(p.aSlug) ?? null,
+              bLogoUrl: p.bLogoUrl ?? logoMap.get(p.bSlug) ?? null,
+            }))
+          : (d1 as { popular: unknown }).popular,
+      };
+    }
+    if (d1 && "error" in d1) {
+      // Fall through to Convex for the error variant (it carries popular).
+    }
+  } catch {
+    // fall through to Convex
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.community.compareView, { aSlug, bSlug, limit }),
     getToolLogoMap(c),
@@ -405,6 +622,32 @@ export async function shadowCompareView(
 export async function shadowToolPageData(c: Client | null | undefined, slug: string) {
   if (!c) {
     throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
+  }
+  try {
+    const { d1ToolPageData } = await import("@/lib/d1/content");
+    const d1 = await d1ToolPageData(slug);
+    if (d1 && !("error" in d1)) {
+      const logoMap = await getToolLogoMap(c);
+      return {
+        ...d1,
+        logoUrl: d1.logoUrl ?? logoMap.get(d1.tool.slug) ?? null,
+        alternatives: Array.isArray(d1.alternatives)
+          ? d1.alternatives.map((a: any) => ({
+              ...a,
+              logoUrl: a.logoUrl ?? logoMap.get(a.slug) ?? null,
+            }))
+          : d1.alternatives,
+        related: Array.isArray(d1.related)
+          ? d1.related.map((r: any) => ({
+              ...r,
+              logoUrl: (r as any).logoUrl ?? logoMap.get(r.slug) ?? null,
+            }))
+          : d1.related,
+      };
+    }
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
   }
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.pageData, { slug }),
@@ -433,27 +676,49 @@ export async function shadowToolPageData(c: Client | null | undefined, slug: str
 
 // ── Phase 5 — claims flow ──
 
-export function shadowClaimState(
+export async function shadowClaimState(
   c: Client,
   toolSlug: string,
   userEmail?: string,
 ) {
+  try {
+    const { d1ClaimState } = await import("@/lib/d1/community");
+    const d1 = await d1ClaimState(toolSlug, userEmail);
+    if (d1 && !("error" in d1)) return d1;
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.claims.claimState, { toolSlug, userEmail });
 }
 
-export function shadowClaimLatest(
+export async function shadowClaimLatest(
   c: Client,
   toolSlug: string,
   userEmail: string,
 ) {
+  try {
+    const { d1ClaimLatest } = await import("@/lib/d1/community");
+    const d1 = await d1ClaimLatest(toolSlug, userEmail);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.claims.claimLatest, { toolSlug, userEmail });
 }
 
-export function shadowClaimById(c: Client, id: string) { if (!c) return null as any;
+export async function shadowClaimById(c: Client, id: string) { if (!c) return null as any;
+  try {
+    const { d1ClaimById } = await import("@/lib/d1/community");
+    const d1 = await d1ClaimById(id);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.claims.claimByIdQ, { id });
 }
 
-export function convexClaimInsert(
+export async function convexClaimInsert(
   c: Client,
   args: {
     id: string;
@@ -470,10 +735,17 @@ export function convexClaimInsert(
     nowMs?: number;
   },
 ) {
+  try {
+    const { d1ClaimInsert } = await import("@/lib/d1/community");
+    const d1 = await d1ClaimInsert(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "tool_not_found" || e.message === "already_claimed" || e.message === "token_taken")) throw e;
+  }
   return c.mutation(api.claims.claimInsert, args);
 }
 
-export function convexClaimSettle(
+export async function convexClaimSettle(
   c: Client,
   args: {
     claimLegacyId: string;
@@ -484,6 +756,13 @@ export function convexClaimSettle(
     nowMs: number;
   },
 ) {
+  try {
+    const { d1ClaimSettle } = await import("@/lib/d1/community");
+    const d1 = await d1ClaimSettle(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "claim_not_found" || e.message === "tool_not_found")) throw e;
+  }
   return c.mutation(api.claims.claimSettle, args);
 }
 
@@ -536,6 +815,23 @@ export function convexMediaDeleteFull(c: Client, args: { id: string }) { if (!c)
 // ── Phase 5 — remaining SSR surfaces ──
 
 export async function shadowCategoryDetail(c: Client | null | undefined, slug: string) { if (!c) return null as any;
+  try {
+    const { d1CategoryDetail2 } = await import("@/lib/d1/queries2");
+    const d1 = await d1CategoryDetail2(slug);
+    if (d1 && "tools" in d1 && Array.isArray(d1.tools)) {
+      const logoMap = await getToolLogoMap(c);
+      return {
+        ...d1,
+        tools: d1.tools.map((t: any) => ({
+          ...t,
+          logoUrl: cleanLogoUrl((t as any).logoUrl, t.slug, logoMap),
+        })),
+      };
+    }
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.categories.detail, { slug }),
     getToolLogoMap(c),
@@ -553,6 +849,22 @@ export async function shadowCategoryDetail(c: Client | null | undefined, slug: s
 }
 
 export async function shadowHomepage(c: Client | null | undefined) { if (!c) return null as any;
+  try {
+    const { d1Homepage } = await import("@/lib/d1/queries");
+    const d1 = await d1Homepage();
+    if (d1) {
+      const logoMap = await getToolLogoMap(c);
+      return {
+        ...d1,
+        picks: d1.picks.map((p: any) => ({
+          ...p,
+          logoUrl: cleanLogoUrl(p.logoUrl, p.slug, logoMap),
+        })),
+      };
+    }
+  } catch {
+    // fall through to Convex
+  }
   const [res, logoMap] = await Promise.all([
     c.query(api.tools.homepage, {}),
     getToolLogoMap(c),
@@ -574,11 +886,18 @@ export function shadowSerp(
   return c.query(api.tools.serp, args);
 }
 
-export function shadowAdvertiseStats(c: Client) { if (!c) return null as any;
+export async function shadowAdvertiseStats(c: Client) { if (!c) return null as any;
+  try {
+    const { d1AdvertiseStats } = await import("@/lib/d1/content");
+    const d1 = await d1AdvertiseStats();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.seo.advertiseStats, {});
 }
 
-export function shadowMetaEntities(
+export async function shadowMetaEntities(
   c: Client,
   args: {
     toolSlug?: string;
@@ -589,40 +908,104 @@ export function shadowMetaEntities(
     compareB?: string;
   },
 ) {
+  try {
+    const { d1MetaEntities } = await import("@/lib/d1/content");
+    const d1 = await d1MetaEntities(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.seo.metaEntities, args);
 }
 
-export function shadowJournalList(c: Client, limit: number) { if (!c) return null as any;
+export async function shadowJournalList(c: Client, limit: number) { if (!c) return null as any;
+  try {
+    const { d1BlogList } = await import("@/lib/d1/content");
+    const d1 = await d1BlogList(limit, null);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.posts.list, { limit });
 }
 
 // ── Phase 4 step 7 — SEO reads + bridge-adjacent writes ──
 
-export function shadowSitemapData(c: Client) { if (!c) return null as any;
+export async function shadowSitemapData(c: Client) { if (!c) return null as any;
+  try {
+    const { d1SitemapData } = await import("@/lib/d1/queries2");
+    const d1 = await d1SitemapData();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.seo.sitemapData, {});
 }
 
-export function shadowRssPosts(c: Client, limit: number) { if (!c) return null as any;
+export async function shadowRssPosts(c: Client, limit: number) { if (!c) return null as any;
+  try {
+    const { d1RssPosts } = await import("@/lib/d1/content");
+    const d1 = await d1RssPosts(limit);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.seo.rssPosts, { limit });
 }
 
-export function shadowOgTool(c: Client, slug: string) { if (!c) return null as any;
+export async function shadowOgTool(c: Client, slug: string) { if (!c) return null as any;
+  try {
+    const { d1OgTool } = await import("@/lib/d1/content");
+    const d1 = await d1OgTool(slug);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.seo.ogTool, { slug });
 }
 
-export function shadowOgPost(c: Client, slug: string) { if (!c) return null as any;
+export async function shadowOgPost(c: Client, slug: string) { if (!c) return null as any;
+  try {
+    const { d1OgPost } = await import("@/lib/d1/content");
+    const d1 = await d1OgPost(slug);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.seo.ogPost, { slug });
 }
 
-export function shadowBlogDetail(c: Client, slug: string) { if (!c) return null as any;
+export async function shadowBlogDetail(c: Client, slug: string) { if (!c) return null as any;
+  try {
+    const { d1BlogDetail } = await import("@/lib/d1/content");
+    const d1 = await d1BlogDetail(slug);
+    if (d1 && !("error" in d1)) return d1;
+    if (d1 && "error" in d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.seo.blogDetail, { slug });
 }
 
-export function shadowBadgeTool(c: Client, slug: string) { if (!c) return null as any;
+export async function shadowBadgeTool(c: Client, slug: string) { if (!c) return null as any;
+  try {
+    const { d1BadgeTool } = await import("@/lib/d1/content");
+    const d1 = await d1BadgeTool(slug);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.seo.badgeTool, { slug });
 }
 
-export function convexPostBumpViews(c: Client, args: { slug: string }) { if (!c) return null as any;
+export async function convexPostBumpViews(c: Client, args: { slug: string }) { if (!c) return null as any;
+  try {
+    const { d1PostBumpViews } = await import("@/lib/d1/analytics");
+    const d1 = await d1PostBumpViews(args.slug);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.seo.postBumpViews, args);
 }
 
@@ -906,53 +1289,116 @@ export function convexSettingsPut(
   return c.mutation(api.adminCrud.settingsPut, args);
 }
 
-// ── Phase 4 step 5 — ads + analytics ──
+// ── Phase 4 step 5 — ads + analytics (D1-primary since migration wave 3) ──
 
-export function convexAdServe(
+export async function convexAdServe(
   c: Client,
   args: { placement: string; category?: string },
 ) {
+  try {
+    const { d1AdServe } = await import("@/lib/d1/analytics");
+    const d1 = await d1AdServe(args.placement, args.category);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.ads.serve, args);
 }
 
-export function convexAdClick(c: Client, args: { id: string }) { if (!c) return null as any;
+export async function convexAdClick(c: Client, args: { id: string }) { if (!c) return null as any;
+  try {
+    const { d1AdClick } = await import("@/lib/d1/analytics");
+    const d1 = await d1AdClick(args.id);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.ads.registerClick, args);
 }
 
-export function convexAdViewable(c: Client, args: { id: string }) { if (!c) return null as any;
+export async function convexAdViewable(c: Client, args: { id: string }) { if (!c) return null as any;
+  try {
+    const { d1AdViewable } = await import("@/lib/d1/analytics");
+    const d1 = await d1AdViewable(args.id);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.ads.recordViewable, args);
 }
 
-export function convexPageView(
+export async function convexPageView(
   c: Client,
   args: { path: string; day: string; nowMs: number },
 ) {
+  try {
+    const { d1RecordPageView } = await import("@/lib/d1/analytics");
+    const d1 = await d1RecordPageView(args.path, args.day, args.nowMs);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.ads.recordPageView, args);
 }
 
-export function shadowTrafficReadout(c: Client) { if (!c) return null as any;
+export async function shadowTrafficReadout(c: Client) { if (!c) return null as any;
+  try {
+    const { d1TrafficReadout } = await import("@/lib/d1/analytics");
+    const d1 = await d1TrafficReadout();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.ads.trafficReadout, {});
 }
 
-export function shadowPlacementMeasurement(c: Client) { if (!c) return null as any;
+export async function shadowPlacementMeasurement(c: Client) { if (!c) return null as any;
+  try {
+    const { d1PlacementMeasurement } = await import("@/lib/d1/analytics");
+    const d1 = await d1PlacementMeasurement();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.ads.placementMeasurement, {});
 }
 
 // ── Phase 4 step 4 — submit flow + editor console ──
 
-export function shadowSubmitCheck(c: Client, domain: string) { if (!c) return null as any;
+export async function shadowSubmitCheck(c: Client, domain: string) { if (!c) return null as any;
+  try {
+    const { d1SubmitCheck } = await import("@/lib/d1/community");
+    const d1 = await d1SubmitCheck(domain);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.submissions.checkDuplicate, { domain });
 }
 
-export function shadowSubmissionCountSince(
+export async function shadowSubmissionCountSince(
   c: Client,
   email: string,
   sinceMs: number,
 ) {
+  try {
+    const { d1SubmissionCountSince } = await import("@/lib/d1/community");
+    const d1 = await d1SubmissionCountSince(email, sinceMs);
+    if (d1 !== null) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.submissions.submissionCountSince, { email, sinceMs });
 }
 
-export function shadowSubmissionsByEmail(c: Client, email: string) { if (!c) return null as any;
+export async function shadowSubmissionsByEmail(c: Client, email: string) { if (!c) return null as any;
+  try {
+    const { d1SubmissionsByEmail } = await import("@/lib/d1/community");
+    const d1 = await d1SubmissionsByEmail(email);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.submissions.submissionsByEmail, { email });
 }
 
@@ -960,7 +1406,7 @@ export function shadowEditorQueue(c: Client) { if (!c) return null as any;
   return c.query(api.submissions.editorQueue, {});
 }
 
-export function convexSubmissionCreate(
+export async function convexSubmissionCreate(
   c: Client,
   args: {
     id: string;
@@ -987,6 +1433,13 @@ export function convexSubmissionCreate(
     createdAt: number;
   },
 ) {
+  try {
+    const { d1SubmissionCreate } = await import("@/lib/d1/community");
+    const d1 = await d1SubmissionCreate(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.submissions.submissionCreate, args);
 }
 
@@ -1035,7 +1488,7 @@ export function convexArbitrateReview(
 // The route generates id/timestamps ONCE and passes them to both stores.
 // Mutations trust route-enforced auth (see convex/community.ts header).
 
-export function convexCommentAdd(
+export async function convexCommentAdd(
   c: Client,
   args: {
     id: string;
@@ -1045,10 +1498,18 @@ export function convexCommentAdd(
     createdAt: number;
   },
 ) {
+  try {
+    const { d1CommentAdd } = await import("@/lib/d1/community");
+    const d1 = await d1CommentAdd(args);
+    if (d1) return d1;
+  } catch (e) {
+    // fall through to Convex unless D1 threw a domain error the route must see
+    if (e instanceof Error && (e.message === "tool_not_found")) throw e;
+  }
   return c.mutation(api.community.commentAdd, args);
 }
 
-export function convexReviewUpsert(
+export async function convexReviewUpsert(
   c: Client,
   args: {
     id: string;
@@ -1064,10 +1525,17 @@ export function convexReviewUpsert(
     updatedAt: number;
   },
 ) {
+  try {
+    const { d1ReviewUpsert } = await import("@/lib/d1/community");
+    const d1 = await d1ReviewUpsert(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "tool_not_found")) throw e;
+  }
   return c.mutation(api.community.reviewUpsert, args);
 }
 
-export function convexThreadCreate(
+export async function convexThreadCreate(
   c: Client,
   args: {
     id: string;
@@ -1081,10 +1549,17 @@ export function convexThreadCreate(
     updatedAt: number;
   },
 ) {
+  try {
+    const { d1ThreadCreate } = await import("@/lib/d1/community");
+    const d1 = await d1ThreadCreate(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "slug_taken")) throw e;
+  }
   return c.mutation(api.community.threadCreate, args);
 }
 
-export function convexReplyCreate(
+export async function convexReplyCreate(
   c: Client,
   args: {
     id: string;
@@ -1095,17 +1570,31 @@ export function convexReplyCreate(
     createdAt: number;
   },
 ) {
+  try {
+    const { d1ReplyCreate } = await import("@/lib/d1/community");
+    const d1 = await d1ReplyCreate(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "thread_not_found")) throw e;
+  }
   return c.mutation(api.community.replyCreate, args);
 }
 
-export function convexVoteToggle(
+export async function convexVoteToggle(
   c: Client,
   args: { threadSlug: string; voterKey: string },
 ) {
+  try {
+    const { d1VoteToggle } = await import("@/lib/d1/community");
+    const d1 = await d1VoteToggle(args.threadSlug, args.voterKey);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "thread_not_found")) throw e;
+  }
   return c.mutation(api.community.voteToggle, args);
 }
 
-export function convexBookmarkToggle(
+export async function convexBookmarkToggle(
   c: Client,
   args: {
     id: string;
@@ -1118,10 +1607,17 @@ export function convexBookmarkToggle(
     createdAt: number;
   },
 ) {
+  try {
+    const { d1BookmarkToggle } = await import("@/lib/d1/community");
+    const d1 = await d1BookmarkToggle(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.community.bookmarkToggle, args);
 }
 
-export function convexFollowToggle(
+export async function convexFollowToggle(
   c: Client,
   args: {
     userEmail: string;
@@ -1130,10 +1626,17 @@ export function convexFollowToggle(
     targetLabel: string;
   },
 ) {
+  try {
+    const { d1FollowToggle } = await import("@/lib/d1/community");
+    const d1 = await d1FollowToggle(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.community.followToggle, args);
 }
 
-export function convexCollectionCreate(
+export async function convexCollectionCreate(
   c: Client,
   args: {
     id: string;
@@ -1146,10 +1649,17 @@ export function convexCollectionCreate(
     createdAt: number;
   },
 ) {
+  try {
+    const { d1CollectionCreate } = await import("@/lib/d1/community");
+    const d1 = await d1CollectionCreate(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.community.collectionCreate, args);
 }
 
-export function convexCollectionUpdate(
+export async function convexCollectionUpdate(
   c: Client,
   args: {
     slug: string;
@@ -1158,14 +1668,28 @@ export function convexCollectionUpdate(
     isPublic?: boolean;
   },
 ) {
+  try {
+    const { d1CollectionUpdate } = await import("@/lib/d1/community");
+    const d1 = await d1CollectionUpdate(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "not_found")) throw e;
+  }
   return c.mutation(api.community.collectionUpdate, args);
 }
 
-export function convexCollectionDelete(c: Client, args: { slug: string }) { if (!c) return null as any;
+export async function convexCollectionDelete(c: Client, args: { slug: string }) { if (!c) return null as any;
+  try {
+    const { d1CollectionDelete } = await import("@/lib/d1/community");
+    const d1 = await d1CollectionDelete(args.slug);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "not_found")) throw e;
+  }
   return c.mutation(api.community.collectionDelete, args);
 }
 
-export function convexCollectionItemToggle(
+export async function convexCollectionItemToggle(
   c: Client,
   args: {
     id: string;
@@ -1174,10 +1698,17 @@ export function convexCollectionItemToggle(
     createdAt: number;
   },
 ) {
+  try {
+    const { d1CollectionItemToggle } = await import("@/lib/d1/community");
+    const d1 = await d1CollectionItemToggle(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && (e.message === "not_found" || e.message === "tool_not_found")) throw e;
+  }
   return c.mutation(api.community.collectionItemToggle, args);
 }
 
-export function convexReportCreate(
+export async function convexReportCreate(
   c: Client,
   args: {
     id: string;
@@ -1190,13 +1721,27 @@ export function convexReportCreate(
     createdAt: number;
   },
 ) {
+  try {
+    const { d1ReportCreate } = await import("@/lib/d1/community");
+    const d1 = await d1ReportCreate(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.community.reportCreate, args);
 }
 
-export function convexCompareBump(
+export async function convexCompareBump(
   c: Client,
   args: { aSlug: string; bSlug: string },
 ) {
+  try {
+    const { d1CompareBump } = await import("@/lib/d1/analytics");
+    const d1 = await d1CompareBump(args.aSlug, args.bSlug);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.community.compareBump, args);
 }
 

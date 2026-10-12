@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { shadowSearch } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
+import { dataBackendLabel } from "@/lib/d1/client";
 
 export const dynamic = "force-dynamic";
 
@@ -57,11 +58,14 @@ export async function GET(req: Request) {
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim().slice(0, 64);
 
   try {
-    const payload = await shadowSearch(createServerConvexClient()!, q);
+    const [payload, backend] = await Promise.all([
+      shadowSearch(createServerConvexClient()!, q),
+      dataBackendLabel(),
+    ]);
     return NextResponse.json(payload, {
       headers: {
         "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-        "x-data-backend": "convex",
+        "x-data-backend": backend,
       },
     });
   } catch (err) {

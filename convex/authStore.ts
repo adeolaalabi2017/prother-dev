@@ -59,13 +59,37 @@ function serializeUser(u: {
   };
 }
 
+async function getUserByLegacyOrConvexId(
+  ctx: { db: any },
+  id: string,
+) {
+  const byAuth = await ctx.db
+    .query("users")
+    .withIndex("by_external_auth", (q: any) => q.eq("externalAuthId", id))
+    .first();
+  if (byAuth) return byAuth;
+
+  const byEmail = await ctx.db
+    .query("users")
+    .withIndex("by_email", (q: any) => q.eq("email", id))
+    .first();
+  if (byEmail) return byEmail;
+
+  try {
+    const byId = await ctx.db.get(id as any);
+    if (byId && (byId as any).createdAt) return byId;
+  } catch {
+    // Ignore invalid Convex ID string formats
+  }
+  return null;
+}
+
 // ── Users ────────────────────────────────────────────────────────────────
 
 export const authUserById = query({
   args: { id: v.string() },
   handler: async (ctx, { id }) => {
-    const users = await ctx.db.query("users").collect();
-    const u = users.find((x) => docId(x) === id);
+    const u = await getUserByLegacyOrConvexId(ctx, id);
     return u ? serializeUser(u) : null;
   },
 });
@@ -73,8 +97,10 @@ export const authUserById = query({
 export const authUserByEmail = query({
   args: { email: v.string() },
   handler: async (ctx, { email }) => {
-    const users = await ctx.db.query("users").collect();
-    const u = users.find((x) => x.email === email);
+    const u = await ctx.db
+      .query("users")
+      .withIndex("by_email", (i) => i.eq("email", email))
+      .first();
     return u ? serializeUser(u) : null;
   },
 });
@@ -87,11 +113,9 @@ export const authUserByAccount = query({
       .withIndex("by_provider_account", (i) =>
         i.eq("provider", a.provider).eq("providerAccountId", a.providerAccountId),
       )
-      .collect();
-    const linked = accounts[0];
-    if (!linked) return null;
-    const users = await ctx.db.query("users").collect();
-    const u = users.find((x) => docId(x) === linked.userLegacyId);
+      .first();
+    if (!accounts) return null;
+    const u = await getUserByLegacyOrConvexId(ctx, accounts.userLegacyId);
     return u ? serializeUser(u) : null;
   },
 });
@@ -101,7 +125,7 @@ export const authUserByAccount = query({
 export const authHandlesTaken = query({
   args: {},
   handler: async (ctx) => {
-    const users = await ctx.db.query("users").collect();
+    const users = await ctx.db.query("users").take(500);
     return users.map((u) => u.handle).filter((h): h is string => !!h);
   },
 });
@@ -110,11 +134,10 @@ export const authHandlesTaken = query({
 export const authUserByHandle = query({
   args: { handle: v.string() },
   handler: async (ctx, { handle }) => {
-    const users = await ctx.db
+    const u = await ctx.db
       .query("users")
       .withIndex("by_handle", (i) => i.eq("handle", handle))
-      .collect();
-    const u = users[0];
+      .first();
     return u ? serializeUser(u) : null;
   },
 });
@@ -158,8 +181,7 @@ export const authUserPatch = mutation({
     coverImage: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, a) => {
-    const users = await ctx.db.query("users").collect();
-    const u = users.find((x) => docId(x) === a.id);
+    const u = await getUserByLegacyOrConvexId(ctx, a.id);
     if (!u) throw new Error("user_not_found");
     const patch: Record<string, unknown> = {};
     // Whitelisted columns only (mirrors the SQLite adapter).
@@ -175,7 +197,7 @@ export const authUserPatch = mutation({
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(u._id, patch as never);
     }
-    return serializeUser((await ctx.db.get(u._id))!);
+    return serializeUser((await ctx.db.get(u._id as any)) as any);
   },
 });
 
@@ -238,14 +260,12 @@ export const authSessionCreate = mutation({
 export const authSessionAndUser = query({
   args: { sessionToken: v.string() },
   handler: async (ctx, { sessionToken }) => {
-    const sessions = await ctx.db
+    const s = await ctx.db
       .query("authSessions")
       .withIndex("by_token", (i) => i.eq("sessionToken", sessionToken))
-      .collect();
-    const s = sessions[0];
+      .first();
     if (!s) return null;
-    const users = await ctx.db.query("users").collect();
-    const u = users.find((x) => docId(x) === s.userLegacyId);
+    const u = await getUserByLegacyOrConvexId(ctx, s.userLegacyId);
     if (!u) return null;
     return {
       session: {
@@ -261,11 +281,10 @@ export const authSessionAndUser = query({
 export const authSessionPatch = mutation({
   args: { sessionToken: v.string(), expires: v.number() },
   handler: async (ctx, a) => {
-    const sessions = await ctx.db
+    const s = await ctx.db
       .query("authSessions")
       .withIndex("by_token", (i) => i.eq("sessionToken", a.sessionToken))
-      .collect();
-    const s = sessions[0];
+      .first();
     if (!s) return null;
     await ctx.db.patch(s._id, { expires: a.expires });
     return {
@@ -279,11 +298,10 @@ export const authSessionPatch = mutation({
 export const authSessionDelete = mutation({
   args: { sessionToken: v.string() },
   handler: async (ctx, { sessionToken }) => {
-    const sessions = await ctx.db
+    const s = await ctx.db
       .query("authSessions")
       .withIndex("by_token", (i) => i.eq("sessionToken", sessionToken))
-      .collect();
-    const s = sessions[0];
+      .first();
     if (s) await ctx.db.delete(s._id);
     return { ok: true as const };
   },
@@ -328,13 +346,12 @@ export const authVerificationTokenCreate = mutation({
 export const authVerificationTokenConsume = mutation({
   args: { identifier: v.string(), token: v.string() },
   handler: async (ctx, a) => {
-    const rows = await ctx.db
+    const row = await ctx.db
       .query("authVerificationTokens")
       .withIndex("by_identifier_token", (i) =>
         i.eq("identifier", a.identifier).eq("token", a.token),
       )
-      .collect();
-    const row = rows[0];
+      .first();
     if (!row) return null;
     await ctx.db.delete(row._id);
     return {
@@ -351,20 +368,26 @@ export const authVerificationTokenConsume = mutation({
 export const authUserDeleteFull = mutation({
   args: { id: v.string() },
   handler: async (ctx, { id }) => {
-    const users = await ctx.db.query("users").collect();
-    const u = users.find((x) => docId(x) === id || x.email === id);
+    const u = await getUserByLegacyOrConvexId(ctx, id);
     if (!u) throw new Error("user_not_found");
     const uid = docId(u);
-    const [accounts, sessions, tokens] = await Promise.all([
-      ctx.db.query("authAccounts").collect(),
-      ctx.db.query("authSessions").collect(),
-      ctx.db.query("authVerificationTokens").collect(),
+    const [ownedAccounts, ownedSessions] = await Promise.all([
+      ctx.db
+        .query("authAccounts")
+        .withIndex("by_user", (i) => i.eq("userLegacyId", uid))
+        .collect(),
+      ctx.db
+        .query("authSessions")
+        .withIndex("by_user", (i) => i.eq("userLegacyId", uid))
+        .collect(),
     ]);
-    const ownedSessions = sessions.filter((s) => s.userLegacyId === uid);
-    const ownedTokens = tokens.filter(
-      (t) => u.email != null && t.identifier === u.email,
-    );
-    const ownedAccounts = accounts.filter((r) => r.userLegacyId === uid);
+    const ownedTokens = u.email
+      ? await ctx.db
+          .query("authVerificationTokens")
+          .withIndex("by_identifier_token", (i) => i.eq("identifier", u.email!))
+          .collect()
+      : [];
+
     await Promise.all([
       ...ownedAccounts.map((r) => ctx.db.delete(r._id)),
       ...ownedSessions.map((s) => ctx.db.delete(s._id)),

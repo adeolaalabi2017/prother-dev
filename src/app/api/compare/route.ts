@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { ReviewAggregate } from "@/lib/community";
 import { convexCompareBump, shadowCompareView } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
+import { dataBackendLabel } from "@/lib/d1/client";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export type CompareRow = {
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const client = createServerConvexClient()!;
+  const backend = await dataBackendLabel();
 
   try {
     if (sp.get("popular")) {
@@ -53,7 +55,7 @@ export async function GET(req: Request) {
         {
           headers: {
             "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-            "x-data-backend": "convex",
+            "x-data-backend": backend,
           },
         },
       );
@@ -63,14 +65,14 @@ export async function GET(req: Request) {
     if (!a || !b) {
       return NextResponse.json(
         { error: "a_and_b_required" },
-        { status: 400, headers: { "x-data-backend": "convex" } },
+        { status: 400, headers: { "x-data-backend": backend } },
       );
     }
     const res = await shadowCompareView(client, a, b, 5);
     if ("error" in res) {
       return NextResponse.json(res, {
         status: 404,
-        headers: { "x-data-backend": "convex" },
+        headers: { "x-data-backend": backend },
       });
     }
     const [left, right] =
@@ -90,7 +92,7 @@ export async function GET(req: Request) {
     return NextResponse.json(res, {
       headers: {
         "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
-        "x-data-backend": "convex",
+        "x-data-backend": backend,
       },
     });
   } catch (err) {

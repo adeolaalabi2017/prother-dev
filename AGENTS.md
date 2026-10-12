@@ -46,6 +46,19 @@ Before completing any task that adds or edits a tool:
 - Convex is the ONLY data store for the app (Phase B, 2026-10-07). The legacy Prisma/SQLite store (`db/custom.db`) is archived outside the repo; do not dual-write or read it.
 - Any mutations, tool additions, or metadata updates apply to Convex only.
 
+---
+
+## 4. Convex Query Performance & Database Read I/O Invariants
+
+- **NO Unindexed Full Table Scans**:
+  - Never call `ctx.db.query("table").collect()` without index bounds (`.withIndex(...)`) or strict slice limits (`.take(N)`).
+  - Every query function handling user lookup, session verification, ad rotation, or SEO metadata must execute against defined indexes to prevent Database Read I/O spikes.
+- **Index Alignment**:
+  - `users`: Look up by `by_email`, `by_external_auth`, `by_handle`, or `ctx.db.get()`.
+  - `authSessions`: Look up by `by_token` or `by_user`.
+  - `adCampaigns` / `adServeStats`: Filter by `by_placement_status` and `by_placement_day`.
+  - `tools`: Query using `by_status_category` or `by_slug`.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

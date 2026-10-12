@@ -17,28 +17,38 @@ export const list = query({
     voterKey: v.optional(v.string()),
   },
   handler: async (ctx, { topic, sort, voterKey }) => {
-    const [threads, replies, votes] = await Promise.all([
-      ctx.db.query("forumThreads").collect(),
-      ctx.db.query("forumReplies").collect(),
-      ctx.db.query("forumThreadVotes").collect(),
-    ]);
+    // I/O HOTFIX: was collect(all threads + all replies + all votes) per
+    // forum page. Now: index-scoped thread fetch (max 100) + denormalized
+    // replyCount/voteCount on the thread doc. Voted set resolved per-thread
+    // only when voterKey is present.
+    const threads =
+      topic === "all"
+        ? await ctx.db.query("forumThreads").withIndex("by_created").take(100)
+        : await ctx.db
+            .query("forumThreads")
+            .withIndex("by_topic_created", (i) => i.eq("topic", topic))
+            .take(100);
 
     const visible = threads.filter((t) => !t.hidden);
     const inTopic =
       topic === "all" ? visible : visible.filter((t) => t.topic === topic);
 
-    const replyCount = new Map<string, number>();
-    for (const r of replies) {
-      if (r.hidden) continue;
-      replyCount.set(r.threadId, (replyCount.get(r.threadId) ?? 0) + 1);
+    let votedSet = new Set<string>();
+    if (voterKey) {
+      const checks = await Promise.all(
+        inTopic.slice(0, 50).map((t) =>
+          ctx.db
+            .query("forumThreadVotes")
+            .withIndex("by_thread_voter", (i) =>
+              i.eq("threadId", t._id).eq("voterKey", voterKey),
+            )
+            .first(),
+        ),
+      );
+      checks.forEach((row, idx) => {
+        if (row) votedSet.add(inTopic[idx]!._id);
+      });
     }
-    const voteCount = new Map<string, number>();
-    for (const vt of votes) {
-      voteCount.set(vt.threadId, (voteCount.get(vt.threadId) ?? 0) + 1);
-    }
-    const votedSet = new Set(
-      voterKey ? votes.filter((vt) => vt.voterKey === voterKey).map((vt) => vt.threadId) : [],
-    );
 
     const rows = inTopic.map((t) => ({
       // Row id is the Prisma cuid (legacyId) — matches ForumThreadRow.id.
@@ -49,9 +59,9 @@ export const list = query({
       topic: asForumTopic(t.topic),
       author: t.author,
       pinned: t.pinned,
-      votes: t.baseUpvotes + (voteCount.get(t._id) ?? 0),
+      votes: t.baseUpvotes + (t.voteCount ?? 0),
       voted: votedSet.has(t._id),
-      replyCount: replyCount.get(t._id) ?? 0,
+      replyCount: t.replyCount ?? 0,
       createdAt: isoFromMs(t.createdAt),
       // Rowid proxy for full-tie order parity (stripped before return).
       _c: t._creationTime,

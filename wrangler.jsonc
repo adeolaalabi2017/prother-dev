@@ -18,8 +18,21 @@
     "AUTH_STORE": "convex",
     "AUTH_DEV_LINKS": "false",
     "NEXT_PUBLIC_SITE_URL": "https://prother.dev"
-  }
-  // Optional (later): KV/R2 bindings for durable ISR caching.
-  // No database binding is needed — all data lives in Convex (see DEPLOY.md).
-  // "kv_namespaces": [{ "binding": "NEXT_INC_CACHE_KV", "id": "<id>" }]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "prother",
+      "database_id": "ab47ba10-6e7e-4d73-a1ef-dfee0a6e4147"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "c5e5112657dd4d6594d0c25b1279fe65"
+    }
+  ]
+  // R2 pending: enable R2 in dashboard (billing required), then add:
+  // "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "prother-media" }]
+  // KV durable ISR cache: wire kvIncrementalCache in open-next.config.ts later.
 }

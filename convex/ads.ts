@@ -117,10 +117,17 @@ async function servingEnabled(
   ctx: MutCtx,
   placement: string,
 ): Promise<boolean> {
-  const rows = await ctx.db.query("siteSettings").collect();
-  const map = new Map(rows.map((r) => [r.key, r.value]));
-  if (map.get("ads.master") === "0") return false;
-  return map.get(`ads.placement.${placement}`) !== "0";
+  const master = await ctx.db
+    .query("siteSettings")
+    .withIndex("by_key", (q) => q.eq("key", "ads.master"))
+    .first();
+  if (master?.value === "0") return false;
+
+  const slot = await ctx.db
+    .query("siteSettings")
+    .withIndex("by_key", (q) => q.eq("key", `ads.placement.${placement}`))
+    .first();
+  return slot?.value !== "0";
 }
 
 async function recordFill(
@@ -130,13 +137,12 @@ async function recordFill(
   nowMs: number,
 ): Promise<void> {
   const day = utcDay(nowMs);
-  const rows = await ctx.db
+  const row = await ctx.db
     .query("adServeStats")
     .withIndex("by_placement_day", (q) =>
       q.eq("placement", placement).eq("day", day),
     )
-    .collect();
-  const row = rows[0];
+    .first();
   if (!row) {
     await ctx.db.insert("adServeStats", {
       placement,
@@ -212,8 +218,16 @@ export const serve = mutation({
 export const registerClick = mutation({
   args: { id: v.string() },
   handler: async (ctx, { id }) => {
-    const all = await ctx.db.query("adCampaigns").collect();
-    const c = all.find((x) => docId(x) === id);
+    let c: any = null;
+    try {
+      c = await ctx.db.get(id as any);
+    } catch {
+      // Fallback lookup
+    }
+    if (!c) {
+      const active = await ctx.db.query("adCampaigns").take(100);
+      c = active.find((x) => docId(x) === id);
+    }
     if (!c) return { clickUrl: null };
     await ctx.db.patch(c._id, { clicks: c.clicks + 1 });
     return { clickUrl: c.clickUrl };
@@ -224,8 +238,16 @@ export const registerClick = mutation({
 export const recordViewable = mutation({
   args: { id: v.string() },
   handler: async (ctx, { id }) => {
-    const all = await ctx.db.query("adCampaigns").collect();
-    const c = all.find((x) => docId(x) === id);
+    let c: any = null;
+    try {
+      c = await ctx.db.get(id as any);
+    } catch {
+      // Fallback lookup
+    }
+    if (!c) {
+      const active = await ctx.db.query("adCampaigns").take(100);
+      c = active.find((x) => docId(x) === id);
+    }
     if (!c) return { ok: true as const };
     await ctx.db.patch(c._id, {
       viewableImpressions: (c.viewableImpressions ?? 0) + 1,
@@ -238,11 +260,10 @@ export const recordViewable = mutation({
 export const recordPageView = mutation({
   args: { path: v.string(), day: v.string(), nowMs: v.number() },
   handler: async (ctx, { path, day, nowMs }) => {
-    const rows = await ctx.db
+    const row = await ctx.db
       .query("pageViewDaily")
       .withIndex("by_path_day", (i) => i.eq("path", path).eq("day", day))
-      .collect();
-    const row = rows[0];
+      .first();
     if (!row) {
       await ctx.db.insert("pageViewDaily", {
         path,
@@ -268,9 +289,17 @@ export const trafficReadout = query({
         new Date(todayMs - i * 86_400_000).toISOString().slice(0, 10),
       );
     }
-    const rows = (await ctx.db.query("pageViewDaily").collect()).filter(
-      (r) => r.day >= days[0],
+    // I/O HOTFIX: was collect(all pageViewDaily) + JS filter. Query per-day
+    // via by_day index (14 small range reads) to avoid full-table bandwidth.
+    const perDay = await Promise.all(
+      days.map((day) =>
+        ctx.db
+          .query("pageViewDaily")
+          .withIndex("by_day", (i) => i.eq("day", day))
+          .collect(),
+      ),
     );
+    const rows = perDay.flat();
     const byDay = new Map<string, number>();
     const byPath = new Map<string, number>();
     for (const r of rows) {
@@ -304,9 +333,25 @@ export const placementMeasurement = query({
         new Date(todayMs - i * 86_400_000).toISOString().slice(0, 10),
       );
     }
-    const rows = (await ctx.db.query("adServeStats").collect()).filter(
-      (r) => r.day >= days[0]! && r.day <= days[days.length - 1]!,
+    // I/O HOTFIX: was collect(all adServeStats) + JS filter. Fan out
+    // placement x day via by_placement_day index (28 point reads).
+    const first = days[0]!;
+    const last = days[days.length - 1]!;
+    void first;
+    void last;
+    const chunks = await Promise.all(
+      placements.flatMap((p) =>
+        days.map((d) =>
+          ctx.db
+            .query("adServeStats")
+            .withIndex("by_placement_day", (i) =>
+              i.eq("placement", p).eq("day", d),
+            )
+            .first(),
+        ),
+      ),
     );
+    const rows = chunks.filter((r): r is NonNullable<typeof r> => r != null);
     const rate = (served: number, house: number, unfilled: number) => {
       const requested = served + house + unfilled;
       return requested > 0

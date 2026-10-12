@@ -45,11 +45,12 @@ export const matrix = query({
       .unique();
     if (!category) return { error: "category_not_found" as const };
 
-    const live = await ctx.db
+    const inCategory = await ctx.db
       .query("tools")
-      .withIndex("by_status_category", (i) => i.eq("status", "live"))
+      .withIndex("by_status_category", (i) =>
+        i.eq("status", "live").eq("categoryId", category._id),
+      )
       .collect();
-    const inCategory = live.filter((t) => t.categoryId === category._id);
 
     const options = [...inCategory]
       .sort(
@@ -78,34 +79,38 @@ export const matrix = query({
     const bySlug = new Map(inCategory.map((t) => [t.slug, t]));
     const ordered = wanted
       .map((s) => bySlug.get(s))
-      .filter((t) => t != null);
+      .filter((t): t is typeof inCategory[number] => t != null);
 
-    const reviews = await ctx.db.query("reviews").collect();
-    const tools = ordered.map((t) => {
-      const published = reviews
-        .filter((r) => r.toolId === t!._id && r.status === "published")
-        .map((r) => ({ ease: r.ease, power: r.power, value: r.value }));
-      const stats = reviewAggregate(published);
-      return {
-        slug: t!.slug,
-        name: t!.name,
-        emoji: t!.logoEmoji,
-        gradient: t!.logoGradient,
-        tagline: t!.tagline,
-        websiteUrl: t!.websiteUrl,
-        pricing: {
-          model: t!.pricingModel,
-          price: t!.startingPrice ?? null,
-          note: t!.pricingNote ?? null,
-        },
-        hasApi: t!.hasApi,
-        openSource: t!.pricingModel === "open_source",
-        tags: t!.tags.slice(0, 5),
-        rating: stats.aggregate,
-        reviewCount: stats.count,
-        features: t!.features,
-      };
-    });
+    const tools = await Promise.all(
+      ordered.map(async (t) => {
+        const published = await ctx.db
+          .query("reviews")
+          .withIndex("by_tool_status", (i) =>
+            i.eq("toolId", t._id).eq("status", "published"),
+          )
+          .collect();
+        const stats = reviewAggregate(published);
+        return {
+          slug: t.slug,
+          name: t.name,
+          emoji: t.logoEmoji,
+          gradient: t.logoGradient,
+          tagline: t.tagline,
+          websiteUrl: t.websiteUrl,
+          pricing: {
+            model: t.pricingModel,
+            price: t.startingPrice ?? null,
+            note: t.pricingNote ?? null,
+          },
+          hasApi: t.hasApi,
+          openSource: t.pricingModel === "open_source",
+          tags: t.tags.slice(0, 5),
+          rating: stats.aggregate,
+          reviewCount: stats.count,
+          features: t.features,
+        };
+      }),
+    );
 
     return {
       category: {

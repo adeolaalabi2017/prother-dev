@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { shadowSite } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
+import { dataBackendLabel } from "@/lib/d1/client";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +12,14 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   try {
-    const payload = await shadowSite(createServerConvexClient()!);
+    const [payload, backend] = await Promise.all([
+      shadowSite(createServerConvexClient()!),
+      dataBackendLabel(),
+    ]);
     return NextResponse.json(payload, {
       headers: {
         "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-        "x-data-backend": "convex",
+        "x-data-backend": backend,
       },
     });
   } catch {

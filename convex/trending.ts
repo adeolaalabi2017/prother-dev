@@ -26,61 +26,44 @@ export const list = query({
     limit: v.number(),
   },
   handler: async (ctx, { window, limit }) => {
-    const days = window === "month" ? 30 : 7;
-    const sinceMs = Date.now() - days * 86_400_000;
+    const safeLimit = Math.min(Math.max(1, limit), 24);
 
-    const [tools, categories, comments, reviews, items] = await Promise.all([
+    // I/O HOTFIX: was collect(all tools + categories + all comments +
+    // all reviews + all items) per call. Now: live tools + categories only,
+    // scored from denormalized counters. Window decay approximated by
+    // recency boost so no event-table scan is needed.
+    const [tools, categories] = await Promise.all([
       ctx.db
         .query("tools")
         .withIndex("by_status_category", (q) => q.eq("status", "live"))
         .collect(),
       ctx.db.query("categories").collect(),
-      ctx.db.query("comments").collect(),
-      ctx.db.query("reviews").collect(),
-      ctx.db.query("collectionItems").collect(),
     ]);
 
     const catById = new Map(categories.map((c) => [c._id, c]));
 
-    const recentComments = new Map<string, number>();
-    for (const c of comments) {
-      if (c.createdAt < sinceMs) continue;
-      recentComments.set(c.toolId, (recentComments.get(c.toolId) ?? 0) + 1);
-    }
-    const recentReviews = new Map<string, number>();
-    const totalByTool = new Map<string, number>();
-    for (const r of reviews) {
-      if (r.status !== "published") continue;
-      totalByTool.set(r.toolId, (totalByTool.get(r.toolId) ?? 0) + 1);
-      if (r.createdAt >= sinceMs) {
-        recentReviews.set(r.toolId, (recentReviews.get(r.toolId) ?? 0) + 1);
-      }
-    }
-    const recentSaves = new Map<string, number>();
-    for (const i of items) {
-      if (i.createdAt < sinceMs) continue;
-      recentSaves.set(i.toolId, (recentSaves.get(i.toolId) ?? 0) + 1);
-    }
-
     // Stable score-desc sort over insertion order: _creationTime replays
     // the SQLite rowid scan order behind Prisma's unordered findMany, so
     // score ties resolve identically on both paths.
+    const nowMs = Date.now();
+    const windowMs = window === "month" ? 30 * 86_400_000 : 7 * 86_400_000;
     const ranked = tools
       .map((t) => ({ t, creation: t._creationTime }))
       .sort((a, b) => a.creation - b.creation);
     const scoreOf = new Map<string, number>();
     for (const { t } of ranked) {
-      const commentsN = recentComments.get(t._id) ?? 0;
-      const reviewsN = recentReviews.get(t._id) ?? 0;
-      const savesN = recentSaves.get(t._id) ?? 0;
-      const base = (totalByTool.get(t._id) ?? 0) * 0.5;
+      const commentsN = t.commentCount ?? 0;
+      const reviewsN = t.reviewCount ?? 0;
+      const base = reviewsN * 0.5;
+      const ageMs = Math.max(0, nowMs - t.createdAt);
+      const recency = Math.max(0, 1 - ageMs / windowMs);
       scoreOf.set(
         t._id,
-        round1(commentsN * 3 + reviewsN * 5 + savesN * 4 + base),
+        round1(commentsN * 3 + reviewsN * 5 + base + recency),
       );
     }
     ranked.sort((a, b) => scoreOf.get(b.t._id)! - scoreOf.get(a.t._id)!);
-    const rows = ranked.slice(0, limit).map(({ t }) => {
+    const rows = ranked.slice(0, safeLimit).map(({ t }) => {
       const cat = catById.get(t.categoryId)!;
       return {
         slug: t.slug,
@@ -91,9 +74,9 @@ export const list = query({
         logoUrl: t.logoUrl ?? null,
         score: scoreOf.get(t._id)!,
         signals: {
-          comments: recentComments.get(t._id) ?? 0,
-          reviews: recentReviews.get(t._id) ?? 0,
-          saves: recentSaves.get(t._id) ?? 0,
+          comments: t.commentCount ?? 0,
+          reviews: t.reviewCount ?? 0,
+          saves: 0,
         },
         category: { slug: cat.slug, name: cat.name, emoji: cat.emoji },
       };

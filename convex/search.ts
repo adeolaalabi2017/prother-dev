@@ -15,15 +15,18 @@ import { matchTokens, relevanceScore, tokenize } from "./shared";
 export const search = query({
   args: { q: v.string() },
   handler: async (ctx, { q }) => {
-    const [categories, allTools, posts] = await Promise.all([
+    const [categories, liveTools, posts] = await Promise.all([
       ctx.db.query("categories").collect(),
-      ctx.db.query("tools").collect(),
+      ctx.db
+        .query("tools")
+        .withIndex("by_status_category", (i) => i.eq("status", "live"))
+        .collect(),
       ctx.db
         .query("posts")
         .withIndex("by_status", (q) => q.eq("status", "published"))
         .collect(),
     ]);
-    const liveTools = allTools.filter((t) => t.status === "live");
+    const allTools = liveTools;
 
     const toolTotal = liveTools.length;
     const postTotal = posts.length;
