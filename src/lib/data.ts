@@ -1032,14 +1032,28 @@ export async function shadowAdminPosts(c: Client, status: string) { if (!c) retu
   }
   return c.query(api.adminCrud.postsTable, { status });
 }
-export function shadowAdminUsers(
+export async function shadowAdminUsers(
   c: Client,
   args: { q: string; status: string; role: string },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1AdminUsers } = await import("@/lib/d1/moderation");
+    const d1 = await d1AdminUsers(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.adminCrud.usersTable, args);
 }
 
-export function shadowAdminReports(c: Client, status: string) { if (!c) return null as any;
+export async function shadowAdminReports(c: Client, status: string) { if (!c) return null as any;
+  try {
+    const { d1AdminReports } = await import("@/lib/d1/moderation");
+    const d1 = await d1AdminReports(status);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.adminCrud.reportsTable, { status });
 }
 
@@ -1303,7 +1317,7 @@ export async function convexPostDelete(c: Client, args: { postLegacyId: string }
   return c.mutation(api.adminCrud.postDelete, args);
 }
 
-export function convexUserModerate(
+export async function convexUserModerate(
   c: Client,
   args: {
     userLegacyId: string;
@@ -1311,11 +1325,18 @@ export function convexUserModerate(
     status?: string;
     image?: string | null;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1UserModerate } = await import("@/lib/d1/moderation");
+    const d1 = await d1UserModerate(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   return c.mutation(api.adminCrud.userModerate, args);
 }
 
-export function convexReportResolve(
+export async function convexReportResolve(
   c: Client,
   args: {
     reportLegacyId: string;
@@ -1324,7 +1345,14 @@ export function convexReportResolve(
     hideTarget?: boolean;
     nowMs: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1ReportResolve } = await import("@/lib/d1/moderation");
+    const d1 = await d1ReportResolve(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   return c.mutation(api.adminCrud.reportResolve, args);
 }
 
