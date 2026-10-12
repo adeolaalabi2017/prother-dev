@@ -1746,31 +1746,71 @@ export async function convexCompareBump(
 }
 
 // ── Auth phase (option C): NextAuth store (see convex/authStore.ts) ──
+// Reads AND writes lead D1 together (src/lib/d1/auth.ts): the NextAuth
+// adapter resolves sessions per request cycle, so a split store would
+// randomly drop live sessions. Any D1 absence/failure falls back to the
+// Convex functions below; resync keeps the two convergent during the
+// dual-run window.
 
-export function convexAuthUserById(c: Client, id: string) { if (!c) return null as any;
+export async function convexAuthUserById(c: Client, id: string) {
+  try {
+    const { d1AuthUserById } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthUserById(id);
+    if (d1 !== null) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.authStore.authUserById, { id });
 }
 
-export function convexAuthUserByEmail(c: Client, email: string) { if (!c) return null as any;
+export async function convexAuthUserByEmail(c: Client, email: string) { if (!c) return null as any;
+  try {
+    const { d1AuthUserByEmail } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthUserByEmail(email);
+    if (d1 !== null) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.authStore.authUserByEmail, { email });
 }
 
-export function convexAuthUserByAccount(
+export async function convexAuthUserByAccount(
   c: Client,
   args: { provider: string; providerAccountId: string },
 ) {
+  try {
+    const { d1AuthUserByAccount } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthUserByAccount(args.provider, args.providerAccountId);
+    if (d1 !== null) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.authStore.authUserByAccount, args);
 }
 
-export function convexAuthHandlesTaken(c: Client) { if (!c) return null as any;
+export async function convexAuthHandlesTaken(c: Client) { if (!c) return null as any;
+  try {
+    const { d1AuthHandlesTaken } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthHandlesTaken();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.authStore.authHandlesTaken, {});
 }
 
-export function convexAuthUserByHandle(c: Client, handle: string) { if (!c) return null as any;
+export async function convexAuthUserByHandle(c: Client, handle: string) { if (!c) return null as any;
+  try {
+    const { d1AuthUserByHandle } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthUserByHandle(handle);
+    if (d1 !== null) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.authStore.authUserByHandle, { handle });
 }
 
-export function convexAuthUserCreate(
+export async function convexAuthUserCreate(
   c: Client,
   args: {
     id: string;
@@ -1782,10 +1822,17 @@ export function convexAuthUserCreate(
     createdAt: number;
   },
 ) {
+  try {
+    const { d1AuthUserCreate } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthUserCreate(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.authStore.authUserCreate, args);
 }
 
-export function convexAuthUserPatch(
+export async function convexAuthUserPatch(
   c: Client,
   args: {
     id: string;
@@ -1798,10 +1845,18 @@ export function convexAuthUserPatch(
     coverImage?: string | null;
   },
 ) {
+  try {
+    const { d1AuthUserPatch } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthUserPatch(args);
+    if (d1) return d1;
+  } catch {
+    // Not found in D1 or any D1 failure → the legacy store owns this user;
+    // fall through so the patch lands where the identity actually lives.
+  }
   return c.mutation(api.authStore.authUserPatch, args as never);
 }
 
-export function convexAuthAccountLink(
+export async function convexAuthAccountLink(
   c: Client,
   args: {
     userLegacyId: string;
@@ -1817,45 +1872,101 @@ export function convexAuthAccountLink(
     sessionState?: string | null;
   },
 ) {
+  try {
+    const { d1AuthAccountLink } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthAccountLink(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.authStore.authAccountLink, args);
 }
 
-export function convexAuthSessionCreate(
+export async function convexAuthSessionCreate(
   c: Client,
   args: { sessionToken: string; userLegacyId: string; expires: number },
 ) {
+  try {
+    const { d1AuthSessionCreate } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthSessionCreate(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.authStore.authSessionCreate, args);
 }
 
-export function convexAuthSessionAndUser(c: Client, sessionToken: string) { if (!c) return null as any;
+export async function convexAuthSessionAndUser(c: Client, sessionToken: string) { if (!c) return null as any;
+  try {
+    const { d1AuthSessionAndUser } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthSessionAndUser(sessionToken);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.authStore.authSessionAndUser, { sessionToken });
 }
 
-export function convexAuthSessionPatch(
+export async function convexAuthSessionPatch(
   c: Client,
   args: { sessionToken: string; expires: number },
 ) {
+  try {
+    const { d1AuthSessionPatch } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthSessionPatch(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.authStore.authSessionPatch, args);
 }
 
-export function convexAuthSessionDelete(c: Client, sessionToken: string) { if (!c) return null as any;
+export async function convexAuthSessionDelete(c: Client, sessionToken: string) { if (!c) return null as any;
+  try {
+    const { d1AuthSessionDelete } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthSessionDelete(sessionToken);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.authStore.authSessionDelete, { sessionToken });
 }
 
-export function convexAuthSessionsDeleteByUser(c: Client, userLegacyId: string) { if (!c) return null as any;
+export async function convexAuthSessionsDeleteByUser(c: Client, userLegacyId: string) { if (!c) return null as any;
+  try {
+    const { d1AuthSessionsDeleteByUser } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthSessionsDeleteByUser(userLegacyId);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.authStore.authSessionsDeleteByUser, { userLegacyId });
 }
 
-export function convexAuthVerificationTokenCreate(
+export async function convexAuthVerificationTokenCreate(
   c: Client,
   args: { identifier: string; token: string; expires: number },
 ) {
+  try {
+    const { d1AuthVerificationTokenCreate } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthVerificationTokenCreate(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.authStore.authVerificationTokenCreate, args);
 }
 
-export function convexAuthVerificationTokenConsume(
+export async function convexAuthVerificationTokenConsume(
   c: Client,
   args: { identifier: string; token: string },
 ) {
+  try {
+    const { d1AuthVerificationTokenConsume } = await import("@/lib/d1/auth");
+    const d1 = await d1AuthVerificationTokenConsume(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.authStore.authVerificationTokenConsume, args);
 }
