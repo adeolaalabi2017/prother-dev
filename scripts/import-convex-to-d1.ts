@@ -111,8 +111,8 @@ insert(
 
 // site_settings (17)
 insert(
-  "site_settings", ["id","key","value","updated_at"],
-  load("siteSettings").map((d) => [sqlStr(d._id), txt(d.key), txt(d.value), d.updatedAt ? num(d.updatedAt) : "NULL"]),
+  "site_settings", ["id","key","value","updated_at","created_at"],
+  load("siteSettings").map((d) => [sqlStr(d._id), txt(d.key), txt(d.value), d.updatedAt ? num(d.updatedAt) : "NULL", num(d._creationTime ?? 0)]),
 );
 
 // users (1)

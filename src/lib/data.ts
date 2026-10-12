@@ -1011,14 +1011,27 @@ export async function convexPostBumpViews(c: Client, args: { slug: string }) { i
 
 // ── Phase 4 step 6 — admin console reads ──
 
-export function shadowAdminCategories(c: Client) { if (!c) return null as any;
+export async function shadowAdminCategories(c: Client) { if (!c) return null as any;
+  try {
+    const { d1AdminCategories } = await import("@/lib/d1/admin");
+    const d1 = await d1AdminCategories();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.adminCrud.categoriesTable, {});
 }
 
-export function shadowAdminPosts(c: Client, status: string) { if (!c) return null as any;
+export async function shadowAdminPosts(c: Client, status: string) { if (!c) return null as any;
+  try {
+    const { d1AdminPosts } = await import("@/lib/d1/admin");
+    const d1 = await d1AdminPosts(status);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.adminCrud.postsTable, { status });
 }
-
 export function shadowAdminUsers(
   c: Client,
   args: { q: string; status: string; role: string },
@@ -1030,11 +1043,25 @@ export function shadowAdminReports(c: Client, status: string) { if (!c) return n
   return c.query(api.adminCrud.reportsTable, { status });
 }
 
-export function shadowAdminAds(c: Client) { if (!c) return null as any;
+export async function shadowAdminAds(c: Client) { if (!c) return null as any;
+  try {
+    const { d1AdminAds } = await import("@/lib/d1/admin");
+    const d1 = await d1AdminAds();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.adminCrud.campaignsTable, {});
 }
 
-export function shadowAdminIntegrations(c: Client) { if (!c) return null as any;
+export async function shadowAdminIntegrations(c: Client) { if (!c) return null as any;
+  try {
+    const { d1AdminIntegrations } = await import("@/lib/d1/admin");
+    const d1 = await d1AdminIntegrations();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.adminCrud.integrationsTable, {});
 }
 
@@ -1042,16 +1069,37 @@ export function shadowAdminIntegrations(c: Client) { if (!c) return null as any;
  * Raw stored configJson for the sentinel merge (server-only — never sent
  * to clients; see convex/adminCrud.ts integrationRaw).
  */
-export function shadowAdminIntegrationRaw(c: Client, key: string) { if (!c) return null as any;
+export async function shadowAdminIntegrationRaw(c: Client, key: string) { if (!c) return null as any;
+  try {
+    const { d1AdminIntegrationRaw } = await import("@/lib/d1/admin");
+    const d1 = await d1AdminIntegrationRaw(key);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.adminCrud.integrationRaw, { key });
 }
 
-export function shadowAdminSettings(c: Client) { if (!c) return null as any;
+export async function shadowAdminSettings(c: Client) { if (!c) return null as any;
+  try {
+    const { d1AdminSettings } = await import("@/lib/d1/admin");
+    const d1 = await d1AdminSettings();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.adminCrud.settingsTable, {});
 }
 
 /** Bulk curate every listing — admin-key enforced route-side. */
-export function convexAdminMarkAllCurated(c: Client) { if (!c) return null as any;
+export async function convexAdminMarkAllCurated(c: Client) { if (!c) return null as any;
+  try {
+    const { d1MarkAllCurated } = await import("@/lib/d1/admin");
+    const d1 = await d1MarkAllCurated();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.admin.markAllCurated, {});
 }
 
@@ -1066,7 +1114,7 @@ export function convexAdminPurge(
 // ── Phase 4 step 6 — admin console writes (dual-write; editor-key enforced
 // route-side, ids/timestamps generated once route-side and shared) ──
 
-export function convexToolCreate(
+export async function convexToolCreate(
   c: Client,
   args: {
     id: string;
@@ -1100,11 +1148,20 @@ export function convexToolCreate(
     features?: Record<string, string>;
     createdAt: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1ToolCreate } = await import("@/lib/d1/admin");
+    const d1 = await d1ToolCreate(args);
+    if (d1) return d1;
+  } catch (e) {
+    // Constraint collisions are real: rethrow instead of re-applying the
+    // same write against Convex and hiding a genuine slug conflict.
+    if (e instanceof Error && (e.message === "slug_taken" || e.message === "category_not_found")) throw e;
+  }
   return c.mutation(api.adminCrud.toolCreate, args);
 }
 
-export function convexToolPatch(
+export async function convexToolPatch(
   c: Client,
   args: {
     toolLegacyId: string;
@@ -1122,17 +1179,34 @@ export function convexToolPatch(
     };
     nowMs: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1ToolPatch } = await import("@/lib/d1/admin");
+    // The route builds the ORM-shaped patch 1:1 onto these fields
+    // (tagsPipe/categoryLegacyId/verifiedAt converted caller-side), so the
+    // runtime shape matches the typed port even though data is wide here.
+    const d1 = await d1ToolPatch(args as unknown as Parameters<typeof d1ToolPatch>[0]);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   // The route's ORM-shaped patch maps 1:1 onto the mutation's data fields
   // (tagsPipe/categoryLegacyId/verifiedAt converted by the caller).
   return c.mutation(api.adminCrud.toolPatch, args as never);
 }
 
-export function convexToolRemove(c: Client, args: { toolLegacyId: string }) { if (!c) return null as any;
+export async function convexToolRemove(c: Client, args: { toolLegacyId: string }) { if (!c) return null as any;
+  try {
+    const { d1ToolRemove } = await import("@/lib/d1/admin");
+    const d1 = await d1ToolRemove(args.toolLegacyId);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   return c.mutation(api.adminCrud.toolRemove, args);
 }
 
-export function convexCategoryUpsert(
+export async function convexCategoryUpsert(
   c: Client,
   args: {
     legacyId: string;
@@ -1142,15 +1216,31 @@ export function convexCategoryUpsert(
     sortOrder?: number;
     featuresPipe?: string;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1CategoryUpsert } = await import("@/lib/d1/admin");
+    const d1 = await d1CategoryUpsert(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "slug_taken") throw e;
+  }
   return c.mutation(api.adminCrud.categoryUpsert, args);
 }
 
-export function convexCategoryDelete(c: Client, args: { legacyId: string }) { if (!c) return null as any;
+export async function convexCategoryDelete(c: Client, args: { legacyId: string }) { if (!c) return null as any;
+  try {
+    const { d1CategoryDelete } = await import("@/lib/d1/admin");
+    const d1 = await d1CategoryDelete(args.legacyId);
+    if (d1) return d1;
+  } catch (e) {
+    // has_tools:N is a content guard — both stores enforce it identically;
+    // rethrow rather than cascade into Convex.
+    if (e instanceof Error && (e.message === "not_found" || e.message.startsWith("has_tools:"))) throw e;
+  }
   return c.mutation(api.adminCrud.categoryDelete, args);
 }
 
-export function convexPostCreate(
+export async function convexPostCreate(
   c: Client,
   args: {
     id: string;
@@ -1173,22 +1263,43 @@ export function convexPostCreate(
     createdAt: number;
     updatedAt: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1PostCreate } = await import("@/lib/d1/admin");
+    const d1 = await d1PostCreate(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "slug_taken") throw e;
+  }
   return c.mutation(api.adminCrud.postCreate, args);
 }
 
-export function convexPostPatch(
+export async function convexPostPatch(
   c: Client,
   args: {
     postLegacyId: string;
     data: Record<string, unknown>;
     coverUrl?: string | null;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1PostPatch } = await import("@/lib/d1/admin");
+    const d1 = await d1PostPatch(args as unknown as Parameters<typeof d1PostPatch>[0]);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   return c.mutation(api.adminCrud.postPatch, args as never);
 }
 
-export function convexPostDelete(c: Client, args: { postLegacyId: string }) { if (!c) return null as any;
+export async function convexPostDelete(c: Client, args: { postLegacyId: string }) { if (!c) return null as any;
+  try {
+    const { d1PostDelete } = await import("@/lib/d1/admin");
+    const d1 = await d1PostDelete(args.postLegacyId);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   return c.mutation(api.adminCrud.postDelete, args);
 }
 
@@ -1217,7 +1328,7 @@ export function convexReportResolve(
   return c.mutation(api.adminCrud.reportResolve, args);
 }
 
-export function convexCampaignCreate(
+export async function convexCampaignCreate(
   c: Client,
   args: {
     id: string;
@@ -1239,29 +1350,50 @@ export function convexCampaignCreate(
     createdAt: number;
     updatedAt: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1CampaignCreate } = await import("@/lib/d1/admin");
+    const d1 = await d1CampaignCreate(args);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.adminCrud.campaignCreate, args);
 }
 
-export function convexCampaignPatch(
+export async function convexCampaignPatch(
   c: Client,
   args: {
     campaignLegacyId: string;
     patch: Record<string, unknown>;
     nowMs: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1CampaignPatch } = await import("@/lib/d1/admin");
+    const d1 = await d1CampaignPatch(args as unknown as Parameters<typeof d1CampaignPatch>[0]);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   return c.mutation(api.adminCrud.campaignPatch, args as never);
 }
 
-export function convexCampaignDelete(
+export async function convexCampaignDelete(
   c: Client,
   args: { campaignLegacyId: string },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1CampaignDelete } = await import("@/lib/d1/admin");
+    const d1 = await d1CampaignDelete(args.campaignLegacyId);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   return c.mutation(api.adminCrud.campaignDelete, args);
 }
 
-export function convexIntegrationUpsert(
+export async function convexIntegrationUpsert(
   c: Client,
   args: {
     legacyId: string;
@@ -1274,18 +1406,39 @@ export function convexIntegrationUpsert(
     createdAt: number;
     updatedAt: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1IntegrationUpsert } = await import("@/lib/d1/admin");
+    const d1 = await d1IntegrationUpsert(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("key must be 2-41 chars")) throw e;
+  }
   return c.mutation(api.adminCrud.integrationUpsert, args);
 }
 
-export function convexIntegrationDelete(c: Client, args: { key: string }) { if (!c) return null as any;
+export async function convexIntegrationDelete(c: Client, args: { key: string }) { if (!c) return null as any;
+  try {
+    const { d1IntegrationDelete } = await import("@/lib/d1/admin");
+    const d1 = await d1IntegrationDelete(args.key);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
   return c.mutation(api.adminCrud.integrationDelete, args);
 }
 
-export function convexSettingsPut(
+export async function convexSettingsPut(
   c: Client,
   args: { entries: { key: string; value: string }[] },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1SettingsPut } = await import("@/lib/d1/admin");
+    const d1 = await d1SettingsPut(args.entries);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.mutation(api.adminCrud.settingsPut, args);
 }
 

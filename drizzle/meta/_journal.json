@@ -8,6 +8,13 @@
       "when": 1791578927528,
       "tag": "0000_legal_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791834869701,
+      "tag": "0001_little_clea",
+      "breakpoints": true
     }
   ]
 }

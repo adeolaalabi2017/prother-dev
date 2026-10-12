@@ -42,7 +42,7 @@ const CPM_CENTS = 10;
 
 type Campaign = typeof adCampaigns.$inferSelect;
 
-function mapCampaign(r: Campaign) {
+export function mapCampaign(r: Campaign) {
   const impressions = r.impressions;
   const clicks = r.clicks;
   const startsAt = r.startsAt != null ? isoFromMs(r.startsAt) : null;

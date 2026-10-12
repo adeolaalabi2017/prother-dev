@@ -167,7 +167,15 @@ export const posts = sqliteTable(
 
 export const siteSettings = sqliteTable(
   "site_settings",
-  { id: id(), key: reqText("key"), value: reqText("value"), updatedAt: optInt("updated_at") },
+  {
+    id: id(),
+    key: reqText("key"),
+    value: reqText("value"),
+    updatedAt: optInt("updated_at"),
+    // Mirrors the Convex _creationTime fallback for the admin console's
+    // "updatedAt" column; 0 for legacy rows created before the column.
+    createdAt: integer("created_at").notNull().default(0),
+  },
   (t) => [index("site_settings_by_key").on(t.key)],
 );
 
