@@ -330,17 +330,20 @@ export default async function ToolPage({ params }: Params) {
     pricingCheckedAt: null,
     contentUpdatedAt: null,
   };
-  let alternatives = bundle.alternatives;
-  if (alternatives.length === 0 && editorial.alternativeSlugs.length > 0) {
-    try {
-      alternatives = await resolveAlternatives(
-        editorial.alternativeSlugs,
-        tool.slug,
-      );
-    } catch {
-      alternatives = [];
-    }
-  }
+  // The alternatives fallback and the GitHub stats fetch are independent of
+  // each other once the bundle resolves, so they run concurrently instead
+  // of adding their latencies.
+  const needsAltFallback =
+    bundle.alternatives.length === 0 && editorial.alternativeSlugs.length > 0;
+  const [altFallback, github] = await Promise.all([
+    needsAltFallback
+      ? resolveAlternatives(editorial.alternativeSlugs, tool.slug).catch(
+          () => [],
+        )
+      : Promise.resolve(bundle.alternatives),
+    getGithubStats(tool.githubUrl),
+  ]);
+  const alternatives = needsAltFallback ? altFallback : bundle.alternatives;
 
   const longParagraphs = (editorial.longDescription ?? "")
     .split(/\n{2,}/)
@@ -362,7 +365,6 @@ export default async function ToolPage({ params }: Params) {
     .map((t) => t.trim())
     .filter(Boolean);
 
-  const github = await getGithubStats(tool.githubUrl);
   const installInfo = getToolInstallInfo({
     slug: tool.slug,
     name,
