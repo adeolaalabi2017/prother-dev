@@ -1583,7 +1583,14 @@ export async function shadowSubmissionsByEmail(c: Client, email: string) { if (!
   return c.query(api.submissions.submissionsByEmail, { email });
 }
 
-export function shadowEditorQueue(c: Client) { if (!c) return null as any;
+export async function shadowEditorQueue(c: Client) { if (!c) return null as any;
+  try {
+    const { d1EditorQueue } = await import("@/lib/d1/community");
+    const d1 = await d1EditorQueue();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
   return c.query(api.submissions.editorQueue, {});
 }
 
@@ -1624,7 +1631,7 @@ export async function convexSubmissionCreate(
   return c.mutation(api.submissions.submissionCreate, args);
 }
 
-export function convexEditorDecide(
+export async function convexEditorDecide(
   c: Client,
   args: {
     submissionId: string;
@@ -1636,11 +1643,28 @@ export function convexEditorDecide(
     makerHandle?: string;
     createdAt?: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1EditorDecide } = await import("@/lib/d1/community");
+    const d1 = await d1EditorDecide(args);
+    if (d1) return d1;
+  } catch (e) {
+    // Hard states: rethrowing keeps the editor facing the real constraint
+    // (unknown category, slug collision, double decision) instead of the
+    // same write silently re-applied to Convex.
+    if (
+      e instanceof Error &&
+      (e.message === "submission_not_found" ||
+        e.message.startsWith("already_") ||
+        e.message === "unknown_category" ||
+        e.message === "slug_taken")
+    )
+      throw e;
+  }
   return c.mutation(api.submissions.editorDecide, args);
 }
 
-export function convexArbitrateClaim(
+export async function convexArbitrateClaim(
   c: Client,
   args: {
     claimId: string;
@@ -1650,18 +1674,38 @@ export function convexArbitrateClaim(
     handle?: string;
     now: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1ArbitrateClaim } = await import("@/lib/d1/community");
+    const d1 = await d1ArbitrateClaim(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (
+      e instanceof Error &&
+      (e.message === "claim_not_found" ||
+        e.message === "tool_not_found" ||
+        e.message === "already_claimed")
+    )
+      throw e;
+  }
   return c.mutation(api.submissions.arbitrateClaim, args);
 }
 
-export function convexArbitrateReview(
+export async function convexArbitrateReview(
   c: Client,
   args: {
     reviewId: string;
     action: "publish" | "spam";
     now: number;
   },
-) {
+) { if (!c) return null as any;
+  try {
+    const { d1ArbitrateReview } = await import("@/lib/d1/community");
+    const d1 = await d1ArbitrateReview(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "review_not_found") throw e;
+  }
   return c.mutation(api.submissions.arbitrateReview, args);
 }
 

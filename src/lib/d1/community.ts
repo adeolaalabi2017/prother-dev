@@ -1,7 +1,8 @@
 /**
  * D1 ports, wave 4b: public community reads/writes, claims, submit flow.
- * Shapes match convex/community.ts, convex/claims.ts, and the public parts
- * of convex/submissions.ts. Admin/editor/arbitrate paths stay on Convex.
+ * Shapes match convex/community.ts, convex/claims.ts, and convex/submissions.ts.
+ * Editor queue + decision/arbitration were added in the moderation wave; the
+ * Convex functions remain as fallback.
  *
  * Writes are D1-primary (Convex fallback in src/lib/data.ts). Unlike Convex,
  * D1 writes also maintain the denormalized counters (commentCount,
@@ -1131,4 +1132,283 @@ export async function d1SubmissionCreate(args: {
     .limit(2000);
   const position = pending.findIndex((s) => s.legacyId === args.id) + 1;
   return { id: args.id, position: position > 0 ? position : pending.length };
+}
+
+// ── Editor queue + decision/arbitration (submissions moderation slice) ──
+// Ports the last three Convex mutations plus their paired queue read so
+// the moderation desk flips as one unit (reads and writes share the same
+// store). Semantics mirror convex/submissions.ts verbatim.
+
+function ageH(nowMs: number, at: number): number {
+  return Math.max(0, Math.round((nowMs - at) / 3_600_000));
+}
+
+export async function d1EditorQueue(): Promise<{
+  ok: true;
+  pending: Array<Record<string, unknown>>;
+  counts: Record<string, number>;
+  claims: Array<Record<string, unknown>>;
+  filteredReviews: Array<Record<string, unknown>>;
+} | null> {
+  const db = await getD1();
+  if (!db) return null;
+  const nowMs = Date.now();
+  const [subRows, claimRows, reviewRows, toolRows] = await Promise.all([
+    db.select().from(submissions),
+    db.select().from(claims),
+    db.select().from(reviews),
+    db.select().from(tools),
+  ]);
+  const pending = subRows
+    .filter((s) => s.status === "pending")
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .map((s) => ({
+      id: docId(s),
+      email: s.email,
+      websiteUrl: s.websiteUrl,
+      domain: s.domain,
+      name: s.name,
+      tagline: s.tagline,
+      description: s.description,
+      categorySlug: s.categorySlug,
+      tags: JSON.parse(s.tagsJson || "[]").join("|"),
+      pricingModel: s.pricingModel,
+      startingPrice: s.startingPrice ?? null,
+      pricingNote: s.pricingNote ?? null,
+      hasApi: s.hasApi === 1,
+      githubUrl: s.githubUrl ?? null,
+      docsUrl: s.docsUrl ?? null,
+      twitterUrl: s.twitterUrl ?? null,
+      logoEmoji: s.logoEmoji,
+      logoGradient: s.logoGradient,
+      isOwner: s.isOwner === 1,
+      confirmedLive: s.confirmedLive === 1,
+      agreedStandards: s.agreedStandards === 1,
+      status: s.status,
+      createdAt: isoFromMs(s.createdAt),
+      ageH: ageH(nowMs, s.createdAt),
+    }));
+  const counts: Record<string, number> = { pending: 0, approved: 0, rejected: 0 };
+  for (const s of subRows) {
+    counts[s.status] = (counts[s.status] ?? 0) + 1;
+  }
+  const toolById = new Map(toolRows.map((t) => [t.id, t]));
+  const claimList = claimRows
+    .filter(
+      (c) =>
+        (c.status === "pending" || c.status === "failed" || c.status === "disputed") &&
+        !(toolById.get(c.toolId)?.claimed ?? false),
+    )
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .slice(0, 50)
+    .map((c) => {
+      const t = toolById.get(c.toolId)!;
+      return {
+        id: docId(c),
+        userEmail: c.userEmail,
+        userName: c.userName,
+        method: c.method,
+        status: c.status,
+        token: c.token,
+        note: c.note ?? null,
+        createdAt: isoFromMs(c.createdAt),
+        toolSlug: t.slug,
+        toolName: t.name,
+        toolEmoji: t.logoEmoji,
+        ageH: ageH(nowMs, c.createdAt),
+      };
+    });
+  const reviewList = reviewRows
+    .filter((r) => r.status === "filtered")
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .slice(0, 50)
+    .map((r) => {
+      const t = toolById.get(r.toolId);
+      return {
+        id: docId(r),
+        author: r.author,
+        ease: r.ease,
+        power: r.power,
+        value: r.value,
+        body: r.body,
+        createdAt: isoFromMs(r.createdAt),
+        toolSlug: t?.slug ?? "",
+        toolName: t?.name ?? "",
+        toolEmoji: t?.logoEmoji ?? "",
+        ageH: ageH(nowMs, r.createdAt),
+      };
+    });
+  return { ok: true, pending, counts, claims: claimList, filteredReviews: reviewList };
+}
+
+export async function d1EditorDecide(args: {
+  submissionId: string;
+  decision: "approve" | "reject";
+  reviewNote?: string;
+  toolId?: string;
+  toolSlug?: string;
+  categorySlug?: string;
+  makerHandle?: string;
+  createdAt?: number;
+}) {
+  const db = await getD1();
+  if (!db) return null;
+  const [sub] = await db
+    .select()
+    .from(submissions)
+    .where(or(eq(submissions.legacyId, args.submissionId), eq(submissions.id, args.submissionId)))
+    .limit(1);
+  if (!sub) return null;
+  if (sub.status !== "pending") throw new Error(`already_${sub.status}`);
+
+  if (args.decision === "reject") {
+    await db
+      .update(submissions)
+      .set({ status: "rejected", reviewNote: args.reviewNote ?? null })
+      .where(eq(submissions.id, sub.id));
+    return { decision: "rejected" as const, reviewNote: args.reviewNote ?? null };
+  }
+
+  const [cat] = args.categorySlug
+    ? await db.select().from(categories).where(eq(categories.slug, args.categorySlug)).limit(1)
+    : [];
+  if (!cat) throw new Error("unknown_category");
+  const [slugDupe] = await db
+    .select({ id: tools.id })
+    .from(tools)
+    .where(eq(tools.slug, args.toolSlug!))
+    .limit(1);
+  if (slugDupe) throw new Error("slug_taken");
+  const now = args.createdAt ?? Date.now();
+  await db.insert(tools).values({
+    id: crypto.randomUUID(),
+    slug: args.toolSlug!,
+    name: sub.name,
+    tagline: sub.tagline,
+    description: sub.description,
+    websiteUrl: sub.websiteUrl,
+    logoEmoji: sub.logoEmoji,
+    logoGradient: sub.logoGradient,
+    logoUrl: null,
+    screenshotUrlsJson: "[]",
+    longDescription: null,
+    useCasesJson: "[]",
+    prosJson: "[]",
+    consJson: "[]",
+    alternativesJson: "[]",
+    pricingModel: sub.pricingModel,
+    startingPrice: sub.startingPrice ?? null,
+    pricingNote: sub.pricingNote ?? null,
+    hasApi: sub.hasApi ? 1 : 0,
+    githubUrl: sub.githubUrl ?? null,
+    docsUrl: sub.docsUrl ?? null,
+    twitterUrl: sub.twitterUrl ?? null,
+    tagsJson: sub.tagsJson,
+    featuresJson: "{}",
+    track: "community",
+    editorsPick: 0,
+    curated: 0,
+    claimed: 0,
+    makerHandle: args.makerHandle!,
+    status: "live",
+    pinned: 0,
+    verifiedAt: now,
+    categoryId: cat.id,
+    submissionId: sub.id,
+    commentCount: 0,
+    reviewCount: 0,
+    ratingSumX100: 0,
+    legacyId: args.toolId!,
+    createdAt: now,
+  });
+  await db.update(submissions).set({ status: "approved" }).where(eq(submissions.id, sub.id));
+  return { decision: "approved" as const, slug: args.toolSlug! };
+}
+
+export async function d1ArbitrateClaim(args: {
+  claimId: string;
+  action: "verify" | "dismiss";
+  note?: string;
+  email?: string;
+  handle?: string;
+  now: number;
+}) {
+  const db = await getD1();
+  if (!db) return null;
+  const [claim] = await db
+    .select()
+    .from(claims)
+    .where(or(eq(claims.legacyId, args.claimId), eq(claims.id, args.claimId)))
+    .limit(1);
+  if (!claim) return null;
+  if (args.action === "verify") {
+    const [tool] = await db.select().from(tools).where(eq(tools.id, claim.toolId)).limit(1);
+    if (!tool) throw new Error("tool_not_found");
+    if (tool.claimed) throw new Error("already_claimed");
+    await db
+      .update(claims)
+      .set({ status: "verified", verifiedAt: args.now, note: null })
+      .where(eq(claims.id, claim.id));
+    await db
+      .update(tools)
+      .set({
+        claimed: 1,
+        makerEmail: args.email ?? null,
+        makerHandle: `@${args.handle!}`,
+        verifiedAt: args.now,
+      })
+      .where(eq(tools.id, tool.id));
+    return {
+      decision: "verified" as const,
+      toolSlug: tool.slug,
+      userEmail: claim.userEmail,
+      userName: claim.userName,
+    };
+  }
+  await db
+    .update(claims)
+    .set({ status: "disputed", note: args.note ?? "Editor dismissed: ownership not established" })
+    .where(eq(claims.id, claim.id));
+  const [tool] = await db
+    .select({ slug: tools.slug })
+    .from(tools)
+    .where(eq(tools.id, claim.toolId))
+    .limit(1);
+  return {
+    decision: "dismissed" as const,
+    toolSlug: tool?.slug ?? "",
+    userEmail: claim.userEmail,
+  };
+}
+
+export async function d1ArbitrateReview(args: {
+  reviewId: string;
+  action: "publish" | "spam";
+  now: number;
+}) {
+  const db = await getD1();
+  if (!db) return null;
+  const [review] = await db
+    .select()
+    .from(reviews)
+    .where(or(eq(reviews.legacyId, args.reviewId), eq(reviews.id, args.reviewId)))
+    .limit(1);
+  if (!review) return null;
+  const toolAgainstReview = await db
+    .select({ slug: tools.slug, legacyId: tools.legacyId, id: tools.id })
+    .from(tools)
+    .where(eq(tools.id, review.toolId))
+    .limit(1);
+  const toolLegacyId = toolAgainstReview[0]
+    ? docId(toolAgainstReview[0])
+    : "";
+  if (args.action === "publish") {
+    await db
+      .update(reviews)
+      .set({ status: "published", updatedAt: args.now })
+      .where(eq(reviews.id, review.id));
+    return { decision: "published" as const, toolLegacyId };
+  }
+  await db.delete(reviews).where(eq(reviews.id, review.id));
+  return { decision: "spam" as const, toolLegacyId };
 }
