@@ -112,6 +112,15 @@ type ToolFullDetail = ToolDetailResponse &
     reviews?: { count: number; aggregate: ReviewsAggregate | null };
     viewer?: ToolViewer | null;
     category?: ToolDetailResponse["category"] & { toolCount?: number };
+    github?: {
+      fullName: string;
+      stars: number;
+      forks: number;
+      license: string | null;
+      pushedAt: string | null;
+      repoUrl: string;
+      issuesUrl: string;
+    } | null;
   };
 
 type CollectionRow = {
@@ -145,17 +154,6 @@ function fmtDay(iso: string | null): string {
   });
 }
 
-/** "Feb 4, 2026" — fmtDay plus the year, for the header Updated stamp. */
-function fmtDayFull(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
 /** "Feb 2026" — month-year stamp for pricing freshness marks. */
 function fmtMonthYear(iso: string | null): string {
   if (!iso) return "";
@@ -164,6 +162,33 @@ function fmtMonthYear(iso: string | null): string {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+/** "Oct 5" — short stamp for the stats strip last-activity cell. */
+function fmtMonthDay(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  return String(n);
+}
+
+/** Platforms cell derived from the verified delivery classification. */
+function platformInfo(deliveryType: string): { main: string; sub: string } {
+  if (deliveryType === "installable")
+    return { main: "macOS - Windows - Linux", sub: "Self-hosted or local" };
+  if (deliveryType === "desktop_app")
+    return { main: "macOS - Windows - Linux", sub: "Native desktop app" };
+  if (deliveryType === "cloud_api")
+    return { main: "Web - API", sub: "Cloud API" };
+  return { main: "Web", sub: "Hosted app" };
 }
 
 function relTime(iso: string): string {
@@ -199,6 +224,26 @@ function Stars({ value, size = 3.5 }: { value: number; size?: number }) {
         />
       ))}
     </span>
+  );
+}
+
+function StatCell({
+  label,
+  main,
+  sub,
+}: {
+  label: string;
+  main: React.ReactNode;
+  sub?: React.ReactNode;
+}) {
+  return (
+    <div className="px-5 py-4 first:pl-0 sm:first:pl-5">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/45">
+        {label}
+      </p>
+      <p className="mt-1.5 text-[15px] font-semibold text-white">{main}</p>
+      {sub && <p className="mt-0.5 text-xs text-white/50">{sub}</p>}
+    </div>
   );
 }
 
@@ -297,9 +342,44 @@ function FactsRail({ detail }: { detail: ToolFullDetail }) {
             {detail.category.name}
           </button>
         </Fact>
+        <Fact label="Platforms">
+          {platformInfo(
+            getToolInstallInfo({
+              slug: detail.slug,
+              name: detail.name,
+              websiteUrl: detail.websiteUrl,
+              githubUrl: detail.links?.github,
+            }).deliveryType,
+          ).main}
+        </Fact>
+        <Fact label="License">
+          {detail.github?.license ??
+            (detail.pricing.model === "open_source"
+              ? "Open Source"
+              : (PRICING_LABEL[detail.pricing.model] ?? "Free"))}
+        </Fact>
         <Fact label="Listed">
           {fmtDay(detail.submittedAt)}
         </Fact>
+        <Fact label="Last activity">
+          {fmtMonthDay(
+            detail.github?.pushedAt ??
+              detail.contentUpdatedAt ??
+              detail.submittedAt,
+          )}
+        </Fact>
+        {detail.github && (
+          <Fact label="Repository">
+            <a
+              href={detail.github.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="break-all text-ember transition-colors hover:text-ember-hot"
+            >
+              {detail.github.fullName}
+            </a>
+          </Fact>
+        )}
         {detail.badges.hasApi && (
           <Fact label="API">
             <span className="text-mint">✓ AVAILABLE</span>
@@ -578,25 +658,6 @@ function ClaimPanel({
 }
 
 // ── Rating visualization helpers ──────────────────────────────────────────
-
-function DimBar({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="w-12 shrink-0 font-mono text-xs tracking-[0.2em] text-white/60">
-        {label}
-      </span>
-      <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full bg-ember"
-          style={{ width: `${Math.max(4, Math.min(100, (value / 5) * 100))}%` }}
-        />
-      </div>
-      <span className="w-7 shrink-0 text-right font-mono text-xs tabular-nums text-white/70">
-        {value.toFixed(1)}
-      </span>
-    </div>
-  );
-}
 
 // ── Discussion (ported from the legacy modal: same API shapes) ──────────
 
@@ -1265,9 +1326,6 @@ export function ToolFullPage() {
   const cons = detail.cons ?? [];
   const alternatives = detail.alternatives ?? [];
   const pricing = detail.pricing;
-  const showPricing = Boolean(
-    pricing.model || pricing.price || pricing.note || detail.pricingCheckedAt
-  );
   const installInfo = getToolInstallInfo({
     slug,
     name,
@@ -1295,70 +1353,123 @@ export function ToolFullPage() {
               emoji={detail.emoji}
               gradient={detail.gradient}
               size="xl"
+              className="rounded-2xl"
             />
             <div className="min-w-0 flex-1">
-              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/45">
+                {detail.category.name}
+              </p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                 {name}
               </h1>
-              <p className="mt-1 text-base text-white/65 sm:text-lg">{detail.tagline}</p>
-              <p className={cn(MONO, "mt-2")}>
-                Updated {fmtDayFull(detail.contentUpdatedAt ?? detail.submittedAt)}
+              <p className="mt-1.5 text-[15px] leading-relaxed text-white/65">{detail.tagline}</p>
+              <p className="mt-2 text-[13px] text-white/50">
+                {detail.badges.openSource
+                  ? "Open source"
+                  : (PRICING_LABEL[pricing.model] ?? "Free")}
+                <span aria-hidden className="mx-2 text-white/25">
+                  ·
+                </span>
+                {installInfo.deliveryType === "installable" ||
+                installInfo.deliveryType === "desktop_app"
+                  ? "Runs on your device"
+                  : "Runs in the cloud"}
+                {detail.badges.editorsPick && (
+                  <>
+                    <span aria-hidden className="mx-2 text-white/25">
+                      ·
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-ember">
+                      <Star className="size-3 fill-current" aria-hidden />
+                      Editors pick
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </div>
 
-          {/* Badge chips */}
-          <ul className="flex flex-wrap items-center gap-1.5" aria-label="Badges">
-            {detail.badges.editorsPick && (
-              <li className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember">
-                <Star className="size-3" aria-hidden /> EDITORS PICK
-              </li>
+          {/* Stats strip — live GitHub stats when the API attached them,
+              directory facts otherwise. Cells hide when empty, never faked. */}
+          <dl className="grid grid-cols-2 gap-y-2 border-y border-white/10 sm:grid-cols-3 lg:grid-cols-5 lg:divide-x lg:divide-white/10">
+            {detail.github ? (
+              <>
+                <StatCell
+                  label="GitHub stars"
+                  main={
+                    <span className="inline-flex items-center gap-1.5">
+                      <Star className="size-3.5 text-white/60" aria-hidden />
+                      {formatCompact(detail.github.stars)}
+                    </span>
+                  }
+                  sub={`${detail.github.stars.toLocaleString()} stars`}
+                />
+                <StatCell
+                  label="Community forks"
+                  main={formatCompact(detail.github.forks)}
+                  sub="Open collaboration"
+                />
+                <StatCell
+                  label="License"
+                  main={
+                    detail.github.license ??
+                    (detail.badges.openSource ? "Open Source" : "See details")
+                  }
+                  sub="Read the full license"
+                />
+                <StatCell
+                  label="Platforms"
+                  main={platformInfo(installInfo.deliveryType).main}
+                  sub={detail.websiteUrl ? "Also Web" : platformInfo(installInfo.deliveryType).sub}
+                />
+                <StatCell
+                  label="Last activity"
+                  main={fmtMonthDay(detail.github.pushedAt)}
+                  sub="Repository push date"
+                />
+              </>
+            ) : (
+              <>
+                <StatCell
+                  label="Pricing"
+                  main={PRICING_LABEL[pricing.model] ?? "Free"}
+                  sub={pricing.price ?? pricing.note ?? "See details"}
+                />
+                <StatCell
+                  label="Platforms"
+                  main={platformInfo(installInfo.deliveryType).main}
+                  sub={platformInfo(installInfo.deliveryType).sub}
+                />
+                <StatCell
+                  label="Category"
+                  main={detail.category.name}
+                  sub={
+                    typeof detail.category.toolCount === "number"
+                      ? `${detail.category.toolCount} tools`
+                      : undefined
+                  }
+                />
+                <StatCell
+                  label="Reviews"
+                  main={
+                    detail.reviews?.aggregate
+                      ? `${detail.reviews.aggregate.overall.toFixed(1)}/5`
+                      : `${detail.reviews?.count ?? 0}`
+                  }
+                  sub={
+                    detail.reviews?.aggregate
+                      ? `${detail.reviews.aggregate.count} verified reviews`
+                      : "No verified reviews yet"
+                  }
+                />
+                <StatCell
+                  label="Last updated"
+                  main={fmtMonthDay(detail.contentUpdatedAt ?? detail.submittedAt)}
+                  sub="Listing updated"
+                />
+              </>
             )}
-            {detail.badges.curated && (
-              <li className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1 font-mono text-xs tracking-wider text-yellow-500">
-                CURATED
-              </li>
-            )}
-            {detail.badges.unclaimed && (
-              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
-                UNCLAIMED
-              </li>
-            )}
-            {detail.badges.hasApi && (
-              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
-                API ✓
-              </li>
-            )}
-            {detail.badges.openSource && (
-              <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
-                OPEN SOURCE
-              </li>
-            )}
-            <li className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-xs tracking-wider text-white/60">
-              {detail.track === "editor_seed" ? "SEED" : "SUBMITTED"}
-            </li>
-          </ul>
-
-          {/* Rating summary — shown whenever the review aggregate exists */}
-          {detail.reviews?.aggregate && (
-            <div className={cn(PANEL, "flex flex-wrap items-center gap-x-5 gap-y-3 p-4")} aria-label="Rating summary">
-              <span className="inline-flex items-center gap-2">
-                <Star className="size-5 fill-ember text-ember" aria-hidden />
-                <span className="text-2xl font-semibold tabular-nums text-white">
-                  {detail.reviews.aggregate.overall.toFixed(1)}
-                  <span className="text-sm text-white/55">/5</span>
-                </span>
-              </span>
-              <span className="grid min-w-0 flex-1 gap-1.5 sm:max-w-xs">
-                <DimBar label="EASE" value={detail.reviews.aggregate.ease} />
-                <DimBar label="POWER" value={detail.reviews.aggregate.power} />
-                <DimBar label="VALUE" value={detail.reviews.aggregate.value} />
-              </span>
-              <span className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
-                {detail.reviews.aggregate.count} reviews
-              </span>
-            </div>
-          )}
+          </dl>
 
           {/* Actions row: primary outbound + download + secondary icon buttons */}
           <div className="flex flex-wrap items-center gap-2">
@@ -1577,6 +1688,200 @@ export function ToolFullPage() {
         {/* b-i: main column + facts rail */}
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-10">
           <div className="min-w-0 space-y-10">
+            {/* Screenshots hero — first shot large, rest thumbnails. Each
+                shot opens the Dialog lightbox. Hidden when none. */}
+            {screenshots.length > 0 && (
+              <section aria-label={`Screenshots of ${name}`}>
+                <div className="flex items-baseline justify-between gap-4">
+                  <h2 className="text-xl font-semibold tracking-tight text-white">
+                    Screenshots
+                  </h2>
+                  <p className="text-xs text-white/45">Official project imagery</p>
+                </div>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3 sm:p-5">
+                  <button
+                    type="button"
+                    onClick={() => setShotIndex(0)}
+                    aria-label={`Open screenshot 1 of ${screenshots.length} full size`}
+                    className="group block w-full"
+                  >
+                    <img
+                      src={screenshots[0]}
+                      alt={`${name} screenshot 1`}
+                      loading="lazy"
+                      className="mx-auto max-h-[480px] w-auto max-w-full rounded-xl border border-white/10 object-contain transition-colors group-hover:border-ember/40"
+                    />
+                  </button>
+                  {screenshots.length > 1 && (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {screenshots.slice(1, 5).map((src, i) => (
+                        <button
+                          key={`${src}-${i}`}
+                          type="button"
+                          onClick={() => setShotIndex(i + 1)}
+                          aria-label={`Open screenshot ${i + 2} of ${screenshots.length} full size`}
+                          className="group overflow-hidden rounded-xl border border-white/10 transition-colors hover:border-ember/40"
+                        >
+                          <img
+                            src={src}
+                            alt={`${name} screenshot ${i + 2}`}
+                            loading="lazy"
+                            className="aspect-video w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Verdict — Best for / User feedback. Prother reviews live
+                collapsed in a details element under the feedback column. */}
+            <section
+              aria-label={`Verdict on ${name}`}
+              className="rounded-2xl border border-white/10 bg-white/[0.015]"
+            >
+              <div className="grid md:grid-cols-2 md:divide-x md:divide-white/10">
+                <div className="p-6">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/45">
+                    Best for
+                  </p>
+                  <p className="mt-2 text-xl font-semibold leading-snug tracking-tight text-white">
+                    {useCases[0]?.title ?? pros[0] ?? detail.tagline}
+                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-white/65">
+                    {useCases[0]?.body ??
+                      detail.description ??
+                      "An actively maintained listing. Verify the features you depend on before adopting."}
+                  </p>
+                  {detail.pricingCheckedAt && (
+                    <p className="mt-4 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-mint">
+                      <BadgeCheck className="size-3.5" aria-hidden />
+                      Pricing checked {fmtMonthYear(detail.pricingCheckedAt)}
+                    </p>
+                  )}
+                </div>
+                <div className="border-t border-white/10 p-6 md:border-t-0">
+                  <h2 className="text-sm font-semibold text-white">
+                    User feedback
+                  </h2>
+                  {detail.reviews?.aggregate ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Stars value={detail.reviews.aggregate.overall} />
+                      <span className="text-sm font-semibold tabular-nums text-white">
+                        {detail.reviews.aggregate.overall.toFixed(1)}
+                      </span>
+                      <span className="text-xs text-white/50">
+                        from {detail.reviews.aggregate.count} verified reviews
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-white/60">
+                      No aggregate rating verified
+                    </p>
+                  )}
+                  <p className="mt-2 text-[13px] leading-relaxed text-white/55">
+                    Explore discussions, issues, and documentation to see how
+                    this project fits your workflow.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-medium">
+                    <a
+                      href={detail.github?.issuesUrl ?? detail.links?.github ?? detail.websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="inline-flex items-center gap-1 text-white/85 transition-colors hover:text-ember"
+                    >
+                      Project issues
+                      <ArrowUpRight className="size-3.5" aria-hidden />
+                    </a>
+                    <a
+                      href={detail.links?.docs ?? detail.websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="inline-flex items-center gap-1 text-white/85 transition-colors hover:text-ember"
+                    >
+                      Read the documentation
+                      <ArrowUpRight className="size-3.5" aria-hidden />
+                    </a>
+                  </div>
+                  <p className="mt-3 text-xs leading-relaxed text-white/40">
+                    {detail.github
+                      ? "GitHub stars measure repository interest, not customer satisfaction."
+                      : "Prother ratings come from verified reviews only."}
+                  </p>
+                  <details className="group mt-4 border-t border-white/10 pt-4">
+                    <summary className="cursor-pointer list-none text-[13px] font-semibold text-ember transition-colors hover:text-ember-hot">
+                      <span className="group-open:hidden">
+                        Read Prother reviews ({detail.reviews?.count ?? 0}) - write your own
+                      </span>
+                      <span className="hidden group-open:inline">
+                        Hide Prother reviews
+                      </span>
+                    </summary>
+                    <div className="pt-4">
+                      <ToolReviewsSection
+                        slug={slug}
+                        toolName={name}
+                        isMaker={detail.viewer?.isMaker ?? false}
+                        initialAggregate={detail.reviews?.aggregate ?? null}
+                        viewerMyReview={detail.viewer?.myReview ?? null}
+                        onRefreshTool={() => void load()}
+                      />
+                    </div>
+                  </details>
+                </div>
+              </div>
+            </section>
+
+            {/* About: editorial long description when enriched, else the
+                submitted description. Checklist folds in pros/use cases. */}
+            {(detail.longDescription || detail.description) && (
+              <section aria-label={`About ${name}`}>
+                <h2 className="text-xl font-semibold tracking-tight text-white">
+                  About {name}
+                </h2>
+                <div className="mt-3">
+                  <AboutClamp text={detail.longDescription ?? detail.description ?? ""} />
+                </div>
+                {(pros.length > 0 || useCases.length > 0) && (
+                  <ul className="mt-5 space-y-2.5">
+                    {(pros.length > 0
+                      ? pros.slice(0, 4)
+                      : useCases.slice(0, 3).map((u) => u.title)
+                    ).map((item, i) => (
+                      <li
+                        key={`${item}-${i}`}
+                        className="flex items-start gap-2.5 text-sm text-white/80"
+                      >
+                        <Check
+                          className="mt-0.5 size-4 shrink-0 text-mint"
+                          aria-hidden
+                        />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {cons.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {cons.slice(0, 3).map((c, i) => (
+                      <li
+                        key={`${c}-${i}`}
+                        className="flex items-start gap-2.5 text-sm text-white/55"
+                      >
+                        <X
+                          className="mt-0.5 size-4 shrink-0 text-white/30"
+                          aria-hidden
+                        />
+                        <span>{c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+
             {/* Installation Command / Download Box */}
             <ToolInstallBox
               slug={slug}
@@ -1585,160 +1890,11 @@ export function ToolFullPage() {
               githubUrl={detail.links?.github}
             />
 
-            {/* c. About: editorial long description when enriched, else the
-                submitted description. Blank-line paragraphs in the copy render
-                via AboutClamp's whitespace-pre-line; clamp behavior unchanged. */}
-            {(detail.longDescription || detail.description) && (
-              <section aria-label="About" className="space-y-3">
-                <SectionHead>About</SectionHead>
-                <AboutClamp text={detail.longDescription ?? detail.description ?? ""} />
-              </section>
-            )}
-
-            {/* c1. Pricing — editorial pricing block (Task 35 enrichment);
-                hidden when the listing carries no pricing data at all. */}
-            {showPricing && (
-              <section aria-label="Pricing" className="space-y-3">
-                <SectionHead>Pricing</SectionHead>
-                <div className={cn(PANEL, "p-5")}>
-                  <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                    <p className={MONO}>
-                      {PRICING_LABEL[pricing.model] ?? pricing.model}
-                    </p>
-                    {detail.pricingCheckedAt && (
-                      <p className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider text-white/55">
-                        <BadgeCheck className="size-3.5 text-mint" aria-hidden />
-                        Checked {fmtMonthYear(detail.pricingCheckedAt)}
-                      </p>
-                    )}
-                  </div>
-                  {pricing.price && (
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-white">
-                      {pricing.price}
-                    </p>
-                  )}
-                  {pricing.note && (
-                    <p
-                      className={cn(
-                        "text-sm text-white/60",
-                        pricing.price ? "mt-1" : "mt-2"
-                      )}
-                    >
-                      {pricing.note}
-                    </p>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {/* c2. Screenshots (Task 34 media, Task 35 grid + lightbox) —
-                hidden when the listing has none. Each shot opens a Dialog
-                lightbox with the full-bleed image. */}
-            {screenshots.length > 0 && (
-              <section aria-label="Screenshots" className="space-y-3">
-                <SectionHead>Screenshots</SectionHead>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {screenshots.map((src, i) => (
-                    <button
-                      key={`${src}-${i}`}
-                      type="button"
-                      onClick={() => setShotIndex(i)}
-                      aria-label={`Open screenshot ${i + 1} of ${screenshots.length} full size`}
-                      className="group overflow-hidden rounded-lg border border-white/10 transition-colors hover:border-ember/40"
-                    >
-                      <img
-                        src={src}
-                        alt={`${name} screenshot ${i + 1}`}
-                        loading="lazy"
-                        className="aspect-video w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* c3. Use cases (Task 35 enrichment) — numbered editorial rows */}
-            {useCases.length > 0 && (
-              <section aria-label="Use cases" className="space-y-3">
-                <SectionHead>Use cases</SectionHead>
-                <ol className="space-y-2.5">
-                  {useCases.map((uc, i) => (
-                    <li
-                      key={`${uc.title}-${i}`}
-                      className={cn(PANEL, "flex gap-4 p-4 sm:p-5")}
-                    >
-                      <span
-                        aria-hidden
-                        className="mt-0.5 shrink-0 font-mono text-sm font-bold text-ember"
-                      >
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-bold text-white/90">
-                          {uc.title}
-                        </h3>
-                        <p className="mt-1 text-sm leading-relaxed text-white/60">
-                          {uc.body}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            )}
-
-            {/* c4. Pros and cons (Task 35 enrichment) — hidden unless either
-                side has rows */}
-            {(pros.length > 0 || cons.length > 0) && (
-              <section aria-label="Pros and cons" className="space-y-3">
-                <SectionHead>Pros and cons</SectionHead>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {pros.length > 0 && (
-                    <div className={cn(PANEL, "p-5")}>
-                      <p className={MONO}>Pros</p>
-                      <ul className="mt-3 space-y-2.5">
-                        {pros.map((p, i) => (
-                          <li
-                            key={`${p}-${i}`}
-                            className="flex items-start gap-2.5 text-sm leading-snug text-white/75"
-                          >
-                            <Check
-                              className="mt-0.5 size-4 shrink-0 text-mint"
-                              aria-hidden
-                            />
-                            <span className="min-w-0">{p}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {cons.length > 0 && (
-                    <div className={cn(PANEL, "p-5")}>
-                      <p className={MONO}>Cons</p>
-                      <ul className="mt-3 space-y-2.5">
-                        {cons.map((c, i) => (
-                          <li
-                            key={`${c}-${i}`}
-                            className="flex items-start gap-2.5 text-sm leading-snug text-white/75"
-                          >
-                            <X
-                              className="mt-0.5 size-4 shrink-0 text-ember"
-                              aria-hidden
-                            />
-                            <span className="min-w-0">{c}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
             {/* d. Claim banner (F-30) */}
             <section aria-label="Ownership claim" className="space-y-3">
-              <SectionHead>Ownership</SectionHead>
+              <h2 className="text-xl font-semibold tracking-tight text-white">
+                Ownership
+              </h2>
               {claimed ? (
                 <div className="flex items-center gap-2 rounded-xl border border-mint/40 bg-mint/[0.05] p-4">
                   <ShieldCheck className="size-4 shrink-0 text-mint" aria-hidden />
@@ -1765,69 +1921,32 @@ export function ToolFullPage() {
               )}
             </section>
 
-            {/* e. Reviews */}
-            <ToolReviewsSection
-              slug={slug}
-              toolName={name}
-              isMaker={detail.viewer?.isMaker ?? false}
-              initialAggregate={detail.reviews?.aggregate ?? null}
-              viewerMyReview={detail.viewer?.myReview ?? null}
-              onRefreshTool={() => void load()}
-            />
-
             {/* f. Discussion */}
             <Discussion slug={detail.slug} makerHandle={detail.maker} />
 
-            {/* g1. Alternatives (Task 35 enrichment) — real links to each
-                sibling's /tools/{slug} page; navigating away closes the
-                overlay, mirroring the SSR page's related-link pattern. */}
+            {/* Alternatives — rival pills linking to real /tools pages;
+                navigating away closes the overlay. */}
             {alternatives.length > 0 && (
-              <section aria-label="Alternatives" className="space-y-3">
-                <SectionHead>Alternatives</SectionHead>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {alternatives.map((alt) => (
+              <section aria-label={`Alternatives to ${name}`}>
+                <h2 className="text-xl font-semibold tracking-tight text-white">
+                  Alternative to
+                </h2>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {alternatives.slice(0, 6).map((alt) => (
                     <Link
                       key={alt.slug}
                       href={`/tools/${alt.slug}`}
                       onClick={onRealLinkClick}
-                      className={cn(
-                        PANEL,
-                        "group flex flex-col p-4 transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
-                      )}
+                      className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-sm text-white/80 transition-colors hover:border-ember/40 hover:text-ember"
                     >
-                      <ToolLogo
-                        slug={alt.slug}
-                        name={alt.name}
-                        logoUrl={alt.logoUrl}
-                        emoji={alt.logoEmoji}
-                        gradient={alt.logoGradient}
-                        size="md"
-                      />
-                      <span className="mt-2.5 flex items-center justify-between gap-2">
-                        <span className="truncate text-sm font-bold text-white/90 transition-colors group-hover:text-ember">
-                          {alt.name}
-                        </span>
-                        {alt.editorsPick && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase">
-                            <Star className="size-2.5 fill-current" aria-hidden />
-                            Pick
-                          </span>
-                        )}
-                      </span>
-                      <span className="mb-3 mt-1 line-clamp-2 block text-xs leading-snug text-white/60">
-                        {alt.tagline}
-                      </span>
-                      <span className="mt-auto self-start">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-xs tracking-wider text-white/70">
-                          {PRICING_LABEL[alt.pricingModel] ?? alt.pricingModel}
-                          {alt.startingPrice && (
-                            <span className="text-ember">{alt.startingPrice}</span>
-                          )}
-                        </span>
-                      </span>
+                      {alt.name}
                     </Link>
                   ))}
                 </div>
+                <p className="mt-3 text-[13px] leading-relaxed text-white/45">
+                  These tools share use cases. Features, costs, and deployment
+                  needs differ.
+                </p>
               </section>
             )}
 
@@ -1835,7 +1954,9 @@ export function ToolFullPage() {
                 "More like this" section without duplicating its related
                 grid; the toolCount chip renders once the API ships it. */}
             <section aria-label="Category context" className="space-y-3">
-              <SectionHead>Category</SectionHead>
+              <h2 className="text-xl font-semibold tracking-tight text-white">
+                Category
+              </h2>
               <div className={cn(PANEL, "p-5")}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <Link
@@ -1877,7 +1998,9 @@ export function ToolFullPage() {
             {/* g. Related */}
             {detail.related && detail.related.length > 0 && (
               <section aria-label="More like this" className="space-y-3">
-                <SectionHead>More like this</SectionHead>
+                <h2 className="text-xl font-semibold tracking-tight text-white">
+                  More like this
+                </h2>
                 <div className="grid gap-3 sm:grid-cols-3">
                   {detail.related.slice(0, 3).map((r) => (
                     <button
