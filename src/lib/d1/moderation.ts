@@ -453,14 +453,14 @@ export async function d1AdminReports(status: string) {
     byLegacy.set(t.id, {
       slug: t.slug,
       hidden: t.status === "removed",
-      href: `/?tool=${t.slug}`,
+      href: `/tools/${t.slug}`,
     });
   }
   for (const p of postRefs) {
     byLegacy.set(p.id, {
       slug: p.slug,
       hidden: p.status !== "published",
-      href: `/?post=${p.slug}`,
+      href: `/journal/${p.slug}`,
     });
   }
 

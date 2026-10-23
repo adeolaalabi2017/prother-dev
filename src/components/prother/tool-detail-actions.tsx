@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
 import { useBookmark } from "./use-bookmarks";
 import { ReportDialog } from "./report-dialog";
+import { SaveCollectionPopover } from "./save-collection-popover";
 import { getToolInstallInfo } from "@/lib/tool-install";
 
 /**
@@ -53,7 +54,7 @@ export function ToolDetailActions({
   const compareSlugs = useExplorer((s) => s.compare);
 
   const inCompare = compareSlugs.includes(slug);
-  const compareFull = compareSlugs.length >= 2 && !inCompare;
+  const compareFull = compareSlugs.length >= 4 && !inCompare;
 
   const onCompare = useCallback(() => {
     if (inCompare) removeCompare(slug);
@@ -69,7 +70,7 @@ export function ToolDetailActions({
   } = useBookmark("tool", slug);
 
   const onBookmark = useCallback(() => {
-    void toggleBookmark({ label: name, href: `/?tool=${slug}` });
+    void toggleBookmark({ label: name, href: `/tools/${slug}` });
   }, [toggleBookmark, name, slug]);
 
   const onShare = useCallback(async () => {
@@ -81,7 +82,7 @@ export function ToolDetailActions({
       } catch (err) {
         // User dismissed the share sheet: not an error.
         if (err instanceof DOMException && err.name === "AbortError") return;
-        // Unsupported-ish or denied → fall through to the clipboard.
+        // Unsupported-ish or denied -> fall through to the clipboard.
       }
     }
     try {
@@ -99,7 +100,7 @@ export function ToolDetailActions({
   }, [slug, name, toast]);
 
   const iconBtn =
-    "inline-flex size-11 items-center justify-center rounded-full border bg-white/[0.03] transition-colors hover:bg-white/[0.08]";
+    "pressable inline-flex size-11 items-center justify-center rounded-full border bg-white/[0.03] transition-colors hover:bg-white/[0.08]";
 
   const installInfo = getToolInstallInfo({ slug, name, websiteUrl, githubUrl });
 
@@ -110,7 +111,7 @@ export function ToolDetailActions({
         target="_blank"
         rel="noopener noreferrer nofollow"
         aria-label={`Visit ${name} website`}
-        className="inline-flex h-11 items-center gap-2 rounded-full bg-ember px-5 text-sm font-semibold tracking-wide text-[#0A0A0A] transition hover:bg-ember-hot"
+        className="pressable inline-flex h-11 items-center gap-2 rounded-full bg-ember px-5 text-sm font-semibold tracking-wide text-[#0A0A0A] transition hover:bg-ember-hot"
       >
         Visit website
         <ArrowUpRight className="size-4" aria-hidden />
@@ -122,7 +123,7 @@ export function ToolDetailActions({
           target="_blank"
           rel="noopener noreferrer nofollow"
           aria-label={`${installInfo.actionLabel} for ${name}`}
-          className="inline-flex h-11 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 text-sm font-semibold tracking-wide text-white transition hover:border-ember/40 hover:bg-white/10 hover:text-ember"
+          className="pressable inline-flex h-11 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 text-sm font-semibold tracking-wide text-white transition hover:border-ember/40 hover:bg-white/10 hover:text-ember"
         >
           {installInfo.actionType === "download" ? (
             <Download className="size-4 text-ember" aria-hidden />
@@ -154,13 +155,15 @@ export function ToolDetailActions({
         )}
       </button>
 
+      <SaveCollectionPopover slug={slug} toolName={name} />
+
       <button
         type="button"
         aria-label={
           inCompare
             ? `Remove ${name} from comparison`
             : compareFull
-              ? "Comparison is full. Remove a tool first."
+              ? "Comparison is full (max 4 tools). Remove a tool first."
               : `Add ${name} to comparison`
         }
         aria-pressed={inCompare}

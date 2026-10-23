@@ -43,6 +43,21 @@ function ownerHintFor(status: "authenticated" | "unauthenticated" | "loading"): 
   return null;
 }
 
+/** Normalizes legacy overlay URLs to canonical Next.js App Router routes. */
+function normalizeBookmarkHref(targetType: BookmarkTargetType, targetId: string, href?: string): string {
+  if (!href || href === "#") {
+    if (targetType === "tool") return `/tools/${targetId}`;
+    if (targetType === "thread") return `/forums/${targetId}`;
+    if (targetType === "post") return `/journal/${targetId}`;
+    return "#";
+  }
+  return href
+    .replace(/^\/\?tool=/, "/tools/")
+    .replace(/^#tool=/, "/tools/")
+    .replace(/^\/\?post=/, "/journal/")
+    .replace(/^#post=/, "/journal/");
+}
+
 async function fetchBookmarkList(hint: OwnerHint): Promise<BookmarkItem[]> {
   const url =
     hint === "session"
@@ -51,7 +66,11 @@ async function fetchBookmarkList(hint: OwnerHint): Promise<BookmarkItem[]> {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`bookmarks_list_${res.status}`);
   const j = (await res.json()) as { items?: BookmarkItem[] };
-  return Array.isArray(j.items) ? j.items : [];
+  const raw = Array.isArray(j.items) ? j.items : [];
+  return raw.map((item) => ({
+    ...item,
+    targetHref: normalizeBookmarkHref(item.targetType, item.targetId, item.targetHref),
+  }));
 }
 
 type BookmarkStore = {
@@ -191,7 +210,7 @@ export function useBookmark(targetType: BookmarkTargetType, targetId?: string | 
           targetType,
           targetId,
           targetLabel: meta?.label ?? targetId,
-          targetHref: meta?.href ?? "#",
+          targetHref: normalizeBookmarkHref(targetType, targetId, meta?.href),
           createdAt: new Date().toISOString(),
         });
       }
@@ -217,7 +236,11 @@ export function useBookmark(targetType: BookmarkTargetType, targetId?: string | 
             targetType,
             targetId,
             targetLabel: meta?.label ?? prevItem?.targetLabel ?? targetId,
-            targetHref: meta?.href ?? prevItem?.targetHref ?? "#",
+            targetHref: normalizeBookmarkHref(
+              targetType,
+              targetId,
+              meta?.href ?? prevItem?.targetHref
+            ),
             createdAt: prevItem?.createdAt ?? new Date().toISOString(),
           });
         } else {

@@ -215,7 +215,7 @@ export function SavedPanel() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <Link
-                      href={item.targetHref}
+                      href={item.targetHref.replace(/^\/\?tool=/, "/tools/").replace(/^#tool=/, "/tools/")}
                       className="block truncate text-sm font-semibold text-white/90 transition-colors hover:text-ember"
                     >
                       {item.targetLabel}

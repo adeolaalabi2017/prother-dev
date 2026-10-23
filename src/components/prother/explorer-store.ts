@@ -42,14 +42,14 @@ type ExplorerState = {
   postSlug: string | null;
   /** Category browse full page slug. */
   categoryView: string | null;
-  /** Compare tray selection (max 2) + whether the compare page is open. */
+  /** Compare tray selection (max 4) + whether the compare page is open. */
   compare: string[];
   compareOpen: boolean;
   /** Public collection full page slug. */
   collectionSlug: string | null;
-  /** "collections" — my collections + follows page. */
+  /** "collections" - my collections + follows page. */
   mineView: string | null;
-  /** "mine" — saved bookmarks page (anon bookmarks are valid). */
+  /** "mine" - saved bookmarks page (anon bookmarks are valid). */
   savedView: string | null;
 
   openTool: (slug: string, opts?: OpenOpts) => void;
@@ -64,6 +64,7 @@ type ExplorerState = {
   closeCategory: (opts?: OpenOpts) => void;
   addCompare: (slug: string) => void;
   removeCompare: (slug: string) => void;
+  clearCompare: () => void;
   openCompare: (a: string, b: string, opts?: OpenOpts) => void;
   closeCompare: (opts?: OpenOpts) => void;
   openCollection: (slug: string, opts?: OpenOpts) => void;
@@ -192,9 +193,10 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   addCompare: (slug) => {
     const cur = get().compare;
     if (cur.includes(slug)) return;
-    set({ compare: [...cur, slug].slice(-2) });
+    set({ compare: [...cur, slug].slice(-4) });
   },
   removeCompare: (slug) => set({ compare: get().compare.filter((s) => s !== slug) }),
+  clearCompare: () => set({ compare: [] }),
   openCompare: (a, b, opts) => {
     set({ compare: [a, b], compareOpen: true });
     if (opts?.sync !== false && typeof window !== "undefined") {

@@ -15,6 +15,8 @@ import {
   Copy,
   Download,
   Flag,
+  FolderCheck,
+  FolderPlus,
   Heart,
   KeyRound,
   Link2,
@@ -1201,8 +1203,8 @@ export function ToolFullPage() {
 
   const shareUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/?tool=${encodeURIComponent(slug ?? "")}`
-      : `/?tool=${encodeURIComponent(slug ?? "")}`;
+      ? `${window.location.origin}/tools/${encodeURIComponent(slug ?? "")}`
+      : `/tools/${encodeURIComponent(slug ?? "")}`;
 
   const onCopyLink = useCallback(async () => {
     try {
@@ -1219,7 +1221,7 @@ export function ToolFullPage() {
   const savedSet = useMemo(() => new Set(savedIn.map((s) => s.slug)), [savedIn]);
 
   const inCompare = slug ? compareSlugs.includes(slug) : false;
-  const compareFull = compareSlugs.length >= 2 && !inCompare;
+  const compareFull = compareSlugs.length >= 4 && !inCompare;
 
   const onCompare = useCallback(() => {
     if (!slug) return;
@@ -1558,18 +1560,19 @@ export function ToolFullPage() {
                 }
                 aria-pressed={savedSet.size > 0}
                 className={cn(
-                  "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+                  "pressable bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
                   savedSet.size > 0 ? "text-ember" : "text-white/70 hover:text-ember"
                 )}
               >
-                <Bookmark
-                  className={cn("size-4", savedSet.size > 0 && "fill-ember")}
-                  aria-hidden
-                />
+                {savedSet.size > 0 ? (
+                  <FolderCheck className="size-4 text-ember" aria-hidden />
+                ) : (
+                  <FolderPlus className="size-4" aria-hidden />
+                )}
               </Button>
             </SavePopover>
 
-            {/* Bookmark for later (Task 23) — the Saved overlay lists these */}
+            {/* Bookmark for later (Task 23) - the Saved overlay lists these */}
             <Button
               type="button"
               variant="outline"
@@ -1580,10 +1583,10 @@ export function ToolFullPage() {
               aria-pressed={toolBookmarked}
               disabled={bookmarkPending}
               onClick={() =>
-                void toggleToolBookmark({ label: name, href: `/?tool=${slug}` })
+                void toggleToolBookmark({ label: name, href: `/tools/${slug}` })
               }
               className={cn(
-                "bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
+                "pressable bg-white/[0.03] hover:bg-white/[0.08] size-11 border-white/10 hover:border-ember/40",
                 toolBookmarked ? "text-ember" : "text-white/70 hover:text-ember"
               )}
             >
@@ -1602,7 +1605,7 @@ export function ToolFullPage() {
                 inCompare
                   ? `Remove ${name} from comparison`
                   : compareFull
-                    ? "Comparison is full. Remove a tool first."
+                    ? "Comparison is full (max 4 tools). Remove a tool first."
                     : `Add ${name} to comparison`
               }
               aria-pressed={inCompare}

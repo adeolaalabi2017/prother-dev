@@ -48,6 +48,7 @@ export function ClaimListing({
   const { toast } = useToast();
   const [state, setState] = useState<ClaimState | null>(null);
   const [starting, setStarting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Claim state is per-viewer (it depends on who is signed in), so it can only
@@ -128,6 +129,50 @@ export function ClaimListing({
     }
   }, [metaTag, toast]);
 
+  const verifyClaim = useCallback(async () => {
+    if (!activeClaim) return;
+    setVerifying(true);
+    try {
+      const res = await fetch(`/api/claims/${encodeURIComponent(activeClaim.id)}/verify`, {
+        method: "POST",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        status?: string;
+        error?: string;
+        verifiedAt?: string;
+      };
+      if (res.ok && (data.status === "verified" || data.verifiedAt)) {
+        toast({ title: "Ownership verified" });
+        setState((s) =>
+          s
+            ? {
+                ...s,
+                claim: {
+                  ...activeClaim,
+                  status: "verified",
+                  verifiedAt: new Date().toISOString(),
+                },
+              }
+            : s,
+        );
+        return;
+      }
+      toast({
+        title: "Could not verify tag",
+        description: data.error ?? "Meta tag not found. Check placement and retry.",
+        variant: "destructive",
+      });
+    } catch {
+      toast({
+        title: "Verification failed",
+        description: "Check your connection and retry.",
+        variant: "destructive",
+      });
+    } finally {
+      setVerifying(false);
+    }
+  }, [activeClaim, toast]);
+
   // Already owned by someone else — nothing to offer.
   if (claimed) return null;
 
@@ -171,12 +216,15 @@ export function ClaimListing({
               >
                 {copied ? "COPIED" : "COPY TAG"}
               </button>
-              <a
-                href={`/?tool=${encodeURIComponent(slug)}`}
-                className="h-9 rounded-lg border border-white/20 bg-white/5 px-3 font-mono text-xs font-semibold text-white transition-colors hover:border-ember/40 hover:text-ember"
+              <button
+                type="button"
+                onClick={() => void verifyClaim()}
+                disabled={verifying}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-ember/40 bg-ember/10 px-3 font-mono text-xs font-semibold text-ember transition-colors hover:bg-ember/20 disabled:opacity-50"
               >
-                VERIFY NOW →
-              </a>
+                {verifying && <Loader2 className="size-3 animate-spin" aria-hidden />}
+                {verifying ? "VERIFYING…" : "VERIFY NOW →"}
+              </button>
             </div>
           </>
         )}

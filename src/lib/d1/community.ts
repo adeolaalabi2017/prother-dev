@@ -424,7 +424,7 @@ export async function d1BookmarkToggle(args: {
     if (args.targetType === "tool" && (!label || !href)) {
       const t = await toolBySlug(db, args.targetId);
       label = label || t?.name || "";
-      href = href || (t ? `/?tool=${t.slug}` : "");
+      href = href || (t ? `/tools/${t.slug}` : "");
     } else if (args.targetType === "thread" && (!label || !href)) {
       const t = (
         await db.select().from(forumThreads).where(eq(forumThreads.slug, args.targetId)).limit(1)

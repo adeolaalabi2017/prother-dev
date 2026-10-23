@@ -5,7 +5,11 @@ import type { CompareMatrix } from "@/lib/compare";
 import { CompareMatrixView } from "@/components/prother/compare-matrix";
 import { CATEGORIES } from "@/components/prother/categories";
 import { createServerConvexClient } from "@/lib/convex";
-import { shadowCompareCategories, shadowCompareMatrix } from "@/lib/data";
+import {
+  shadowCompareCategories,
+  shadowCompareMatrix,
+  shadowToolPageData,
+} from "@/lib/data";
 
 /**
  * /compare — category-scoped feature comparison (Task 32).
@@ -149,8 +153,20 @@ async function getMatrix(
 
 export default async function ComparePage({ searchParams }: PageProps) {
   const sp = await searchParams;
-  const category = firstParam(sp.category).trim();
+  let category = firstParam(sp.category).trim();
   const requestedTools = toolSlugsFrom(firstParam(sp.tools));
+
+  if (!category && requestedTools.length > 0) {
+    try {
+      const client = createServerConvexClient()!;
+      const data = await shadowToolPageData(client, requestedTools[0]!);
+      if (data && !("error" in data) && data.tool?.category?.slug) {
+        category = data.tool.category.slug;
+      }
+    } catch {
+      // best-effort category resolution from first requested tool
+    }
+  }
 
   let categories: {
     slug: string;

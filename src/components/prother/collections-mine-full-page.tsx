@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { FolderHeart, Heart, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -438,7 +439,23 @@ export function CollectionsMinePanel({ active }: { active: boolean }) {
                   {g.rows.map((f) => (
                     <li key={f.id} className="flex items-center gap-3 p-3.5">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-white/85">{f.targetLabel}</p>
+                        {f.targetType === "tool" ? (
+                          <Link
+                            href={`/tools/${f.targetId}`}
+                            className="block truncate text-sm font-semibold text-white/85 transition-colors hover:text-ember"
+                          >
+                            {f.targetLabel}
+                          </Link>
+                        ) : f.targetType === "category" ? (
+                          <Link
+                            href={`/categories/${f.targetId}`}
+                            className="block truncate text-sm font-semibold text-white/85 transition-colors hover:text-ember"
+                          >
+                            {f.targetLabel}
+                          </Link>
+                        ) : (
+                          <p className="truncate text-sm font-semibold text-white/85">{f.targetLabel}</p>
+                        )}
                         <p className="truncate font-mono text-xs text-white/55">{f.targetId}</p>
                       </div>
                       <Button

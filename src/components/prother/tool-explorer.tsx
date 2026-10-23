@@ -137,7 +137,7 @@ function CommandPalette() {
     (slug: string) => {
       setSearch(false);
       // Navigate directly to the canonical tool detail page.
-      window.setTimeout(() => router.push(`/tools/${slug}`), 80);
+      router.push(`/tools/${slug}`);
     },
     [setSearch, router],
   );
@@ -146,7 +146,7 @@ function CommandPalette() {
   const goTo = useCallback(
     (href: string) => {
       setSearch(false);
-      window.setTimeout(() => router.push(href), 80);
+      router.push(href);
     },
     [setSearch, router],
   );

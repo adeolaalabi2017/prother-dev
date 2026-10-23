@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Scale, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,17 +9,16 @@ import { useExplorer } from "./explorer-store";
 import { useCompareTrayVisible } from "./compare-store";
 
 /**
- * Floating compare tray (PRD F-08 lite) — a bottom pill that follows the
- * visitor across the feed after they add tools to a comparison. One slug:
- * nudge to pick another. Two slugs: jump straight into the side-by-side page.
- * Hidden whenever any full page (tool / post / mine) is stacked on top.
+ * Floating compare tray - a bottom pill that follows the visitor across the
+ * site after they add tools to a comparison. Supports 1 to 4 tools matching
+ * the /compare matrix. Hidden whenever any full page is stacked on top.
  */
 
 export function CompareTray() {
+  const router = useRouter();
   const visible = useCompareTrayVisible();
   const slugs = useExplorer((s) => s.compare);
   const removeCompare = useExplorer((s) => s.removeCompare);
-  const openCompare = useExplorer((s) => s.openCompare);
   const reducedMotion = useReducedMotion();
   const [names, setNames] = useState<Record<string, string>>({});
 
@@ -81,7 +81,7 @@ export function CompareTray() {
                   Compare · {nameOf(slugs[0]!)}
                 </p>
                 <p className="hidden truncate font-mono text-xs uppercase tracking-[0.2em] text-white/60 sm:block">
-                  Pick one more tool
+                  Pick 1 to 3 more tools
                 </p>
                 <Button
                   type="button"
@@ -96,15 +96,15 @@ export function CompareTray() {
               </>
             )}
 
-            {slugs.length === 2 && (
+            {slugs.length >= 2 && (
               <>
-                <div className="flex min-w-0 items-center gap-1.5">
+                <div className="flex min-w-0 max-w-[60vw] items-center gap-1.5 overflow-x-auto scrollbar-none">
                   {slugs.map((slug, i) => (
                     <span
                       key={slug}
-                      className="flex min-w-0 items-center gap-1 rounded-full border border-white/15 bg-white/[0.04] py-1 pl-2.5 pr-1"
+                      className="flex min-w-0 shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/[0.04] py-1 pl-2.5 pr-1"
                     >
-                      <span className="max-w-28 truncate text-xs font-semibold text-white/90 sm:max-w-36">
+                      <span className="max-w-24 truncate text-xs font-semibold text-white/90 sm:max-w-32">
                         {nameOf(slug)}
                       </span>
                       <button
@@ -115,10 +115,10 @@ export function CompareTray() {
                       >
                         <X className="size-3" aria-hidden />
                       </button>
-                      {i === 0 && (
+                      {i < slugs.length - 1 && (
                         <span
                           aria-hidden
-                          className="mr-1 shrink-0 font-mono text-xs text-ember"
+                          className="mr-1 shrink-0 font-mono text-[10px] text-ember"
                         >
                           VS
                         </span>
@@ -126,10 +126,17 @@ export function CompareTray() {
                     </span>
                   ))}
                 </div>
+                <span className="hidden font-mono text-xs text-white/50 sm:inline">
+                  {slugs.length}/4
+                </span>
                 <Button
                   type="button"
-                  onClick={() => openCompare(slugs[0]!, slugs[1]!)}
-                  className="h-10 shrink-0 rounded-full bg-ember px-4 font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
+                  onClick={() =>
+                    router.push(
+                      `/compare?tools=${slugs.map(encodeURIComponent).join(",")}`
+                    )
+                  }
+                  className="pressable h-10 shrink-0 rounded-full bg-ember px-4 font-mono text-sm font-semibold tracking-wider text-[#0A0A0A] hover:bg-ember-hot"
                 >
                   COMPARE →
                 </Button>
@@ -141,3 +148,4 @@ export function CompareTray() {
     </AnimatePresence>
   );
 }
+

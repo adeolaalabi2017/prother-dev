@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Lock, Triangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -185,11 +186,10 @@ export function CollectionFullPage() {
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Collection tools">
             {detail.items.map((item) => (
               <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => openTool(item.tool.slug)}
+                <Link
+                  href={`/tools/${item.tool.slug}`}
                   aria-label={`Open ${item.tool.name} details`}
-                  className="group h-full w-full rounded-xl border border-white/10 bg-white/[0.02] p-4 text-left transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
+                  className="pressable group block h-full w-full rounded-xl border border-white/10 bg-white/[0.02] p-4 text-left transition-colors hover:border-ember/40 hover:bg-ember/[0.04]"
                 >
                   <div className="flex items-start gap-3">
                     <ToolLogo
@@ -217,7 +217,7 @@ export function CollectionFullPage() {
                       {item.tool.votes}
                     </span>
                   </p>
-                </button>
+                </Link>
               </li>
             ))}
           </ul>
