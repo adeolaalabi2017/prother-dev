@@ -8,6 +8,10 @@ This document records persistent rules, architecture invariants, and asset handl
 
 ### Core Invariant
 - **NEVER use generic AI icons, fallback emojis, or colored gradient placeholder tiles for tool logos.**
+- **NEVER generate, illustrate, or hallucinate synthetic logo graphics or hand-coded artwork from scratch.**
+- **ALWAYS EXTRACT THE ORIGINAL LOGO ONLY**:
+  1. Fetch the official vector SVG or high-resolution brand PNG directly from the tool's official GitHub repository (e.g. `logo/`, `assets/`, `docs/assets/`), official website favicon/manifest (`/favicon.svg`, `/apple-touch-icon.png`), or verified brand kit/CDN.
+  2. Extract and preserve the exact authentic mark / brand geometry. Never re-draw or improvise a synthetic version.
 - The user and community demand real, authentic brand assets across the entire application (Homepage, Categories, Directory, Search, Compare, and Tool Detail pages).
 
 ### Asset Location & URL Specification
