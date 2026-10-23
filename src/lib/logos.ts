@@ -60,4 +60,9 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   reason: "/logos/reason-1-0.png",
   "hark-pro": "/logos/hark-pro.png",
   hark: "/logos/hark-pro.png",
+  "sam-2": "/logos/sam-2.svg",
+  duckdb: "/logos/duckdb.svg",
+  "deepseek-v3": "/logos/deepseek-v3.svg",
+  docling: "/logos/docling.svg",
+  browserbase: "/logos/browserbase.svg",
 };
