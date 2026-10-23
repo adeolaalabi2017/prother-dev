@@ -270,12 +270,29 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<"auth" | "load" | null>(null);
 
   const load = useCallback(() => {
+    setError(null);
     adminFetch(apiKey, "/api/editor/queue")
-      .then((r) => r.json())
-      .then((d: { pending?: PendingSub[] }) => setSubs(d.pending ?? []))
-      .catch(() => setSubs([]));
+      .then((r) => {
+        if (r.status === 401) {
+          setError("auth");
+          setSubs([]);
+          return undefined;
+        }
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<{ pending?: PendingSub[] }>;
+      })
+      .then((d) => {
+        if (d) setSubs(d.pending ?? []);
+      })
+      .catch(() => {
+        // JSON parse failure here usually means Cloudflare Access redirected
+        // the request to its HTML login page (expired 24h session).
+        setError("load");
+        setSubs([]);
+      });
   }, [apiKey]);
 
   useEffect(load, [load]);
@@ -321,7 +338,28 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
 
   return (
     <div className="space-y-3">
-      {subs.length === 0 && (
+      {error ? (
+        <div className="rounded-lg border border-red-400/25 bg-red-400/[0.04] p-10 text-center">
+          <p className="font-mono text-xs tracking-[0.25em] text-red-300 uppercase">
+            {error === "auth" ? "Key not accepted" : "Queue unavailable"}
+          </p>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-white/60">
+            {error === "auth"
+              ? "The console key didn't unlock the moderation queue. Lock the console and unlock again with the current admin key."
+              : "Couldn't reach the editor queue — the Cloudflare Access session may have expired. Reload the page, sign in to Access, then retry."}
+          </p>
+          <Button
+            onClick={() => {
+              setSubs(null);
+              load();
+            }}
+            className="mt-5 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
+          >
+            <RotateCcw className="size-4" aria-hidden />
+            Retry
+          </Button>
+        </div>
+      ) : subs.length === 0 && (
         <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
           <CheckCircle2 className="mx-auto size-8 text-emerald-400" aria-hidden />
           <p className="mt-3 font-mono text-sm text-white/60">
