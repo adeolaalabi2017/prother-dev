@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Ban, ImagePlus, Loader2, Search, ShieldCheck } from "lucide-react";
+import { Ban, Eye, ImagePlus, Loader2, Search, ShieldCheck } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +50,309 @@ type AdminUser = {
 };
 
 type UsersStats = { total: number; banned: number; moderators: number; admins: number };
+
+type UserDetail = {
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    handle: string | null;
+    image: string | null;
+    role: string;
+    status: string;
+    createdAt: string;
+    lastActivityAt: string | null;
+  };
+  counts: { threads: number; replies: number; reviews: number; reports: number };
+  threads: {
+    id: string;
+    href: string;
+    title: string;
+    topic: string;
+    hidden: boolean;
+    replyCount: number;
+    createdAt: string;
+  }[];
+  replies: {
+    id: string;
+    href: string;
+    threadTitle: string;
+    excerpt: string;
+    hidden: boolean;
+    createdAt: string;
+  }[];
+  reviews: {
+    id: string;
+    href: string;
+    toolName: string;
+    status: string;
+    ease: number;
+    power: number;
+    value: number;
+    excerpt: string;
+    createdAt: string;
+  }[];
+  reports: {
+    id: string;
+    targetType: string;
+    targetLabel: string;
+    reason: string;
+    status: string;
+    createdAt: string;
+  }[];
+  audit: { id: string; action: string; meta: string; createdAt: string }[];
+};
+
+/** Detail drawer: one user's content, moderation state, and audit trail. */
+function UserDrawer({
+  apiKey,
+  userId,
+  onClose,
+}: {
+  apiKey: string;
+  userId: string;
+  onClose: () => void;
+}) {
+  const [d, setD] = useState<UserDetail | null>(null);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(() => {
+    adminFetch(apiKey, `/api/admin/users/${userId}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<UserDetail>;
+      })
+      .then((data) => setD(data))
+      .catch(() => setError(true));
+  }, [apiKey, userId]);
+
+  useEffect(() => {
+    const t = setTimeout(load, 0);
+    return () => clearTimeout(t);
+  }, [load]);
+
+  const itemCx =
+    "rounded-lg border border-white/10 bg-white/[0.02] p-2.5 text-sm";
+  const sectionTitleCx =
+    "font-mono text-xs tracking-[0.25em] text-white/55 uppercase";
+
+  return (
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent
+        side="right"
+        className="w-full max-w-md overflow-y-auto border-white/10 bg-ink p-5 text-white sm:max-w-md"
+      >
+        <SheetHeader className="p-0">
+          <SheetTitle className="flex items-center gap-3 text-left text-lg">
+            <span className="font-mono text-ember">
+              {atHandle(d?.user.handle ?? "...")}
+            </span>
+            {d?.user.status === "banned" && (
+              <span className="rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 font-mono text-xs uppercase text-red-300">
+                Banned
+              </span>
+            )}
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            {d?.user.name ?? "User"} details and moderation history.
+          </SheetDescription>
+        </SheetHeader>
+
+        {error ? (
+          <div className="mt-6 rounded-lg border border-red-400/25 bg-red-400/[0.04] p-6 text-center">
+            <p className="font-mono text-xs tracking-[0.25em] text-red-300 uppercase">
+              Detail unavailable
+            </p>
+            <p className="mt-2 text-sm text-white/60">
+              Couldn't load this user. Check the admin key or network.
+            </p>
+            <Button size="sm" onClick={load} className="mt-4 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal">
+              <Loader2 className="size-3.5" aria-hidden />
+              Retry
+            </Button>
+          </div>
+        ) : !d ? (
+          <UsersSkeleton />
+        ) : (
+          <div className="mt-4 space-y-5">
+            <div className="space-y-1 text-sm">
+              <p className="text-white/80">{d.user.name ?? "(no name)"}</p>
+              <p className="font-mono text-xs text-white/60">{d.user.email}</p>
+              <p className="font-mono text-xs text-white/45">
+                role {d.user.role} · joined{" "}
+                {new Date(d.user.createdAt).toISOString().slice(0, 10)} · last
+                active {relTime(d.user.lastActivityAt)}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              <MiniStat label="Threads" value={d.counts.threads} />
+              <MiniStat label="Replies" value={d.counts.replies} />
+              <MiniStat label="Reviews" value={d.counts.reviews} />
+              <MiniStat label="Reports" value={d.counts.reports} />
+            </div>
+
+            {d.audit.length > 0 && (
+              <section className="space-y-2">
+                <p className={sectionTitleCx}>Moderation history</p>
+                {d.audit.map((a) => (
+                  <div key={a.id} className={itemCx}>
+                    <p className="font-mono text-xs text-white/75">
+                      {a.action} · {relTime(a.createdAt)}
+                    </p>
+                    {a.meta && (
+                      <p className="mt-1 text-xs text-white/55">{a.meta}</p>
+                    )}
+                  </div>
+                ))}
+              </section>
+            )}
+
+            <section className="space-y-2">
+              <p className={sectionTitleCx}>Threads</p>
+              {d.threads.length === 0 ? (
+                <p className="text-xs text-white/45">None.</p>
+              ) : (
+                d.threads.map((t) => (
+                  <div key={t.id} className={itemCx}>
+                    <div className="flex items-center justify-between gap-2">
+                      {t.href ? (
+                        <a
+                          href={t.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="min-w-0 truncate text-white/85 underline decoration-white/20 underline-offset-2 hover:text-ember"
+                        >
+                          {t.title}
+                        </a>
+                      ) : (
+                        <span className="min-w-0 truncate text-white/85">{t.title}</span>
+                      )}
+                      {t.hidden && (
+                        <span className="shrink-0 rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 font-mono text-[10px] uppercase text-red-300">
+                          Hidden
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 font-mono text-xs text-white/45">
+                      {t.topic} · {t.replyCount} replies · {relTime(t.createdAt)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </section>
+
+            <section className="space-y-2">
+              <p className={sectionTitleCx}>Replies</p>
+              {d.replies.length === 0 ? (
+                <p className="text-xs text-white/45">None.</p>
+              ) : (
+                d.replies.map((r) => (
+                  <div key={r.id} className={itemCx}>
+                    <div className="flex items-center justify-between gap-2">
+                      {r.href ? (
+                        <a
+                          href={r.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="min-w-0 truncate text-xs text-white/60 underline decoration-white/20 underline-offset-2 hover:text-ember"
+                        >
+                          {r.threadTitle || "(thread)"}
+                        </a>
+                      ) : (
+                        <span className="min-w-0 truncate text-xs text-white/60">
+                          {r.threadTitle || "(thread)"}
+                        </span>
+                      )}
+                      {r.hidden && (
+                        <span className="shrink-0 rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 font-mono text-[10px] uppercase text-red-300">
+                          Hidden
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-white/75">
+                      {r.excerpt}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-white/45">
+                      {relTime(r.createdAt)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </section>
+
+            <section className="space-y-2">
+              <p className={sectionTitleCx}>Reviews</p>
+              {d.reviews.length === 0 ? (
+                <p className="text-xs text-white/45">None.</p>
+              ) : (
+                d.reviews.map((r) => (
+                  <div key={r.id} className={itemCx}>
+                    <div className="flex items-center justify-between gap-2">
+                      {r.href ? (
+                        <a
+                          href={r.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="min-w-0 truncate text-white/85 underline decoration-white/20 underline-offset-2 hover:text-ember"
+                        >
+                          {r.toolName}
+                        </a>
+                      ) : (
+                        <span className="min-w-0 truncate text-white/85">{r.toolName}</span>
+                      )}
+                      {r.status === "filtered" && (
+                        <span className="shrink-0 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] uppercase text-amber-300">
+                          Filtered
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 font-mono text-xs text-white/45">
+                      ease {r.ease} · power {r.power} · value {r.value} ·{" "}
+                      {relTime(r.createdAt)}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/75">
+                      {r.excerpt}
+                    </p>
+                  </div>
+                ))
+              )}
+            </section>
+
+            <section className="space-y-2">
+              <p className={sectionTitleCx}>Reports filed</p>
+              {d.reports.length === 0 ? (
+                <p className="text-xs text-white/45">None.</p>
+              ) : (
+                d.reports.map((r) => (
+                  <div key={r.id} className={itemCx}>
+                    <p className="text-xs text-white/80">
+                      {r.targetType} · {r.reason} ·{" "}
+                      <span className="font-mono uppercase text-white/55">
+                        {r.status}
+                      </span>
+                    </p>
+                    <p className="mt-1 truncate text-xs text-white/55">
+                      {r.targetLabel}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-white/45">
+                      {relTime(r.createdAt)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </section>
+
+            <p className="font-mono text-xs leading-relaxed text-white/45">
+              NEWEST 50 ITEMS PER SECTION · TOTALS IN THE COUNT STRIP ·
+              MODERATION HISTORY FROM THE AUDIT TRAIL
+            </p>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 const STATUS_FILTERS = ["all", "active", "banned"] as const;
 const ROLE_FILTERS = ["all", "member", "moderator", "admin"] as const;
@@ -99,6 +409,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   const [sort, setSort] = useState<UserSort>("newest");
   const [banning, setBanning] = useState<string | null>(null);
   const [banNote, setBanNote] = useState("");
+  const [inspect, setInspect] = useState<string | null>(null);
 
   const load = useCallback(() => {
     adminFetch(
@@ -420,6 +731,18 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                   <span className="hidden lg:inline">Avatar</span>
                 </Button>
 
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy === u.id}
+                  aria-label={`Inspect ${atHandle(u.handle)}`}
+                  onClick={() => setInspect(u.id)}
+                  className="h-8 shrink-0 rounded-lg text-white/60 hover:text-white"
+                >
+                  <Eye className="size-3.5" aria-hidden />
+                  <span className="hidden lg:inline">Inspect</span>
+                </Button>
+
                 {u.status === "active" ? (
                   <Button
                     size="sm"
@@ -508,6 +831,10 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
             );
           })}
         </div>
+      )}
+
+      {inspect && (
+        <UserDrawer apiKey={apiKey} userId={inspect} onClose={() => setInspect(null)} />
       )}
 
       <p className="font-mono text-xs leading-relaxed text-white/55">

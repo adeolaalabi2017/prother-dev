@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { guard } from "@/lib/admin";
-import { shadowAdminUsers } from "@/lib/data";
+import { shadowAdminUsers, shadowAdminUserDetail } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guard, logAudit } from "@/lib/admin";
-import { convexAuthSessionsDeleteByUser, convexUserModerate } from "@/lib/data";
+import { convexAuthSessionsDeleteByUser, convexUserModerate, shadowAdminUserDetail } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +28,30 @@ const patchSchema = z.object({
 });
 
 type Params = { params: Promise<{ id: string }> };
+
+/** Detail drawer payload: the user's content with links + moderation audit. */
+export async function GET(req: NextRequest, { params }: Params) {
+  const denied = guard(req);
+  if (denied) return denied;
+
+  const { id } = await params;
+  try {
+    const res = await shadowAdminUserDetail(createServerConvexClient()!, id);
+    if (!res || !("user" in (res as Record<string, unknown>))) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    return NextResponse.json(res, {
+      headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : String(err);
+    if (m.includes("not_found")) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    console.error("[api:admin/users/[id]] GET failed:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
+}
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const denied = guard(req);

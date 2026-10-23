@@ -1317,6 +1317,17 @@ export async function convexPostDelete(c: Client, args: { postLegacyId: string }
   return c.mutation(api.adminCrud.postDelete, args);
 }
 
+export async function shadowAdminUserDetail(c: Client, userId: string) { if (!c) return null as any;
+  try {
+    const { d1UserDetail } = await import("@/lib/d1/moderation");
+    const d1 = await d1UserDetail(userId);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
+  return c.query(api.adminCrud.userDetail, { userId });
+}
+
 export async function convexUserModerate(
   c: Client,
   args: {

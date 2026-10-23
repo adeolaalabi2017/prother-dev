@@ -15,6 +15,7 @@
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { getD1 } from "./client";
 import {
+  auditLogs,
   bookmarks,
   forumReplies,
   forumThreads,
@@ -218,6 +219,178 @@ export async function d1UserModerate(args: {
     await db.update(users).set(patch).where(eq(users.id, user.id));
   }
   return { ok: true as const };
+}
+
+// ── User detail drawer + reports table ──────────────────────────────────
+
+export type D1UserDetail = {
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    handle: string | null;
+    image: string | null;
+    role: string;
+    status: string;
+    createdAt: string;
+    lastActivityAt: string | null;
+  };
+  counts: { threads: number; replies: number; reviews: number; reports: number };
+  threads: {
+    id: string;
+    href: string;
+    title: string;
+    topic: string;
+    hidden: boolean;
+    replyCount: number;
+    createdAt: string;
+  }[];
+  replies: {
+    id: string;
+    href: string;
+    threadTitle: string;
+    excerpt: string;
+    hidden: boolean;
+    createdAt: string;
+  }[];
+  reviews: {
+    id: string;
+    href: string;
+    toolName: string;
+    status: string;
+    ease: number;
+    power: number;
+    value: number;
+    excerpt: string;
+    createdAt: string;
+  }[];
+  reports: {
+    id: string;
+    targetType: string;
+    targetLabel: string;
+    reason: string;
+    status: string;
+    createdAt: string;
+  }[];
+  audit: { id: string; action: string; meta: string; createdAt: string }[];
+};
+
+function excerptOf(text: string, max = 140): string {
+  return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+
+export async function d1UserDetail(userId: string): Promise<D1UserDetail | null> {
+  const db = await getD1();
+  if (!db) return null;
+  const [userRows, threadRows, replyRows, toolRows, reviewRows, reportRows, auditRows] =
+    await Promise.all([
+      db.select().from(users),
+      db.select().from(forumThreads),
+      db.select().from(forumReplies),
+      db.select().from(tools),
+      db.select().from(reviews),
+      db.select().from(reports),
+      db.select().from(auditLogs),
+    ]);
+  const user = userRows.find((u) => docId(u) === userId || u.legacyId === userId);
+  if (!user) return null;
+  const authorId = user.legacyId ?? user.id;
+  const toolById = new Map(toolRows.map((t) => [t.id, t]));
+  const threadById = new Map(threadRows.map((t) => [t.id, t]));
+
+  const threadList = threadRows
+    .filter((t) => t.authorId === authorId)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((t) => ({
+      id: docId(t),
+      href: `/forums/${t.slug}`,
+      title: t.title,
+      topic: t.topic,
+      hidden: Boolean(t.hidden),
+      replyCount: t.replyCount,
+      createdAt: isoFromMs(t.createdAt),
+    }));
+  const replyList = replyRows
+    .filter((r) => r.authorId === authorId)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((r) => {
+      const parent = threadById.get(r.threadId);
+      return {
+        id: docId(r),
+        href: parent ? `/forums/${parent.slug}` : "",
+        threadTitle: parent?.title ?? "",
+        excerpt: excerptOf(r.body),
+        hidden: Boolean(r.hidden),
+        createdAt: isoFromMs(r.createdAt),
+      };
+    });
+  const reviewList = reviewRows
+    .filter((r) => r.userId === authorId)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((r) => {
+      const t = toolById.get(r.toolId);
+      return {
+        id: docId(r),
+        href: t?.slug ? `/tools/${t.slug}` : "",
+        toolName: t?.name ?? "",
+        status: r.status,
+        ease: r.ease,
+        power: r.power,
+        value: r.value,
+        excerpt: excerptOf(r.body),
+        createdAt: isoFromMs(r.createdAt),
+      };
+    });
+  const reportList = reportRows
+    .filter((r) => r.reporterEmail === user.email)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((r) => ({
+      id: docId(r),
+      targetType: r.targetType,
+      targetLabel: r.targetLabel,
+      reason: r.reason,
+      status: r.status,
+      createdAt: isoFromMs(r.createdAt),
+    }));
+  const auditList = auditRows
+    .filter((a) => a.entityId === userId || a.legacyId === userId)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 30)
+    .map((a) => ({
+      id: docId(a),
+      action: a.action,
+      meta: a.meta,
+      createdAt: isoFromMs(a.createdAt),
+    }));
+  const lastActivity = Math.max(
+    0,
+    ...threadList.map((t) => new Date(t.createdAt).getTime()),
+    ...replyList.map((r) => new Date(r.createdAt).getTime()),
+  );
+  return {
+    user: {
+      id: docId(user),
+      name: user.name ?? null,
+      email: user.email ?? null,
+      handle: user.handle ?? null,
+      image: user.image ?? null,
+      role: ["member", "moderator", "admin"].includes(user.role) ? user.role : "member",
+      status: user.status === "banned" ? "banned" : "active",
+      createdAt: isoFromMs(user.createdAt),
+      lastActivityAt: lastActivity ? isoFromMs(lastActivity) : null,
+    },
+    counts: {
+      threads: threadList.length,
+      replies: replyList.length,
+      reviews: reviewList.length,
+      reports: reportList.length,
+    },
+    threads: threadList.slice(0, 50),
+    replies: replyList.slice(0, 50),
+    reviews: reviewList.slice(0, 50),
+    reports: reportList.slice(0, 50),
+    audit: auditList,
+  };
 }
 
 // ── Reports table + resolve ──────────────────────────────────────────────

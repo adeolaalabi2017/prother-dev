@@ -651,6 +651,126 @@ export const userModerate = mutation({
   },
 });
 
+// ── User detail drawer (GET /api/admin/users/[id]) ────────────────────────
+
+/** Per-user investigation payload: their content with links + moderation audit. */
+export const userDetail = query({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    const [users, threads, replies, tools, reviews, reports, auditLogs] =
+      await Promise.all([
+        ctx.db.query("users").collect(),
+        ctx.db.query("forumThreads").collect(),
+        ctx.db.query("forumReplies").collect(),
+        ctx.db.query("tools").collect(),
+        ctx.db.query("reviews").collect(),
+        ctx.db.query("reports").collect(),
+        ctx.db.query("auditLogs").collect(),
+      ]);
+    const user = users.find(
+      (u) => docId(u) === userId || u.legacyId === userId,
+    );
+    if (!user) throw new Error("not_found");
+    const authorId = user.legacyId ?? user._id;
+    const toolById = new Map(tools.map((t) => [t._id, t]));
+    const threadById = new Map(threads.map((t) => [t._id, t]));
+
+    const threadRows = threads
+      .filter((t) => t.authorId === authorId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((t) => ({
+        id: docId(t),
+        href: `/forums/${t.slug}`,
+        title: t.title,
+        topic: t.topic,
+        hidden: t.hidden,
+        replyCount: t.replyCount,
+        createdAt: isoFromMs(t.createdAt),
+      }));
+    const replyRows = replies
+      .filter((r) => r.authorId === authorId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((r) => {
+        const parent = threadById.get(r.threadId);
+        return {
+          id: docId(r),
+          href: parent ? `/forums/${parent.slug}` : "",
+          threadTitle: parent?.title ?? "",
+          excerpt: r.body.length > 140 ? `${r.body.slice(0, 140)}...` : r.body,
+          hidden: r.hidden,
+          createdAt: isoFromMs(r.createdAt),
+        };
+      });
+    const reviewRows = reviews
+      .filter((r) => r.userId === authorId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((r) => {
+        const t = toolById.get(r.toolId);
+        return {
+          id: docId(r),
+          href: t?.slug ? `/tools/${t.slug}` : "",
+          toolName: t?.name ?? "",
+          status: r.status,
+          ease: r.ease,
+          power: r.power,
+          value: r.value,
+          excerpt: r.body.length > 140 ? `${r.body.slice(0, 140)}...` : r.body,
+          createdAt: isoFromMs(r.createdAt),
+        };
+      });
+    const reportRows = reports
+      .filter((r) => r.reporterEmail === user.email)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((r) => ({
+        id: docId(r),
+        targetType: r.targetType,
+        targetLabel: r.targetLabel,
+        reason: r.reason,
+        status: r.status,
+        createdAt: isoFromMs(r.createdAt),
+      }));
+    const auditRows = auditLogs
+      .filter((a) => a.entityId === userId || a.legacyId === userId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 30)
+      .map((a) => ({
+        id: docId(a),
+        action: a.action,
+        meta: a.meta,
+        createdAt: isoFromMs(a.createdAt),
+      }));
+    const lastActivity = Math.max(
+      0,
+      ...threadRows.map((t) => new Date(t.createdAt).getTime()),
+      ...replyRows.map((r) => new Date(r.createdAt).getTime()),
+    );
+    return {
+      user: {
+        id: docId(user),
+        name: user.name ?? null,
+        email: user.email ?? null,
+        handle: user.handle ?? null,
+        image: user.image ?? null,
+        role: ["member", "moderator", "admin"].includes(user.role) ? user.role : "member",
+        status: user.status === "banned" ? "banned" : "active",
+        createdAt: isoFromMs(user.createdAt),
+        lastActivityAt: lastActivity ? isoFromMs(lastActivity) : null,
+      },
+      counts: {
+        threads: threadRows.length,
+        replies: replyRows.length,
+        reviews: reviewRows.length,
+        reports: reportRows.length,
+      },
+      threads: threadRows.slice(0, 50),
+      replies: replyRows.slice(0, 50),
+      reviews: reviewRows.slice(0, 50),
+      reports: reportRows.slice(0, 50),
+      audit: auditRows,
+    };
+  },
+});
+
 // ── Reports table + resolve ──
 
 function maskReporter(email?: string, key?: string): string {
