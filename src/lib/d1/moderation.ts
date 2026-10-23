@@ -12,7 +12,7 @@
  * ordering with a 300-row cap, and the bookmarks owner_key convention
  * ('user:' + RAW stored email, no lowercasing).
  */
-import { desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { getD1 } from "./client";
 import {
   bookmarks,
@@ -191,6 +191,25 @@ export async function d1UserModerate(args: {
   if (!db) return null;
   const user = await byEitherId<UserRow>(db, users, args.userLegacyId);
   if (!user) return null;
+  // Lockout rails mirroring convex/adminCrud.ts userModerate verbatim:
+  // active admin accounts can never be banned, and the last active admin
+  // can never be demoted to a lower role.
+  if (args.status === "banned" && user.role === "admin") {
+    throw new Error("admin_protected");
+  }
+  if (args.role !== undefined && args.role !== "admin" && user.role === "admin") {
+    const [remaining] = await db
+      .select({ n: sql<number>`count(*)` })
+      .from(users)
+      .where(
+        and(
+          eq(users.role, "admin"),
+          ne(users.status, "banned"),
+          ne(users.id, user.id),
+        ),
+      );
+    if (Number(remaining.n) === 0) throw new Error("last_admin");
+  }
   const patch: Partial<UserRow> = {};
   if (args.role !== undefined) patch.role = args.role;
   if (args.status !== undefined) patch.status = args.status;

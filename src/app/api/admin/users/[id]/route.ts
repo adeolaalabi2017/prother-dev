@@ -23,6 +23,8 @@ const patchSchema = z.object({
   status: z.enum(["active", "banned"]).optional(),
   /** Uploaded avatar (User.image is a pre-boot column → ORM handles it). */
   image: MEDIA_URL.nullable().optional(),
+  /** Moderation reason, recorded in the audit trail only. */
+  note: z.string().trim().max(200).optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };
@@ -39,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       { status: 400 }
     );
   }
-  const { role, status, image } = parsed.data;
+  const { role, status, image, note } = parsed.data;
   if (!role && !status && image === undefined) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
@@ -59,6 +61,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (m.includes("not_found")) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    if (m.includes("admin_protected")) {
+      return NextResponse.json(
+        { error: "Admin accounts can't be banned from the panel. Demote the account first, then ban it if needed." },
+        { status: 400 }
+      );
+    }
+    if (m.includes("last_admin")) {
+      return NextResponse.json(
+        { error: "Can't demote the last active admin. Promote another account to admin first." },
+        { status: 400 }
+      );
+    }
     console.error("[api:admin/users] PATCH failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
@@ -73,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     "user.moderate",
     "user",
     id,
-    [role ? `role→${role}` : null, status ? `status→${status}` : null, image !== undefined ? "avatar" : null]
+    [role ? `role→${role}` : null, status ? `status→${status}` : null, image !== undefined ? "avatar" : null, note ? `note="${note.replace(/"/g, "'")}"` : null]
       .filter(Boolean)
       .join(", ")
   );

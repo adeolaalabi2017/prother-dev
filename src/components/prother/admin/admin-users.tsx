@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Ban, ImagePlus, Search, ShieldCheck } from "lucide-react";
+import { Ban, ImagePlus, Loader2, Search, ShieldCheck } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,6 +58,24 @@ function atHandle(handle: string) {
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
+/** "3h" / "2d" / "just now" — relative last-active stamp for triage. */
+function relTime(iso: string | null): string {
+  if (!iso) return "never";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 90_000) return "just now";
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+type UserSort = "newest" | "activity" | "content";
+
+const SORT_VALUES: { value: UserSort; label: string }[] = [
+  { value: "newest", label: "Newest accounts" },
+  { value: "activity", label: "Recently active" },
+  { value: "content", label: "Most content" },
+];
+
 function UsersSkeleton() {
   return (
     <div className="space-y-2">
@@ -77,6 +96,9 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [avatarOpen, setAvatarOpen] = useState<string | null>(null);
+  const [sort, setSort] = useState<UserSort>("newest");
+  const [banning, setBanning] = useState<string | null>(null);
+  const [banNote, setBanNote] = useState("");
 
   const load = useCallback(() => {
     adminFetch(
@@ -108,7 +130,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   }, [load]);
 
   const sendPatch = useCallback(
-    async (id: string, body: { role?: string; status?: string }) => {
+    async (id: string, body: { role?: string; status?: string; note?: string }) => {
       setBusy(id);
       try {
         const res = await adminFetch(apiKey, `/api/admin/users/${id}`, {
@@ -158,7 +180,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   );
 
   const toggleBan = useCallback(
-    async (u: AdminUser) => {
+    async (u: AdminUser, note: string) => {
       if (!users) return;
       const nextStatus: AdminUser["status"] = u.status === "active" ? "banned" : "active";
       const usersSnapshot = users;
@@ -172,7 +194,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
           ? { ...s, banned: Math.max(0, s.banned + (nextStatus === "banned" ? 1 : -1)) }
           : s
       );
-      const res = await sendPatch(u.id, { status: nextStatus });
+      const res = await sendPatch(u.id, { status: nextStatus, note: note || undefined });
       if (!res.ok) {
         setUsers(usersSnapshot);
         setStats(statsSnapshot);
@@ -217,6 +239,17 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
     },
     [users, stats, sendPatch, toast, onChanged]
   );
+
+  const visibleUsers: AdminUser[] = (() => {
+    if (!users) return [];
+    const contentOf = (u: AdminUser) =>
+      u.threads + u.replies + u.reviews + u.bookmarks;
+    const at = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
+    const copy = [...users];
+    if (sort === "activity") return copy.sort((a, b) => at(b.lastActivityAt) - at(a.lastActivityAt));
+    if (sort === "content") return copy.sort((a, b) => contentOf(b) - contentOf(a));
+    return copy;
+  })();
 
   return (
     <div className="space-y-3">
@@ -263,6 +296,16 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
             ))}
           </SelectContent>
         </Select>
+        <Select value={sort} onValueChange={(v) => setSort(v as UserSort)}>
+          <SelectTrigger aria-label="Sort users" className={cn(inputCx, "w-44")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-coal text-white">
+            {SORT_VALUES.map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {error ? (
@@ -273,7 +316,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
         <p className="py-10 text-center text-sm text-white/55">No users match.</p>
       ) : (
         <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
-          {users.map((u) => {
+          {visibleUsers.map((u) => {
             const initial = (u.name ?? u.handle.replace(/^@/, "") ?? "?").charAt(0).toUpperCase();
             return (
               <div
@@ -311,6 +354,9 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                   </p>
                   <p className="truncate font-mono text-xs text-white/60">
                     {u.email} · joined {new Date(u.createdAt).toISOString().slice(0, 10)}
+                    <span className="text-white/45">
+                      {" "}· last active {relTime(u.lastActivityAt)}
+                    </span>
                   </p>
                 </div>
 
@@ -330,9 +376,12 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
 
                 <span
                   className="hidden shrink-0 font-mono text-xs text-white/60 md:block"
-                  title={`${u.threads} threads · ${u.replies} replies · ${u.reviews} reviews`}
+                  title={`${u.threads} threads · ${u.replies} replies · ${u.reviews} reviews · ${u.reportsFiled} reports filed`}
                 >
                   T{u.threads} · R{u.replies} · V{u.reviews}
+                  {u.reportsFiled > 0 && (
+                    <span className="text-red-300/80"> · F{u.reportsFiled}</span>
+                  )}
                 </span>
 
                 <Select
@@ -376,7 +425,11 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                     size="sm"
                     variant="outline"
                     disabled={busy === u.id}
-                    onClick={() => void toggleBan(u)}
+                    aria-expanded={banning === u.id}
+                    onClick={() => {
+                      setBanning(banning === u.id ? null : u.id);
+                      setBanNote("");
+                    }}
                     className="h-8 shrink-0 rounded-lg border-red-400/30 text-red-400 hover:bg-red-400/10 hover:text-red-300"
                   >
                     <Ban className="size-3.5" aria-hidden />
@@ -387,12 +440,52 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                     size="sm"
                     variant="outline"
                     disabled={busy === u.id}
-                    onClick={() => void toggleBan(u)}
+                    onClick={() => void toggleBan(u, "")}
                     className="h-8 shrink-0 rounded-lg border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300"
                   >
                     <ShieldCheck className="size-3.5" aria-hidden />
                     Unban
                   </Button>
+                )}
+
+                {banning === u.id && (
+                  <div className="w-full space-y-2.5 rounded-lg border border-red-400/25 bg-red-400/[0.04] p-3">
+                    <p className="font-mono text-xs tracking-widest text-red-300">
+                      BAN {atHandle(u.handle).toUpperCase()} · REVOKES SESSIONS ·
+                      SILENCES FUTURE POSTS
+                    </p>
+                    <Textarea
+                      value={banNote}
+                      onChange={(e) => setBanNote(e.target.value)}
+                      maxLength={200}
+                      placeholder="Reason (optional, kept in the audit trail)…"
+                      rows={2}
+                      aria-label="Ban reason"
+                      className={cn(inputCx, "resize-none bg-white/[0.03]")}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={busy === u.id}
+                        onClick={() => {
+                          setBanning(null);
+                          void toggleBan(u, banNote);
+                        }}
+                        className="rounded-lg bg-red-500 text-white shadow-none hover:bg-red-400 disabled:opacity-40"
+                      >
+                        {busy === u.id ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
+                        Confirm ban
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setBanning(null)}
+                        className="rounded-lg text-white/60 hover:text-white"
+                      >
+                        Back
+                      </Button>
+                    </div>
+                  </div>
                 )}
 
                 {avatarOpen === u.id && (
@@ -418,8 +511,9 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
       )}
 
       <p className="font-mono text-xs leading-relaxed text-white/55">
-        BANNING REVOKES ACTIVE SESSIONS SERVER-SIDE · ROLE CHANGES APPLY ON THE
-        NEXT REQUEST · T/R/V = THREADS / REPLIES / REVIEWS
+        BANNING REVOKES ACTIVE SESSIONS SERVER-SIDE · ADMIN ACCOUNTS CAN'T BE
+        BANNED AND THE LAST ADMIN CAN'T BE DEMOTED · ROLE CHANGES APPLY ON THE
+        NEXT REQUEST · T/R/V/F = THREADS / REPLIES / REVIEWS / REPORTS FILED
       </p>
     </div>
   );

@@ -627,6 +627,19 @@ export const userModerate = mutation({
     const users = await ctx.db.query("users").collect();
     const user = users.find((u) => docId(u) === a.userLegacyId);
     if (!user) throw new Error("not_found");
+    // Lockout rails (shared-key panel has no acting-admin identity, so rails
+    // protect the role itself): active admin accounts can never be banned,
+    // and the last active admin can never be demoted to a lower role.
+    if (a.status === "banned" && user.role === "admin") {
+      throw new Error("admin_protected");
+    }
+    if (a.role !== undefined && a.role !== "admin" && user.role === "admin") {
+      const remainingAdmins = users.filter(
+        (u) =>
+          u.role === "admin" && u.status !== "banned" && docId(u) !== a.userLegacyId,
+      ).length;
+      if (remainingAdmins === 0) throw new Error("last_admin");
+    }
     const patch: Record<string, unknown> = {};
     if (a.role !== undefined) patch.role = a.role;
     if (a.status !== undefined) patch.status = a.status;
