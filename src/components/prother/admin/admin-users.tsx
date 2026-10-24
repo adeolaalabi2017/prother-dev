@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Eye, ImagePlus, Loader2, Search, ShieldCheck } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sheet,
   SheetContent,
@@ -421,6 +422,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   const [inspect, setInspect] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [banSweep, setBanSweep] = useState(true);
 
   const load = useCallback(
     (page: number, append: boolean) => {
@@ -468,16 +470,29 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   }, [users, loadingMore, load]);
 
   const sendPatch = useCallback(
-    async (id: string, body: { role?: string; status?: string; note?: string }) => {
+    async (
+      id: string,
+      body: {
+        role?: string;
+        status?: string;
+        note?: string;
+        hideContent?: boolean;
+        restoreContent?: boolean;
+      }
+    ) => {
       setBusy(id);
       try {
         const res = await adminFetch(apiKey, `/api/admin/users/${id}`, {
           method: "PATCH",
           body: JSON.stringify(body),
         });
-        const d = (await res.json()) as { ok?: boolean; error?: string };
+        const d = (await res.json()) as {
+          ok?: boolean;
+          error?: string;
+          sweep?: { threads: number; replies: number; reviews: number };
+        };
         if (!res.ok || !d.ok) return { ok: false as const, error: d.error ?? "Update failed" };
-        return { ok: true as const };
+        return { ok: true as const, sweep: d.sweep };
       } catch {
         return { ok: false as const, error: "Network error" };
       } finally {
@@ -518,7 +533,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   );
 
   const toggleBan = useCallback(
-    async (u: AdminUser, note: string) => {
+    async (u: AdminUser, note: string, sweep: boolean) => {
       if (!users) return;
       const nextStatus: AdminUser["status"] = u.status === "active" ? "banned" : "active";
       const usersSnapshot = users;
@@ -532,17 +547,28 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
           ? { ...s, banned: Math.max(0, s.banned + (nextStatus === "banned" ? 1 : -1)) }
           : s
       );
-      const res = await sendPatch(u.id, { status: nextStatus, note: note || undefined });
+      const res = await sendPatch(u.id, {
+        status: nextStatus,
+        note: note || undefined,
+        ...(nextStatus === "banned" && sweep ? { hideContent: true } : {}),
+        ...(nextStatus === "active" && sweep ? { restoreContent: true } : {}),
+      });
       if (!res.ok) {
         setUsers(usersSnapshot);
         setStats(statsSnapshot);
         toast({ title: res.error, variant: "destructive" });
         return;
       }
+      const sweepCounts = res.sweep
+        ? ` (${res.sweep.threads} threads, ${res.sweep.replies} replies, ${res.sweep.reviews} reviews ${
+            nextStatus === "banned" ? "hidden" : "restored"
+          })`
+        : nextStatus === "banned"
+          ? "Sessions revoked. Sign-ins dead."
+          : "Account is active again.";
       toast({
         title: nextStatus === "banned" ? `${atHandle(u.handle)} banned` : `${atHandle(u.handle)} reinstated`,
-        description:
-          nextStatus === "banned" ? "Sessions revoked. Sign-ins dead." : "Account is active again.",
+        description: sweepCounts,
       });
       onChanged();
     },
@@ -779,6 +805,7 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                     onClick={() => {
                       setBanning(banning === u.id ? null : u.id);
                       setBanNote("");
+                      setBanSweep(true);
                     }}
                     className="h-8 shrink-0 rounded-lg border-red-400/30 text-red-400 hover:bg-red-400/10 hover:text-red-300"
                   >
@@ -790,7 +817,12 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                     size="sm"
                     variant="outline"
                     disabled={busy === u.id}
-                    onClick={() => void toggleBan(u, "")}
+                    aria-expanded={banning === u.id}
+                    onClick={() => {
+                      setBanning(banning === u.id ? null : u.id);
+                      setBanNote("");
+                      setBanSweep(true);
+                    }}
                     className="h-8 shrink-0 rounded-lg border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-300"
                   >
                     <ShieldCheck className="size-3.5" aria-hidden />
@@ -801,16 +833,27 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                 {banning === u.id && (
                   <div className="w-full space-y-2.5 rounded-lg border border-red-400/25 bg-red-400/[0.04] p-3">
                     <p className="font-mono text-xs tracking-widest text-red-300">
-                      BAN {atHandle(u.handle).toUpperCase()} · REVOKES SESSIONS ·
-                      SILENCES FUTURE POSTS
+                      {u.status === "active"
+                        ? `BAN ${atHandle(u.handle).toUpperCase()} · REVOKES SESSIONS · SILENCES FUTURE POSTS`
+                        : `REINSTATE ${atHandle(u.handle).toUpperCase()} · ACCOUNT ACTIVE AGAIN`}
                     </p>
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-white/70">
+                      <Checkbox
+                        checked={banSweep}
+                        onCheckedChange={(v) => setBanSweep(v === true)}
+                        className="size-3 border-white/30 data-[state=checked]:border-red-400 data-[state=checked]:bg-red-400"
+                      />
+                      {u.status === "active"
+                        ? "Also hide their existing content (threads, replies, reviews)"
+                        : "Restore their previously hidden content"}
+                    </label>
                     <Textarea
                       value={banNote}
                       onChange={(e) => setBanNote(e.target.value)}
                       maxLength={200}
                       placeholder="Reason (optional, kept in the audit trail)…"
                       rows={2}
-                      aria-label="Ban reason"
+                      aria-label="Moderation reason"
                       className={cn(inputCx, "resize-none bg-white/[0.03]")}
                     />
                     <div className="flex gap-2">
@@ -819,12 +862,17 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
                         disabled={busy === u.id}
                         onClick={() => {
                           setBanning(null);
-                          void toggleBan(u, banNote);
+                          void toggleBan(u, banNote, banSweep);
                         }}
-                        className="rounded-lg bg-red-500 text-white shadow-none hover:bg-red-400 disabled:opacity-40"
+                        className={cn(
+                          "rounded-lg text-white shadow-none disabled:opacity-40",
+                          u.status === "active"
+                            ? "bg-red-500 hover:bg-red-400"
+                            : "bg-emerald-500 hover:bg-emerald-400"
+                        )}
                       >
                         {busy === u.id ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
-                        Confirm ban
+                        {u.status === "active" ? "Confirm ban" : "Confirm reinstate"}
                       </Button>
                       <Button
                         size="sm"

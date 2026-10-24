@@ -227,7 +227,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_tool_status", ["toolId", "status"])
-    .index("by_tool_user", ["toolId", "userId"]),
+    .index("by_tool_user", ["toolId", "userId"])
+    .index("by_user", ["userId"]),
 
   claims: defineTable({
     toolId: v.id("tools"),
@@ -309,7 +310,8 @@ export default defineSchema({
   })
     .index("by_slug", ["slug"])
     .index("by_topic_created", ["topic", "createdAt"])
-    .index("by_created", ["createdAt"]),
+    .index("by_created", ["createdAt"])
+    .index("by_author_created", ["authorId", "createdAt"]),
 
   forumReplies: defineTable({
     threadId: v.id("forumThreads"),
@@ -319,7 +321,9 @@ export default defineSchema({
     hidden: v.boolean(),
     legacyId: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_thread_created", ["threadId", "createdAt"]),
+  })
+    .index("by_thread_created", ["threadId", "createdAt"])
+    .index("by_author_created", ["authorId", "createdAt"]),
 
   forumThreadVotes: defineTable({
     threadId: v.id("forumThreads"),

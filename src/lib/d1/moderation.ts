@@ -408,6 +408,53 @@ export async function d1UserDetail(userId: string): Promise<D1UserDetail | null>
   };
 }
 
+// ── User content sweep (ban hides / unban restores) ──────────────────────
+
+export async function d1UserBanSweep(args: {
+  userLegacyId: string;
+  hide: boolean;
+}) {
+  const db = await getD1();
+  if (!db) return null;
+  const user = await byEitherId<UserRow>(db, users, args.userLegacyId);
+  if (!user) return null;
+  const authorId = user.legacyId ?? user.id;
+  const now = Date.now();
+  const updateThreads = await db
+    .update(forumThreads)
+    .set({ hidden: args.hide ? 1 : 0, updatedAt: now })
+    .where(
+      args.hide
+        ? and(eq(forumThreads.authorId, authorId), eq(forumThreads.hidden, 0))
+        : and(eq(forumThreads.authorId, authorId), eq(forumThreads.hidden, 1))
+    )
+    .returning({ id: forumThreads.id });
+  const updateReplies = await db
+    .update(forumReplies)
+    .set({ hidden: args.hide ? 1 : 0 })
+    .where(
+      args.hide
+        ? and(eq(forumReplies.authorId, authorId), eq(forumReplies.hidden, 0))
+        : and(eq(forumReplies.authorId, authorId), eq(forumReplies.hidden, 1))
+    )
+    .returning({ id: forumReplies.id });
+  const updateReviews = await db
+    .update(reviews)
+    .set({ status: args.hide ? "filtered" : "published", updatedAt: now })
+    .where(
+      args.hide
+        ? and(eq(reviews.userId, authorId), eq(reviews.status, "published"))
+        : and(eq(reviews.userId, authorId), eq(reviews.status, "filtered"))
+    )
+    .returning({ id: reviews.id });
+  return {
+    ok: true as const,
+    threads: updateThreads.length,
+    replies: updateReplies.length,
+    reviews: updateReviews.length,
+  };
+}
+
 // ── Reports table + resolve ──────────────────────────────────────────────
 
 function maskReporter(email?: string | null, key?: string | null): string {

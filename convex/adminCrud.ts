@@ -818,6 +818,63 @@ export const userDetail = query({
   },
 });
 
+// ── User content sweep (ban hides / unban restores) ───────────────────────
+
+/** Hides or restores ALL content authored by a user: threads + replies flip
+ *  `hidden`, reviews flip between `published` and `filtered`. One audited
+ *  mutation per direction so the ban action reads complete in the trail. */
+export const userBanSweep = mutation({
+  args: { userLegacyId: v.string(), hide: v.boolean() },
+  handler: async (ctx, a) => {
+    const byLegacy = await ctx.db
+      .query("users")
+      .withIndex("by_legacy", (q) => q.eq("legacyId", a.userLegacyId))
+      .take(1);
+    const found: typeof byLegacy[number] | undefined =
+      byLegacy[0] ??
+      (await ctx.db.query("users").collect()).find(
+        (u) => docId(u) === a.userLegacyId,
+      );
+    if (!found) throw new Error("not_found");
+    const authorId = found.legacyId ?? found._id;
+    const now = Date.now();
+    let threads = 0;
+    let replies = 0;
+    let reviews = 0;
+    const threadRows = await ctx.db
+      .query("forumThreads")
+      .withIndex("by_author_created", (q) => q.eq("authorId", authorId))
+      .collect();
+    for (const t of threadRows) {
+      if (a.hide ? t.hidden : !t.hidden) continue;
+      await ctx.db.patch(t._id, { hidden: a.hide, updatedAt: now });
+      threads += 1;
+    }
+    const replyRows = await ctx.db
+      .query("forumReplies")
+      .withIndex("by_author_created", (q) => q.eq("authorId", authorId))
+      .collect();
+    for (const r of replyRows) {
+      if (a.hide ? r.hidden : !r.hidden) continue;
+      await ctx.db.patch(r._id, { hidden: a.hide });
+      replies += 1;
+    }
+    const reviewRows = await ctx.db
+      .query("reviews")
+      .withIndex("by_user", (q) => q.eq("userId", authorId))
+      .collect();
+    for (const r of reviewRows) {
+      if (a.hide ? r.status !== "published" : r.status === "published") continue;
+      await ctx.db.patch(r._id, {
+        status: a.hide ? "filtered" : "published",
+        updatedAt: now,
+      });
+      reviews += 1;
+    }
+    return { ok: true as const, threads, replies, reviews };
+  },
+});
+
 // ── Reports table + resolve ──
 
 function maskReporter(email?: string, key?: string): string {

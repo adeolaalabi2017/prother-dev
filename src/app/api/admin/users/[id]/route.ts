@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { guard, logAudit } from "@/lib/admin";
-import { convexAuthSessionsDeleteByUser, convexUserModerate, shadowAdminUserDetail } from "@/lib/data";
+import {
+  convexAuthSessionsDeleteByUser,
+  convexUserModerate,
+  shadowAdminUserDetail,
+  shadowUserBanSweep,
+} from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +30,10 @@ const patchSchema = z.object({
   image: MEDIA_URL.nullable().optional(),
   /** Moderation reason, recorded in the audit trail only. */
   note: z.string().trim().max(200).optional(),
+  /** Ban: also hide the user's existing threads/replies/reviews. */
+  hideContent: z.boolean().optional(),
+  /** Unban: restore previously hidden content. */
+  restoreContent: z.boolean().optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };
@@ -65,7 +74,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       { status: 400 }
     );
   }
-  const { role, status, image, note } = parsed.data;
+  const { role, status, image, note, hideContent, restoreContent } = parsed.data;
   if (!role && !status && image === undefined) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
@@ -107,13 +116,38 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       console.error("[api:admin/users] session revocation failed:", id, err);
     }
   }
+  let sweep: { threads: number; replies: number; reviews: number } | undefined;
+  if (status === "banned" && hideContent) {
+    try {
+      const res = await shadowUserBanSweep(client, { userLegacyId: id, hide: true });
+      if (res) sweep = { threads: res.threads, replies: res.replies, reviews: res.reviews };
+    } catch (err) {
+      console.error("[api:admin/users] content sweep (hide) failed:", id, err);
+    }
+  }
+  if (status === "active" && restoreContent) {
+    try {
+      const res = await shadowUserBanSweep(client, { userLegacyId: id, hide: false });
+      if (res) sweep = { threads: res.threads, replies: res.replies, reviews: res.reviews };
+    } catch (err) {
+      console.error("[api:admin/users] content sweep (restore) failed:", id, err);
+    }
+  }
   logAudit(
     "user.moderate",
     "user",
     id,
-    [role ? `role→${role}` : null, status ? `status→${status}` : null, image !== undefined ? "avatar" : null, note ? `note="${note.replace(/"/g, "'")}"` : null]
+    [
+      role ? `role→${role}` : null,
+      status ? `status→${status}` : null,
+      image !== undefined ? "avatar" : null,
+      sweep
+        ? `content ${status === "banned" ? "hidden" : "restored"} (${sweep.threads} threads, ${sweep.replies} replies, ${sweep.reviews} reviews)`
+        : null,
+      note ? `note="${note.replace(/"/g, "'")}"` : null,
+    ]
       .filter(Boolean)
       .join(", ")
   );
-  return NextResponse.json({ ok: true, role, status, image });
+  return NextResponse.json({ ok: true, role, status, image, sweep });
 }

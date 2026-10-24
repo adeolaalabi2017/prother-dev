@@ -1328,6 +1328,20 @@ export async function shadowAdminUserDetail(c: Client, userId: string) { if (!c)
   return c.query(api.adminCrud.userDetail, { userId });
 }
 
+export async function shadowUserBanSweep(
+  c: Client,
+  args: { userLegacyId: string; hide: boolean },
+) { if (!c) return null as any;
+  try {
+    const { d1UserBanSweep } = await import("@/lib/d1/moderation");
+    const d1 = await d1UserBanSweep(args);
+    if (d1) return d1;
+  } catch (e) {
+    if (e instanceof Error && e.message === "not_found") throw e;
+  }
+  return c.mutation(api.adminCrud.userBanSweep, args);
+}
+
 export async function convexUserModerate(
   c: Client,
   args: {
