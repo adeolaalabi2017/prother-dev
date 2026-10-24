@@ -65,4 +65,12 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   "deepseek-v3": "/logos/deepseek-v3.svg",
   docling: "/logos/docling.svg",
   browserbase: "/logos/browserbase.svg",
+  boat: "/logos/boat.svg",
+  prized: "/logos/prized.svg",
+  agent37: "/logos/agent37.png",
+  superserve: "/logos/superserve.svg",
+  freestyle: "/logos/freestyle.svg",
+  celesto: "/logos/celesto.svg",
+  createos: "/logos/createos.png",
+  "digitalocean-agents": "/logos/digitalocean.svg",
 };
