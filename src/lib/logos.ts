@@ -73,4 +73,9 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   celesto: "/logos/celesto.svg",
   createos: "/logos/createos.png",
   "digitalocean-agents": "/logos/digitalocean.svg",
+  supervision: "/logos/supervision.png",
+  evidence: "/logos/evidence.svg",
+  "qwen-2-5-72b": "/logos/qwen-2-5-72b.png",
+  kokoro: "/logos/kokoro.png",
+  "trigger-dev": "/logos/trigger-dev.svg",
 };
