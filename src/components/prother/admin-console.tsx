@@ -3200,6 +3200,12 @@ type Traffic = {
   days: { day: string; views: number }[];
   total: number;
   top: { path: string; views: number }[];
+  sources?: { rows: { source: string; views: number }[]; total: number };
+  devices?: { device: string; views: number }[];
+  searches?: {
+    queries: { query: string; count: number; zero: number }[];
+    totals: { searches: number; zero: number };
+  };
 };
 
 /**
@@ -3333,9 +3339,127 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
             </ul>
           </div>
 
+          {(traffic.sources?.rows.length ?? 0) > 0 && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
+                  Top sources
+                </p>
+                <ul className="mt-2 space-y-1">
+                  {traffic.sources!.rows.map((s) => (
+                    <li
+                      key={s.source}
+                      className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5"
+                    >
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs text-white/70">
+                        {s.source}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="h-1 w-20 shrink-0 overflow-hidden rounded-full bg-white/10"
+                      >
+                        <span
+                          className="block h-full rounded-full bg-white/50"
+                          style={{
+                            width: `${Math.max(
+                              4,
+                              Math.round(
+                                (s.views / Math.max(1, traffic.sources!.rows[0].views)) * 100
+                              )
+                            )}%`,
+                          }}
+                        />
+                      </span>
+                      <span className="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-white/50">
+                        {s.views.toLocaleString("en-US")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
+                  Devices
+                </p>
+                <div className="mt-2 space-y-1.5">
+                  {traffic.devices!.map((d) => (
+                    <div key={d.device} className="flex items-center gap-3">
+                      <span className="w-16 shrink-0 font-mono text-xs capitalize text-white/70">
+                        {d.device}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10"
+                      >
+                        <span
+                          className="block h-full rounded-full bg-ember/70"
+                          style={{
+                            width: `${Math.max(
+                              3,
+                              Math.round(
+                                (d.views / Math.max(1, traffic.sources!.total)) * 100
+                              )
+                            )}%`,
+                          }}
+                        />
+                      </span>
+                      <span className="w-10 shrink-0 text-right font-mono text-xs tabular-nums text-white/50">
+                        {Math.round((d.views / Math.max(1, traffic.sources!.total)) * 100)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {(traffic.searches?.totals.searches ?? 0) > 0 && (
+                  <p className="mt-3 font-mono text-xs text-white/50">
+                    {traffic.searches!.totals.searches.toLocaleString("en-US")} searches ·{" "}
+                    {traffic.searches!.totals.zero.toLocaleString("en-US")} empty (
+                    {Math.round(
+                      (traffic.searches!.totals.zero /
+                        Math.max(1, traffic.searches!.totals.searches)) *
+                        100
+                    )}
+                    %)
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(traffic.searches?.queries.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
+                Top searches · 14d
+              </p>
+              <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                {traffic.searches!.queries.map((s) => (
+                  <li
+                    key={s.query}
+                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-white/70">
+                      {s.query}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-white/50">
+                      {s.count}×
+                    </span>
+                    {s.zero > 0 && (
+                      <span
+                        className="shrink-0 rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 font-mono text-[10px] uppercase text-red-300"
+                        title="Returned zero results"
+                      >
+                        empty
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <p className="mt-3 font-mono text-xs leading-relaxed text-white/55">
-            COOKIELESS FIRST-PARTY COUNTING (PATH × DAY, NO COOKIES, IPS OR
-            FINGERPRINTS) · ADMIN/API/EDITOR SURFACES EXCLUDED
+            COOKIELESS FIRST-PARTY COUNTING (PATH × DAY + REFERRER HOST × DEVICE
+            × DAY, NO COOKIES, IPS, FULL URLs OR FINGERPRINTS) ·
+            ADMIN/API/EDITOR SURFACES EXCLUDED
           </p>
         </>
       )}

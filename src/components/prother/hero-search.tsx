@@ -286,6 +286,24 @@ export function HeroSearch() {
   const trendingRows = CONVEX_LIVE ? (liveTrending?.rows ?? []) : trending;
   const loading = q.length > 0 && shown === null;
 
+  // ── Search demand logging (one per query per mount) ────────────────────
+  // Fires when a displayed result set settles: normalized query + whether
+  // it returned zero results. Cookieless, aggregated server-side.
+  const searchLogged = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const d = shown;
+    if (!d || d.q !== q || q.length < 2) return;
+    if (searchLogged.current.has(q)) return;
+    searchLogged.current.add(q);
+    const n = d.tools.length + d.categories.length + d.posts.length;
+    fetch("/api/analytics/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ q, n }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [shown, q]);
+
   const groups = useMemo<Group[]>(() => {
     const out: Group[] = [];
     let start = 0;

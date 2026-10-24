@@ -16,7 +16,9 @@ import {
   comparisons,
   pageViewDaily,
   posts,
+  pvSourceDaily,
   reviews,
+  searchDaily,
   siteSettings,
   tools,
 } from "./schema";
@@ -209,6 +211,53 @@ export async function d1RecordPageView(path: string, day: string, nowMs: number)
   return { ok: true as const };
 }
 
+export async function d1RecordPageViewSource(
+  source: string,
+  device: string,
+  day: string,
+  nowMs: number
+) {
+  const db = await getD1();
+  if (!db) return null;
+  await db
+    .insert(pvSourceDaily)
+    .values({ id: `pvs:${day}:${device}:${source}`, source, device, day, views: 1, updatedAt: nowMs })
+    .onConflictDoUpdate({
+      target: [pvSourceDaily.source, pvSourceDaily.device, pvSourceDaily.day],
+      set: { views: sql`${pvSourceDaily.views} + 1`, updatedAt: nowMs },
+    });
+  return { ok: true as const };
+}
+
+export async function d1RecordSearch(
+  query: string,
+  zero: boolean,
+  day: string,
+  nowMs: number
+) {
+  const db = await getD1();
+  if (!db) return null;
+  await db
+    .insert(searchDaily)
+    .values({
+      id: `sq:${day}:${query}`,
+      query,
+      day,
+      count: 1,
+      zeroCount: zero ? 1 : 0,
+      updatedAt: nowMs,
+    })
+    .onConflictDoUpdate({
+      target: [searchDaily.query, searchDaily.day],
+      set: {
+        count: sql`${searchDaily.count} + 1`,
+        zeroCount: sql`${searchDaily.zeroCount} + ${zero ? 1 : 0}`,
+        updatedAt: nowMs,
+      },
+    });
+  return { ok: true as const };
+}
+
 export async function d1TrafficReadout() {
   const db = await getD1();
   if (!db) return null;
@@ -227,10 +276,51 @@ export async function d1TrafficReadout() {
     .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
     .slice(0, 8)
     .map(([path, views]) => ({ path, views }));
+  // Sources × devices + search demand over the same window.
+  const [sourceRows, searchRows] = await Promise.all([
+    db.select().from(pvSourceDaily).where(gte(pvSourceDaily.day, days[0]!)),
+    db.select().from(searchDaily).where(gte(searchDaily.day, days[0]!)),
+  ]);
+  const bySource = new Map<string, number>();
+  const byDevice = new Map<string, number>();
+  let totalSourceViews = 0;
+  for (const r of sourceRows) {
+    bySource.set(r.source, (bySource.get(r.source) ?? 0) + r.views);
+    byDevice.set(r.device, (byDevice.get(r.device) ?? 0) + r.views);
+    totalSourceViews += r.views;
+  }
+  const sources = {
+    rows: [...bySource.entries()]
+      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .slice(0, 6)
+      .map(([source, views]) => ({ source, views })),
+    total: totalSourceViews,
+  };
+  const devices = [...byDevice.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([device, views]) => ({ device, views }));
+  const byQuery = new Map<string, { count: number; zero: number }>();
+  for (const r of searchRows) {
+    const cur = byQuery.get(r.query) ?? { count: 0, zero: 0 };
+    byQuery.set(r.query, { count: cur.count + r.count, zero: cur.zero + r.zeroCount });
+  }
+  const searches = {
+    queries: [...byQuery.entries()]
+      .sort((a, b) => b[1].count - a[1].count || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .slice(0, 10)
+      .map(([query, v]) => ({ query, count: v.count, zero: v.zero })),
+    totals: {
+      searches: [...byQuery.values()].reduce((s, v) => s + v.count, 0),
+      zero: [...byQuery.values()].reduce((s, v) => s + v.zero, 0),
+    },
+  };
   return {
     days: days.map((d) => ({ day: d, views: byDay.get(d) ?? 0 })),
     total: [...byDay.values()].reduce((s, n) => s + n, 0),
     top,
+    sources,
+    devices,
+    searches,
   };
 }
 

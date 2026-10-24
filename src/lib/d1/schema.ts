@@ -473,6 +473,46 @@ export const pageViewDaily = sqliteTable(
   ],
 );
 
+/** Traffic sources: referrer host × coarse device × day. Cookieless. */
+export const pvSourceDaily = sqliteTable(
+  "pv_source_daily",
+  {
+    id: id(),
+    /** Referrer hostname or "direct" */
+    source: reqText("source"),
+    /** desktop | mobile | tablet | other */
+    device: reqText("device"),
+    day: reqText("day"),
+    views: reqInt("views").default(0),
+    updatedAt: reqInt("updated_at"),
+  },
+  (t) => [
+    index("pv_source_daily_by_day_source_device").on(t.day, t.source, t.device),
+    index("pv_source_daily_by_day").on(t.day),
+    uniqueIndex("pv_source_daily_uq").on(t.source, t.device, t.day),
+  ],
+);
+
+/** On-site search demand: normalized query × day counters. */
+export const searchDaily = sqliteTable(
+  "search_daily",
+  {
+    id: id(),
+    /** Trimmed, lowercased, max 60 chars */
+    query: reqText("query"),
+    day: reqText("day"),
+    count: reqInt("count").default(0),
+    /** Searches that returned zero results */
+    zeroCount: reqInt("zero_count").default(0),
+    updatedAt: reqInt("updated_at"),
+  },
+  (t) => [
+    index("search_daily_by_day_query").on(t.day, t.query),
+    index("search_daily_by_day").on(t.day),
+    uniqueIndex("search_daily_query_day_uq").on(t.query, t.day),
+  ],
+);
+
 export const media = sqliteTable(
   "media",
   {

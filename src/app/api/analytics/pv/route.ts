@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { trackablePath } from "@/lib/analytics";
-import { convexPageView } from "@/lib/data";
+import { convexPageView, shadowPageViewSource } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,9 @@ export const dynamic = "force-dynamic";
  * public numbers.
  */
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => null)) as { p?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as
+    | { p?: unknown; r?: unknown; d?: unknown }
+    | null;
   if (!body || !trackablePath(body.p)) {
     return NextResponse.json({ ok: false, error: "invalid_path" }, { status: 400 });
   }
@@ -33,14 +35,29 @@ export async function POST(req: NextRequest) {
   ) {
     return NextResponse.json({ ok: true, skipped: "bot" });
   }
+  // Referrer HOST only (client already strips same-origin + query strings);
+  // device is a client-derived width label. Both validated before storage.
+  const rawSource = typeof body.r === "string" ? body.r.trim().toLowerCase() : "";
+  const source =
+    rawSource && /^[a-z0-9.-]{3,60}$/.test(rawSource) ? rawSource : "direct";
+  const device = ["desktop", "mobile", "tablet"].includes(String(body.d))
+    ? String(body.d)
+    : "other";
   // D1-primary (wave 3): awaited, not fire-and-forget. Workers isolates may
   // suspend after the response, killing void promises and losing the async
   // context getCloudflareContext needs. D1 is local (single-digit ms).
   const now = new Date();
+  const day = now.toISOString().slice(0, 10);
   try {
     await convexPageView(createServerConvexClient()!, {
       path: body.p,
-      day: now.toISOString().slice(0, 10),
+      day,
+      nowMs: now.getTime(),
+    });
+    await shadowPageViewSource(createServerConvexClient()!, {
+      source,
+      device,
+      day,
       nowMs: now.getTime(),
     });
   } catch {

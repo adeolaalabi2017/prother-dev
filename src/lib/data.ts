@@ -1547,6 +1547,34 @@ export async function convexPageView(
   return c.mutation(api.ads.recordPageView, args);
 }
 
+export async function shadowPageViewSource(
+  c: Client,
+  args: { source: string; device: string; day: string; nowMs: number },
+) {
+  try {
+    const { d1RecordPageViewSource } = await import("@/lib/d1/analytics");
+    const d1 = await d1RecordPageViewSource(args.source, args.device, args.day, args.nowMs);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
+  return c.mutation(api.ads.recordPageViewSource, args);
+}
+
+export async function shadowSearchLog(
+  c: Client,
+  args: { query: string; zero: boolean; day: string; nowMs: number },
+) {
+  try {
+    const { d1RecordSearch } = await import("@/lib/d1/analytics");
+    const d1 = await d1RecordSearch(args.query, args.zero, args.day, args.nowMs);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
+  return c.mutation(api.ads.recordSearch, args);
+}
+
 export async function shadowTrafficReadout(c: Client) { if (!c) return null as any;
   try {
     const { d1TrafficReadout } = await import("@/lib/d1/analytics");

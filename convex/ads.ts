@@ -278,6 +278,59 @@ export const recordPageView = mutation({
   },
 });
 
+/** Traffic-source ping (POST /api/analytics/pv companion write).
+ *  Upsert by (source, device, day). */
+export const recordPageViewSource = mutation({
+  args: { source: v.string(), device: v.string(), day: v.string(), nowMs: v.number() },
+  handler: async (ctx, { source, device, day, nowMs }) => {
+    const row = await ctx.db
+      .query("pvSourceDaily")
+      .withIndex("by_day_source_device", (i) =>
+        i.eq("day", day).eq("source", source).eq("device", device),
+      )
+      .first();
+    if (!row) {
+      await ctx.db.insert("pvSourceDaily", {
+        day,
+        source,
+        device,
+        views: 1,
+        updatedAt: nowMs,
+      });
+      return { ok: true as const };
+    }
+    await ctx.db.patch(row._id, { views: row.views + 1, updatedAt: nowMs });
+    return { ok: true as const };
+  },
+});
+
+/** On-site search log (POST /api/analytics/search). Upsert by (query, day). */
+export const recordSearch = mutation({
+  args: { query: v.string(), zero: v.boolean(), day: v.string(), nowMs: v.number() },
+  handler: async (ctx, { query, zero, day, nowMs }) => {
+    const row = await ctx.db
+      .query("searchDaily")
+      .withIndex("by_day_query", (i) => i.eq("day", day).eq("query", query))
+      .first();
+    if (!row) {
+      await ctx.db.insert("searchDaily", {
+        day,
+        query,
+        count: 1,
+        zeroCount: zero ? 1 : 0,
+        updatedAt: nowMs,
+      });
+      return { ok: true as const };
+    }
+    await ctx.db.patch(row._id, {
+      count: row.count + 1,
+      zeroCount: row.zeroCount + (zero ? 1 : 0),
+      updatedAt: nowMs,
+    });
+    return { ok: true as const };
+  },
+});
+
 /** 14-day traffic readout (GET /api/admin/analytics). */
 export const trafficReadout = query({
   args: {},
@@ -313,10 +366,58 @@ export const trafficReadout = query({
       .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
       .slice(0, 8)
       .map(([path, views]) => ({ path, views }));
+
+    // Sources × devices + search demand over the same window.
+    const [sourceRows, searchRows] = await Promise.all([
+      ctx.db
+        .query("pvSourceDaily")
+        .withIndex("by_day", (i) => i.gte("day", days[0]!))
+        .collect(),
+      ctx.db
+        .query("searchDaily")
+        .withIndex("by_day", (i) => i.gte("day", days[0]!))
+        .collect(),
+    ]);
+    const bySource = new Map<string, number>();
+    const byDevice = new Map<string, number>();
+    let totalSourceViews = 0;
+    for (const r of sourceRows) {
+      bySource.set(r.source, (bySource.get(r.source) ?? 0) + r.views);
+      byDevice.set(r.device, (byDevice.get(r.device) ?? 0) + r.views);
+      totalSourceViews += r.views;
+    }
+    const topSources = [...bySource.entries()]
+      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .slice(0, 6)
+      .map(([source, views]) => ({ source, views }));
+    const devices = [...byDevice.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([device, views]) => ({ device, views }));
+    const byQuery = new Map<string, { count: number; zero: number }>();
+    for (const r of searchRows) {
+      const cur = byQuery.get(r.query) ?? { count: 0, zero: 0 };
+      byQuery.set(r.query, {
+        count: cur.count + r.count,
+        zero: cur.zero + r.zeroCount,
+      });
+    }
+    const topQueries = [...byQuery.entries()]
+      .sort((a, b) => b[1].count - a[1].count || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .slice(0, 10)
+      .map(([query, v]) => ({ query, count: v.count, zero: v.zero }));
+    const searchTotals = {
+      searches: topQueries.length
+        ? [...byQuery.values()].reduce((s, v) => s + v.count, 0)
+        : 0,
+      zero: [...byQuery.values()].reduce((s, v) => s + v.zero, 0),
+    };
     return {
       days: days.map((d) => ({ day: d, views: byDay.get(d) ?? 0 })),
       total: [...byDay.values()].reduce((s, n) => s + n, 0),
       top,
+      sources: { rows: topSources, total: totalSourceViews },
+      devices,
+      searches: { queries: topQueries, totals: searchTotals },
     };
   },
 });

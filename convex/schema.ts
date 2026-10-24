@@ -412,6 +412,34 @@ export default defineSchema({
     .index("by_path_day", ["path", "day"])
     .index("by_day", ["day"]),
 
+  /** Traffic sources: referrer host × coarse device × day. Cookieless. */
+  pvSourceDaily: defineTable({
+    /** YYYY-MM-DD (UTC) */
+    day: v.string(),
+    /** Referrer hostname or "direct" */
+    source: v.string(),
+    /** desktop | mobile | tablet | other */
+    device: v.string(),
+    views: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_day_source_device", ["day", "source", "device"])
+    .index("by_day", ["day"]),
+
+  /** On-site search demand: normalized query × day counters. */
+  searchDaily: defineTable({
+    /** YYYY-MM-DD (UTC) */
+    day: v.string(),
+    /** Trimmed, lowercased, max 60 chars */
+    query: v.string(),
+    count: v.number(),
+    /** Searches that returned zero results */
+    zeroCount: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_day_query", ["day", "query"])
+    .index("by_day", ["day"]),
+
   media: defineTable({
     /** Convex file storage id. Set by the Phase 2 upload migration;
      *  empty until then (SQLite-era rows carry storedName instead). */
