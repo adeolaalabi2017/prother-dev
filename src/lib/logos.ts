@@ -78,4 +78,10 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   "qwen-2-5-72b": "/logos/qwen-2-5-72b.png",
   kokoro: "/logos/kokoro.png",
   "trigger-dev": "/logos/trigger-dev.svg",
+  dessa: "/logos/dessa.svg",
+  "deepseek-v4-1-flash": "/logos/deepseek-v4-1-flash.svg",
+  "kimi-k3-1-pro": "/logos/kimi-k3-1-pro.png",
+  "qwen-3-8": "/logos/qwen-3-8.png",
+  flint: "/logos/flint.png",
+  "muse-glimmer": "/logos/muse-glimmer.svg",
 };
