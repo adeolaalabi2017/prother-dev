@@ -84,4 +84,8 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   "qwen-3-8": "/logos/qwen-3-8.png",
   flint: "/logos/flint.png",
   "muse-glimmer": "/logos/muse-glimmer.svg",
+  "seedance-2-5": "/logos/seedance-2-5.svg",
+  "gpt-6-astra": "/logos/gpt-6-astra.svg",
+  "gpt-6-1-sol": "/logos/gpt-6-1-sol.svg",
+  "claude-duet": "/logos/claude-duet.svg",
 };
