@@ -20,7 +20,7 @@ const ADMIN_PURPOSES = [
 ];
 
 export async function POST(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
   try {
     return await handleMediaUpload(req, {

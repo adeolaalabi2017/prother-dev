@@ -29,7 +29,7 @@ const upsertSchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   // Convex-only (admin cutover).
@@ -40,7 +40,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const parsed = upsertSchema.safeParse(await req.json().catch(() => null));
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const id = req.nextUrl.searchParams.get("id");

@@ -178,7 +178,7 @@ const createSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const sp = req.nextUrl.searchParams;
@@ -195,7 +195,7 @@ export async function GET(req: NextRequest) {
 
 /** POST — create a listing from the Admin CMS (Task 32). */
 export async function POST(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const parsed = createSchema.safeParse(await req.json().catch(() => null));
@@ -273,7 +273,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
@@ -368,7 +368,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const id = req.nextUrl.searchParams.get("id");

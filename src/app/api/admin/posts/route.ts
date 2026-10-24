@@ -61,7 +61,7 @@ function slugCandidates(base: string): string[] {
 }
 
 export async function GET(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const status = req.nextUrl.searchParams.get("status");
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const parsed = postInput.safeParse(await req.json().catch(() => null));

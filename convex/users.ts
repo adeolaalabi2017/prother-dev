@@ -89,6 +89,23 @@ export const ensureFromAuth = mutation({
   },
 });
 
+export const roleByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const rows = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .take(1);
+    const u = rows[0];
+    if (!u) return null;
+    return {
+      role: ["member", "moderator", "admin"].includes(u.role) ? u.role : "member",
+      status: u.status === "banned" ? "banned" : "active",
+      handle: u.handle ?? null,
+    };
+  },
+});
+
 export const authState = query({
   args: { externalAuthId: v.string() },
   handler: async (ctx, { externalAuthId }) => {

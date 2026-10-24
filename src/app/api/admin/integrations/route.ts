@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  * integrations" module. Secret values never leave the server verbatim.
  */
 export async function GET(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
   // Convex-only read (admin cutover).
   const res = await shadowAdminIntegrations(createServerConvexClient()!);
@@ -46,7 +46,7 @@ type PutBody = {
  * their stored value, so masked round-trips never destroy credentials.
  */
 export async function PUT(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
   let body: PutBody;
   try {
@@ -135,7 +135,7 @@ export async function PUT(req: Request) {
 
 /** DELETE /api/admin/integrations?key=<slug> — remove a stored integration. */
 export async function DELETE(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
   const key = new URL(req.url).searchParams.get("key") ?? "";
   if (!key) {

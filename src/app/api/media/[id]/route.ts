@@ -41,7 +41,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
  * the url dropped from screenshot pipes, coverUrl nulled, avatars cleared.
  */
 export async function DELETE(req: Request, ctx: RouteContext) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
   const { id } = await ctx.params;
   try {

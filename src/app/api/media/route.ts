@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Response: { media: MediaRow[], totalBytes, count }.
  */
 export async function GET(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
   const url = new URL(req.url);
   const kindParam = url.searchParams.get("kind");

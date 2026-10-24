@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { editorKey } from "@/lib/prother";
+import { editorAuthorized } from "@/lib/admin";
 import { shadowEditorQueue } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
@@ -12,8 +12,7 @@ export const dynamic = "force-dynamic";
  * <48h soft-moderation filter (F-16).
  */
 export async function GET(req: NextRequest) {
-  const key = editorKey();
-  if (key == null || req.headers.get("x-editor-key") !== key) {
+  if (!(await editorAuthorized(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

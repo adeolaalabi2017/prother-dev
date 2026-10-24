@@ -33,7 +33,7 @@ const patchSchema = z.object({
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const { id } = await params;
@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const { id } = await params;

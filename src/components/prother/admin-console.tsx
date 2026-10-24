@@ -106,6 +106,27 @@ import { ImageUploadField } from "./image-upload-field";
 
 function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
   const [value, setValue] = useState("");
+  const [me, setMe] = useState<{ authed: boolean; handle: string | null; role: string | null } | null>(null);
+
+  // NextAuth P2: offer session unlock for signed-in admins (best effort —
+  // the key path always remains).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/me")
+      .then((r) => r.json())
+      .then(
+        (d: { authed: boolean; handle: string | null; role: string | null }) => {
+          if (!cancelled) setMe(d);
+        }
+      )
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const sessionAdmin = me?.authed && me.role === "admin";
+
   return (
     <div className="flex min-h-[68vh] items-center justify-center px-1 py-10">
       <div className="w-full max-w-sm rounded-lg border border-white/10 bg-coal p-6 text-center shadow-2xl shadow-black/50 sm:p-8">
@@ -122,6 +143,21 @@ function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
           Listings, journal, taxonomy and site copy: one key, no deploys.
           Ask the site owner for the key.
         </p>
+        {sessionAdmin && (
+          <Button
+            type="button"
+            onClick={() => onUnlock("session")}
+            className="mt-6 w-full rounded-lg border border-ember/40 bg-ember/10 font-semibold text-ember shadow-none hover:bg-ember/20"
+          >
+            <ShieldCheck className="size-4" aria-hidden />
+            Unlock as @{me!.handle}
+          </Button>
+        )}
+        {sessionAdmin && (
+          <p className="mt-3 font-mono text-[10px] tracking-wider text-white/40 uppercase">
+            or continue with the admin key below
+          </p>
+        )}
         <form
           className="mt-6 space-y-2.5"
           onSubmit={(e) => {

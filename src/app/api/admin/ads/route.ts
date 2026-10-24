@@ -31,7 +31,7 @@ const createSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   // Convex-only (admin cutover).
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const parsed = createSchema.safeParse(await req.json().catch(() => null));

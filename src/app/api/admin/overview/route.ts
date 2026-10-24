@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * metrics, 14-day charts, queue age, and the Convex audit trail.
  */
 export async function GET(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   // Convex-only (admin cutover). logAudit is Convex-first (lib/admin.ts),

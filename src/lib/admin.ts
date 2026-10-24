@@ -6,12 +6,45 @@ import { api } from "../../convex/_generated/api.js";
 
 /**
  * Admin auth + audit helpers for the Admin Console APIs.
- * Single gate everywhere: the `x-editor-key` header must equal the
- * server-side admin key (ADMIN_KEY env; fail-closed in production).
- *
- * Uses constant-time comparison to prevent timing side-channel attacks
- * that could leak the key value byte-by-byte.
+ * Two gates, both fail-closed in production:
+ *  1. `x-editor-key` header equals ADMIN_KEY (constant-time compare), or
+ *  2. a valid NextAuth session whose user has role `admin` (P2 admin
+ *     accounts). The shared key stays as the fallback path.
  */
+
+/**
+ * NextAuth P2: the signed-in admin for this request, or null. Looks the
+ * role up by email (by_email index) so role changes apply immediately.
+ */
+export async function sessionAdmin(
+  req?: Request
+): Promise<{ handle: string; email: string } | null> {
+  try {
+    const { getAuthUser } = await import("@/lib/auth");
+    const user = await getAuthUser();
+    if (!user) return null;
+    const client = createServerConvexClient();
+    if (!client) return null;
+    const st = await client.query(api.users.roleByEmail, { email: user.email });
+    if (!st || st.status !== "active" || st.role !== "admin") return null;
+    return { handle: st.handle ?? user.handle, email: user.email };
+  } catch {
+    return null;
+  }
+}
+
+/** Audit actor label: the signed-in admin's handle, else the shared key. */
+export async function adminActor(req?: Request): Promise<string> {
+  const admin = await sessionAdmin(req);
+  return admin ? `@${admin.handle}` : "key";
+}
+
+/** Editor/admin authorization (shared key OR active admin session). */
+export async function editorAuthorized(req: Request): Promise<boolean> {
+  if (isAdmin(req)) return true;
+  return (await sessionAdmin(req)) !== null;
+}
+
 export function isAdmin(req: Request): boolean {
   const key = editorKey();
   const supplied = req.headers.get("x-editor-key");
@@ -27,18 +60,20 @@ export function unauthorized() {
 }
 
 /** Wrap a handler with the admin gate: returns the 401 response or null. */
-export function guard(req: Request): NextResponse | null {
-  return isAdmin(req) ? null : unauthorized();
+export async function guard(req: Request): Promise<NextResponse | null> {
+  return (await editorAuthorized(req)) ? null : unauthorized();
 }
 
 /** Fire-and-forget audit trail write (PRD §16 — moderation_decisions analog).
  *  Convex-only: the admin overview reads the trail from there. Failures
- *  never break the request path. entityId carries the legacy cuid. */
+ *  never break the request path. entityId carries the legacy cuid; actor
+ *  labels the operator ("key" by default, or @handle for session admins). */
 export function logAudit(
   action: string,
   entity: string,
   entityId = "",
-  meta = ""
+  meta = "",
+  actor = "key"
 ): void {
   void (async () => {
     try {
@@ -49,7 +84,7 @@ export function logAudit(
           entity,
           entityId,
           meta,
-          actor: undefined,
+          actor: actor || undefined,
           createdAt: Date.now(),
         });
       }

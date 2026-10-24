@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { guard, logAudit } from "@/lib/admin";
+import { adminActor, guard, logAudit } from "@/lib/admin";
 import {
   convexAuthSessionsDeleteByUser,
   convexUserModerate,
@@ -40,7 +40,7 @@ type Params = { params: Promise<{ id: string }> };
 
 /** Detail drawer payload: the user's content with links + moderation audit. */
 export async function GET(req: NextRequest, { params }: Params) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const { id } = await params;
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const { id } = await params;
@@ -147,7 +147,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       note ? `note="${note.replace(/"/g, "'")}"` : null,
     ]
       .filter(Boolean)
-      .join(", ")
+      .join(", "),
+    await adminActor(req)
   );
   return NextResponse.json({ ok: true, role, status, image, sweep });
 }

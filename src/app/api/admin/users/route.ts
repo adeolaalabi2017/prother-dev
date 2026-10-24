@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  *  GET /api/admin/users?q=&status=&role= — searchable roster + activity counts.
  */
 export async function GET(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const sp = req.nextUrl.searchParams;

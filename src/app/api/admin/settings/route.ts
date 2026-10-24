@@ -20,7 +20,7 @@ const putSchema = z.union([
 ]);
 
 export async function GET(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   // Convex-only read (admin cutover).
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const parsed = putSchema.safeParse(await req.json().catch(() => null));

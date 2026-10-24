@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 const PROTECTED_EMAIL = "alabiadeolamikel@gmail.com";
 
 export async function POST(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
   const body = (await req.json().catch(() => null)) as {
     confirm?: unknown;

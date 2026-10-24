@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * cookieless data only (that is all PageViewDaily holds).
  */
 export async function GET(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   // Convex-only (admin cutover).

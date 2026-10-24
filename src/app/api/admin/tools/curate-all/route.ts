@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * every tool). Idempotent; returns { updated, total }.
  */
 export async function POST(req: Request) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
   try {
     const res = await convexAdminMarkAllCurated(createServerConvexClient()!);

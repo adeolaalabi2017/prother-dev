@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  *  GET /api/admin/reports?status=open|resolved|dismissed|all
  */
 export async function GET(req: NextRequest) {
-  const denied = guard(req);
+  const denied = await guard(req);
   if (denied) return denied;
 
   const status = req.nextUrl.searchParams.get("status") ?? "all";
