@@ -17,8 +17,8 @@
  */
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
-import fs from "fs";
-import path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL || "https://befitting-moose-925.convex.cloud";
 const convex = new ConvexHttpClient(CONVEX_URL);
@@ -378,10 +378,12 @@ async function main() {
   console.log("\n=== Ingesting into Convex Production ===");
   for (const tool of TOOLS_BATCH_3) {
     const existing = await convex.query(api.tools.pageData, { slug: tool.slug });
-    if ("tool" in existing && existing.tool) {
-      console.log(`Tool ${tool.slug} already exists in Convex (ID: ${existing.tool._id}). Patching...`);
+    if (!("error" in existing) && existing.tool) {
+      console.log(`Tool ${tool.slug} already exists in Convex (${existing.tool.id}). Patching...`);
       await convex.mutation(api.adminCrud.toolPatch, {
-        toolLegacyId: existing.tool._id,
+        toolLegacyId: existing.tool.id,
+        logoUrl: tool.logoUrl,
+        editorial: tool.editorial,
         data: {
           name: tool.name,
           tagline: tool.tagline,
@@ -395,13 +397,11 @@ async function main() {
           hasApi: tool.hasApi,
           logoEmoji: tool.logoEmoji,
           logoGradient: tool.logoGradient,
-          logoUrl: tool.logoUrl,
           tagsPipe: tool.tagsPipe,
           makerHandle: tool.makerHandle,
           status: tool.status,
           editorsPick: tool.editorsPick,
           curated: tool.curated,
-          editorial: tool.editorial,
         },
         nowMs: NOW,
       });
