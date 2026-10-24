@@ -209,7 +209,8 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_handle", ["handle"])
-    .index("by_external_auth", ["externalAuthId"]),
+    .index("by_external_auth", ["externalAuthId"])
+    .index("by_legacy", ["legacyId"]),
 
   reviews: defineTable({
     toolId: v.id("tools"),

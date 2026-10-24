@@ -69,37 +69,46 @@ export async function d1AdminUsers(args: {
   q: string;
   status: string;
   role: string;
+  page?: number;
+  size?: number;
 }) {
   const db = await getD1();
   if (!db) return null;
   const needle = args.q.trim().toLowerCase();
+  const page = Math.max(0, Math.floor(args.page ?? 0));
+  const size = Math.min(100, Math.max(1, Math.floor(args.size ?? 50)));
 
-  const [userRows, threads, replies, reviewRows, bookmarkRows, reportRows] =
+  const [userRows, threadAgg, replyAgg, reviewAgg, bookmarkAgg, reportAgg] =
     await Promise.all([
       db.select().from(users),
       db
         .select({
           authorId: forumThreads.authorId,
-          createdAt: forumThreads.createdAt,
+          n: sql<number>`count(*)`,
+          last: sql<number>`max(${forumThreads.createdAt})`,
         })
-        .from(forumThreads),
+        .from(forumThreads)
+        .groupBy(forumThreads.authorId),
       db
         .select({
           authorId: forumReplies.authorId,
-          createdAt: forumReplies.createdAt,
+          n: sql<number>`count(*)`,
+          last: sql<number>`max(${forumReplies.createdAt})`,
         })
-        .from(forumReplies),
+        .from(forumReplies)
+        .groupBy(forumReplies.authorId),
       db
-        .select({ userId: reviews.userId })
-        .from(reviews),
+        .select({ userId: reviews.userId, n: sql<number>`count(*)` })
+        .from(reviews)
+        .groupBy(reviews.userId),
       db
-        .select({ ownerKey: bookmarks.ownerKey })
-        .from(bookmarks),
+        .select({ ownerKey: bookmarks.ownerKey, n: sql<number>`count(*)` })
+        .from(bookmarks)
+        .groupBy(bookmarks.ownerKey),
       db
-        .select({
-          reporterEmail: reports.reporterEmail,
-        })
-        .from(reports),
+        .select({ reporterEmail: reports.reporterEmail, n: sql<number>`count(*)` })
+        .from(reports)
+        .groupBy(reports.reporterEmail),
     ]);
 
   const matching = userRows.filter((u) => {
@@ -117,41 +126,47 @@ export async function d1AdminUsers(args: {
     return true;
   });
 
+  const threadCount = new Map<string, number>();
+  const replyCount = new Map<string, number>();
+  const reviewCount = new Map<string, number>();
+  const bookmarkCount = new Map<string, number>();
+  const reportCount = new Map<string, number>();
   const lastActivity = new Map<string, number>();
-  for (const t of threads) {
-    if (t.authorId)
-      lastActivity.set(
-        t.authorId,
-        Math.max(lastActivity.get(t.authorId) ?? 0, t.createdAt),
-      );
+  for (const r of threadAgg) {
+    if (!r.authorId) continue;
+    threadCount.set(r.authorId, Number(r.n));
+    lastActivity.set(r.authorId, Math.max(lastActivity.get(r.authorId) ?? 0, Number(r.last)));
   }
-  for (const r of replies) {
-    if (r.authorId)
-      lastActivity.set(
-        r.authorId,
-        Math.max(lastActivity.get(r.authorId) ?? 0, r.createdAt),
-      );
+  for (const r of replyAgg) {
+    if (!r.authorId) continue;
+    replyCount.set(r.authorId, Number(r.n));
+    lastActivity.set(r.authorId, Math.max(lastActivity.get(r.authorId) ?? 0, Number(r.last)));
   }
-  const countBy = (
-    rows: (string | null)[],
-    id: string | null,
-  ) => rows.filter((x) => x === id).length;
-  const threadAuthors = threads.map((t) => t.authorId);
-  const replyAuthors = replies.map((r) => r.authorId);
-  const reviewUsers = reviewRows.map((r) => r.userId);
-  const bookmarkKeys = bookmarkRows.map((b) => b.ownerKey);
-  const reportEmails = reportRows.map((r) => r.reporterEmail);
+  for (const r of reviewAgg) {
+    if (!r.userId) continue;
+    reviewCount.set(r.userId, Number(r.n));
+  }
+  for (const r of bookmarkAgg) {
+    if (!r.ownerKey) continue;
+    bookmarkCount.set(r.ownerKey, Number(r.n));
+  }
+  for (const r of reportAgg) {
+    if (!r.reporterEmail) continue;
+    reportCount.set(r.reporterEmail, Number(r.n));
+  }
 
   const uid = (u: UserRow) => docId(u);
-  const rows = [...matching]
+  const sorted = [...matching]
     // Deterministic tiebreak mirrors the Prisma ORDER BY (createdAt DESC,
     // id ASC) — mirrors the Convex comparator.
     .sort(
       (a, b) =>
         b.createdAt - a.createdAt ||
         (uid(a) < uid(b) ? -1 : uid(a) > uid(b) ? 1 : 0),
-    )
-    .slice(0, 300)
+    );
+  const total = sorted.length;
+  const rows = sorted
+    .slice(page * size, page * size + size)
     .map((u) => ({
       id: uid(u),
       name: u.name ?? null,
@@ -161,13 +176,13 @@ export async function d1AdminUsers(args: {
       role: ["member", "moderator", "admin"].includes(u.role) ? u.role : "member",
       status: u.status === "banned" ? "banned" : "active",
       createdAt: isoFromMs(u.createdAt),
-      threads: countBy(threadAuthors, uid(u)),
-      replies: countBy(replyAuthors, uid(u)),
-      reviews: countBy(reviewUsers, uid(u)),
+      threads: threadCount.get(uid(u)) ?? 0,
+      replies: replyCount.get(uid(u)) ?? 0,
+      reviews: reviewCount.get(uid(u)) ?? 0,
       // Mirrors the raw SQL exactly: 'user:' concatenated with the STORED
       // email (no lowercasing — a NULL/cased email simply matches nothing).
-      bookmarks: countBy(bookmarkKeys, `user:${u.email ?? ""}`),
-      reportsFiled: countBy(reportEmails, u.email),
+      bookmarks: bookmarkCount.get(`user:${u.email ?? ""}`) ?? 0,
+      reportsFiled: reportCount.get(u.email ?? "") ?? 0,
       lastActivityAt: (() => {
         const at = lastActivity.get(uid(u));
         return at ? isoFromMs(at) : null;
@@ -179,7 +194,7 @@ export async function d1AdminUsers(args: {
     if (u.role === "moderator") stats.moderators += 1;
     if (u.role === "admin") stats.admins += 1;
   }
-  return { users: rows, stats };
+  return { users: rows, stats, page, size, total, hasMore: (page + 1) * size < total };
 }
 
 export async function d1UserModerate(args: {

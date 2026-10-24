@@ -1034,7 +1034,7 @@ export async function shadowAdminPosts(c: Client, status: string) { if (!c) retu
 }
 export async function shadowAdminUsers(
   c: Client,
-  args: { q: string; status: string; role: string },
+  args: { q: string; status: string; role: string; page?: number; size?: number },
 ) { if (!c) return null as any;
   try {
     const { d1AdminUsers } = await import("@/lib/d1/moderation");

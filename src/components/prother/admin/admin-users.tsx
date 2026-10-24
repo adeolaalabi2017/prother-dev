@@ -51,6 +51,15 @@ type AdminUser = {
 
 type UsersStats = { total: number; banned: number; moderators: number; admins: number };
 
+type UsersPage = {
+  users: AdminUser[];
+  stats: UsersStats;
+  page: number;
+  size: number;
+  total: number;
+  hasMore: boolean;
+};
+
 type UserDetail = {
   user: {
     id: string;
@@ -410,35 +419,53 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
   const [banning, setBanning] = useState<string | null>(null);
   const [banNote, setBanNote] = useState("");
   const [inspect, setInspect] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const load = useCallback(() => {
-    adminFetch(
-      apiKey,
-      `/api/admin/users?q=${encodeURIComponent(q)}&status=${status}&role=${role}`
-    )
-      .then((r) => {
-        if (!r.ok) throw new Error(String(r.status));
-        return r.json() as Promise<{ users: AdminUser[]; stats: UsersStats }>;
-      })
-      .then((d) => {
-        setUsers(d.users);
-        setStats(d.stats);
-        setError(false);
-      })
-      .catch(() => setError(true));
-  }, [apiKey, q, status, role]);
+  const load = useCallback(
+    (page: number, append: boolean) => {
+      adminFetch(
+        apiKey,
+        `/api/admin/users?q=${encodeURIComponent(q)}&status=${status}&role=${role}&page=${page}&size=50`
+      )
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json() as Promise<UsersPage>;
+        })
+        .then((d) => {
+          setUsers((cur) =>
+            append && cur ? [...cur, ...d.users] : d.users
+          );
+          setStats(d.stats);
+          setHasMore(d.hasMore);
+          setError(false);
+        })
+        .catch(() => {
+          if (!append) setError(true);
+        });
+    },
+    [apiKey, q, status, role]
+  );
 
   // Debounced search (~250ms) — mirrors the ListingsTab pattern.
   useEffect(() => {
-    const t = setTimeout(load, q ? 250 : 0);
+    const t = setTimeout(() => load(0, false), q ? 250 : 0);
     return () => clearTimeout(t);
   }, [load, q]);
 
   const retry = useCallback(() => {
     setUsers(null);
     setError(false);
-    load();
+    load(0, false);
   }, [load]);
+
+  const loadMore = useCallback(() => {
+    if (!users || loadingMore) return;
+    setLoadingMore(true);
+    // Next page keyed off the loaded count (50/page, server-bounded).
+    load(Math.floor(users.length / 50), true);
+    setLoadingMore(false);
+  }, [users, loadingMore, load]);
 
   const sendPatch = useCallback(
     async (id: string, body: { role?: string; status?: string; note?: string }) => {
@@ -831,6 +858,19 @@ export function UsersTab({ apiKey, onChanged }: { apiKey: string; onChanged: () 
             );
           })}
         </div>
+      )}
+
+      {hasMore && users && users.length > 0 && !error && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={loadMore}
+          disabled={loadingMore}
+          className="h-9 shrink-0 self-center rounded-lg border-white/15 px-4 text-white/70 shadow-none hover:bg-white/5 hover:text-white"
+        >
+          {loadingMore ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
+          Load more
+        </Button>
       )}
 
       {inspect && (

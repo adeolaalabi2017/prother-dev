@@ -539,8 +539,17 @@ export const postDelete = mutation({
 // ── Users table + moderation ──
 
 export const usersTable = query({
-  args: { q: v.string(), status: v.string(), role: v.string() },
-  handler: async (ctx, { q, status, role }) => {
+  args: {
+    q: v.string(),
+    status: v.string(),
+    role: v.string(),
+    /** 0-based page over the newest-first roster (size 50, max 100). */
+    page: v.optional(v.number()),
+    size: v.optional(v.number()),
+  },
+  handler: async (ctx, { q, status, role, page: pageRaw, size: sizeRaw }) => {
+    const page = Math.max(0, Math.floor(pageRaw ?? 0));
+    const size = Math.min(100, Math.max(1, Math.floor(sizeRaw ?? 50)));
     const needle = q.trim().toLowerCase();
     const [users, threads, replies, reviews, bookmarks, reports] =
       await Promise.all([
@@ -565,54 +574,81 @@ export const usersTable = query({
       if (role && u.role !== role) return false;
       return true;
     });
-    const countBy = (rows: { [k: string]: unknown }[], key: string, id: string) =>
-      rows.filter((r) => (r[key] as string) === id).length;
+    // Single pass per content table: counts + last activity keyed by author
+    // (O(rows) total, replacing the per-user filter scans).
+    const threadCount = new Map<string, number>();
+    const replyCount = new Map<string, number>();
+    const reviewCount = new Map<string, number>();
+    const bookmarkCount = new Map<string, number>();
+    const reportCount = new Map<string, number>();
     const lastActivity = new Map<string, number>();
     for (const t of threads) {
-      if (t.authorId) lastActivity.set(t.authorId, Math.max(lastActivity.get(t.authorId) ?? 0, t.createdAt));
+      if (!t.authorId) continue;
+      threadCount.set(t.authorId, (threadCount.get(t.authorId) ?? 0) + 1);
+      lastActivity.set(
+        t.authorId,
+        Math.max(lastActivity.get(t.authorId) ?? 0, t.createdAt),
+      );
     }
     for (const r of replies) {
-      if (r.authorId) lastActivity.set(r.authorId, Math.max(lastActivity.get(r.authorId) ?? 0, r.createdAt));
+      if (!r.authorId) continue;
+      replyCount.set(r.authorId, (replyCount.get(r.authorId) ?? 0) + 1);
+      lastActivity.set(
+        r.authorId,
+        Math.max(lastActivity.get(r.authorId) ?? 0, r.createdAt),
+      );
     }
-    const rows = [...matching]
-      // Deterministic tiebreak mirrors the Prisma ORDER BY (createdAt DESC,
-      // id ASC) — SQLite leaves ties in planner order.
-      .sort(
-        (a, b) =>
-          b.createdAt - a.createdAt ||
-          (docId(a) < docId(b) ? -1 : docId(a) > docId(b) ? 1 : 0),
-      )
-      .slice(0, 300)
-      .map((u) => ({
-        id: docId(u),
-        name: u.name ?? null,
-        email: u.email ?? null,
-        handle: u.handle ?? null,
-        image: u.image ?? null,
-        role: ["member", "moderator", "admin"].includes(u.role) ? u.role : "member",
-        status: u.status === "banned" ? "banned" : "active",
-        createdAt: isoFromMs(u.createdAt),
-        threads: countBy(threads, "authorId", u.legacyId ?? u._id),
-        replies: countBy(replies, "authorId", u.legacyId ?? u._id),
-        reviews: reviews.filter((r) => r.userId === (u.legacyId ?? u._id)).length,
-        // Mirrors the raw SQL exactly: 'user:' concatenated with the STORED
-        // email (no lowercasing — a NULL/cased email simply matches nothing).
-        bookmarks: bookmarks.filter(
-          (b) => b.ownerKey === `user:${u.email ?? ""}`,
-        ).length,
-        reportsFiled: reports.filter((r) => r.reporterEmail === u.email).length,
-        lastActivityAt: (() => {
-          const at = lastActivity.get(u.legacyId ?? u._id);
-          return at ? isoFromMs(at) : null;
-        })(),
-      }));
+    for (const r of reviews) {
+      if (!r.userId) continue;
+      reviewCount.set(r.userId, (reviewCount.get(r.userId) ?? 0) + 1);
+    }
+    for (const b of bookmarks) {
+      if (!b.ownerKey) continue;
+      bookmarkCount.set(b.ownerKey, (bookmarkCount.get(b.ownerKey) ?? 0) + 1);
+    }
+    for (const r of reports) {
+      if (!r.reporterEmail) continue;
+      reportCount.set(r.reporterEmail, (reportCount.get(r.reporterEmail) ?? 0) + 1);
+    }
+    const sorted = [...matching].sort(
+      (a, b) =>
+        b.createdAt - a.createdAt ||
+        (docId(a) < docId(b) ? -1 : docId(a) > docId(b) ? 1 : 0),
+    );
+    const total = sorted.length;
+    const rows = sorted
+      .slice(page * size, page * size + size)
+      .map((u) => {
+        const authorId = u.legacyId ?? u._id;
+        return {
+          id: docId(u),
+          name: u.name ?? null,
+          email: u.email ?? null,
+          handle: u.handle ?? null,
+          image: u.image ?? null,
+          role: ["member", "moderator", "admin"].includes(u.role) ? u.role : "member",
+          status: u.status === "banned" ? "banned" : "active",
+          createdAt: isoFromMs(u.createdAt),
+          threads: threadCount.get(authorId) ?? 0,
+          replies: replyCount.get(authorId) ?? 0,
+          reviews: reviewCount.get(authorId) ?? 0,
+          // Mirrors the raw SQL exactly: 'user:' concatenated with the STORED
+          // email (no lowercasing — a NULL/cased email simply matches nothing).
+          bookmarks: bookmarkCount.get(`user:${u.email ?? ""}`) ?? 0,
+          reportsFiled: reportCount.get(u.email ?? "") ?? 0,
+          lastActivityAt: (() => {
+            const at = lastActivity.get(authorId);
+            return at ? isoFromMs(at) : null;
+          })(),
+        };
+      });
     const stats = { total: users.length, banned: 0, moderators: 0, admins: 0 };
     for (const u of users) {
       if (u.status === "banned") stats.banned += 1;
       if (u.role === "moderator") stats.moderators += 1;
       if (u.role === "admin") stats.admins += 1;
     }
-    return { users: rows, stats };
+    return { users: rows, stats, page, size, total, hasMore: (page + 1) * size < total };
   },
 });
 
@@ -624,16 +660,27 @@ export const userModerate = mutation({
     image: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, a) => {
-    const users = await ctx.db.query("users").collect();
-    const user = users.find((u) => docId(u) === a.userLegacyId);
-    if (!user) throw new Error("not_found");
+    const users = await ctx.db.query("users").withIndex("by_legacy", (q) =>
+      q.eq("legacyId", a.userLegacyId),
+    ).take(1);
+    const found: typeof users[number] | undefined =
+      users[0] ??
+      (await ctx.db.query("users").collect()).find(
+        (u) => docId(u) === a.userLegacyId,
+      );
+    if (!found) throw new Error("not_found");
+    const userDoc = found;
     // Lockout rails (shared-key panel has no acting-admin identity, so rails
     // protect the role itself): active admin accounts can never be banned,
     // and the last active admin can never be demoted to a lower role.
-    if (a.status === "banned" && user.role === "admin") {
+    if (a.status === "banned" && userDoc.role === "admin") {
       throw new Error("admin_protected");
     }
-    if (a.role !== undefined && a.role !== "admin" && user.role === "admin") {
+    if (
+      a.role !== undefined &&
+      a.role !== "admin" &&
+      userDoc.role === "admin"
+    ) {
       const remainingAdmins = users.filter(
         (u) =>
           u.role === "admin" && u.status !== "banned" && docId(u) !== a.userLegacyId,
@@ -645,7 +692,7 @@ export const userModerate = mutation({
     if (a.status !== undefined) patch.status = a.status;
     if (a.image !== undefined) patch.image = a.image ?? undefined;
     if (Object.keys(patch).length > 0) {
-      await ctx.db.patch(user._id, patch as never);
+      await ctx.db.patch(userDoc._id, patch as never);
     }
     return { ok: true as const };
   },

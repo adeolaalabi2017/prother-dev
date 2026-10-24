@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
       q: sp.get("q") ?? "",
       status: sp.get("status") ?? "",
       role: sp.get("role") ?? "",
+      page: Number.isFinite(Number(sp.get("page"))) ? Math.max(0, Number(sp.get("page"))) : undefined,
+      size: Number.isFinite(Number(sp.get("size"))) && sp.get("size") ? Number(sp.get("size")) : undefined,
     });
     return NextResponse.json(res, {
       headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
