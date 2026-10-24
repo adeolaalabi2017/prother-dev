@@ -513,6 +513,24 @@ export const searchDaily = sqliteTable(
   ],
 );
 
+/** Client-side runtime errors: signature × day counters (cookieless). */
+export const errorDaily = sqliteTable(
+  "error_daily",
+  {
+    id: id(),
+    /** "error: <msg> @ /path" — capped 140 chars, no stack/PII */
+    sig: reqText("sig"),
+    day: reqText("day"),
+    count: reqInt("count").default(0),
+    updatedAt: reqInt("updated_at"),
+  },
+  (t) => [
+    index("error_daily_by_day_sig").on(t.day, t.sig),
+    index("error_daily_by_day").on(t.day),
+    uniqueIndex("error_daily_sig_day_uq").on(t.sig, t.day),
+  ],
+);
+
 export const media = sqliteTable(
   "media",
   {

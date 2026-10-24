@@ -847,6 +847,17 @@ export async function d1AdminIntegrationRaw(key: string) {
   return row ? { configJson: row.configJson } : null;
 }
 
+export async function d1SiteSetting(key: string): Promise<string | null | undefined> {
+  const db = await getD1();
+  if (!db) return undefined; // no store: caller falls back to Convex
+  const [row] = await db
+    .select({ value: siteSettings.value })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, key))
+    .limit(1);
+  return row?.value ?? null;
+}
+
 export async function d1AdminSettings() {
   const db = await getD1();
   if (!db) return null;

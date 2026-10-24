@@ -3,6 +3,9 @@ import { HowItWorks } from "@/components/prother/how-it-works";
 import { AgentEra } from "@/components/prother/agent-era";
 import { Standards } from "@/components/prother/standards";
 import { Faq } from "@/components/prother/faq";
+import { createServerConvexClient } from "@/lib/convex";
+import { shadowSiteSetting } from "@/lib/data";
+import { staticPageCopy } from "@/lib/static-pages";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/about" },
@@ -33,26 +36,23 @@ export const metadata: Metadata = {
   },
 };
 
-/** /about - the full story, assembled from the dedicated section components. */
-export default function AboutPage() {
+/** /about - the full story, assembled from the dedicated section components.
+ *  Header copy is editable from the admin Site settings (`page.about`). */
+export default async function AboutPage() {
+  const raw = await shadowSiteSetting(createServerConvexClient(), "page.about").catch(() => null);
+  const copy = staticPageCopy("page.about", raw ?? undefined);
   return (
     <div className="pb-16 md:pb-0">
       {/* Slim page header */}
       <section className="bg-ink pb-20 pt-14">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
-            About Prother
+            {copy.kicker}
           </p>
           <h1 className="mt-3 text-5xl font-semibold tracking-tighter text-white md:text-6xl">
-            Find the right AI tool.
+            {copy.title}
           </h1>
-          <p className="mt-4 max-w-2xl text-lg text-white/60">
-            Prother is a curated search &amp; discovery platform for AI products
-            and tools, every listing reviewed against published standards,
-            organized into 8 categories, and rated by honest reviews. This page
-            is the whole story: how the directory works, what we build for, and
-            the bar every listing clears.
-          </p>
+          <p className="mt-4 max-w-2xl text-lg text-white/60">{copy.intro}</p>
         </div>
       </section>
 

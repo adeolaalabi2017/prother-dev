@@ -14,6 +14,7 @@ import {
   categories,
   comments,
   comparisons,
+  errorDaily,
   pageViewDaily,
   posts,
   pvSourceDaily,
@@ -258,6 +259,19 @@ export async function d1RecordSearch(
   return { ok: true as const };
 }
 
+export async function d1RecordError(sig: string, day: string, nowMs: number) {
+  const db = await getD1();
+  if (!db) return null;
+  await db
+    .insert(errorDaily)
+    .values({ id: `err:${day}:${sig}`, sig, day, count: 1, updatedAt: nowMs })
+    .onConflictDoUpdate({
+      target: [errorDaily.sig, errorDaily.day],
+      set: { count: sql`${errorDaily.count} + 1`, updatedAt: nowMs },
+    });
+  return { ok: true as const };
+}
+
 export async function d1TrafficReadout() {
   const db = await getD1();
   if (!db) return null;
@@ -314,6 +328,11 @@ export async function d1TrafficReadout() {
       zero: [...byQuery.values()].reduce((s, v) => s + v.zero, 0),
     },
   };
+  const errorRows = await db.select().from(errorDaily).where(gte(errorDaily.day, days[0]!));
+  const bySig = new Map<string, number>();
+  for (const r of errorRows) {
+    bySig.set(r.sig, (bySig.get(r.sig) ?? 0) + r.count);
+  }
   return {
     days: days.map((d) => ({ day: d, views: byDay.get(d) ?? 0 })),
     total: [...byDay.values()].reduce((s, n) => s + n, 0),
@@ -321,6 +340,13 @@ export async function d1TrafficReadout() {
     sources,
     devices,
     searches,
+    errors: {
+      total: [...bySig.values()].reduce((s, n) => s + n, 0),
+      rows: [...bySig.entries()]
+        .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+        .slice(0, 6)
+        .map(([sig, count]) => ({ sig, count })),
+    },
   };
 }
 

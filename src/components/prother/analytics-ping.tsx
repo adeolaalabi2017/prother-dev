@@ -62,5 +62,38 @@ export function AnalyticsPing() {
     }).catch(() => {});
   }, [pathname]);
 
+  // ── Client-error monitoring (rate-limited to one post per 5s) ──────────
+  useEffect(() => {
+    let lastPost = 0;
+    const post = (m: string) => {
+      const now = Date.now();
+      if (now - lastPost < 5_000) return;
+      lastPost = now;
+      fetch("/api/analytics/error", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ m, p: window.location.pathname }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    const onError = (e: ErrorEvent) => post(`error: ${e.message}`);
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const r = e.reason;
+      const msg =
+        typeof r === "string"
+          ? r
+          : r instanceof Error
+            ? r.message
+            : r?.message ?? String(r);
+      post(`promise: ${msg}`);
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
+
   return null;
 }

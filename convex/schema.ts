@@ -440,6 +440,18 @@ export default defineSchema({
     .index("by_day_query", ["day", "query"])
     .index("by_day", ["day"]),
 
+  /** Client-side runtime errors: signature × day counters (cookieless). */
+  errorDaily: defineTable({
+    /** YYYY-MM-DD (UTC) */
+    day: v.string(),
+    /** "error: <msg> @ /path" — capped 140 chars, no stack/PII */
+    sig: v.string(),
+    count: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_day_sig", ["day", "sig"])
+    .index("by_day", ["day"]),
+
   media: defineTable({
     /** Convex file storage id. Set by the Phase 2 upload migration;
      *  empty until then (SQLite-era rows carry storedName instead). */

@@ -12,10 +12,12 @@ export const dynamic = "force-dynamic";
  *  PUT /api/admin/settings — write one { key, value } or a { settings: map }
  */
 
+// Values hold JSON blobs for structured editors too (static page copy),
+// hence the generous cap; keys stay short.
 const putSchema = z.union([
-  z.object({ key: z.string().min(1).max(60), value: z.string().max(600) }),
+  z.object({ key: z.string().min(1).max(60), value: z.string().max(20000) }),
   z.object({
-    settings: z.record(z.string().min(1).max(60), z.string().max(600)),
+    settings: z.record(z.string().min(1).max(60), z.string().max(20000)),
   }),
 ]);
 

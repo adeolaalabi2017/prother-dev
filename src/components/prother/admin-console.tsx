@@ -70,6 +70,13 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { STANDARD_DEFS } from "@/lib/standards";
 import {
+  DEFAULT_PAGES,
+  STATIC_PAGE_KEYS,
+  STATIC_PAGE_LABELS,
+  staticPageCopy,
+  type StaticPageKey,
+} from "@/lib/static-pages";
+import {
   adminFetch,
   inputCx,
   labelCx,
@@ -2511,6 +2518,7 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
   const [values, setValues] = useState<Record<string, string>>({});
   const [extra, setExtra] = useState({ key: "", value: "" });
   const [busy, setBusy] = useState(false);
+  const [pageKey, setPageKey] = useState<StaticPageKey>("page.privacy");
 
   const load = useCallback(() => {
     adminFetch(apiKey, "/api/admin/settings")
@@ -2661,6 +2669,170 @@ function SettingsTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Static pages editor: About / Advertise / Privacy / Terms copy.
+          Stored as JSON in the same KV map; the Save button persists it. */}
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <p className={labelCx}>Static pages</p>
+        <p className="mt-1 text-xs text-white/55">
+          Edit the copy of the fixed pages: About, Advertise, Privacy and
+          Terms. Heading and paragraph pairs for the legal pages; the About
+          header only (the rich sections below stay baked). Save applies it.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {STATIC_PAGE_KEYS.map((k) => (
+            <Button
+              key={k}
+              size="sm"
+              variant="outline"
+              onClick={() => setPageKey(k)}
+              className={cn(
+                "h-8 rounded-lg border-white/15 px-3 font-mono text-xs shadow-none",
+                pageKey === k
+                  ? "border-ember/40 bg-ember/10 text-ember"
+                  : "text-white/60 hover:bg-white/5 hover:text-white"
+              )}
+            >
+              {STATIC_PAGE_LABELS[k]}
+            </Button>
+          ))}
+        </div>
+
+        {(() => {
+          const merged = staticPageCopy(pageKey, values[pageKey]);
+          const isLegal = merged.sections.length > 0;
+          const setValue = (patch: Partial<typeof merged>) =>
+            setValues({ ...values, [pageKey]: JSON.stringify({ ...merged, ...patch }) });
+          const setSection = (i: number, patch: Partial<{ h: string; p: string }>) =>
+            setValue({
+              sections: merged.sections.map((s, j) =>
+                j === i ? { ...s, ...patch } : s
+              ),
+            });
+          const addSection = () =>
+            setValue({ sections: [...merged.sections, { h: "", p: "" }] });
+          const removeSection = (i: number) =>
+            setValue({ sections: merged.sections.filter((_, j) => j !== i) });
+          const resetPage = () => {
+            const next = { ...values };
+            delete next[pageKey];
+            setValues(next);
+          };
+          return (
+            <div className="mt-4 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className={labelCx}>Kicker</Label>
+                  <Input
+                    value={merged.kicker}
+                    onChange={(e) => setValue({ kicker: e.target.value })}
+                    maxLength={60}
+                    className={cn(inputCx, "text-sm")}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className={labelCx}>Title</Label>
+                  <Input
+                    value={merged.title}
+                    onChange={(e) => setValue({ title: e.target.value })}
+                    maxLength={120}
+                    className={cn(inputCx, "text-sm")}
+                  />
+                </div>
+              </div>
+              {merged.updated !== undefined && (
+                <div className="space-y-1.5">
+                  <Label className={labelCx}>Revision line</Label>
+                  <Input
+                    value={merged.updated ?? ""}
+                    onChange={(e) => setValue({ updated: e.target.value })}
+                    maxLength={80}
+                    className={cn(inputCx, "text-sm")}
+                  />
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label className={labelCx}>Intro paragraph</Label>
+                <Textarea
+                  value={merged.intro}
+                  onChange={(e) => setValue({ intro: e.target.value })}
+                  maxLength={2000}
+                  rows={3}
+                  className={cn(inputCx, "resize-none bg-white/[0.03]")}
+                />
+              </div>
+
+              {isLegal && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className={labelCx}>Sections</Label>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={addSection}
+                      className="h-7 rounded-lg text-xs text-white/60 hover:text-white"
+                    >
+                      <Plus className="size-3.5" aria-hidden />
+                      Add section
+                    </Button>
+                  </div>
+                  {merged.sections.map((s, i) => (
+                    <div
+                      key={i}
+                      className="space-y-2 rounded-lg border border-white/10 bg-white/[0.02] p-3"
+                    >
+                      <div className="flex gap-2">
+                        <Input
+                          value={s.h}
+                          onChange={(e) => setSection(i, { h: e.target.value })}
+                          maxLength={120}
+                          placeholder="Section heading"
+                          aria-label={`Section ${i + 1} heading`}
+                          className={cn(inputCx, "h-8 flex-1 text-sm")}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeSection(i)}
+                          aria-label={`Remove section ${i + 1}`}
+                          className="h-8 shrink-0 rounded-lg text-red-300 hover:bg-red-400/10 hover:text-red-200"
+                        >
+                          <X className="size-3.5" aria-hidden />
+                        </Button>
+                      </div>
+                      <Textarea
+                        value={s.p}
+                        onChange={(e) => setSection(i, { p: e.target.value })}
+                        maxLength={4000}
+                        rows={3}
+                        placeholder="Section paragraph"
+                        aria-label={`Section ${i + 1} paragraph`}
+                        className={cn(inputCx, "resize-none bg-white/[0.03]")}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-white/40">
+                  {values[pageKey] ? "override stored" : "baked default"}
+                </span>
+                {values[pageKey] && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={resetPage}
+                    className="h-7 rounded-lg text-xs text-white/60 hover:text-white"
+                  >
+                    Reset to default
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="rounded-xl border border-dashed border-white/15 p-4">
@@ -3206,6 +3378,10 @@ type Traffic = {
     queries: { query: string; count: number; zero: number }[];
     totals: { searches: number; zero: number };
   };
+  errors?: {
+    total: number;
+    rows: { sig: string; count: number }[];
+  };
 };
 
 /**
@@ -3456,10 +3632,45 @@ function TrafficCard({ apiKey }: { apiKey: string }) {
             </div>
           )}
 
+          {(traffic.errors?.rows.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
+                  Client errors · 14d
+                </p>
+                <span
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase",
+                    (traffic.errors!.total ?? 0) > 0
+                      ? "border-red-400/30 bg-red-400/10 text-red-300"
+                      : "border-white/10 bg-white/5 text-white/50"
+                  )}
+                >
+                  {traffic.errors!.total} total
+                </span>
+              </div>
+              <ul className="mt-2 space-y-1">
+                {traffic.errors!.rows.map((e) => (
+                  <li
+                    key={e.sig}
+                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-white/70">
+                      {e.sig}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-red-300/80">
+                      {e.count}×
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <p className="mt-3 font-mono text-xs leading-relaxed text-white/55">
             COOKIELESS FIRST-PARTY COUNTING (PATH × DAY + REFERRER HOST × DEVICE
-            × DAY, NO COOKIES, IPS, FULL URLs OR FINGERPRINTS) ·
-            ADMIN/API/EDITOR SURFACES EXCLUDED
+            × DAY + ERROR SIGNATURES × DAY, NO COOKIES, IPS, FULL URLs OR
+            FINGERPRINTS) · ADMIN/API/EDITOR SURFACES EXCLUDED
           </p>
         </>
       )}

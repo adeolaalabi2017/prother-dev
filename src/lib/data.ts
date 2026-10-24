@@ -1105,6 +1105,23 @@ export async function shadowAdminSettings(c: Client) { if (!c) return null as an
   return c.query(api.adminCrud.settingsTable, {});
 }
 
+/** Single settings key read (static page copy). undefined = no store. */
+export async function shadowSiteSetting(
+  c: Client | null | undefined,
+  key: string
+): Promise<string | null | undefined> {
+  if (!c) return undefined;
+  try {
+    const { d1SiteSetting } = await import("@/lib/d1/admin");
+    const d1 = await d1SiteSetting(key);
+    if (d1 !== undefined && d1 !== null) return d1;
+    if (d1 === null) return null;
+  } catch {
+    // fall through to Convex
+  }
+  return c.query(api.site.getSetting, { key });
+}
+
 /** Bulk curate every listing — admin-key enforced route-side. */
 export async function convexAdminMarkAllCurated(c: Client) { if (!c) return null as any;
   try {
@@ -1573,6 +1590,20 @@ export async function shadowSearchLog(
     // fall through to Convex
   }
   return c.mutation(api.ads.recordSearch, args);
+}
+
+export async function shadowErrorLog(
+  c: Client,
+  args: { sig: string; day: string; nowMs: number },
+) {
+  try {
+    const { d1RecordError } = await import("@/lib/d1/analytics");
+    const d1 = await d1RecordError(args.sig, args.day, args.nowMs);
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
+  return c.mutation(api.ads.recordError, args);
 }
 
 export async function shadowTrafficReadout(c: Client) { if (!c) return null as any;

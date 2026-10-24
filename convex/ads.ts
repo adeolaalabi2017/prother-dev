@@ -331,6 +331,23 @@ export const recordSearch = mutation({
   },
 });
 
+/** Client error ping (POST /api/analytics/error). Upsert by (sig, day). */
+export const recordError = mutation({
+  args: { sig: v.string(), day: v.string(), nowMs: v.number() },
+  handler: async (ctx, { sig, day, nowMs }) => {
+    const row = await ctx.db
+      .query("errorDaily")
+      .withIndex("by_day_sig", (i) => i.eq("day", day).eq("sig", sig))
+      .first();
+    if (!row) {
+      await ctx.db.insert("errorDaily", { day, sig, count: 1, updatedAt: nowMs });
+      return { ok: true as const };
+    }
+    await ctx.db.patch(row._id, { count: row.count + 1, updatedAt: nowMs });
+    return { ok: true as const };
+  },
+});
+
 /** 14-day traffic readout (GET /api/admin/analytics). */
 export const trafficReadout = query({
   args: {},
@@ -411,6 +428,14 @@ export const trafficReadout = query({
         : 0,
       zero: [...byQuery.values()].reduce((s, v) => s + v.zero, 0),
     };
+    const errorRows = await ctx.db
+      .query("errorDaily")
+      .withIndex("by_day", (i) => i.gte("day", days[0]!))
+      .collect();
+    const bySig = new Map<string, number>();
+    for (const r of errorRows) {
+      bySig.set(r.sig, (bySig.get(r.sig) ?? 0) + r.count);
+    }
     return {
       days: days.map((d) => ({ day: d, views: byDay.get(d) ?? 0 })),
       total: [...byDay.values()].reduce((s, n) => s + n, 0),
@@ -418,6 +443,13 @@ export const trafficReadout = query({
       sources: { rows: topSources, total: totalSourceViews },
       devices,
       searches: { queries: topQueries, totals: searchTotals },
+      errors: {
+        total: [...bySig.values()].reduce((s, n) => s + n, 0),
+        rows: [...bySig.entries()]
+          .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+          .slice(0, 6)
+          .map(([sig, count]) => ({ sig, count })),
+      },
     };
   },
 });

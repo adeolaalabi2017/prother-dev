@@ -4,6 +4,18 @@
  * stays Next-side in Phase 4).
  */
 import { query } from "./_generated/server";
+import { v } from "convex/values";
+
+export const getSetting = query({
+  args: { key: v.string() },
+  handler: async (ctx, { key }) => {
+    const rows = await ctx.db
+      .query("siteSettings")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .take(1);
+    return rows[0]?.value ?? null;
+  },
+});
 
 export const get = query({
   args: {},
