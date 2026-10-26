@@ -44,6 +44,19 @@ jobs:
       - name: Production build
         run: bun run build
 
+      - name: Soft-404 HTTP regression
+        run: |
+          PORT=3100 NODE_ENV=production bun .next/standalone/server.js > /tmp/prother-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3100/ > /dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          PROTHER_BASE_URL=http://127.0.0.1:3100 bun run test:soft-404
+
   deploy-convex:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
