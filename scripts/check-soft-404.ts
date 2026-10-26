@@ -6,7 +6,7 @@
  *   PROTHER_VALID_TOOL_SLUG=cline PROTHER_BASE_URL=http://localhost:3000 bun run test:soft-404
  *
  * This script intentionally defaults to localhost and refuses the production
- * hostname unless explicitly opted in.
+ * hostname to avoid accidental live-site checks during development.
  */
 const baseUrl = (process.env.PROTHER_BASE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 const base = new URL(baseUrl);
