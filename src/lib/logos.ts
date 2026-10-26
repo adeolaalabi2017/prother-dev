@@ -51,7 +51,7 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   openmercato: "/logos/openmercato.png",
   maestro: "/logos/maestro.svg",
   kolibri: "/logos/kolibri.png",
-  noodle: "/logos/noodle.png",
+  noodle: "/logos/noodle.svg",
   doodle: "/logos/doodle.png",
   "maus-bot": "/logos/maus-bot.svg",
   "ghost-core": "/logos/ghost-core.png",
