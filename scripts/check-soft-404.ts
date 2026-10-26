@@ -1,3 +1,5 @@
+export {};
+
 /**
  * HTTP regression smoke test for the Next.js streamed soft-404.
  *
