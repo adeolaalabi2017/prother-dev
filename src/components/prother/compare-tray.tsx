@@ -22,19 +22,17 @@ export function CompareTray() {
   const reducedMotion = useReducedMotion();
   const [names, setNames] = useState<Record<string, string>>({});
 
-  // Resolve slug -> display name by fetching only the specific tools in the
+  // Resolve slug -> display name by fetching the specific tools in the
   // compare list (graceful: the tray falls back to the raw slug if the
-  // individual endpoint is unreachable).
+  // individual endpoint is unreachable). The merge into state is idempotent,
+  // so re-fetching a slug already present simply overwrites it with itself.
+  const slugsKey = slugs.join(",");
   useEffect(() => {
     if (!visible || slugs.length === 0) return;
     let alive = true;
 
-    // Only fetch slugs we haven't resolved yet
-    const missing = slugs.filter((s) => !names[s]);
-    if (missing.length === 0) return;
-
     Promise.allSettled(
-      missing.map((slug) =>
+      slugs.map((slug) =>
         fetch(`/api/tools/${encodeURIComponent(slug)}`).then(async (res) => {
           if (!res.ok) return null;
           const data = (await res.json()) as { slug: string; name: string };
@@ -57,7 +55,7 @@ export function CompareTray() {
     return () => {
       alive = false;
     };
-  }, [visible, slugs.join(",")]);
+  }, [visible, slugsKey, slugs]);
 
   const nameOf = (slug: string) => names[slug] ?? slug;
 
@@ -111,7 +109,7 @@ export function CompareTray() {
                         type="button"
                         onClick={() => removeCompare(slug)}
                         aria-label={`Remove ${nameOf(slug)} from comparison`}
-                        className="flex size-6 shrink-0 items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                        className="flex size-6 shrink-0 touch-manipulation items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white"
                       >
                         <X className="size-3" aria-hidden />
                       </button>

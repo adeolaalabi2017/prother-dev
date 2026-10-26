@@ -115,13 +115,29 @@ export async function d1CommentsLastAge(toolSlug: string, author: string) {
   return { ageSec: Math.max(0, (Date.now() - mine[0]!.createdAt) / 1000) };
 }
 
-export async function d1CommentAdd(args: { id: string; toolSlug: string; author: string; body: string; createdAt: number }) {
+export async function d1CommentAdd(args: {
+  id: string;
+  toolSlug: string;
+  author: string;
+  body: string;
+  createdAt: number;
+  authenticatedUserEmail?: string;
+}) {
   const db = await getD1();
   if (!db) return null;
   const tool = await toolBySlug(db, args.toolSlug);
   if (!tool) throw new Error("tool_not_found");
   const norm = (s: string) => s.replace(/^@/, "").toLowerCase();
-  const isMaker = norm(args.author) === norm(tool.makerHandle);
+  const isMaker = Boolean(
+    tool.claimed &&
+    tool.makerEmail &&
+    args.authenticatedUserEmail &&
+    tool.makerEmail.toLowerCase() === args.authenticatedUserEmail.toLowerCase() &&
+    norm(args.author) === norm(tool.makerHandle)
+  );
+  if (!isMaker && tool.makerHandle && norm(args.author) === norm(tool.makerHandle)) {
+    throw new Error("maker_handle_reserved");
+  }
   await db.insert(comments).values({
     id: args.id,
     toolId: tool.id,

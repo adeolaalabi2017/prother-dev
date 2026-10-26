@@ -10,11 +10,61 @@
  */
 import { domainOf } from "@/lib/submit";
 
+/** Common webmail providers and shared hosting platforms ineligible for auto-verify by apex domain. */
+export const DISALLOWED_CLAIM_DOMAINS = new Set([
+  // Webmail / Consumer email providers
+  "gmail.com",
+  "googlemail.com",
+  "yahoo.com",
+  "ymail.com",
+  "hotmail.com",
+  "outlook.com",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "proton.me",
+  "protonmail.com",
+  "zoho.com",
+  "mail.com",
+  "gmx.com",
+  "fastmail.com",
+  "tutanota.com",
+  "tuta.io",
+  "hey.com",
+  "aol.com",
+  // Multi-tenant project/app hosting platforms
+  "github.com",
+  "github.io",
+  "gitlab.com",
+  "bitbucket.org",
+  "vercel.app",
+  "pages.dev",
+  "workers.dev",
+  "netlify.app",
+  "fly.dev",
+  "railway.app",
+  "render.com",
+  "herokuapp.com",
+  "huggingface.co",
+  "replit.com",
+  "replit.dev",
+  "glitch.me",
+  "medium.com",
+  "substack.com",
+  "notion.site",
+  "framer.website",
+  "webflow.io",
+]);
+
 /** Canonical domain match helper (delegates to lib/submit). */
 export function sameDomain(a: string | null | undefined, b: string | null | undefined): boolean {
   const da = a ? domainOf(a) : null;
   const dbb = b ? domainOf(b) : null;
-  return da != null && dbb != null && da === dbb;
+  if (!da || !dbb || da !== dbb) return false;
+  // Disallow auto-verification on consumer email providers and shared multi-tenant hosts
+  return !DISALLOWED_CLAIM_DOMAINS.has(da);
 }
 
 // ── Reviews (F-16) ───────────────────────────────────────────────────────

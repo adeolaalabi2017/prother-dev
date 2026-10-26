@@ -283,7 +283,12 @@ export function HeroSearch() {
       : null;
   const fetchShown = results && results.q === q ? results.data : null;
   const shown = CONVEX_LIVE ? (liveShown ?? fetchShown) : fetchShown;
-  const trendingRows = CONVEX_LIVE ? (liveTrending?.rows ?? []) : trending;
+  // CONVEX_LIVE is a module-level build flag, not component state, so it
+  // doesn't belong in the dependency array.
+  const trendingRows = useMemo(
+    () => (CONVEX_LIVE ? (liveTrending?.rows ?? []) : trending),
+    [liveTrending, trending]
+  );
   const loading = q.length > 0 && shown === null;
 
   // ── Search demand logging (one per query per mount) ────────────────────

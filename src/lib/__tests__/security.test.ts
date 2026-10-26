@@ -78,12 +78,51 @@ describe("Security Fixes", () => {
       expect(output).not.toContain("<!ENTITY");
     });
 
+    it("defangs unquoted and XML-entity encoded javascript: URIs", () => {
+      const input = '<svg><a href=javascript:alert(1)><circle r="5"/></a><a href="&#x6a;avascript:alert(2)"><text>x</text></a></svg>';
+      const output = sanitize(input);
+      expect(output).not.toContain("javascript:");
+      expect(output).not.toContain("&#x6a;avascript");
+      expect(output).toContain("#sanitized");
+    });
+
+    it("defangs executable data: URIs and animate href tampering", () => {
+      const input = '<svg><a href="data:image/svg+xml,<svg onload=alert(1)>"><text>x</text></a><animate attributeName="href" values="javascript:alert(1)"/></svg>';
+      const output = sanitize(input);
+      expect(output).not.toContain("data:image/svg+xml");
+      expect(output).not.toContain('attributeName="href"');
+      expect(output).toContain("#sanitized");
+    });
+
     it("preserves legitimate SVG geometry", () => {
       const input = '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="red"/><path d="M10 10 H 90 V 90 H 10 Z"/></svg>';
       const output = sanitize(input);
       expect(output).toContain("<circle");
       expect(output).toContain("<path");
       expect(output).toContain('viewBox="0 0 100 100"');
+    });
+  });
+
+  describe("sameDomain (Ownership Claim Hijacking Prevention)", () => {
+    // Dynamic import to test pure helper
+    it("rejects auto-verify for common public webmail domains", async () => {
+      const { sameDomain } = await import("@/lib/community");
+      // Public email provider vs website on same domain
+      expect(sameDomain("attacker@gmail.com", "https://gmail.com")).toBe(false);
+      expect(sameDomain("user@yahoo.com", "https://yahoo.com/app")).toBe(false);
+      expect(sameDomain("user@proton.me", "https://proton.me")).toBe(false);
+    });
+
+    it("rejects auto-verify for shared multi-tenant hosting platforms", async () => {
+      const { sameDomain } = await import("@/lib/community");
+      expect(sameDomain("maker@github.com", "https://github.com/my-tool")).toBe(false);
+      expect(sameDomain("dev@vercel.app", "https://my-tool.vercel.app")).toBe(false);
+    });
+
+    it("accepts legitimate custom apex domains", async () => {
+      const { sameDomain } = await import("@/lib/community");
+      expect(sameDomain("contact@cursor.com", "https://cursor.com")).toBe(true);
+      expect(sameDomain("founder@linear.app", "https://linear.app/features")).toBe(true);
     });
   });
 });

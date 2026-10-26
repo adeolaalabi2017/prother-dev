@@ -1217,7 +1217,12 @@ export function ToolFullPage() {
     }
   }, [shareUrl, toast]);
 
-  const savedIn = savedLocal ?? detail?.viewer?.savedIn ?? [];
+  // Memoize the fallback so the Set below doesn't rebuild on every render
+  // (savedLocal and detail are both stable unless the underlying data changes).
+  const savedIn = useMemo(
+    () => savedLocal ?? detail?.viewer?.savedIn ?? [],
+    [savedLocal, detail?.viewer?.savedIn]
+  );
   const savedSet = useMemo(() => new Set(savedIn.map((s) => s.slug)), [savedIn]);
 
   const inCompare = slug ? compareSlugs.includes(slug) : false;

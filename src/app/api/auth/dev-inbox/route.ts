@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Disable with AUTH_DEV_LINKS=false once a real SMTP/Resend transport exists.
  */
 export async function GET(req: Request) {
-  if (!DEV_LINKS_ENABLED) {
+  if (process.env.NODE_ENV === "production" || !DEV_LINKS_ENABLED) {
     return NextResponse.json({ enabled: false, url: null }, { status: 404 });
   }
   const email = new URL(req.url).searchParams.get("email")?.toLowerCase() ?? "";

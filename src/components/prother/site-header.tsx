@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -54,6 +54,15 @@ export function SiteHeader() {
 
   const [logoError, setLogoError] = useState(false);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   const isActive = (id: string) => {
     const link = NAV_LINKS.find((l) => l.id === id);
     if (!link) return false;
@@ -101,7 +110,7 @@ export function SiteHeader() {
             <Link
               key={l.href}
               href={l.href}
-              aria-current={isActive(l.id) ? "true" : undefined}
+              aria-current={isActive(l.id) ? "page" : undefined}
               className={cn(
                 "relative rounded-sm py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink",
                 isActive(l.id)
@@ -134,6 +143,15 @@ export function SiteHeader() {
             <kbd className="ml-0.5 inline-flex items-center gap-0.5 rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/50">
               <span className="text-xs">⌘</span>K
             </kbd>
+          </button>
+          {/* Mobile search shortcut button */}
+          <button
+            type="button"
+            onClick={() => setSearch(true)}
+            aria-label="Search tools"
+            className="pressable inline-flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/70 transition-colors hover:border-ember/40 hover:text-ember sm:hidden"
+          >
+            <Search className="size-4" aria-hidden />
           </button>
           <AuthMenu />
           <ThemeToggle />
@@ -184,7 +202,7 @@ export function SiteHeader() {
               key={l.href}
               href={l.href}
               onClick={() => setOpen(false)}
-              aria-current={isActive(l.id) ? "true" : undefined}
+              aria-current={isActive(l.id) ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-white/5 hover:text-white",
                 isActive(l.id) ? "text-ember" : "text-white/80",

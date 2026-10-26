@@ -1,0 +1,34 @@
+# Prother
+> Curated search and discovery directory for AI products and tools, with honest pricing, verified specs, and direct side-by-side comparisons.
+
+## Core Hubs
+- [All AI Tools](https://prother.dev/tools): Browse the full curated catalog of AI tools
+- [Compare Tools](https://prother.dev/compare): Side-by-side matrix of features, pricing, and ratings
+- [Topics & Stacks](https://prother.dev/topics): Intent-based discovery hubs
+- [Editorial Standards](https://prother.dev/about#standards): The six published quality standards required for directory indexing
+- [Forums](https://prother.dev/forums): Community discussions, reviews, and tool feedback
+- [Journal](https://prother.dev/journal): Editorial deep dives, analysis, and AI ecosystem guides
+- [RSS Feed](https://prother.dev/api/rss): Real-time syndication feed of newly published articles and tool updates
+
+## Taxonomy & Categories
+- [AI Models](https://prother.dev/categories/ai-models): Foundation models, reasoning engines, and multimodal APIs
+- [Conversational AI](https://prother.dev/categories/conversational-ai): Chatbots, AI assistants, and customer support agents
+- [Generative Content](https://prother.dev/categories/generative-content): Image, audio, video, and design generation tools
+- [NLP & Text](https://prother.dev/categories/nlp-text): Writing, summarization, translation, and text analysis
+- [Computer Vision](https://prother.dev/categories/computer-vision): OCR, object detection, and spatial understanding
+- [Data & Analytics](https://prother.dev/categories/data-analytics): Business intelligence, data querying, and predictive AI
+- [Automation & Agents](https://prother.dev/categories/automation): Workflow automation, web scraping, and RPA
+- [Developer Frameworks](https://prother.dev/categories/dev-platforms): Code editors, LLM orchestration, evaluation, and local serving
+
+## Key Pairwise Comparisons
+- [Cursor vs Windsurf](https://prother.dev/compare/cursor-vs-windsurf): Side-by-side comparison of AI code editors
+- [ChatGPT vs Claude](https://prother.dev/compare/chatgpt-vs-claude): Frontier AI assistant comparison
+- [ChatGPT vs DeepSeek](https://prother.dev/compare/chatgpt-vs-deepseek): DeepSeek vs OpenAI flagship showdown
+- [Claude vs DeepSeek](https://prother.dev/compare/claude-vs-deepseek): DeepSeek vs Anthropic Claude showdown
+- [ChatGPT vs Perplexity](https://prother.dev/compare/chatgpt-vs-perplexity): Search and conversational AI comparison
+- [Groq vs vLLM](https://prother.dev/compare/groq-vs-vllm): Fast cloud inference vs open-source serving
+- [LiteLLM vs OpenRouter](https://prother.dev/compare/litellm-vs-openrouter): Unified API proxy and routing comparison
+- [Aider vs Cline](https://prother.dev/compare/aider-vs-cline): Terminal CLI agent vs VS Code autonomous agent
+- [Ollama vs vLLM](https://prother.dev/compare/ollama-vs-vllm): Local model execution vs high-throughput production engine
+- [Aider vs Cursor](https://prother.dev/compare/aider-vs-cursor): Git-integrated CLI agent vs full AI IDE
+- [Cline vs Cursor](https://prother.dev/compare/cline-vs-cursor): Open-source VS Code agent extension vs standalone IDE

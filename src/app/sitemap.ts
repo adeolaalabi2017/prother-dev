@@ -141,12 +141,6 @@ function buildSitemap(
     { url: `${base}/submit`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.3 },
-    {
-      url: `${base}/about#standards`,
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    { url: `${base}/about#faq`, changeFrequency: "monthly", priority: 0.4 },
   ];
 
   // Tools live at their real /tools/[slug] routes (Task 25) - the /?tool=

@@ -3,9 +3,11 @@ import { HowItWorks } from "@/components/prother/how-it-works";
 import { AgentEra } from "@/components/prother/agent-era";
 import { Standards } from "@/components/prother/standards";
 import { Faq } from "@/components/prother/faq";
+import { FAQS } from "@/lib/faq-data";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowSiteSetting } from "@/lib/data";
 import { staticPageCopy } from "@/lib/static-pages";
+import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/about" },
@@ -41,8 +43,25 @@ export const metadata: Metadata = {
 export default async function AboutPage() {
   const raw = await shadowSiteSetting(createServerConvexClient(), "page.about").catch(() => null);
   const copy = staticPageCopy("page.about", raw ?? undefined);
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: f.a,
+      },
+    })),
+  };
+
   return (
     <div className="pb-16 md:pb-0">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }}
+      />
       {/* Slim page header */}
       <section className="bg-ink pb-20 pt-14">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">

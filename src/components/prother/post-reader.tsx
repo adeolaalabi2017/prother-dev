@@ -83,7 +83,7 @@ export function PostReader() {
         ? decodeURIComponent(window.location.hash.slice(6))
         : null);
     if (p) openPost(p);
-  }, []);
+  }, [openPost]);
 
   // Fetch the post (state updates only in async callbacks — no sync resets;
   // stale content is masked by the derived loading flag above).

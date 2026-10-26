@@ -16,6 +16,8 @@ import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = "force-dynamic";
 
+const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
+
 type Params = { params: Promise<{ slug: string }> };
 
 async function getPublishedPost(slug: string) {
@@ -97,8 +99,8 @@ export default async function JournalArticlePage({ params }: Params) {
     dateModified: post.updatedAt.toISOString(),
     articleSection: post.category,
     keywords: post.keywords ?? tags.join(", "),
-    image: `/api/og?post=${encodeURIComponent(post.slug)}`,
-    mainEntityOfPage: `/journal/${encodeURIComponent(post.slug)}`,
+    image: `${SITE_BASE}/api/og?post=${encodeURIComponent(post.slug)}`,
+    mainEntityOfPage: `${SITE_BASE}/journal/${encodeURIComponent(post.slug)}`,
   };
 
   return (

@@ -69,7 +69,7 @@ export function SaveCollectionPopover({
           .catch(() => setColls([]));
       }
     },
-    [status]
+    [status, toast]
   );
 
   const toggle = useCallback(

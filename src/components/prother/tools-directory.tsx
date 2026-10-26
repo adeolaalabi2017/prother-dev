@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { CATEGORIES } from "./categories";
 import type { DirectoryRow } from "@/app/api/tools/route";
 import { ToolLogo } from "./tool-logo";
+import { ToolDecisionCard } from "./tool-card";
 
 /**
  * /tools — the discovery directory. Search + category chips + sort,
@@ -122,6 +123,7 @@ export function ToolsDirectory({
   const [rows, setRows] = useState<DirectoryRow[] | null>(initialRows ?? null);
   const [total, setTotal] = useState(initialTotal ?? 0);
   const [failed, setFailed] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Boot guard: while the visitor hasn't touched a filter, the SSR'd rows
   // stand — no redundant mount fetch. Handlers flip this before the effect runs.
@@ -194,6 +196,35 @@ export function ToolsDirectory({
     interactedRef.current = true;
     setCategory(slug);
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (!rows || loadingMore || rows.length >= total) return;
+    setLoadingMore(true);
+    const nextPage = Math.floor(rows.length / PAGE_LIMIT) + 1;
+    const q = query.trim();
+    const sp = new URLSearchParams({
+      sort,
+      pageSize: String(PAGE_LIMIT),
+      page: String(nextPage),
+    });
+    if (q) sp.set("q", q);
+    if (category !== "all") sp.set("category", category);
+    if (tag) sp.set("tag", tag);
+    if (pricing) sp.set("pricing", pricing);
+
+    try {
+      const res = await fetch(`/api/tools?${sp.toString()}`);
+      if (res.ok) {
+        const d = (await res.json()) as { rows: DirectoryRow[]; total: number };
+        setRows((prev) => (prev ? [...prev, ...d.rows] : d.rows));
+        setTotal(d.total);
+      }
+    } catch {
+      // Keep existing rows
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [rows, loadingMore, total, query, sort, category, tag, pricing]);
 
   return (
     <section className="bg-ink">
@@ -281,7 +312,7 @@ export function ToolsDirectory({
                 placeholder="Search tools…"
                 autoComplete="off"
                 spellCheck={false}
-                className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.04] pl-10 pr-9 text-sm text-white outline-none transition-colors placeholder:text-white/60 focus:border-ember/60 focus:ring-2 focus:ring-ember/25"
+                className="h-10 w-full rounded-lg border border-white/15 bg-white/[0.04] pl-10 pr-9 text-base sm:text-sm text-white outline-none transition-colors placeholder:text-white/60 focus:border-ember/60 focus:ring-2 focus:ring-ember/25"
               />
               {query && (
                 <button
@@ -434,77 +465,24 @@ export function ToolsDirectory({
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {rows!.map((row, i) => (
               <Fragment key={row.slug}>
-                <Link
-                  href={`/tools/${row.slug}`}
-                  aria-label={`${row.name}: ${row.tagline}. Open full listing.`}
-                  className="group flex h-full w-full flex-col rounded-lg border border-white/10 bg-white/[0.02] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <ToolLogo
-                      slug={row.slug}
-                      name={row.name}
-                      logoUrl={row.logoUrl}
-                      emoji={row.emoji}
-                      gradient={row.gradient}
-                      size="lg"
-                    />
-                    {row.editorsPick && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
-                        <Star className="size-2.5 fill-current" aria-hidden />
-                        Editor&apos;s Pick
-                      </span>
-                    )}
-                  </div>
-
-                  <h2 className="mt-4 text-lg leading-snug font-bold text-white transition-colors group-hover:text-ember">
-                    {row.name}
-                  </h2>
-                  <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-white/55">
-                    {row.tagline}
-                  </p>
-
-                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
-                    <span
-                      title={`Category: ${row.category.name}`}
-                      className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase"
-                    >
-                      {row.category.name}
-                    </span>
-                    <span
-                      title={`Pricing: ${pricingLabel(row)}`}
-                      className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase"
-                    >
-                      {pricingLabel(row)}
-                    </span>
-                    {row.reviews.count > 0 && (
-                      <span
-                        title={`${row.reviews.count} published hands-on reviews`}
-                        className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase"
-                      >
-                        <Star className="size-2.5 fill-current" aria-hidden />
-                        {row.reviews.count}
-                      </span>
-                    )}
-                    {isNewListing(row.listedAt) && (
-                      <span
-                        title="Listed within the last 14 days"
-                        className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 font-mono text-xs tracking-wider text-mint uppercase"
-                      >
-                        New
-                      </span>
-                    )}
-                    <span
-                      title={`Listed on Prother ${listedLabel(row.listedAt)}`}
-                      className="ml-auto inline-flex items-center gap-1 font-mono text-xs tracking-wider text-white/55 uppercase"
-                    >
-                      Listed {listedLabel(row.listedAt)}
-                      <ArrowUpRight
-                        className="size-3.5 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
-                        aria-hidden
-                      />
-                    </span>
-                  </div>
-                </Link>
+                <ToolDecisionCard
+                  slug={row.slug}
+                  name={row.name}
+                  tagline={row.tagline}
+                  emoji={row.emoji}
+                  gradient={row.gradient}
+                  logoUrl={row.logoUrl}
+                  pricing={row.pricing}
+                  pricingModel={row.pricing.model}
+                  startingPrice={row.pricing.price}
+                  pricingNote={row.pricing.note}
+                  hasApi={row.badges.hasApi}
+                  githubUrl={row.badges.openSource ? "open_source" : undefined}
+                  category={row.category}
+                  editorsPick={row.editorsPick}
+                  curated={row.curated}
+                  listedAt={row.listedAt}
+                />
                 {/* Directory banner — one full-width sponsored cell after the
                     first row (server-gated; house creative when unsold). */}
                 {sponsorSlot && i === 2 && (
@@ -514,6 +492,22 @@ export function ToolsDirectory({
                 )}
               </Fragment>
             ))}
+          </div>
+        )}
+
+        {/* Load more tools pagination */}
+        {!loading && !failed && rows && rows.length < total && (
+          <div className="mt-12 flex flex-col items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-6 py-3 font-mono text-xs font-semibold tracking-wider text-white uppercase transition-colors hover:border-ember/40 hover:bg-white/10 hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 disabled:opacity-50"
+            >
+              {loadingMore
+                ? "Loading tools…"
+                : `Load more (${total - rows.length} remaining)`}
+            </button>
           </div>
         )}
 

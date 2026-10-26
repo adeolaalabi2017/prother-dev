@@ -78,6 +78,7 @@ export const commentAdd = mutation({
     author: v.string(),
     body: v.string(),
     createdAt: v.number(),
+    authenticatedUserEmail: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
     const tool = await ctx.db
@@ -85,9 +86,18 @@ export const commentAdd = mutation({
       .withIndex("by_slug", (i) => i.eq("slug", a.toolSlug))
       .unique();
     if (!tool) throw new Error("tool_not_found");
-    // Maker badge: author matching makerHandle (±@, case-insensitive).
+    // Maker badge: author matching makerHandle (±@, case-insensitive) ONLY when verified by session
     const norm = (s: string) => s.replace(/^@/, "").toLowerCase();
-    const isMaker = norm(a.author) === norm(tool.makerHandle);
+    const isMaker = Boolean(
+      tool.claimed &&
+      tool.makerEmail &&
+      a.authenticatedUserEmail &&
+      tool.makerEmail.toLowerCase() === a.authenticatedUserEmail.toLowerCase() &&
+      norm(a.author) === norm(tool.makerHandle)
+    );
+    if (!isMaker && tool.makerHandle && norm(a.author) === norm(tool.makerHandle)) {
+      throw new Error("maker_handle_reserved");
+    }
     const id = await ctx.db.insert("comments", {
       toolId: tool._id,
       author: a.author,

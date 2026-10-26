@@ -50,7 +50,8 @@ export function Breadcrumbs({ trail }: { trail: Crumb[] }) {
                 {isLast || !crumb.href ? (
                   <span
                     aria-current={isLast ? "page" : undefined}
-                    className="text-white/85"
+                    className="inline-block max-w-[220px] truncate align-bottom text-white/85 sm:max-w-md md:max-w-lg"
+                    title={crumb.name}
                   >
                     {crumb.name}
                   </span>

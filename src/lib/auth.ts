@@ -89,8 +89,9 @@ const g = globalThis as typeof globalThis & {
 };
 const devInbox: Map<string, InboxEntry> = (g.__protherDevInbox ??= new Map());
 
-/** True when magic links may be surfaced through the dev-inbox endpoint. */
-export const DEV_LINKS_ENABLED = process.env.AUTH_DEV_LINKS !== "false";
+/** True only in non-production environments when explicitly opted into via AUTH_DEV_LINKS="true". */
+export const DEV_LINKS_ENABLED =
+  process.env.NODE_ENV !== "production" && process.env.AUTH_DEV_LINKS === "true";
 
 export function popDevMagicLink(email: string): string | null {
   const entry = devInbox.get(email.toLowerCase());

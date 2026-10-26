@@ -56,15 +56,17 @@ export function formatAnnouncement(
 
 export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
   // Admin-manageable site copy (/api/site ← Site settings KV). Falls back to
-  // the locked defaults when the store is empty — the hero never breaks.
+  // the locked defaults when the store is empty: the hero never breaks.
   const [copy, setCopy] = useState(() => ({
     announcement:
       initialSettings?.["hero.announcement"] ||
-      "{count} tools indexed: free forever",
-    headline: initialSettings?.["hero.headline"] || "Find the best AI Tools.",
+      "INDEPENDENTLY REVIEWED",
+    headline:
+      initialSettings?.["hero.headline"] ||
+      "Find the right AI tool. Know what it costs.",
     subline:
       initialSettings?.["hero.subline"] ||
-      "A curated directory of AI products and tools. Search, compare, and read real reviews, before you commit your workflow.",
+      "Compare AI models, agents, and developer tools using verified pricing, real capabilities, and production-ready specifications.",
   }));
   const [stats, setStats] = useState<SiteStats | null>(initialStats ?? null);
 
@@ -102,7 +104,7 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
 
   return (
     <section id="top" className="relative pt-12 pb-16 md:pt-16 md:pb-20">
-      {/* Gateway Flow background — subtle ember particles and convergence */}
+      {/* Gateway Flow background: subtle ember particles and convergence */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden"
@@ -128,16 +130,12 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", bounce: 0, duration: 0.4 }}
         >
-          {/* Announcement chip: a quiet eyebrow, no glow. */}
-          <div className="inline-flex items-center gap-2 rounded-lg border border-ember/30 bg-ember/10 px-3.5 py-1 font-mono text-[11px] font-medium tracking-wider uppercase text-ember-tint">
+          {/* Announcement chip / eyebrow badge */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-ember/30 bg-ember/[0.08] px-3.5 py-1 font-mono text-[11px] font-medium tracking-wider uppercase text-ember-tint">
             <span
               className="inline-block size-1.5 rounded-full bg-ember-tint animate-status-pulse"
               aria-hidden
             />
-            <span className="font-semibold text-ember">VERIFIED REGISTRY</span>
-            <span aria-hidden className="text-white/50">
-              /
-            </span>
             <span>{announcement}</span>
           </div>
 
@@ -150,28 +148,23 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
 
           {/* Clear Value Proposition: What it is + Who it is for + Why it matters */}
           <p className="mx-auto mt-5 max-w-2xl text-base text-white/75 sm:text-lg sm:leading-relaxed text-pretty">
-            The independent software &amp; model directory for engineers, founders,
-            and technical teams. Compare production specs, verified pricing, and
-            real developer reviews, with{" "}
-            <strong className="font-semibold text-white">
-              zero pay-to-play ranking
-            </strong>
-            .
+            {copy.subline}
           </p>
 
-          {/* Clear next steps: text-first CTAs (no decorative icons). */}
+          {/* Clear next steps: text-first CTAs */}
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <a
               href="#directory"
-              className="pressable inline-flex h-11 items-center justify-center rounded-lg bg-ember px-6 text-sm font-semibold text-coal transition-colors hover:bg-ember-hot focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:bg-ember-hot"
+              className="pressable inline-flex h-11 items-center justify-center gap-1.5 rounded-lg bg-ember px-6 text-sm font-semibold text-coal transition-colors hover:bg-ember-hot focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:bg-ember-hot"
             >
-              <span>Explore {stats ? stats.tools : 108}+ Vetted Tools</span>
+              <span>Explore AI Tools</span>
+              <span aria-hidden>&rarr;</span>
             </a>
             <Link
               href="/compare"
               className="pressable inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-5 text-sm font-medium text-white/90 transition-colors hover:border-white/30 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
             >
-              <span>Compare Stacks</span>
+              <span>Compare Models</span>
             </Link>
           </div>
 
@@ -180,39 +173,31 @@ export function Hero({ initialStats, initialSettings }: HeroProps = {}) {
             <HeroSearch />
           </div>
 
-          {/* Structured Telemetry Proof Bar */}
-          <div className="mx-auto mt-10 max-w-3xl border-t border-white/[0.08] pt-6">
-            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="text-center">
-                <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
-                  VERIFIED INDEX
+          {/* Value Proposition Pillars */}
+          <div className="mx-auto mt-10 max-w-2xl">
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-colors hover:border-white/15">
+                <dt className="font-mono text-[11px] font-semibold tracking-wider text-white/50 uppercase">
+                  PRICING
                 </dt>
-                <dd className="mt-1 font-mono text-sm font-semibold text-white tabular-nums">
-                  {stats ? stats.tools : 108} Tools
+                <dd className="mt-1 text-sm sm:text-base font-semibold text-white/95">
+                  Verified costs
                 </dd>
               </div>
-              <div className="text-center">
-                <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
-                  RANKING INTEGRITY
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-colors hover:border-white/15">
+                <dt className="font-mono text-[11px] font-semibold tracking-wider text-white/50 uppercase">
+                  RANKINGS
                 </dt>
-                <dd className="mt-1 font-mono text-sm font-semibold text-ember">
-                  0% Pay-to-Win
+                <dd className="mt-1 text-sm sm:text-base font-semibold text-white/95">
+                  Independent
                 </dd>
               </div>
-              <div className="text-center">
-                <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
-                  TAXONOMY
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-colors hover:border-white/15">
+                <dt className="font-mono text-[11px] font-semibold tracking-wider text-white/50 uppercase">
+                  SPECS
                 </dt>
-                <dd className="mt-1 font-mono text-sm font-semibold text-white tabular-nums">
-                  {stats ? stats.categories : 8} Domains
-                </dd>
-              </div>
-              <div className="text-center">
-                <dt className="font-mono text-[10px] tracking-widest text-white/55 uppercase">
-                  ACCESS MODEL
-                </dt>
-                <dd className="mt-1 font-mono text-sm font-semibold text-mint">
-                  $0 Free Forever
+                <dd className="mt-1 text-sm sm:text-base font-semibold text-white/95">
+                  Comparable
                 </dd>
               </div>
             </dl>

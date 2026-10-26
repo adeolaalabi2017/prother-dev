@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowUpRight, Check, ExternalLink, Star, X } from "lucide-react";
 import { CompareMatrixView } from "@/components/prother/compare-matrix";
 import { ToolLogo } from "@/components/prother/tool-logo";
@@ -164,6 +164,12 @@ export default async function CompareCategoryPage({ params }: Params) {
     const parts = category.split("-vs-").map((s) => s.trim().toLowerCase());
     if (parts.length !== 2 || !parts[0] || !parts[1]) notFound();
     const [slugA, slugB] = parts;
+
+    // Enforce single canonical showdown URL (alphabetical ordering)
+    const canonicalPair = [slugA, slugB].sort().join("-vs-");
+    if (category !== canonicalPair) {
+      redirect(`/compare/${canonicalPair}`);
+    }
 
     const [viewRes, catsRaw] = await Promise.all([
       shadowCompareView(client, slugA, slugB, 6),
@@ -670,7 +676,7 @@ export default async function CompareCategoryPage({ params }: Params) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(categoryBreadcrumbJsonLd),
+          __html: safeJsonLd(categoryBreadcrumbJsonLd),
         }}
       />
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">

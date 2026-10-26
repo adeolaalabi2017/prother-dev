@@ -15,6 +15,35 @@
  */
 
 /**
+ * Helper to check if a URI value has a dangerous scheme (javascript:, vbscript:,
+ * or executable data: like data:text/html, data:image/svg+xml).
+ * Handles XML numeric entities (&#x6a;, &#106;) and whitespace evasion (&Tab;, spaces).
+ */
+function isDangerousUri(raw: string): boolean {
+  const decoded = raw
+    .replace(/&#x([0-9a-f]+);?/gi, (_, hex) => {
+      try {
+        return String.fromCharCode(parseInt(hex, 16));
+      } catch {
+        return "";
+      }
+    })
+    .replace(/&#([0-9]+);?/g, (_, dec) => {
+      try {
+        return String.fromCharCode(parseInt(dec, 10));
+      } catch {
+        return "";
+      }
+    })
+    .replace(/&Tab;|&NewLine;/gi, "")
+    .replace(/[\0\x00-\x20\s]/g, "");
+
+  if (/^(?:javascript|vbscript):/i.test(decoded)) return true;
+  if (/^data:(?!image\/(?:png|jpeg|jpg|webp|gif);base64,)/i.test(decoded)) return true;
+  return false;
+}
+
+/**
  * Sanitize raw SVG bytes, returning cleaned bytes.
  * All operations are string-based (no DOM parser required) so this runs
  * safely in both Node and Cloudflare Workers environments.
@@ -23,44 +52,46 @@ export function sanitizeSvg(bytes: Uint8Array): Uint8Array {
   const decoder = new TextDecoder("utf-8", { fatal: false });
   let svg = decoder.decode(bytes);
 
-  // 1. Strip XML external entity declarations (XXE prevention).
+  // 1. Strip XML external entity declarations and DTDs (XXE prevention).
   svg = svg.replace(/<!ENTITY\s[^>]*>/gi, "");
   svg = svg.replace(/<!DOCTYPE[^>]*>/gi, "");
 
-  // 2. Remove <script>...</script> blocks (including CDATA).
+  // 2. Remove <script>...</script> blocks (including CDATA and self-closing).
   svg = svg.replace(/<script[\s>][\s\S]*?<\/script\s*>/gi, "");
-  // Also remove self-closing <script .../> (non-standard but defensive).
   svg = svg.replace(/<script[^>]*\/\s*>/gi, "");
 
-  // 3. Remove <foreignObject> elements (can embed arbitrary HTML/JS).
+  // 3. Remove embedded active containers: <foreignObject>, <iframe>, <embed>, <object>.
   svg = svg.replace(
-    /<foreignObject[\s>][\s\S]*?<\/foreignObject\s*>/gi,
+    /<(?:foreignObject|iframe|embed|object)[\s>][\s\S]*?<\/(?:foreignObject|iframe|embed|object)\s*>/gi,
     ""
   );
-  svg = svg.replace(/<foreignObject[^>]*\/\s*>/gi, "");
+  svg = svg.replace(/<(?:foreignObject|iframe|embed|object)[^>]*\/\s*>/gi, "");
 
-  // 4. Remove event handler attributes (on*="...").
-  // Matches: onclick="..." onload='...' onerror=alert(1)
-  svg = svg.replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, "");
+  // 4. Remove event handler attributes (on*="...", on*='...', on*=evil).
+  svg = svg.replace(/\s+on[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, "");
 
-  // 5. Remove javascript: and data: URI schemes from href/xlink:href/src attributes.
-  // Replace the dangerous value with an empty string rather than removing the
-  // whole attribute, which could break SVG structure.
+  // 5. Defang dangerous URI schemes in href, xlink:href, and src attributes
+  // Supports quoted and unquoted attributes, plus XML entities.
   svg = svg.replace(
-    /((?:href|xlink:href|src)\s*=\s*(?:"|'))(?:\s*javascript:|data:text\/html)/gi,
-    "$1#sanitized"
+    /((?:href|xlink:href|src)\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi,
+    (match, prefix, q1, q2, unquoted) => {
+      const val = q1 ?? q2 ?? unquoted ?? "";
+      if (isDangerousUri(val)) {
+        return `${prefix}"#sanitized"`;
+      }
+      return match;
+    }
   );
 
-  // 6. Remove <use> elements pointing to external resources (SSRF/XSS via external SVG).
-  // Keep internal references (href="#id") but strip http/https external refs.
+  // 6. Remove <use> elements pointing to external resources or dangerous data URIs.
   svg = svg.replace(
-    /(<use[^>]*(?:href|xlink:href)\s*=\s*(?:"|'))https?:\/\/[^"']*(?:"|')/gi,
-    "$1#sanitized\""
+    /<use[^>]*(?:href|xlink:href)\s*=\s*(?:"|')?(?:https?:\/\/|data:)[^"'>\s]*(?:"|')?[^>]*>/gi,
+    ""
   );
 
-  // 7. Remove <set> and <animate> elements targeting event handlers.
+  // 7. Remove <set> and <animate> elements targeting event handlers or URI attributes.
   svg = svg.replace(
-    /<(?:set|animate)\s[^>]*attributeName\s*=\s*(?:"|')on[a-z]+(?:"|')[^>]*\/?>/gi,
+    /<(?:set|animate|animateTransform)\s[^>]*attributeName\s*=\s*(?:"|')?(?:on[a-z0-9_-]+|href|xlink:href|src)(?:"|'|\s|>)[^>]*\/?>/gi,
     ""
   );
 

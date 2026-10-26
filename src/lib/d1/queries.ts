@@ -47,10 +47,18 @@ export async function d1Homepage(): Promise<{
     slug: string;
     name: string;
     tagline: string;
+    description?: string | null;
     logoEmoji: string;
     logoGradient: string;
     logoUrl: string | null;
     pricingModel: string;
+    startingPrice?: string | null;
+    pricingNote?: string | null;
+    hasApi?: boolean;
+    githubUrl?: string | null;
+    tags?: string[];
+    curated?: boolean;
+    claimed?: boolean;
     category: { slug: string; name: string; emoji: string };
   }[];
   tagCounts: Record<string, number>;
@@ -83,10 +91,18 @@ export async function d1Homepage(): Promise<{
         slug: t.slug,
         name: t.name,
         tagline: t.tagline,
+        description: t.description,
         logoEmoji: t.logoEmoji,
         logoGradient: t.logoGradient,
         logoUrl: t.logoUrl,
         pricingModel: t.pricingModel,
+        startingPrice: t.startingPrice,
+        pricingNote: t.pricingNote,
+        hasApi: t.hasApi === 1,
+        githubUrl: t.githubUrl,
+        tags: parseArr(t.tagsJson),
+        curated: t.curated === 1,
+        claimed: t.claimed === 1,
         category: { slug: cat.slug, name: cat.name, emoji: cat.emoji },
       };
     });

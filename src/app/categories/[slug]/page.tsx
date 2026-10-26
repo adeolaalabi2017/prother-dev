@@ -11,6 +11,8 @@ import { placementEnabled } from "@/lib/ad-config";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowCategoryDetail } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
+import { ToolDecisionCard } from "@/components/prother/tool-card";
+import { guideFor } from "@/lib/category-guides";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 
 /**
@@ -32,7 +34,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   // Convex-only (categories cutover).
   const res = await shadowCategoryDetail(createServerConvexClient()!, slug);
-  if ("error" in res) notFound();
+  if (!res || "error" in res) notFound();
   const name = res.category.name;
   const count = res.category.toolCount;
   const blurb = blurbFor(slug, name!);
@@ -80,7 +82,7 @@ export default async function CategoryPage({ params }: Params) {
   const { slug } = await params;
   // Convex-only (categories cutover): pinned/picks/newest order + live count.
   const res = await shadowCategoryDetail(createServerConvexClient()!, slug);
-  if ("error" in res) notFound();
+  if (!res || "error" in res) notFound();
   const category = {
     slug: res.category.slug,
     name: res.category.name,
@@ -115,12 +117,35 @@ export default async function CategoryPage({ params }: Params) {
     })),
   };
 
+  const guide = guideFor(slug);
+  const faqJsonLd =
+    guide && guide.faqs.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: guide.faqs.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: f.a,
+            },
+          })),
+        }
+      : null;
+
   return (
     <div className="bg-ink pb-16 md:pb-0">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(itemListJsonLd) }}
       />
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }}
+        />
+      )}
 
       <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
         <Breadcrumbs
@@ -257,57 +282,124 @@ export default async function CategoryPage({ params }: Params) {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {tools.map((t, i) => (
-                <Link
+                <ToolDecisionCard
                   key={t.slug}
-                  href={`/tools/${t.slug}`}
-                  aria-label={`${t.name}: ${t.tagline}. Rank ${i + 1} in ${category.name}.`}
-                  className="group flex h-full flex-col rounded-lg border border-white/10 bg-white/[0.02] p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40 hover:bg-white/[0.04]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <ToolLogo
-                      slug={t.slug}
-                      name={t.name}
-                      logoUrl={t.logoUrl}
-                      emoji={t.emoji}
-                      gradient={t.gradient}
-                      size="lg"
-                    />
-                    <span className="inline-flex items-center gap-1.5">
-                      {i < 3 && (
-                        <span className="font-mono text-xs tracking-wider text-white/55 uppercase">
-                          #{i + 1}
-                        </span>
-                      )}
-                      {t.editorsPick && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-ember/30 bg-ember/15 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
-                          <Star className="size-2.5 fill-current" aria-hidden />
-                          Editor&apos;s Pick
-                        </span>
-                      )}
-                    </span>
-                  </div>
-
-                  <h2 className="mt-4 text-lg leading-snug font-bold text-white transition-colors group-hover:text-ember">
-                    {t.name}
-                  </h2>
-                  <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-white/55">
-                    {t.tagline}
-                  </p>
-
-                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-xs tracking-wider text-white/60 uppercase">
-                      {t.pricing}
-                    </span>
-                    <span className="ml-auto inline-flex items-center gap-1 font-mono text-xs tracking-wider text-white/55 uppercase">
-                      Open listing
-                      <ArrowUpRight
-                        className="size-3.5 text-white/55 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ember"
-                        aria-hidden
-                      />
-                    </span>
-                  </div>
-                </Link>
+                  slug={t.slug}
+                  name={t.name}
+                  tagline={t.tagline}
+                  emoji={t.emoji}
+                  gradient={t.gradient}
+                  logoUrl={t.logoUrl}
+                  pricing={t.pricing}
+                  category={category}
+                  rank={i < 3 ? i + 1 : undefined}
+                  editorsPick={t.editorsPick}
+                />
               ))}
+            </div>
+          )}
+
+          {/* Architectural Procurement & Evaluation Guide */}
+          {guide && (
+            <div className="mt-16 border-t border-white/10 pt-16">
+              <div className="max-w-3xl">
+                <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
+                  PROCUREMENT & ARCHITECTURE GUIDE
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl text-balance">
+                  {guide.headline}
+                </h2>
+              </div>
+
+              {/* Tool Classifications / Subtypes */}
+              <div className="mt-8">
+                <h3 className="font-mono text-xs font-semibold tracking-wider text-white/50 uppercase">
+                  Architectural Classifications
+                </h3>
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  {guide.subtypes.map((sub, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-left"
+                    >
+                      <h4 className="text-sm font-semibold text-white">
+                        {sub.title}
+                      </h4>
+                      <p className="mt-2 text-xs leading-relaxed text-white/60">
+                        {sub.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Key Evaluation Criteria */}
+              <div className="mt-8">
+                <h3 className="font-mono text-xs font-semibold tracking-wider text-white/50 uppercase">
+                  Key Evaluation Criteria for Engineers
+                </h3>
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  {guide.evaluationCriteria.map((crit, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-left"
+                    >
+                      <h4 className="text-sm font-semibold text-ember">
+                        {crit.title}
+                      </h4>
+                      <p className="mt-2 text-xs leading-relaxed text-white/60">
+                        {crit.criteria}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Technical FAQs Section */}
+              <div className="mt-12 border-t border-white/[0.06] pt-12">
+                <h3 className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
+                  TECHNICAL FAQS
+                </h3>
+                <h4 className="mt-2 text-xl font-semibold text-white">
+                  Frequently Answered Questions about {category.name}
+                </h4>
+
+                <div className="mt-6 space-y-4">
+                  {guide.faqs.map((faq, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-left"
+                    >
+                      <h5 className="text-sm font-semibold text-white">
+                        {faq.q}
+                      </h5>
+                      <p className="mt-2 text-xs sm:text-sm leading-relaxed text-white/65">
+                        {faq.a}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Related Domains */}
+              {guide.relatedCategories.length > 0 && (
+                <div className="mt-12 border-t border-white/[0.06] pt-8">
+                  <span className="font-mono text-xs text-white/50 uppercase tracking-wider">
+                    Related Domains:
+                  </span>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {guide.relatedCategories.map((rel) => (
+                      <Link
+                        key={rel.slug}
+                        href={`/categories/${rel.slug}`}
+                        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-xs font-medium text-white/70 transition-colors hover:border-ember/40 hover:bg-white/[0.06] hover:text-white"
+                      >
+                        {rel.name} &rarr;
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

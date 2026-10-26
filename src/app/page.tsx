@@ -4,9 +4,10 @@ import { Hero } from "@/components/prother/hero";
 import { CategoryTicker } from "@/components/prother/category-ticker";
 import { IntentPath } from "@/components/prother/intent-path";
 import { TrendingStrip } from "@/components/prother/trending-strip";
+import { CompareSection } from "@/components/prother/compare-section";
 import { SubmitOpenButton } from "@/components/prother/submit-open-button";
 import { CATEGORIES } from "@/components/prother/categories";
-import { ToolLogo } from "@/components/prother/tool-logo";
+import { EditorsPicks } from "@/components/prother/editors-picks";
 import { clamp } from "@/lib/og";
 import { cn } from "@/lib/utils";
 import { CATEGORY_BLURBS } from "@/lib/category-blurbs";
@@ -497,112 +498,6 @@ function CategoryGrid({
   );
 }
 
-function EditorsPicks({
-  picks,
-  copy,
-}: {
-  picks: {
-    slug: string;
-    name: string;
-    tagline: string;
-    logoEmoji: string;
-    logoGradient: string;
-    logoUrl?: string | null;
-    pricingModel: string;
-    category: { slug: string; name: string; emoji: string };
-  }[];
-  copy: Record<string, string>;
-}) {
-  if (picks.length === 0) return null;
-  return (
-    <section
-      id="picks"
-      className="border-t border-white/[0.08] bg-ink py-20 md:py-24"
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div>
-            <div className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
-              <span>★</span>
-              <span>EDITOR&apos;S PICKS</span>
-            </div>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
-              {copy["home.picksHeading"] || "Six tools worth your time."}
-            </h2>
-          </div>
-          <p className="max-w-md text-sm text-white/60 text-pretty">
-            A small, deliberate set. Pricing models, API access, and specs are
-            listed on every page and dated; check them before you commit.
-          </p>
-        </div>
-
-        {/* Precision Editorial Benchmark Matrix */}
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {picks.map((p) => {
-            const pricingClean = p.pricingModel
-              .replace(/_/g, " ")
-              .toUpperCase();
-            return (
-              <Link
-                key={p.slug}
-                href={`/tools/${p.slug}`}
-                className="group relative flex flex-col justify-between rounded-lg border border-white/10 bg-white/[0.025] p-6 transition-all duration-200 hover:border-ember/50 hover:bg-white/[0.045] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
-              >
-                <div>
-                  {/* Top Bar: Logo + Name + Pricing Badge */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <ToolLogo
-                        slug={p.slug}
-                        name={p.name}
-                        logoUrl={p.logoUrl}
-                        emoji={p.logoEmoji}
-                        gradient={p.logoGradient}
-                        size="md"
-                      />
-                      <div className="min-w-0">
-                        <h3 className="truncate text-base font-semibold text-white transition-colors group-hover:text-ember">
-                          {p.name}
-                        </h3>
-                        <p className="truncate font-mono text-[11px] text-white/45">
-                          {p.category.name}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* shrink-0 + nowrap: "OPEN SOURCE" is the longest label
-                        and was wrapping to two lines once the name beside it
-                        grew. The name truncates instead — the price is the
-                        scannable part and must never wrap. */}
-                    <span className="shrink-0 whitespace-nowrap rounded border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wider text-white/80 uppercase">
-                      {pricingClean}
-                    </span>
-                  </div>
-
-                  {/* Spec Tagline */}
-                  <p className="mt-4 line-clamp-2 text-xs leading-relaxed text-white/65 text-pretty">
-                    {p.tagline}
-                  </p>
-                </div>
-
-                {/* Footer spec bar */}
-                <div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-3">
-                  <span className="font-mono text-[11px] text-white/50">
-                    Specs &amp; pricing
-                  </span>
-                  <span className="font-mono text-xs text-white/60 transition-colors group-hover:text-ember">
-                    Inspect Tool →
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function ClosingBand({ copy }: { copy: Record<string, string> }) {
   return (
     <section id="submit" className="border-t border-white/[0.08] bg-ink py-20 md:py-24">
@@ -697,13 +592,27 @@ export default async function Page() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
+      {/* 01 Hero + search: explain value and start discovery */}
       <Hero initialStats={siteData.stats} initialSettings={siteData.settings} />
+
+      {/* 02 Browse by task: help users who don't know what to search for */}
       <IntentPath counts={tagCounts} />
-      <EngineeringStandards />
+
+      {/* 03 Popular tools and models: surface immediately useful, high-demand listings */}
+      <TrendingStrip />
+
+      {/* 04 Compare tools: demonstrate the directory's unique value */}
+      <CompareSection />
+
+      {/* 05 Categories: enable deeper exploration and topical discovery */}
       <CategoryTicker />
       <CategoryGrid counts={counts} copy={siteData.settings} />
+
+      {/* 06 Editorial picks and trust: show human curation and review standards */}
       <EditorsPicks picks={picks} copy={siteData.settings} />
-      <TrendingStrip />
+      <EngineeringStandards />
+
+      {/* 07 Submit a tool + footer: support community contributions and navigation */}
       <ClosingBand copy={siteData.settings} />
     </>
   );

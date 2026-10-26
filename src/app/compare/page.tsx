@@ -4,6 +4,8 @@ import { clamp } from "@/lib/og";
 import type { CompareMatrix } from "@/lib/compare";
 import { CompareMatrixView } from "@/components/prother/compare-matrix";
 import { CATEGORIES } from "@/components/prother/categories";
+import { POPULAR_SHOWDOWNS } from "@/lib/showdowns";
+import { ToolLogo } from "@/components/prother/tool-logo";
 import { createServerConvexClient } from "@/lib/convex";
 import {
   shadowCompareCategories,
@@ -12,7 +14,7 @@ import {
 } from "@/lib/data";
 
 /**
- * /compare — category-scoped feature comparison (Task 32).
+ * /compare - category-scoped feature comparison (Task 32).
  *
  * SEO-friendly full page: the matrix for ?category=&tools= is built on the
  * server (shared builder lib/compare.ts, same shape as GET /api/compare/matrix)
@@ -33,7 +35,7 @@ function firstParam(v: string | string[] | undefined): string {
   return (Array.isArray(v) ? v[0] : v) ?? "";
 }
 
-/** Deduped, trimmed tool slugs (max 4 — mirrors MAX_COMPARE_TOOLS). */
+/** Deduped, trimmed tool slugs (max 4: mirrors MAX_COMPARE_TOOLS). */
 function toolSlugsFrom(raw: string): string[] {
   return [
     ...new Set(
@@ -100,9 +102,12 @@ export async function generateMetadata({
       "AI tools",
     ],
     alternates: {
-      canonical: category
-        ? `/compare?category=${encodeURIComponent(category)}`
-        : "/compare",
+      canonical:
+        category && toolSlugs.length === 2
+          ? `/compare/${[...toolSlugs].sort().join("-vs-")}`
+          : category
+            ? `/compare/${encodeURIComponent(category)}`
+            : "/compare",
     },
     openGraph: {
       title,
@@ -122,7 +127,7 @@ export async function generateMetadata({
 
 // ── Page ──────────────────────────────────────────────────────────────────
 
-/** Convex-only categories (never throws — [] on failure). */
+/** Convex-only categories (never throws: [] on failure). */
 async function getCategories(): Promise<
   { slug: string; name: string; emoji: string; toolCount: number }[]
 > {
@@ -242,7 +247,7 @@ export default async function ComparePage({ searchParams }: PageProps) {
         {!initialMatrix && categories.length > 0 && (
           <nav aria-label="Compare by category" className="mt-10">
             <h2 className="font-mono text-xs uppercase tracking-[0.25em] text-white/60">
-              Start a comparison
+              Start a comparison by category
             </h2>
             <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {categories.map((c) => (
@@ -262,6 +267,67 @@ export default async function ComparePage({ searchParams }: PageProps) {
               ))}
             </ul>
           </nav>
+        )}
+
+        {/* Popular Head-to-Head Showdowns */}
+        {!initialMatrix && (
+          <section aria-label="Popular Head-to-Head Showdowns" className="mt-14">
+            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+              <div>
+                <div className="font-mono text-xs uppercase tracking-[0.25em] text-ember font-semibold">
+                  HEAD-TO-HEAD SHOWDOWNS
+                </div>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                  Popular side-by-side comparisons
+                </h2>
+              </div>
+              <span className="font-mono text-xs text-white/45">
+                {POPULAR_SHOWDOWNS.length} curated matchups
+              </span>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {POPULAR_SHOWDOWNS.map((s) => (
+                <Link
+                  key={s.slug}
+                  href={`/compare/${s.slug}`}
+                  className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-[#0c0d10] p-4 transition-all duration-200 hover:border-ember/40 hover:bg-white/[0.035] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+                >
+                  <div className="flex items-center justify-between font-mono text-[10px] tracking-wider text-white/45 uppercase">
+                    <span>{s.categoryName}</span>
+                    <span className="font-semibold text-ember">VS</span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <ToolLogo slug={s.toolA} name={s.toolA} size="sm" />
+                      <span className="truncate text-sm font-semibold text-white">
+                        {s.title.split(" vs ")[0]}
+                      </span>
+                    </div>
+
+                    <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest text-white/70">
+                      VS
+                    </span>
+
+                    <div className="flex min-w-0 items-center justify-end gap-2.5 text-right">
+                      <span className="truncate text-sm font-semibold text-white">
+                        {s.title.split(" vs ")[1]}
+                      </span>
+                      <ToolLogo slug={s.toolB} name={s.toolB} size="sm" />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-xs text-white/50">
+                    <span>Full feature diff & specs</span>
+                    <span className="font-mono text-ember transition-transform group-hover:translate-x-0.5">
+                      &rarr;
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
         )}
 
         <div className="mt-10">

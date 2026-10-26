@@ -15,7 +15,9 @@ const nextConfig: NextConfig = {
   // when building for Workers (cf:* scripts set NEXT_OUTPUT=cloudflare).
   output: process.env.NEXT_OUTPUT === "cloudflare" ? undefined : "standalone",
   typescript: {
-    ignoreBuildErrors: true,
+    // Build type errors now fail the build. `tsc --noEmit` is clean, so the
+    // gate costs nothing; keep it on so regressions cannot ship silently.
+    ignoreBuildErrors: false,
   },
   reactStrictMode: false,
   // The `convex` package ships a Node variant of its browser entry
@@ -29,6 +31,14 @@ const nextConfig: NextConfig = {
     resolveAlias: {
       "convex/browser": "./node_modules/convex/dist/esm/browser/index.js",
     },
+  },
+  webpack: (config) => {
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      "convex/browser": "./node_modules/convex/dist/esm/browser/index.js",
+    };
+    return config;
   },
   // Every page route is `force-dynamic`, so Next stamps HTML with
   // `private, no-cache, no-store, max-age=0, must-revalidate` and nothing is
@@ -48,6 +58,23 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Global defense-in-depth security headers applied to all routes
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains; preload",
+          },
+        ],
+      },
+      {
         source:
           "/:path((?!api|admin|_next|logos|favicon.ico|robots.txt|sitemap.xml).*)",
         headers: [
@@ -58,11 +85,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // /admin is an authenticated console. Next's static-asset default
-        // (s-maxage=31536000) would otherwise pin a stale shell for a year,
-        // so force it back to no-store alongside the /api/* routes above.
+        // /admin is an authenticated console. Strictly forbid framing and caching.
         source: "/admin/:path*",
-        headers: [{ key: "Cache-Control", value: "no-store" }],
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
       },
     ];
   },

@@ -680,10 +680,18 @@ export const homepage = query({
           slug: t.slug,
           name: t.name,
           tagline: t.tagline,
+          description: t.description,
           logoEmoji: t.logoEmoji,
           logoGradient: t.logoGradient,
           logoUrl: t.logoUrl ?? null,
           pricingModel: t.pricingModel,
+          startingPrice: t.startingPrice,
+          pricingNote: t.pricingNote,
+          hasApi: Boolean(t.hasApi),
+          githubUrl: t.githubUrl,
+          tags: t.tags ?? [],
+          curated: Boolean(t.curated),
+          claimed: Boolean(t.claimed),
           category: { slug: cat.slug, name: cat.name, emoji: cat.emoji },
         };
       });

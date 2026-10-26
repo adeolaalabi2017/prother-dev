@@ -17,7 +17,10 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "@typescript-eslint/no-unused-disable-directive": "off",
     
     // React rules
-    "react-hooks/exhaustive-deps": "off",
+    // Recovered rule (2026-10): all 10 findings fixed across
+    // hero-search, tool-full-page, save-collection-popover, post-reader and
+    // compare-tray; now enforced as errors.
+    "react-hooks/exhaustive-deps": "error",
     "react-hooks/purity": "off",
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",

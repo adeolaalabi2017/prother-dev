@@ -37,7 +37,7 @@ import { shadowSite } from "@/lib/data";
 export async function generateMetadata(): Promise<Metadata> {
   let title = "Prother · Find the right AI tool";
   let description =
-    "Search and discovery for AI products and tools. A curated directory of conversational AI, generative tools, NLP utilities, computer vision, analytics, automation, and developer platforms, with honest pricing and real reviews.";
+    "Search and discover curated AI tools across 8 categories. Honest pricing, verified specs, real reviews, and side-by-side feature comparisons without pay-to-win.";
   let faviconUrl = "";
   // Convex-only (site settings cutover). Metadata must never 500 the shell:
   // a failed settings read falls back to the locked defaults below.
@@ -76,6 +76,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       siteName: "Prother",
       type: "website",
+      locale: "en_US",
       images: [{ url: "/api/og", width: 1200, height: 630 }],
     },
     twitter: {

@@ -1,0 +1,147 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19" />
+      <stop offset="50%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#070A10" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="0.85" />
+    </linearGradient>
+    <linearGradient id="highlightCard" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0C2542" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#06162A" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="cyanBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#34D399" />
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#FBBF24" />
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#A78BFA" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <style>
+    .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 800; fill: #F8FAFC; }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 500; fill: #94A3B8; }
+    .label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; fill: #E2E8F0; }
+    .meta { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 400; fill: #64748B; }
+    .badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 13px; }
+    .th { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; fill: #94A3B8; }
+    .td { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 500; font-size: 14px; fill: #CBD5E1; }
+    .td-bold { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; fill: #F8FAFC; }
+    .td-highlight { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; fill: #38BDF8; }
+  </style>
+
+  <rect width="1600" height="900" fill="url(#bgGrad)" />
+  <path d="M 100 180 L 1500 180 M 100 820 L 1500 820" stroke="#1E293B" stroke-width="1" stroke-dasharray="4 6" />
+
+  <g transform="translate(100, 70)">
+    <rect x="0" y="0" width="165" height="28" rx="14" fill="#0284C7" fill-opacity="0.2" stroke="#38BDF8" stroke-width="1" />
+    <text x="82" y="19" text-anchor="middle" class="badge" fill="#38BDF8">SYSTEM ARCHITECTURE</text>
+    <text x="0" y="65" class="title" font-size="40">Kimi K3.1 Pro Architectural Blueprint</text>
+    <text x="0" y="96" class="subtitle" font-size="19">3T-Class Multimodal Reasoning Engine with Stable LatentMoE &amp; Kimi Delta Attention</text>
+  </g>
+
+  <g transform="translate(1050, 75)">
+    <rect x="0" y="0" width="135" height="58" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1" />
+    <text x="67" y="24" text-anchor="middle" class="label" font-size="12" fill="#94A3B8">TOTAL PARAMS</text>
+    <text x="67" y="48" text-anchor="middle" class="title" font-size="20" fill="#38BDF8">~2.8 Trillion</text>
+
+    <rect x="150" y="0" width="135" height="58" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1" />
+    <text x="217" y="24" text-anchor="middle" class="label" font-size="12" fill="#94A3B8">ACTIVE PARAMS</text>
+    <text x="217" y="48" text-anchor="middle" class="title" font-size="20" fill="#34D399">104 Billion</text>
+
+    <rect x="300" y="0" width="145" height="58" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1" />
+    <text x="372" y="24" text-anchor="middle" class="label" font-size="12" fill="#94A3B8">CONTEXT WINDOW</text>
+    <text x="372" y="48" text-anchor="middle" class="title" font-size="20" fill="#A78BFA">1M Tokens</text>
+  </g>
+
+  <g transform="translate(100, 210)">
+    <rect width="1400" height="150" rx="16" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+    <rect x="25" y="25" width="40" height="40" rx="10" fill="#0284C7" fill-opacity="0.2" stroke="#38BDF8" stroke-width="1" />
+    <text x="45" y="50" text-anchor="middle" class="title" font-size="20" fill="#38BDF8">01</text>
+    <text x="80" y="42" class="title" font-size="22">Native Multimodal Ingestion Layer</text>
+    <text x="80" y="65" class="subtitle" font-size="15">Handles concurrent high-resolution vision, audio, text, video streams, and full software repositories</text>
+
+    <g transform="translate(80, 90)">
+      <rect x="0" y="0" width="260" height="36" rx="8" fill="#0B132B" stroke="#1E293B" />
+      <text x="130" y="23" text-anchor="middle" class="label" font-size="13">1,000,000 Token Native Context</text>
+
+      <rect x="275" y="0" width="220" height="36" rx="8" fill="#0B132B" stroke="#1E293B" />
+      <text x="385" y="23" text-anchor="middle" class="label" font-size="13">Multi-Repo File Synchronization</text>
+
+      <rect x="510" y="0" width="240" height="36" rx="8" fill="#0B132B" stroke="#1E293B" />
+      <text x="630" y="23" text-anchor="middle" class="label" font-size="13">Cross-Modal Unified Embedding</text>
+
+      <rect x="765" y="0" width="250" height="36" rx="8" fill="#0B132B" stroke="#1E293B" />
+      <text x="890" y="23" text-anchor="middle" class="label" font-size="13">Continuous Streaming KV Pipeline</text>
+    </g>
+  </g>
+
+  <path d="M 800 360 L 800 395" stroke="#38BDF8" stroke-width="2" stroke-dasharray="4 4" />
+  <polygon points="800,400 795,392 805,392" fill="#38BDF8" />
+
+  <g transform="translate(100, 405)">
+    <rect width="1400" height="175" rx="16" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+    <rect x="25" y="25" width="40" height="40" rx="10" fill="#059669" fill-opacity="0.2" stroke="#34D399" stroke-width="1" />
+    <text x="45" y="50" text-anchor="middle" class="title" font-size="20" fill="#34D399">02</text>
+    <text x="80" y="42" class="title" font-size="22">Memory &amp; Attention Scaling Framework</text>
+    <text x="80" y="65" class="subtitle" font-size="15">Proprietary algorithmic mechanisms engineered to eliminate KV cache bloat and signal degradation</text>
+
+    <g transform="translate(80, 85)">
+      <rect x="0" y="0" width="620" height="70" rx="10" fill="#09101E" stroke="#1E293B" />
+      <text x="20" y="28" class="title" font-size="16" fill="#38BDF8">Kimi Delta Attention (KDA)</text>
+      <text x="20" y="52" class="subtitle" font-size="13">Dynamic delta-compression on KV cache; drops redundant tokens while preserving long-term temporal dependencies.</text>
+
+      <rect x="640" y="0" width="620" height="70" rx="10" fill="#09101E" stroke="#1E293B" />
+      <text x="660" y="28" class="title" font-size="16" fill="#34D399">Attention Residuals (AttnRes)</text>
+      <text x="660" y="52" class="subtitle" font-size="13">Gradient highway stabilization preventing representational fade across 100+ deep transformer layers.</text>
+    </g>
+  </g>
+
+  <path d="M 800 580 L 800 615" stroke="#34D399" stroke-width="2" stroke-dasharray="4 4" />
+  <polygon points="800,620 795,612 805,612" fill="#34D399" />
+
+  <g transform="translate(100, 625)">
+    <rect width="1400" height="175" rx="16" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+    <rect x="25" y="25" width="40" height="40" rx="10" fill="#7C3AED" fill-opacity="0.2" stroke="#A78BFA" stroke-width="1" />
+    <text x="45" y="50" text-anchor="middle" class="title" font-size="20" fill="#A78BFA">03</text>
+    <text x="80" y="42" class="title" font-size="22">Stable LatentMoE Execution Engine</text>
+    <text x="80" y="65" class="subtitle" font-size="15">Ultra-sparse routing delivering frontier intelligence with practical compute consumption</text>
+
+    <g transform="translate(80, 85)">
+      <rect x="0" y="0" width="400" height="70" rx="10" fill="#09101E" stroke="#1E293B" />
+      <text x="20" y="28" class="title" font-size="15" fill="#A78BFA">896 Micro-Experts</text>
+      <text x="20" y="52" class="subtitle" font-size="13">Extreme specialization with minimal parameter cross-talk</text>
+
+      <rect x="420" y="0" width="400" height="70" rx="10" fill="#09101E" stroke="#1E293B" />
+      <text x="440" y="28" class="title" font-size="15" fill="#38BDF8">Top-16 Expert Dynamic Routing</text>
+      <text x="440" y="52" class="subtitle" font-size="13">104B active parameters activated per individual token</text>
+
+      <rect x="840" y="0" width="420" height="70" rx="10" fill="#09101E" stroke="#1E293B" />
+      <text x="860" y="28" class="title" font-size="15" fill="#34D399">Highspeed Inference Optimization</text>
+      <text x="860" y="52" class="subtitle" font-size="13">2x to 3x token generation rate in highspeed companion mode</text>
+    </g>
+  </g>
+
+  <g transform="translate(100, 840)">
+    <text x="0" y="20" class="meta" font-size="14">PROTHER JOURNAL | TECHNICAL ANALYSIS DEEP DIVE: KIMI K3.1 PRO</text>
+    <text x="1400" y="20" text-anchor="end" class="meta" font-size="14">MOONSHOT AI ARCHITECTURE SPECIFICATION</text>
+  </g>
+</svg>

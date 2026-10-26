@@ -1,0 +1,138 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19" />
+      <stop offset="50%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#070A10" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="0.85" />
+    </linearGradient>
+    <linearGradient id="highlightCard" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0C2542" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#06162A" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="cyanBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#34D399" />
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#FBBF24" />
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#A78BFA" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <style>
+    .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 800; fill: #F8FAFC; }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 500; fill: #94A3B8; }
+    .label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; fill: #E2E8F0; }
+    .meta { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 400; fill: #64748B; }
+    .badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 13px; }
+    .th { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; fill: #94A3B8; }
+    .td { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 500; font-size: 14px; fill: #CBD5E1; }
+    .td-bold { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; fill: #F8FAFC; }
+    .td-highlight { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; fill: #38BDF8; }
+  </style>
+
+  <rect width="1600" height="900" fill="url(#bgGrad)" />
+
+  <g transform="translate(100, 65)">
+    <rect x="0" y="0" width="175" height="28" rx="14" fill="#7C3AED" fill-opacity="0.2" stroke="#A78BFA" stroke-width="1" />
+    <text x="87" y="19" text-anchor="middle" class="badge" fill="#A78BFA">COMPUTE &amp; INFRASTRUCTURE</text>
+    <text x="0" y="65" class="title" font-size="40">Kimi K3.1 Pro Deployment Feasibility Matrix</text>
+    <text x="0" y="96" class="subtitle" font-size="19">Operational trade-offs across managed endpoints, quantized clusters, and full-scale supercomputing tiers</text>
+  </g>
+
+  <g transform="translate(100, 200)">
+    <g transform="translate(0, 0)">
+      <rect width="440" height="600" rx="16" fill="url(#cardGrad)" stroke="#38BDF8" stroke-width="2" />
+      <g transform="translate(30, 35)">
+        <rect x="0" y="0" width="120" height="26" rx="13" fill="#0284C7" fill-opacity="0.2" stroke="#38BDF8" stroke-width="1" />
+        <text x="60" y="18" text-anchor="middle" class="badge" fill="#38BDF8">TIER 01</text>
+        <text x="0" y="65" class="title" font-size="24">Managed Cloud API</text>
+        <text x="0" y="90" class="subtitle" font-size="14">Via OpenRouter &amp; Kimi Platform</text>
+        <line x1="0" y1="110" x2="380" y2="110" stroke="#334155" stroke-width="1" />
+        <text x="0" y="145" class="label" font-size="13" fill="#94A3B8">TOKEN PRICING</text>
+        <text x="0" y="172" class="title" font-size="22" fill="#38BDF8">$2.00 / $10.00</text>
+        <text x="0" y="192" class="meta" font-size="12">Per 1M Input / Output Tokens</text>
+        <text x="0" y="235" class="label" font-size="13" fill="#94A3B8">HARDWARE OVERHEAD</text>
+        <text x="0" y="260" class="title" font-size="20" fill="#34D399">Zero Local Compute</text>
+        <text x="0" y="280" class="meta" font-size="12">Fully managed autoscaling endpoint</text>
+        <text x="0" y="325" class="label" font-size="13" fill="#94A3B8">GENERATION SPEED</text>
+        <text x="0" y="350" class="title" font-size="20" fill="#F8FAFC">Standard &amp; Highspeed</text>
+        <text x="0" y="370" class="meta" font-size="12">2x to 3x token generation on Highspeed</text>
+        <rect x="0" y="410" width="380" height="110" rx="12" fill="#09101E" stroke="#1E293B" />
+        <text x="20" y="440" class="label" font-size="14" fill="#38BDF8">Recommended Target:</text>
+        <text x="20" y="465" class="subtitle" font-size="13">Individual builders, startup applications,</text>
+        <text x="20" y="488" class="subtitle" font-size="13">and rapid agentic prototyping workflows.</text>
+      </g>
+    </g>
+
+    <g transform="translate(480, 0)">
+      <rect width="440" height="600" rx="16" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+      <g transform="translate(30, 35)">
+        <rect x="0" y="0" width="120" height="26" rx="13" fill="#059669" fill-opacity="0.2" stroke="#34D399" stroke-width="1" />
+        <text x="60" y="18" text-anchor="middle" class="badge" fill="#34D399">TIER 02</text>
+        <text x="0" y="65" class="title" font-size="24">Quantized Cluster</text>
+        <text x="0" y="90" class="subtitle" font-size="14">FP8 / INT4 Quantized Deployment</text>
+        <line x1="0" y1="110" x2="380" y2="110" stroke="#334155" stroke-width="1" />
+        <text x="0" y="145" class="label" font-size="13" fill="#94A3B8">VRAM CONSUMPTION</text>
+        <text x="0" y="172" class="title" font-size="22" fill="#34D399">~1.5 TB to 2.8 TB</text>
+        <text x="0" y="192" class="meta" font-size="12">Compressed KV cache &amp; weight states</text>
+        <text x="0" y="235" class="label" font-size="13" fill="#94A3B8">INFRASTRUCTURE REQUIREMENT</text>
+        <text x="0" y="260" class="title" font-size="20" fill="#F8FAFC">16x - 32x H100 / H200</text>
+        <text x="0" y="280" class="meta" font-size="12">Multi-node HGX with InfiniBand fabric</text>
+        <text x="0" y="325" class="label" font-size="13" fill="#94A3B8">DATA SOVEREIGNTY</text>
+        <text x="0" y="350" class="title" font-size="20" fill="#F8FAFC">100% Private VPC</text>
+        <text x="0" y="370" class="meta" font-size="12">Zero external telemetry leakage</text>
+        <rect x="0" y="410" width="380" height="110" rx="12" fill="#09101E" stroke="#1E293B" />
+        <text x="20" y="440" class="label" font-size="14" fill="#34D399">Recommended Target:</text>
+        <text x="20" y="465" class="subtitle" font-size="13">Regulated enterprise environments,</text>
+        <text x="20" y="488" class="subtitle" font-size="13">confidential financial &amp; health pipelines.</text>
+      </g>
+    </g>
+
+    <g transform="translate(960, 0)">
+      <rect width="440" height="600" rx="16" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+      <g transform="translate(30, 35)">
+        <rect x="0" y="0" width="120" height="26" rx="13" fill="#7C3AED" fill-opacity="0.2" stroke="#A78BFA" stroke-width="1" />
+        <text x="60" y="18" text-anchor="middle" class="badge" fill="#A78BFA">TIER 03</text>
+        <text x="0" y="65" class="title" font-size="24">Unquantized BF16 / FP16</text>
+        <text x="0" y="90" class="subtitle" font-size="14">Full Precision Foundation Tier</text>
+        <line x1="0" y1="110" x2="380" y2="110" stroke="#334155" stroke-width="1" />
+        <text x="0" y="145" class="label" font-size="13" fill="#94A3B8">VRAM CONSUMPTION</text>
+        <text x="0" y="172" class="title" font-size="22" fill="#A78BFA">~5.6 Terabytes</text>
+        <text x="0" y="192" class="meta" font-size="12">Full model weights without lossy rounding</text>
+        <text x="0" y="235" class="label" font-size="13" fill="#94A3B8">INFRASTRUCTURE REQUIREMENT</text>
+        <text x="0" y="260" class="title" font-size="20" fill="#F8FAFC">64x+ H100 / GH200 Nodes</text>
+        <text x="0" y="280" class="meta" font-size="12">Supercomputing tensor-parallel topology</text>
+        <text x="0" y="325" class="label" font-size="13" fill="#94A3B8">RESEARCH FIDELITY</text>
+        <text x="0" y="350" class="title" font-size="20" fill="#F8FAFC">Bit-for-Bit Lossless</text>
+        <text x="0" y="370" class="meta" font-size="12">Ideal for fine-tuning &amp; model distillation</text>
+        <rect x="0" y="410" width="380" height="110" rx="12" fill="#09101E" stroke="#1E293B" />
+        <text x="20" y="440" class="label" font-size="14" fill="#A78BFA">Recommended Target:</text>
+        <text x="20" y="465" class="subtitle" font-size="13">AI research institutions, national labs,</text>
+        <text x="20" y="488" class="subtitle" font-size="13">and foundation model distillation teams.</text>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(100, 840)">
+    <text x="0" y="20" class="meta" font-size="14">PROTHER JOURNAL | INFRASTRUCTURE CAPACITY AUDIT</text>
+    <text x="1400" y="20" text-anchor="end" class="meta" font-size="14">HARDWARE PROFILING: NVIDIA H100/H200/GH200</text>
+  </g>
+</svg>

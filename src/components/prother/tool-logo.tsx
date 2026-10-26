@@ -13,6 +13,7 @@ export interface ToolLogoProps {
   emoji?: string;
   gradient?: string;
   size?: ToolLogoSize;
+  priority?: boolean;
   className?: string;
   imageClassName?: string;
 }
@@ -72,6 +73,7 @@ export function ToolLogo({
   emoji: _emoji,
   gradient: _gradient,
   size = "md",
+  priority = false,
   className,
   imageClassName,
 }: ToolLogoProps) {
@@ -114,7 +116,8 @@ export function ToolLogo({
           alt={`${name} logo`}
           width={SIZE_PX[size]}
           height={SIZE_PX[size]}
-          loading="lazy"
+          loading={priority || size === "xl" ? "eager" : "lazy"}
+          fetchPriority={priority || size === "xl" ? "high" : "auto"}
           onError={() => setHasError(true)}
           className={cn("size-full object-contain", imageClassName)}
         />

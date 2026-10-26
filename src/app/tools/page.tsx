@@ -47,37 +47,61 @@ const DIRECTORY_SORTS = new Set([
 type DirectorySort =
   typeof DIRECTORY_SORTS extends ReadonlySet<infer T> ? T : never;
 
-export const metadata: Metadata = {
-  alternates: {
-    canonical: "/tools",
-    types: { "application/rss+xml": "/api/rss" },
-  },
-  title: "AI tools · search & compare | Prother",
-  description:
-    "The curated directory for AI tools: search, compare, and save your stack. Filter by category, pricing, and tags. No gates. Browse free.",
-  keywords: [
-    "AI tools directory",
-    "browse AI tools",
-    "AI tool search",
-    "search AI tools",
-    "compare AI tools",
-  ],
-  openGraph: {
+const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const first = (v: string | string[] | undefined) =>
+    (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
+  const q = first(params.q).slice(0, 64);
+
+  if (q) {
+    return {
+      title: `"${q}" · AI tool search results | Prother`,
+      description: `Search results for "${q}" in the Prother curated AI directory.`,
+      robots: { index: false, follow: true },
+      alternates: {
+        canonical: "/tools",
+      },
+    };
+  }
+
+  return {
+    alternates: {
+      canonical: "/tools",
+      types: { "application/rss+xml": "/api/rss" },
+    },
     title: "AI tools · search & compare | Prother",
     description:
       "The curated directory for AI tools: search, compare, and save your stack. Filter by category, pricing, and tags. No gates. Browse free.",
-    siteName: "Prother",
-    type: "website",
-    images: [{ url: "/api/og", width: 1200, height: 630 }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "AI tools · search & compare | Prother",
-    description:
-      "The curated directory for AI tools: search, compare, and save your stack.",
-    images: ["/api/og"],
-  },
-};
+    keywords: [
+      "AI tools directory",
+      "browse AI tools",
+      "AI tool search",
+      "search AI tools",
+      "compare AI tools",
+    ],
+    openGraph: {
+      title: "AI tools · search & compare | Prother",
+      description:
+        "The curated directory for AI tools: search, compare, and save your stack. Filter by category, pricing, and tags. No gates. Browse free.",
+      siteName: "Prother",
+      type: "website",
+      images: [{ url: "/api/og", width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "AI tools · search & compare | Prother",
+      description:
+        "The curated directory for AI tools: search, compare, and save your stack.",
+      images: ["/api/og"],
+    },
+  };
+}
 
 /** Results per SERP page. */
 const SERP_PAGE_SIZE = 12;
@@ -357,7 +381,7 @@ export default async function ToolsPage({
         "@type": "ListItem",
         position: (serp.page - 1) * SERP_PAGE_SIZE + i + 1,
         name: r.name,
-        url: `/tools/${r.slug}`,
+        url: `${SITE_BASE}/tools/${r.slug}`,
       })),
     };
 
@@ -467,7 +491,7 @@ export default async function ToolsPage({
       "@type": "ListItem",
       position: i + 1,
       name: t.name,
-      url: `/tools/${t.slug}`,
+      url: `${SITE_BASE}/tools/${t.slug}`,
     })),
   };
 

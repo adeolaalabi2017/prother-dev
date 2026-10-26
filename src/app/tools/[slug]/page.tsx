@@ -216,7 +216,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const title = `${tool.name} - ${tool.tagline} | Prother`;
   const description = clamp(
     `Listed on Prother - ${tool.category.name} - ${pricingLine(tool.pricingModel, tool.startingPrice)}. ${tool.description || tool.tagline}`,
-    200,
+    160,
   );
   const keywords = tool.tags
     .split("|")
@@ -417,8 +417,14 @@ export default async function ToolPage({ params }: Params) {
     name,
     description: tool.description || tool.tagline,
     applicationCategory: tool.category.name,
-    operatingSystem: "Web-based",
+    operatingSystem:
+      installInfo.deliveryType === "installable" ||
+      installInfo.deliveryType === "desktop_app"
+        ? "macOS, Windows, Linux"
+        : "Web-based",
     url: `${SITE_BASE}/tools/${tool.slug}`,
+    image: `${SITE_BASE}/api/og?tool=${encodeURIComponent(tool.slug)}`,
+    ...(checklist.length > 0 ? { featureList: checklist } : {}),
     offers: {
       "@type": "Offer",
       price: tool.pricingModel === "paid" && priceMatch ? priceMatch[1] : "0",
@@ -796,19 +802,42 @@ export default async function ToolPage({ params }: Params) {
                 aria-label={`Alternatives to ${name}`}
                 className="mt-10"
               >
-                <h2 className="text-xl font-semibold tracking-tight text-white">
-                  Alternative to
-                </h2>
+                <div className="flex items-baseline justify-between gap-4">
+                  <h2 className="text-xl font-semibold tracking-tight text-white">
+                    Alternative to {name}
+                  </h2>
+                  <Link
+                    href={`/compare?tools=${encodeURIComponent(tool.slug)}`}
+                    className="font-mono text-xs text-ember transition-colors hover:underline"
+                  >
+                    Compare in matrix &rarr;
+                  </Link>
+                </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {alternatives.slice(0, 6).map((a) => (
-                    <Link
-                      key={a.slug}
-                      href={`/tools/${a.slug}`}
-                      className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-sm text-white/80 transition-colors hover:border-ember/40 hover:text-ember"
-                    >
-                      {a.name}
-                    </Link>
-                  ))}
+                  {alternatives.slice(0, 6).map((a) => {
+                    const sortedShowdown = [tool.slug, a.slug].sort().join("-vs-");
+                    return (
+                      <div
+                        key={a.slug}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-sm text-white/80 transition-colors hover:border-ember/40"
+                      >
+                        <Link
+                          href={`/tools/${a.slug}`}
+                          className="transition-colors hover:text-ember"
+                        >
+                          {a.name}
+                        </Link>
+                        <span className="text-white/20" aria-hidden>|</span>
+                        <Link
+                          href={`/compare/${sortedShowdown}`}
+                          className="font-mono text-[11px] font-semibold text-ember transition-colors hover:text-ember-hot"
+                          title={`Compare ${name} vs ${a.name}`}
+                        >
+                          VS
+                        </Link>
+                      </div>
+                    );
+                  })}
                 </div>
                 <p className="mt-3 text-[13px] leading-relaxed text-white/45">
                   These tools share use cases. Features, costs, and deployment
@@ -855,16 +884,40 @@ export default async function ToolPage({ params }: Params) {
               </DetailRow>
               <DetailRow label="Available on">{platformsMain}</DetailRow>
               <DetailRow label="License">{licenseLabel}</DetailRow>
+              <DetailRow label="API access">
+                {tool.hasApi ? (
+                  <span className="inline-flex items-center gap-1 text-mint">
+                    <Check className="size-3" aria-hidden />
+                    REST / SDK
+                  </span>
+                ) : (
+                  <span className="text-white/40">UI only</span>
+                )}
+              </DetailRow>
               <DetailRow label="Pricing">
                 <span title={tool.pricingNote ?? undefined}>
                   {pricingLine(tool.pricingModel, tool.startingPrice)}
                 </span>
               </DetailRow>
+              {tool.pricingNote && (
+                <DetailRow label="Billing model">
+                  <span className="max-w-[180px] truncate" title={tool.pricingNote}>
+                    {tool.pricingNote}
+                  </span>
+                </DetailRow>
+              )}
               <DetailRow label="Self-hosted">
                 {tool.pricingModel === "open_source"
                   ? "Yes, self-hostable"
                   : "Hosted app"}
               </DetailRow>
+              {editorial.pricingCheckedAt && (
+                <DetailRow label="Pricing verified">
+                  <span className="text-mint">
+                    {utcDateLabel(editorial.pricingCheckedAt)}
+                  </span>
+                </DetailRow>
+              )}
               {github && (
                 <DetailRow label="Repository">
                   <a

@@ -15,6 +15,8 @@ import { safeJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = "force-dynamic";
 
+const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
+
 type Params = { params: Promise<{ slug: string }> };
 
 /**
@@ -154,7 +156,7 @@ export default async function ForumThreadPage({ params }: Params) {
         userInteractionCount: replies.length,
       },
     ],
-    mainEntityOfPage: `/forums/${encodeURIComponent(thread.slug)}`,
+    mainEntityOfPage: `${SITE_BASE}/forums/${encodeURIComponent(thread.slug)}`,
   };
 
   return (

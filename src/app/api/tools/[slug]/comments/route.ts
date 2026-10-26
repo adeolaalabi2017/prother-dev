@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getAuthUser } from "@/lib/auth";
 import { convexCommentAdd, shadowComments, shadowCommentsLastAge } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
@@ -95,6 +96,7 @@ export async function POST(
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
+  const user = await getAuthUser();
   const author = parsed.data.author;
   try {
     const comment = await convexCommentAdd(client, {
@@ -103,9 +105,16 @@ export async function POST(
       author,
       body: parsed.data.body,
       createdAt: Date.now(),
+      authenticatedUserEmail: user?.email,
     });
     return NextResponse.json(comment, { status: 201 });
   } catch (err) {
+    if (err instanceof Error && err.message === "maker_handle_reserved") {
+      return NextResponse.json(
+        { error: "This display name is reserved for the verified tool creator. Please sign in or choose another name." },
+        { status: 403 }
+      );
+    }
     console.error("[api:comments] POST failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }

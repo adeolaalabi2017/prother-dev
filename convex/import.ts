@@ -14,7 +14,7 @@
  * - NextAuth tables (Account/Session/VerificationToken) are intentionally
  *   absent: auth stays on SQLite through Phase 4 (plan §3.5).
  */
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { campaignLifecycleTick } from "./cronlib.js";
 
@@ -46,8 +46,8 @@ const TABLE_NAMES = v.union(
   v.literal("authSessions"),
 );
 
-/** Wipe data tables (or a subset) so a rerun starts clean. */
-export const clearTables = mutation({  args: { tables: v.array(TABLE_NAMES) },
+/** Wipe data tables (or a subset) so a rerun starts clean (internal-only). */
+export const clearTables = internalMutation({  args: { tables: v.array(TABLE_NAMES) },
   handler: async (ctx, { tables }) => {
     const cleared: Record<string, number> = {};
     for (const table of tables) {
@@ -113,7 +113,7 @@ export const byLegacy = query({
 
 // ── Per-table batched inserts (validators mirror convex/schema.ts) ──
 
-export const importCategories = mutation({
+export const importCategories = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -135,7 +135,7 @@ export const importCategories = mutation({
     ),
 });
 
-export const importTools = mutation({
+export const importTools = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -192,7 +192,7 @@ export const importTools = mutation({
     ),
 });
 
-export const importSubmissions = mutation({
+export const importSubmissions = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -232,7 +232,7 @@ export const importSubmissions = mutation({
     ),
 });
 
-export const importComments = mutation({
+export const importComments = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -254,7 +254,7 @@ export const importComments = mutation({
     ),
 });
 
-export const importPosts = mutation({
+export const importPosts = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -290,7 +290,7 @@ export const importPosts = mutation({
     ),
 });
 
-export const importSiteSettings = mutation({
+export const importSiteSettings = internalMutation({
   args: {
     rows: v.array(
       v.object({ key: v.string(), value: v.string(), updatedAt: v.number() }),
@@ -300,7 +300,7 @@ export const importSiteSettings = mutation({
     Promise.all(rows.map((r) => ctx.db.insert("siteSettings", r))),
 });
 
-export const importAuditLogs = mutation({
+export const importAuditLogs = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -323,7 +323,7 @@ export const importAuditLogs = mutation({
     ),
 });
 
-export const importUsers = mutation({
+export const importUsers = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -350,7 +350,7 @@ export const importUsers = mutation({
     ),
 });
 
-export const importReviews = mutation({
+export const importReviews = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -377,7 +377,7 @@ export const importReviews = mutation({
     ),
 });
 
-export const importClaims = mutation({
+export const importClaims = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -403,7 +403,7 @@ export const importClaims = mutation({
     ),
 });
 
-export const importCollections = mutation({
+export const importCollections = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -427,7 +427,7 @@ export const importCollections = mutation({
     ),
 });
 
-export const importCollectionItems = mutation({
+export const importCollectionItems = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -448,7 +448,7 @@ export const importCollectionItems = mutation({
     ),
 });
 
-export const importFollows = mutation({
+export const importFollows = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -464,7 +464,7 @@ export const importFollows = mutation({
     Promise.all(rows.map((r) => ctx.db.insert("follows", r))),
 });
 
-export const importComparisons = mutation({
+export const importComparisons = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -479,7 +479,7 @@ export const importComparisons = mutation({
     Promise.all(rows.map((r) => ctx.db.insert("comparisons", r))),
 });
 
-export const importForumThreads = mutation({
+export const importForumThreads = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -509,7 +509,7 @@ export const importForumThreads = mutation({
     ),
 });
 
-export const importForumReplies = mutation({
+export const importForumReplies = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -532,7 +532,7 @@ export const importForumReplies = mutation({
     ),
 });
 
-export const importForumThreadVotes = mutation({
+export const importForumThreadVotes = internalMutation({
   args: {
     rows: v.array(
       v.object({ threadId: v.id("forumThreads"), voterKey: v.string() }),
@@ -542,7 +542,7 @@ export const importForumThreadVotes = mutation({
     Promise.all(rows.map((r) => ctx.db.insert("forumThreadVotes", r))),
 });
 
-export const importReports = mutation({
+export const importReports = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -570,7 +570,7 @@ export const importReports = mutation({
     ),
 });
 
-export const importBookmarks = mutation({
+export const importBookmarks = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -593,7 +593,7 @@ export const importBookmarks = mutation({
     ),
 });
 
-export const importAdCampaigns = mutation({
+export const importAdCampaigns = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -630,7 +630,7 @@ export const importAdCampaigns = mutation({
     ),
 });
 
-export const importAdServeStats = mutation({
+export const importAdServeStats = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -648,7 +648,7 @@ export const importAdServeStats = mutation({
     Promise.all(rows.map((r) => ctx.db.insert("adServeStats", r))),
 });
 
-export const importPageViews = mutation({
+export const importPageViews = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -663,7 +663,7 @@ export const importPageViews = mutation({
     Promise.all(rows.map((r) => ctx.db.insert("pageViewDaily", r))),
 });
 
-export const importMedia = mutation({
+export const importMedia = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -690,7 +690,7 @@ export const importMedia = mutation({
     ),
 });
 
-export const importIntegrations = mutation({
+export const importIntegrations = internalMutation({
   args: {
     rows: v.array(
       v.object({
@@ -719,7 +719,7 @@ export const importIntegrations = mutation({
  * DEV ONLY (deleted at Phase 5): delete documents by legacyId — test
  * cleanup for dual-write verification probes. Never called by app code.
  */
-export const devDeleteDocs = mutation({
+export const devDeleteDocs = internalMutation({
   args: { table: TABLE_NAMES, legacyIds: v.array(v.string()) },
   handler: async (ctx, { table, legacyIds }) => {
     if (table === "authSessions") return { deleted: 0 };
@@ -741,7 +741,7 @@ export const devDeleteDocs = mutation({
 /**
  * DEV ONLY: delete siteSettings by key (they carry no legacyId).
  */
-export const devDeleteSettings = mutation({
+export const devDeleteSettings = internalMutation({
   args: { keys: v.array(v.string()) },
   handler: async (ctx, { keys }) => {
     let deleted = 0;
@@ -763,7 +763,7 @@ export const devDeleteSettings = mutation({
  * DEV ONLY manual QA trigger for the campaign-lifecycle cron (plan §3.8
  * requires one per job). Runs the same shared tick the schedule calls.
  */
-export const devCampaignTick = mutation({
+export const devCampaignTick = internalMutation({
   args: {},
   handler: async (ctx) => campaignLifecycleTick(ctx),
 });

@@ -1805,6 +1805,7 @@ export async function convexCommentAdd(
     author: string;
     body: string;
     createdAt: number;
+    authenticatedUserEmail?: string;
   },
 ) {
   try {
@@ -1813,7 +1814,12 @@ export async function convexCommentAdd(
     if (d1) return d1;
   } catch (e) {
     // fall through to Convex unless D1 threw a domain error the route must see
-    if (e instanceof Error && (e.message === "tool_not_found")) throw e;
+    if (
+      e instanceof Error &&
+      (e.message === "tool_not_found" || e.message === "maker_handle_reserved")
+    ) {
+      throw e;
+    }
   }
   return c.mutation(api.community.commentAdd, args);
 }
