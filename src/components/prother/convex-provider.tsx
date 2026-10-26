@@ -8,7 +8,8 @@ import dynamic from "next/dynamic";
  * `convex/react` evaluates the `ws` Node WebSocket client at module load,
  * which throws on the Workers runtime — so the implementation
  * (./convex-provider-client) must never be statically imported from the
- * server-render graph. This wrapper is the only export the layout uses.
+ * server-render graph. Use this wrapper only inside client-only interactive
+ * islands; it must not wrap the root layout or server-rendered page content.
  */
 export const ConvexClientProvider = dynamic(
   () =>
