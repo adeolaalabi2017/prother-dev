@@ -89,9 +89,10 @@ Regression coverage added:
   contract after removing the global Convex subscription.
 - `package.json` exposes the HTTP smoke test as `bun run test:soft-404`.
 
-The fix is not considered verified until the smoke test passes against a local
-production build and a Cloudflare/OpenNext preview with a seeded data source.
-No production deployment is part of this change.
+The CI workflow runs the smoke test against the standalone production build.
+A Cloudflare/OpenNext preview with the intended data backend is still required
+to verify the Workers-specific runtime before merging or deploying. No
+production deployment is part of this change.
 
 ## Remaining exposure
 
