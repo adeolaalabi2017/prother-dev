@@ -895,7 +895,7 @@ export default async function ToolPage({ params }: Params) {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ember">
-                              {guide.pillar.shortLabel}
+                              Guide
                             </span>
                             <span className="font-mono text-[11px] text-white/40">
                               {guide.readingMinutes} min read

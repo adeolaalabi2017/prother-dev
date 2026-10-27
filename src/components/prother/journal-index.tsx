@@ -3,9 +3,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowUpRight, BookOpen, CalendarDays, Clock3, Feather, Rss, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Clock3, Feather, Rss } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { classifyPillar, CONTENT_PILLARS, type ContentPillarId } from "@/lib/journal-pillars";
 
 /**
  * /journal: index client shell. Same card language as the landing section,
@@ -46,15 +45,6 @@ export function JournalIndex({
   breadcrumbs?: ReactNode;
 }) {
   const [active, setActive] = useState<string>("all");
-  const [selectedPillar, setSelectedPillar] = useState<ContentPillarId | "all">("all");
-
-  const postPillars = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof classifyPillar>>();
-    for (const p of initialPosts) {
-      map.set(p.slug, classifyPillar(p.slug, p.category, p.tags, p.title));
-    }
-    return map;
-  }, [initialPosts]);
 
   const categories = useMemo(() => {
     const set = new Set(initialPosts.map((p) => p.category));
@@ -63,13 +53,9 @@ export function JournalIndex({
 
   const shown = useMemo(() => {
     return initialPosts.filter((p) => {
-      const matchCategory = active === "all" || p.category === active;
-      const matchPillar =
-        selectedPillar === "all" ||
-        postPillars.get(p.slug)?.id === selectedPillar;
-      return matchCategory && matchPillar;
+      return active === "all" || p.category === active;
     });
-  }, [initialPosts, active, selectedPillar, postPillars]);
+  }, [initialPosts, active]);
 
   return (
     <section className="bg-ink py-16">
@@ -100,82 +86,6 @@ export function JournalIndex({
             <Rss className="size-3.5" aria-hidden />
             RSS
           </Link>
-        </div>
-
-        {/* Editorial Charter: Connected Directory Content Ecosystem */}
-        <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-ember/30 bg-ember/10 text-ember">
-                <ShieldCheck className="size-5" aria-hidden />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-white">
-                  Original Research and Directory Integration
-                </h2>
-                <p className="mt-0.5 text-xs text-white/55">
-                  Prother publishes verified engineering guides, benchmark shootouts, and ecosystem updates linked directly to directory tools and comparison matrices. Zero synthetic filler.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/tools"
-              className="inline-flex shrink-0 items-center gap-1 font-mono text-xs text-ember hover:text-ember-hot"
-            >
-              Explore Full Directory &rarr;
-            </Link>
-          </div>
-        </div>
-
-        {/* 3 Content Pillars Selector */}
-        <div className="mt-8">
-          <p className="font-mono text-xs tracking-wider text-white/45 uppercase">
-            Content Pillars
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-4">
-            <button
-              type="button"
-              onClick={() => setSelectedPillar("all")}
-              className={cn(
-                "rounded-xl border p-3 text-left transition-all",
-                selectedPillar === "all"
-                  ? "border-ember bg-ember/15 text-white"
-                  : "border-white/10 bg-white/[0.02] text-white/60 hover:border-white/20 hover:text-white"
-              )}
-            >
-              <p className="font-mono text-[11px] font-semibold uppercase tracking-wider">
-                All Pillars
-              </p>
-              <p className="mt-1 line-clamp-1 text-xs text-white/50">
-                Complete publication stream
-              </p>
-            </button>
-
-            {(Object.keys(CONTENT_PILLARS) as ContentPillarId[]).map((pid) => {
-              const p = CONTENT_PILLARS[pid];
-              const isSelected = selectedPillar === pid;
-              return (
-                <button
-                  key={pid}
-                  type="button"
-                  onClick={() => setSelectedPillar(pid)}
-                  className={cn(
-                    "rounded-xl border p-3 text-left transition-all",
-                    isSelected
-                      ? "border-ember bg-ember/15 text-white"
-                      : "border-white/10 bg-white/[0.02] text-white/60 hover:border-white/20 hover:text-white"
-                  )}
-                >
-                  <p className="font-mono text-[11px] font-semibold text-ember uppercase tracking-wider">
-                    {p.shortLabel}
-                  </p>
-                  <p className="mt-1 line-clamp-1 text-xs text-white/50">
-                    {p.goal}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* category chips */}
@@ -251,16 +161,9 @@ export function JournalIndex({
                         .join("")}
                     </div>
                   )}
-                  <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
-                    {postPillars.get(p.slug) && (
-                      <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] tracking-wider text-white/70 uppercase">
-                        {postPillars.get(p.slug)!.shortLabel}
-                      </span>
-                    )}
-                    <span className="rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-xs tracking-wider text-ember uppercase">
-                      {p.category}
-                    </span>
-                  </div>
+                  <span className="ml-auto rounded-full border border-ember/30 bg-ember/10 px-2.5 py-1 font-mono text-xs tracking-wider text-ember uppercase">
+                    {p.category}
+                  </span>
                 </div>
 
                 <h2 className="mt-4 text-lg leading-snug font-bold text-white transition-colors group-hover:text-ember">

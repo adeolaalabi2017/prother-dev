@@ -140,7 +140,6 @@ export default async function JournalArticlePage({ params }: Params) {
           <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             Prother Journal
             <span className="text-white/55"> · {post.category}</span>
-            <span className="text-ember"> · {directoryConnections.pillar.shortLabel}</span>
           </p>
 
           <div className="mt-4 flex items-start gap-4">
@@ -200,7 +199,6 @@ export default async function JournalArticlePage({ params }: Params) {
 
         {/* Connected Directory Entities & Spec Hub */}
         <JournalDirectoryBridge
-          pillar={directoryConnections.pillar}
           toolSlugs={directoryConnections.toolSlugs}
           comparisonSlugs={directoryConnections.comparisonSlugs}
           categorySlug={directoryConnections.categorySlug}

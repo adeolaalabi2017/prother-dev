@@ -2,17 +2,14 @@ import React from "react";
 import Link from "next/link";
 import { ArrowUpRight, BookOpen, Layers, Scale } from "lucide-react";
 import { ToolLogo } from "@/components/prother/tool-logo";
-import type { ContentPillar } from "@/lib/journal-pillars";
 
 export interface JournalDirectoryBridgeProps {
-  pillar: ContentPillar;
   toolSlugs: string[];
   comparisonSlugs?: string[];
   categorySlug?: string | null;
 }
 
 export function JournalDirectoryBridge({
-  pillar,
   toolSlugs,
   comparisonSlugs = [],
   categorySlug,
@@ -26,19 +23,19 @@ export function JournalDirectoryBridge({
       aria-label="Directory connections for this article"
       className="my-10 rounded-2xl border border-white/10 bg-white/[0.02] p-6 shadow-sm"
     >
-      {/* Pillar Header */}
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-ember/30 bg-ember/10 px-2.5 py-0.5 font-mono text-[11px] font-medium tracking-wider text-ember uppercase">
             <BookOpen className="size-3" aria-hidden />
-            {pillar.shortLabel}
+            Directory Reference
           </span>
           <h2 className="mt-2 text-base font-semibold text-white">
-            Connected Directory Entities & Specifications
+            Tools & Specifications Referenced
           </h2>
         </div>
         <p className="max-w-md text-right text-xs leading-relaxed text-white/50 hidden sm:block">
-          {pillar.goal}
+          Explore production specs, verified pricing, and alternatives for the products covered in this article.
         </p>
       </div>
 
