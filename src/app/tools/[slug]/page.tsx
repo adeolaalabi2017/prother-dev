@@ -4,6 +4,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import {
   ArrowUpRight,
+  BookOpen,
   Check,
   CheckCircle2,
   Star,
@@ -26,6 +27,7 @@ import { getTopicBySlug } from "@/lib/topics";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 import { getGithubStats, formatCompact } from "@/lib/github";
 import { getToolInstallInfo } from "@/lib/tool-install";
+import { getGuidesForTool } from "@/lib/journal-relations";
 
 /**
  * /tools/[slug] - OpenStore direction (Oct 2026).
@@ -350,6 +352,11 @@ export default async function ToolPage({ params }: Params) {
     .map((p) => p.trim())
     .filter(Boolean);
 
+  const { articles: toolGuides, categoryGuide } = getGuidesForTool(
+    tool.slug,
+    tool.category?.slug,
+  );
+
   const aggregate = stats.aggregate;
   const related = bundle.relatedRows.map((r) => ({
     slug: r.slug,
@@ -408,7 +415,7 @@ export default async function ToolPage({ params }: Params) {
     editorial.pros.length > 0
       ? editorial.pros.slice(0, 4)
       : editorial.useCases.slice(0, 3).map((u) => u.title);
-  const issuesUrl = github?.issuesUrl ?? tool.githubUrl ?? "/forums";
+  const issuesUrl = github?.issuesUrl ?? tool.githubUrl ?? tool.websiteUrl;
 
   const priceMatch = (tool.startingPrice ?? "").match(/(\d+(?:\.\d+)?)/);
   const softwareAppJsonLd = {
@@ -685,22 +692,28 @@ export default async function ToolPage({ params }: Params) {
                 project fits your workflow.
               </p>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-medium">
-                <Link
-                  href="/forums"
-                  className="inline-flex items-center gap-1 text-white/85 transition-colors hover:text-ember"
-                >
-                  Community discussions
-                  <ArrowUpRight className="size-3.5" aria-hidden />
-                </Link>
-                <a
-                  href={issuesUrl}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="inline-flex items-center gap-1 text-white/85 transition-colors hover:text-ember"
-                >
-                  Project issues
-                  <ArrowUpRight className="size-3.5" aria-hidden />
-                </a>
+                {(tool.docsUrl || tool.websiteUrl) && (
+                  <a
+                    href={tool.docsUrl ?? tool.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1 text-white/85 transition-colors hover:text-ember"
+                  >
+                    Documentation
+                    <ArrowUpRight className="size-3.5" aria-hidden />
+                  </a>
+                )}
+                {issuesUrl && (
+                  <a
+                    href={issuesUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1 text-white/85 transition-colors hover:text-ember"
+                  >
+                    {github ? "Project issues" : "Official website"}
+                    <ArrowUpRight className="size-3.5" aria-hidden />
+                  </a>
+                )}
               </div>
               <p className="mt-3 text-xs leading-relaxed text-white/40">
                 {github
@@ -843,6 +856,81 @@ export default async function ToolPage({ params }: Params) {
                   These tools share use cases. Features, costs, and deployment
                   needs differ.
                 </p>
+              </section>
+            )}
+
+            {/* Practical Guides & Evaluations from Journal */}
+            {(toolGuides.length > 0 || categoryGuide) && (
+              <section
+                aria-label="Practical guides and technical evaluations"
+                className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-5"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-wider text-ember uppercase">
+                      <BookOpen className="size-3" aria-hidden />
+                      Journal & Architectural Guides
+                    </span>
+                    <h2 className="mt-1 text-base font-semibold text-white">
+                      Practical Guides & In-Depth Evaluations
+                    </h2>
+                  </div>
+                  <Link
+                    href="/journal"
+                    className="inline-flex items-center gap-1 text-xs text-white/50 transition-colors hover:text-ember"
+                  >
+                    All Journal Guides
+                    <ArrowUpRight className="size-3" aria-hidden />
+                  </Link>
+                </div>
+
+                {toolGuides.length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    {toolGuides.map((guide) => (
+                      <Link
+                        key={guide.slug}
+                        href={`/journal/${guide.slug}`}
+                        className="group flex flex-col justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3.5 transition-colors hover:border-ember/40 hover:bg-ember/[0.03] sm:flex-row sm:items-center"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full border border-ember/30 bg-ember/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ember">
+                              {guide.pillar.shortLabel}
+                            </span>
+                            <span className="font-mono text-[11px] text-white/40">
+                              {guide.readingMinutes} min read
+                            </span>
+                          </div>
+                          <p className="mt-1.5 text-sm font-semibold text-white/90 group-hover:text-ember">
+                            {guide.title}
+                          </p>
+                          <p className="mt-0.5 line-clamp-1 text-xs text-white/50">
+                            {guide.excerpt}
+                          </p>
+                        </div>
+                        <ArrowUpRight
+                          className="size-4 shrink-0 text-white/40 transition-colors group-hover:text-ember"
+                          aria-hidden
+                        />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {categoryGuide && (
+                  <div className={cn("mt-4 pt-3", toolGuides.length > 0 && "border-t border-white/10")}>
+                    <Link
+                      href={categoryGuide.href}
+                      className="group flex items-center justify-between gap-3 text-xs text-white/70 transition-colors hover:text-ember"
+                    >
+                      <span className="line-clamp-1">
+                        <span className="font-mono text-white/40 uppercase">Procurement Guide:</span>{" "}
+                        {categoryGuide.headline}
+                      </span>
+                      <ArrowUpRight className="size-3 shrink-0 text-white/40 group-hover:text-ember" aria-hidden />
+                    </Link>
+                  </div>
+                )}
               </section>
             )}
 

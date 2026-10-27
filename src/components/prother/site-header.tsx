@@ -21,7 +21,7 @@ import { usePrivileged } from "./use-privileged";
 /**
  * Nav points at dedicated routes; "Categories" is the one homepage anchor
  * (scrolls to the CategoryGrid section on /). Anchor shortcuts never render
- * an active state — only real route matches light up, so the default state
+ * an active state: only real route matches light up, so the default state
  * on the homepage is neutral.
  */
 const NAV_LINKS = [
@@ -37,7 +37,6 @@ const NAV_LINKS = [
   { label: "Tools", href: "/tools", id: "tools" },
   { label: "Compare", href: "/compare", id: "compare" },
   { label: "Journal", href: "/journal", id: "journal" },
-  { label: "Forums", href: "/forums", id: "forums" },
 ];
 
 export function SiteHeader() {
@@ -49,7 +48,7 @@ export function SiteHeader() {
   // theme-safe; absent/empty falls back to the glyph.
   const settings = useSiteSettings();
   const brandingLogoUrl = settings["branding.logoUrl"] ?? "";
-  // Owner-only admin gear — guests render no trace of /admin in the header.
+  // Owner-only admin gear: guests render no trace of /admin in the header.
   const privileged = usePrivileged();
 
   const [logoError, setLogoError] = useState(false);
@@ -67,10 +66,9 @@ export function SiteHeader() {
     const link = NAV_LINKS.find((l) => l.id === id);
     if (!link) return false;
     // Anchor shortcuts (Categories → /#directory) are scroll helpers, not
-    // routes — they never light up, keeping the homepage default neutral.
+    // routes: they never light up, keeping the homepage default neutral.
     if (link.href.startsWith("/#")) return false;
-    // Route links stay active on their sub-routes too (/journal/<slug>,
-    // /forums/<slug>) — exact match OR a nested path under the link.
+    // Route links stay active on their sub-routes too (/journal/<slug>): exact match OR a nested path under the link.
     return pathname === link.href || pathname.startsWith(`${link.href}/`);
   };
 

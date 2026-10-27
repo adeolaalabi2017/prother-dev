@@ -15,7 +15,7 @@ import { createServerConvexClient } from "@/lib/convex";
 import { shadowHomepage, shadowMetaEntities, shadowSite } from "@/lib/data";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 
-/** Convex-only entity lookups for deep-link metadata (null on failure —
+/** Convex-only entity lookups for deep-link metadata (null on failure:
  *  the homepage never 500s on a metadata read). */
 async function metaEntities(args: {
   toolSlug?: string;
@@ -33,12 +33,12 @@ async function metaEntities(args: {
 }
 
 /**
- * The landing page — search & discovery for the AI tools directory. Hero +
+ * The landing page: search & discovery for the AI tools directory. Hero +
  * categories + Editor's Picks + trending; everything else lives on dedicated
  * routes (/tools, /categories, /journal, /about, /submit).
  *
  * The metadata plumbing below serves the single-route deep links (?tool=,
- * ?post=, ?category=, ?compare=, ?collection=) — post-sandbox these become
+ * ?post=, ?category=, ?compare=, ?collection=): post-sandbox these become
  * real routes one-to-one.
  *
  * force-dynamic: the server-rendered sections read the CMS-managed site copy
@@ -80,7 +80,7 @@ export async function generateMetadata({
     compareB: cmpB,
   });
 
-  // Journal deep link (?post=slug) — article-level unfurl metadata.
+  // Journal deep link (?post=slug): article-level unfurl metadata.
   if (postSlug && !toolSlug) {
     const cxPost = convexMeta?.post;
     const post =
@@ -104,7 +104,7 @@ export async function generateMetadata({
               .map((k) => k.trim())
               .filter(Boolean)
           : undefined,
-        // The overlay serves homepage HTML — fold it into the real article.
+        // The overlay serves homepage HTML: fold it into the real article.
         alternates: { canonical: `/journal/${post.slug}` },
         openGraph: {
           title,
@@ -142,7 +142,7 @@ export async function generateMetadata({
       return {
         title,
         description,
-        // /tools/[slug] shipped (Task 25) — fold the legacy ?tool= deep link
+        // /tools/[slug] shipped (Task 25): fold the legacy ?tool= deep link
         // into the real tool page's canonical URL.
         alternates: { canonical: `/tools/${encodeURIComponent(toolSlug)}` },
         openGraph: {
@@ -168,7 +168,7 @@ export async function generateMetadata({
     return {};
   }
 
-  // Compare deep link (?compare=a,b) — "A vs B" head-to-head unfurl.
+  // Compare deep link (?compare=a,b): "A vs B" head-to-head unfurl.
   if (compareRaw) {
     const [aSlug, bSlug] = compareRaw
       .split(",")
@@ -220,7 +220,7 @@ export async function generateMetadata({
     return {};
   }
 
-  // Category browse deep link (?category=slug) — curated SEO intro copy.
+  // Category browse deep link (?category=slug): curated SEO intro copy.
   if (categorySlug) {
     const cxCategory = convexMeta?.category;
     const cat = cxCategory
@@ -248,7 +248,7 @@ export async function generateMetadata({
     return {};
   }
 
-  // Personal space (?mine=collections) — never indexed.
+  // Personal space (?mine=collections): never indexed.
   if (mineView) {
     return {
       title: "My collections & follows | Prother",
@@ -292,18 +292,18 @@ async function liveCountByTag(): Promise<Record<string, number>> {
   }
 }
 
-/** Up to 6 Editor's Picks — pinned first, then newest. */
+/** Up to 6 Editor's Picks: pinned first, then newest. */
 async function getEditorsPicks() {
   // Convex-only homepage bundle (section hides on failure).
   try {
     const { picks } = await shadowHomepage(createServerConvexClient()!);
     return picks as Array<(typeof picks)[number] & { logoUrl?: string | null }>;
   } catch {
-    return []; // section hides — the homepage never fails on a section query
+    return []; // section hides: the homepage never fails on a section query
   }
 }
 
-/** First sentence of a category blurb — the one-line hook on the grid card. */
+/** First sentence of a category blurb: the one-line hook on the grid card. */
 function firstSentence(blurb: string): string {
   const m = blurb.match(/^[^.!?]+[.!?]/);
   return (m ? m[0] : blurb).trim();
@@ -311,9 +311,9 @@ function firstSentence(blurb: string): string {
 
 // ── Sections (server-rendered) ───────────────────────────────────────────
 
-/** Site copy KV & stats (CMS-managed frontend elements) — blanks fall back in-code. */
+/** Site copy KV & stats (CMS-managed frontend elements): blanks fall back in-code. */
 async function getSiteData() {
-  // Convex-only site settings (empty map on failure — never fail the page).
+  // Convex-only site settings (empty map on failure: never fail the page).
   try {
     const res = await shadowSite(createServerConvexClient()!);
     return { settings: res.settings, stats: res.stats };
@@ -323,7 +323,7 @@ async function getSiteData() {
 }
 
 /** Black display heading with the last word of each line in ember.
- *  Pass accent={false} for supporting sections — the ember word is a brand
+ *  Pass accent={false} for supporting sections: the ember word is a brand
  *  moment reserved for the hero and closing band, not every H2 on the page. */
 function AccentHeading({
   text,
@@ -507,7 +507,7 @@ function ClosingBand({ copy }: { copy: Record<string, string> }) {
         <div className="grid items-end gap-8 md:grid-cols-[1fr_auto]">
           <div className="max-w-2xl">
             <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
-              COMMUNITY INDEX
+              TOOL AUDIT & SUBMISSIONS
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
               {copy["home.closingHeadline"] ||

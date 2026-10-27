@@ -25,7 +25,6 @@ const COLS: { title: string; links: FooterLink[] }[] = [
       { label: "Conversational AI", href: "/categories/conversational-ai" },
       { label: "Generative Content", href: "/categories/generative-content" },
       { label: "Automation", href: "/categories/automation" },
-      { label: "Forums", href: "/forums" },
       { label: "Submit your tool", href: "/submit" },
       { label: "Check submission status", href: "#", tracker: true },
     ],

@@ -13,6 +13,8 @@ import { placementEnabled } from "@/lib/ad-config";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowBlogDetail } from "@/lib/data";
 import { safeJsonLd } from "@/lib/safe-json-ld";
+import { extractDirectoryConnections } from "@/lib/journal-relations";
+import { JournalDirectoryBridge } from "@/components/prother/journal-directory-bridge";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +78,7 @@ function dateLabel(iso: Date | null): string {
   });
 }
 
-/** /journal/[slug] — the real, crawlable article page. */
+/** /journal/[slug]: the real, crawlable article page. */
 export default async function JournalArticlePage({ params }: Params) {
   const { slug } = await params;
   const post = await getPublishedPost(slug);
@@ -87,6 +89,7 @@ export default async function JournalArticlePage({ params }: Params) {
   const journalBarOn = await placementEnabled("journal_bar");
   // Cover ships on the Convex post row (no raw-SQL merge needed).
   const coverUrl = post.coverUrl ?? null;
+  const directoryConnections = extractDirectoryConnections(post.slug, post.body, post.category);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -112,7 +115,7 @@ export default async function JournalArticlePage({ params }: Params) {
       <PostViewPing slug={post.slug} />
 
       <article className="mx-auto max-w-2xl px-4 py-14 sm:px-6 md:max-w-3xl">
-        {/* breadcrumbs — visible nav + BreadcrumbList JSON-LD, above the H1 */}
+        {/* breadcrumbs: visible nav + BreadcrumbList JSON-LD, above the H1 */}
         <div className="mb-6">
           <Breadcrumbs
             trail={[
@@ -137,6 +140,7 @@ export default async function JournalArticlePage({ params }: Params) {
           <p className="font-mono text-xs tracking-[0.3em] text-ember-tint uppercase">
             Prother Journal
             <span className="text-white/55"> · {post.category}</span>
+            <span className="text-ember"> · {directoryConnections.pillar.shortLabel}</span>
           </p>
 
           <div className="mt-4 flex items-start gap-4">
@@ -169,7 +173,7 @@ export default async function JournalArticlePage({ params }: Params) {
             </span>
           </div>
 
-          {/* Uploaded cover art (Task 34) — hero banner; the emoji tile above
+          {/* Uploaded cover art (Task 34): hero banner; the emoji tile above
               stays as the fallback when the post has no image. */}
           {coverUrl && (
             <div className="mt-8 overflow-hidden rounded-lg border border-white/10">
@@ -182,7 +186,7 @@ export default async function JournalArticlePage({ params }: Params) {
           )}
         </header>
 
-        {/* Journal sponsorship — named at the top of the issue (one sponsor
+        {/* Journal sponsorship: named at the top of the issue (one sponsor
             per slot; house creative fills it when unsold). */}
         {journalBarOn && (
           <AdSlot placement="journal_bar" variant="bar" className="mt-10" />
@@ -192,6 +196,14 @@ export default async function JournalArticlePage({ params }: Params) {
         <div
           className="post-body mt-10"
           dangerouslySetInnerHTML={{ __html: html }}
+        />
+
+        {/* Connected Directory Entities & Spec Hub */}
+        <JournalDirectoryBridge
+          pillar={directoryConnections.pillar}
+          toolSlugs={directoryConnections.toolSlugs}
+          comparisonSlugs={directoryConnections.comparisonSlugs}
+          categorySlug={directoryConnections.categorySlug}
         />
 
         {/* tags */}
