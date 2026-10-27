@@ -8,6 +8,7 @@
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint src convex scripts",
     "test": "bun test",
+    "test:soft-404": "bun run scripts/check-soft-404.ts",
     "typecheck": "tsc --noEmit",
     "cf:build": "NEXT_OUTPUT=cloudflare opennextjs-cloudflare build",
     "cf:preview": "bun run cf:build && opennextjs-cloudflare preview",

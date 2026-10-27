@@ -1,52 +1,32 @@
 "use client";
 
-import { useMemo } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api.js";
-
-const CONVEX_LIVE =
-  typeof process.env.NEXT_PUBLIC_CONVEX_URL === "string" &&
-  process.env.NEXT_PUBLIC_CONVEX_URL.length > 0;
-
 import { KNOWN_LOCAL_LOGOS } from "@/lib/logos";
 export { KNOWN_LOCAL_LOGOS };
 
 /**
- * React hook to reactively resolve tool logos across all client surfaces.
- * Returns a lookup function (slug, fallback) => logoUrl | null.
+ * Resolve a logo from the canonical local brand map first, then from the
+ * listing's already-fetched logoUrl. This hook intentionally does not open a
+ * Convex subscription: tool cards render on the server and their data layer
+ * should supply logoUrl when a listing has a non-local logo.
  */
+export function resolveToolLogoUrl(
+  slug?: string | null,
+  fallback?: string | null,
+): string | null {
+  if (slug) {
+    const local = KNOWN_LOCAL_LOGOS[slug];
+    if (local) return local;
+  }
+
+  // Reject legacy AI-generated mock thumbnail URLs.
+  if (fallback && !fallback.startsWith("/api/media/")) return fallback;
+  return null;
+}
+
+/** Stable resolver for existing ToolLogo callers. */
 export function useToolLogos(): (
   slug?: string | null,
-  fallback?: string | null
+  fallback?: string | null,
 ) => string | null {
-  const dir = useQuery(
-    api.tools.directory,
-    CONVEX_LIVE ? { page: 1, pageSize: 200, sort: "featured" } : "skip"
-  );
-
-  const map = useMemo(() => {
-    const m = new Map<string, string>(Object.entries(KNOWN_LOCAL_LOGOS));
-    if (dir && "rows" in dir && Array.isArray(dir.rows)) {
-      for (const r of dir.rows) {
-        if (r.slug && r.logoUrl) {
-          m.set(r.slug, r.logoUrl);
-        }
-      }
-    }
-    return m;
-  }, [dir]);
-
-  return (slug?: string | null, fallback?: string | null) => {
-    if (slug) {
-      const mapped = map.get(slug);
-      if (mapped) return mapped;
-      const local = KNOWN_LOCAL_LOGOS[slug];
-      if (local) return local;
-    }
-    // Reject legacy AI-generated mock thumbnail URLs
-    if (fallback && !fallback.startsWith("/api/media/")) {
-      return fallback;
-    }
-    return null;
-  };
+  return resolveToolLogoUrl;
 }

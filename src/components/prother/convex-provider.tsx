@@ -1,12 +1,20 @@
 "use client";
 
-import { ConvexClientProviderInner } from "./convex-provider-client";
+import dynamic from "next/dynamic";
 
-export function ConvexClientProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <ConvexClientProviderInner>{children}</ConvexClientProviderInner>;
-}
-
+/**
+ * Client-only mount for the Convex realtime provider.
+ *
+ * `convex/react` evaluates the `ws` Node WebSocket client at module load,
+ * which throws on the Workers runtime: so the implementation
+ * (./convex-provider-client) must never be statically imported from the
+ * server-render graph. Use this wrapper only inside client-only interactive
+ * islands; it must not wrap the root layout or server-rendered page content.
+ */
+export const ConvexClientProvider = dynamic(
+  () =>
+    import("./convex-provider-client").then((m) => ({
+      default: m.ConvexClientProviderInner,
+    })),
+  { ssr: false },
+);

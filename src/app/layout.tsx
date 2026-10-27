@@ -3,7 +3,6 @@ import { ThemeProvider } from "@/components/prother/theme-provider";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/prother/auth-provider";
-import { ConvexClientProvider } from "@/components/prother/convex-provider";
 import { ScrollProgress } from "@/components/prother/scroll-progress";
 import { SiteHeader } from "@/components/prother/site-header";
 import { SiteFooter } from "@/components/prother/site-footer";
@@ -127,8 +126,7 @@ export default function RootLayout({
             there is no first-paint flash. */}
         <ThemeProvider>
           <AuthProvider>
-            <ConvexClientProvider>
-              <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
+            <div className="flex min-h-screen flex-col overflow-x-clip bg-ink text-foreground">
                 <ScrollProgress />
                 <SiteHeader />
                 <main id="main-content" className="flex-1">{children}</main>
@@ -138,8 +136,7 @@ export default function RootLayout({
                 <AnalyticsPing />
                 {/* Microsoft Clarity user behavior, heatmaps and session recordings - renders null */}
                 <ClarityAnalytics />
-              </div>
-            </ConvexClientProvider>
+            </div>
           </AuthProvider>
         </ThemeProvider>
         <Toaster />

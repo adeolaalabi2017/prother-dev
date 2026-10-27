@@ -55,33 +55,53 @@ gives crawlers a real, linkable page, but it does not change the status.
    CDN for 60s fresh / 300s stale, which limits how much origin work a crawler
    can induce by hammering arbitrary slugs.
 
+## Fix on branch: `fix/soft-404-server-rendering`
+
+Next.js 16.3.5's official `not-found` documentation confirms that streamed
+not-found responses can carry HTTP 200, while non-streamed not-found responses
+return HTTP 404. This matches the observed symptom: the response body contains
+the 404 digest, but the status line is already committed.
+
+The branch narrows the client-only Convex provider to the two interactive
+islands that need realtime queries (hero search and the command palette), rather
+than wrapping the complete root layout. It also removes the global Convex
+directory subscription from `ToolLogo`; logo resolution now uses the canonical
+local logo registry and the listing's already-fetched `logoUrl`. This keeps
+tool cards and the page body renderable on the server while preserving the
+realtime provider for the two components that use Convex hooks.
+
+Files changed for the fix:
+
+- `src/app/layout.tsx`
+- `src/components/prother/hero.tsx`
+- `src/components/prother/tool-explorer-host.tsx`
+- `src/components/prother/use-tool-logos.ts`
+- `src/components/prother/hero-search-with-provider.tsx` (new)
+- `src/components/prother/tool-explorer-with-provider.tsx` (new)
+- `src/app/not-found.tsx` (updated explanation)
+
+Regression coverage added:
+
+- `scripts/check-soft-404.ts` checks the real HTTP status for an unknown tool
+  slug, checks that the homepage H1 exists in initial HTML, and optionally
+  checks a known tool page.
+- `src/lib/__tests__/tool-logo-resolution.test.ts` covers the logo fallback
+  contract after removing the global Convex subscription.
+- `package.json` exposes the HTTP smoke test as `bun run test:soft-404`.
+
+The CI workflow runs the smoke test against the standalone production build.
+A Cloudflare/OpenNext preview with the intended data backend is still required
+to verify the Workers-specific runtime before merging or deploying. No
+production deployment is part of this change.
+
 ## Remaining exposure
 
-Until the status is fixed, crawlers can index unbounded junk URLs under
-`/tools/`. Mitigations that would actually close it, in rough order of effort:
-
-- **Revalidate the streaming assumption** by temporarily removing the
-  `ssr: false` providers from the root layout and re-testing the replica
-  against the real page. If the 404 returns, the bailout is the cause and the
-  fix is to render the shell server-side (the providers can be loaded lazily on
-  the client without `ssr: false`, or behind a Suspense boundary).
-- **Serve the tool route from a proxy/middleware check** that validates the
-  slug against a cached slug list and returns 410/404 before the render starts.
-  This sidesteps streaming entirely and is the most reliable option, at the
-  cost of a slug list to keep in sync.
-- **`generateStaticParams` + `dynamicParams: false`** on `/tools/[slug]`, which
-  makes Next 404 any slug not in the build output. This is the idiomatic fix but
-  conflicts with `export const dynamic = "force-dynamic"` on the route and would
-  require a rebuild per new tool.
-
-## Related change
-
-`getConvexBundle` is now wrapped in React's `cache()`. `generateMetadata()` and
-`ToolPage()` both call it and Next runs them concurrently, so each page view was
-issuing two identical Convex round trips. `cache()` scopes the memo to a single
-server request, so the second caller awaits the first. This halves the Convex
-traffic on tool pages. It did not change the 404 status — verified on the
-standalone production build.
+The smoke test checks HTTP status and the initial HTML rather than relying on
+the Next.js 404 digest alone. A valid tool slug should be supplied through
+`PROTHER_VALID_TOOL_SLUG` to exercise both sides of the route contract. The
+local development Convex environment documented below is not seeded reliably,
+so use a local production build or Cloudflare preview with the intended data
+backend for a meaningful valid-tool check.
 
 ## Reproducing
 

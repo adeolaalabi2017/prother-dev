@@ -12,6 +12,6 @@ import dynamic from "next/dynamic";
  */
 export const ToolExplorerHost = dynamic(
   () =>
-    import("./tool-explorer").then((m) => ({ default: m.ToolExplorer })),
+    import("./tool-explorer-with-provider").then((m) => ({ default: m.ToolExplorerWithProvider })),
   { ssr: false },
 );

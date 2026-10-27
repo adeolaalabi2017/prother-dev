@@ -2,14 +2,11 @@ import Link from "next/link";
 import { ArrowLeft, Search } from "lucide-react";
 
 /**
- * Global 404. Rendered when a route calls notFound().
- *
- * Next streams the response shell before the page component resolves, so on
- * this app (every provider in the root layout is `ssr: false`, which forces a
- * client-side-render bailout) the 200 status is already on the wire by the
- * time notFound() throws. This file does not change that status — see
- * docs/soft-404.md — but it does give crawlers and humans a real, linkable
- * "not found" page instead of an empty shell.
+ * Keep this page useful for both humans and crawlers. Next.js 16 can return
+ * HTTP 200 for a streamed not-found response, so the root layout must remain
+ * server-renderable and notFound() must run before the response starts. The
+ * regression smoke test in scripts/check-soft-404.ts verifies the actual HTTP
+ * status, not only the 404 UI.
  */
 export default function NotFound() {
   return (

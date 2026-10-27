@@ -11,7 +11,7 @@ import GatewayFlow from "@/components/ui/gateway-flow";
 // convex-provider.tsx). The search box hydrates after mount; SSR keeps
 // the static hero copy.
 const HeroSearch = dynamic(
-  () => import("./hero-search").then((m) => ({ default: m.HeroSearch })),
+  () => import("./hero-search-with-provider").then((m) => ({ default: m.HeroSearchWithProvider })),
   { ssr: false },
 );
 
