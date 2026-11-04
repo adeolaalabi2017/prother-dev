@@ -190,6 +190,8 @@ export async function shadowToolsDirectory(c: Client | null | undefined,
           : {}),
       };
     }
+    // D1 is authoritative when bound: a not_found is a real 404, not a cue to
+    // read stale Convex rows (fallback is only for an absent binding or empty tables).
     if (d1 && "error" in d1) return d1;
   } catch {
     // fall through to Convex
@@ -269,6 +271,8 @@ export async function shadowToolDetail(
             : null,
       };
     }
+    // D1 is authoritative when bound: a not_found is a real 404, not a cue to
+    // read stale Convex rows (fallback is only for an absent binding or empty tables).
     if (d1 && "error" in d1) return d1;
   } catch {
     // fall through to Convex
@@ -343,6 +347,8 @@ export async function shadowCompareMatrix(
           : d1.tools,
       };
     }
+    // D1 is authoritative when bound: a not_found is a real 404, not a cue to
+    // read stale Convex rows (fallback is only for an absent binding or empty tables).
     if (d1 && "error" in d1) return d1;
   } catch {
     // fall through to Convex
@@ -535,6 +541,8 @@ export async function shadowCollectionDetail(
         },
       };
     }
+    // D1 is authoritative when bound: a not_found is a real 404, not a cue to
+    // read stale Convex rows (fallback is only for an absent binding or empty tables).
     if (d1 && "error" in d1) return d1;
   } catch {
     // fall through to Convex
@@ -645,6 +653,8 @@ export async function shadowToolPageData(c: Client | null | undefined, slug: str
           : d1.related,
       };
     }
+    // D1 is authoritative when bound: a not_found is a real 404, not a cue to
+    // read stale Convex rows (fallback is only for an absent binding or empty tables).
     if (d1 && "error" in d1) return d1;
   } catch {
     // fall through to Convex
@@ -828,6 +838,8 @@ export async function shadowCategoryDetail(c: Client | null | undefined, slug: s
         })),
       };
     }
+    // D1 is authoritative when bound: a not_found is a real 404, not a cue to
+    // read stale Convex rows (fallback is only for an absent binding or empty tables).
     if (d1 && "error" in d1) return d1;
   } catch {
     // fall through to Convex
@@ -1137,7 +1149,7 @@ export async function convexAdminMarkAllCurated(c: Client) { if (!c) return null
 /** Launch purge (dry-run or execute) — admin-key enforced route-side. */
 export function convexAdminPurge(
   c: Client,
-  args: { protectedEmail: string; confirm: string; execute: boolean }
+  args: { protectedEmail: string; confirm: string; execute: boolean; adminSecret?: string }
 ) {
   return c.mutation(api.adminPurge.purgeUsers, args);
 }
@@ -1981,6 +1993,7 @@ export async function convexCollectionUpdate(
     name?: string;
     description?: string;
     isPublic?: boolean;
+    ownerEmail: string;
   },
 ) {
   try {
@@ -1988,18 +2001,18 @@ export async function convexCollectionUpdate(
     const d1 = await d1CollectionUpdate(args);
     if (d1) return d1;
   } catch (e) {
-    if (e instanceof Error && (e.message === "not_found")) throw e;
+    if (e instanceof Error && (e.message === "not_found" || e.message === "not_owner")) throw e;
   }
   return c.mutation(api.community.collectionUpdate, args);
 }
 
-export async function convexCollectionDelete(c: Client, args: { slug: string }) { if (!c) return null as any;
+export async function convexCollectionDelete(c: Client, args: { slug: string; ownerEmail: string }) { if (!c) return null as any;
   try {
     const { d1CollectionDelete } = await import("@/lib/d1/community");
-    const d1 = await d1CollectionDelete(args.slug);
+    const d1 = await d1CollectionDelete(args.slug, args.ownerEmail);
     if (d1) return d1;
   } catch (e) {
-    if (e instanceof Error && (e.message === "not_found")) throw e;
+    if (e instanceof Error && (e.message === "not_found" || e.message === "not_owner")) throw e;
   }
   return c.mutation(api.community.collectionDelete, args);
 }

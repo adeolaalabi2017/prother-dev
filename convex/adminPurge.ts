@@ -17,13 +17,35 @@ import { v } from "convex/values";
 const norm = (s?: string | null) =>
   (s ?? "").trim().replace(/^@/, "").toLowerCase();
 
+/** Length-independent comparison so the secret can't be probed by timing. */
+function constantTimeEqual(a: string, b: string): boolean {
+  let diff = a.length ^ b.length;
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  }
+  return diff === 0;
+}
+
 export const purgeUsers = mutation({
   args: {
     protectedEmail: v.string(),
     confirm: v.string(),
     execute: v.boolean(),
+    adminSecret: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
+    // Fail closed: this is a public mutation, so every call (dry-run counts
+    // included) needs the admin secret, and a deployment with no
+    // ADMIN_KEY/EDITOR_KEY configured refuses outright.
+    const expectedKey = (process.env.ADMIN_KEY || process.env.EDITOR_KEY || "").trim();
+    if (!expectedKey) {
+      throw new Error("unauthorized_purge: ADMIN_KEY is not configured on this deployment");
+    }
+    if (!a.adminSecret || !constantTimeEqual(a.adminSecret, expectedKey)) {
+      throw new Error("unauthorized_purge: admin key required");
+    }
+
     const keepEmail = a.protectedEmail.trim().toLowerCase();
     const users = await ctx.db.query("users").collect();
     const kept = users.filter(

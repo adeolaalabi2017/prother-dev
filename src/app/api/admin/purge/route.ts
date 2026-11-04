@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/admin";
+import { editorKey } from "@/lib/prother";
 import { convexAdminPurge } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
       protectedEmail: PROTECTED_EMAIL,
       confirm: typeof body?.confirm === "string" ? body.confirm : "",
       execute: body?.execute === true,
+      adminSecret: editorKey() ?? undefined,
     });
     return NextResponse.json(res, {
       headers: { "Cache-Control": "no-store" },

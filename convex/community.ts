@@ -702,12 +702,19 @@ export const collectionCreate = mutation({
   },
 });
 
+/** Owner check for collection writes (emails compare case-insensitively).
+ *  Required, never optional: omitting the caller's email must not skip it. */
+function sameOwner(stored: string | null | undefined, caller: string): boolean {
+  return !!stored && !!caller && stored.trim().toLowerCase() === caller.trim().toLowerCase();
+}
+
 export const collectionUpdate = mutation({
   args: {
     slug: v.string(),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     isPublic: v.optional(v.boolean()),
+    ownerEmail: v.string(),
   },
   handler: async (ctx, a) => {
     const c = await ctx.db
@@ -715,6 +722,7 @@ export const collectionUpdate = mutation({
       .withIndex("by_slug", (i) => i.eq("slug", a.slug))
       .unique();
     if (!c) throw new Error("not_found");
+    if (!sameOwner(c.ownerEmail, a.ownerEmail)) throw new Error("not_owner");
     const patch: {
       name?: string;
       description?: string;
@@ -739,13 +747,17 @@ export const collectionUpdate = mutation({
 });
 
 export const collectionDelete = mutation({
-  args: { slug: v.string() },
-  handler: async (ctx, { slug }) => {
+  args: {
+    slug: v.string(),
+    ownerEmail: v.string(),
+  },
+  handler: async (ctx, { slug, ownerEmail }) => {
     const c = await ctx.db
       .query("collections")
       .withIndex("by_slug", (i) => i.eq("slug", slug))
       .unique();
     if (!c) throw new Error("not_found");
+    if (!sameOwner(c.ownerEmail, ownerEmail)) throw new Error("not_owner");
     const items = await ctx.db
       .query("collectionItems")
       .withIndex("by_collection", (i) => i.eq("collectionId", c._id))

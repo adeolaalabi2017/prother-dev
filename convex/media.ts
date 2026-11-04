@@ -161,7 +161,7 @@ export const mediaServeUrl = query({
     const row = rows.find((r) => docId(r) === id);
     if (!row?.storageId) return null;
     const url = await ctx.storage.getUrl(row.storageId);
-    return url ? { url } : null;
+    return url ? { url, mimeType: row.mimeType } : null;
   },
 });
 

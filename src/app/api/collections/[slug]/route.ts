@@ -96,6 +96,7 @@ export async function PATCH(
     } else {
       await convexCollectionUpdate(client, {
         slug,
+        ownerEmail: user.email,
         ...(name !== undefined ? { name } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(isPublic !== undefined ? { isPublic } : {}),
@@ -113,6 +114,9 @@ export async function PATCH(
       collection: { ...base, ownerEmail: user.email },
     });
   } catch (err) {
+    if (isNotOwner(err)) {
+      return NextResponse.json({ error: "not_owner" }, { status: 403 });
+    }
     console.error("[api:collections/[slug]] PATCH failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
@@ -139,10 +143,18 @@ export async function DELETE(
     if (!existing.collection.isOwner) {
       return NextResponse.json({ error: "not_owner" }, { status: 403 });
     }
-    await convexCollectionDelete(client, { slug });
+    await convexCollectionDelete(client, { slug, ownerEmail: user.email });
     return new NextResponse(null, { status: 204 });
   } catch (err) {
+    if (isNotOwner(err)) {
+      return NextResponse.json({ error: "not_owner" }, { status: 403 });
+    }
     console.error("[api:collections/[slug]] DELETE failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
+}
+
+/** D1 throws `not_owner`; Convex wraps it ("Uncaught Error: not_owner ..."). */
+function isNotOwner(err: unknown): boolean {
+  return err instanceof Error && /\bnot_owner\b/.test(err.message);
 }

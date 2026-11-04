@@ -24,6 +24,27 @@ export async function GET(_req: Request, ctx: RouteContext) {
   // message tells editors to re-upload.
   const serve = await shadowMediaServeUrl(client, id).catch(() => null);
   if (serve) {
+    // SVG is a document type: a redirect would hand the browser the storage
+    // host's headers, so stream it from this origin with a sandbox CSP that
+    // blocks script and external loads even if the sanitizer misses a trick.
+    if (isSvg(serve.mimeType)) {
+      const upstream = await fetch(serve.url).catch(() => null);
+      if (upstream?.ok && upstream.body) {
+        return new NextResponse(upstream.body, {
+          status: 200,
+          headers: {
+            "Content-Type": "image/svg+xml",
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox",
+          },
+        });
+      }
+      return NextResponse.json(
+        { error: "Media file is missing from storage." },
+        { status: 502 }
+      );
+    }
     return NextResponse.redirect(serve.url, {
       status: 307,
       headers: { "Cache-Control": "public, max-age=31536000, immutable" },
@@ -71,4 +92,8 @@ export async function DELETE(req: Request, ctx: RouteContext) {
       { status: 500 }
     );
   }
+}
+
+function isSvg(mimeType: unknown): boolean {
+  return typeof mimeType === "string" && /^image\/svg\+xml\b/i.test(mimeType);
 }
