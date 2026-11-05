@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { TAG_VOCAB, domainOf } from "@/lib/submit";
+import { validateSafeUrl } from "@/lib/ssrf";
 import { CATEGORIES } from "@/components/prother/categories";
 import {
   convexSubmissionCreate,
@@ -18,7 +19,15 @@ export const dynamic = "force-dynamic";
  */
 const payloadSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
-  websiteUrl: z.string().trim().min(4),
+  websiteUrl: z
+    .string()
+    .trim()
+    .min(4)
+    .refine((val) => {
+      const normalized = /^https?:\/\//i.test(val) ? val : `https://${val}`;
+      const res = validateSafeUrl(normalized);
+      return res.ok;
+    }, "Please provide a valid, public website URL (localhost and internal addresses are not allowed)"),
   name: z.string().trim().min(2).max(40),
   tagline: z
     .string()

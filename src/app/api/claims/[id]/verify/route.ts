@@ -3,6 +3,7 @@ import { getAuthUser } from "@/lib/auth";
 import { logAudit } from "@/lib/admin";
 import { convexClaimSettle, shadowClaimById } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
+import { safeFetch } from "@/lib/ssrf";
 
 export const dynamic = "force-dynamic";
 
@@ -60,13 +61,12 @@ export async function POST(
     });
   }
 
-  // Fetch the maker's page and look for the token in any <meta> tag.
+  // Fetch the maker's page safely (protected against SSRF) and look for the token in any <meta> tag.
   let html = "";
   let fetchError: string | null = null;
   try {
-    const res = await fetch(tool.websiteUrl, {
+    const res = await safeFetch(tool.websiteUrl, {
       signal: AbortSignal.timeout(6000),
-      redirect: "follow",
       headers: { "user-agent": "ProtherClaimBot/1.0 (+https://prother.dev)" },
     });
     if (!res.ok) {

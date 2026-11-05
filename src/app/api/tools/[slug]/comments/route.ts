@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
 import { convexCommentAdd, shadowComments, shadowCommentsLastAge } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
+import { isCoolingDown, recordCooldown, trustedClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,9 @@ const BODY_MIN = 4;
 const BODY_MAX = 280;
 const NAME_MIN = 2;
 const NAME_MAX = 24;
+
+// Per-IP cooldown so rotating author names can't flood a thread.
+const IP_COOLDOWN_MS = 15_000;
 
 const postSchema = z.object({
   author: z
@@ -83,6 +87,15 @@ export async function POST(
     );
   }
 
+  const clientIp = trustedClientIp(req);
+  const ipKey = clientIp ? `comment:${clientIp}:${slug}` : null;
+  if (ipKey && (await isCoolingDown(ipKey, IP_COOLDOWN_MS))) {
+    return NextResponse.json(
+      { error: "Slow down. Try again in a few seconds." },
+      { status: 429 }
+    );
+  }
+
   try {
     const { ageSec } = await shadowCommentsLastAge(client, slug, parsed.data.author);
     if (ageSec !== null && ageSec < 15) {
@@ -107,6 +120,7 @@ export async function POST(
       createdAt: Date.now(),
       authenticatedUserEmail: user?.email,
     });
+    if (ipKey) await recordCooldown(ipKey, IP_COOLDOWN_MS);
     return NextResponse.json(comment, { status: 201 });
   } catch (err) {
     if (err instanceof Error && err.message === "maker_handle_reserved") {

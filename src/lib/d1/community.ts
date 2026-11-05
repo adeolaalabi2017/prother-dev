@@ -651,11 +651,17 @@ export async function d1CollectionCreate(args: {
   };
 }
 
-export async function d1CollectionUpdate(args: { slug: string; name?: string; description?: string; isPublic?: boolean }) {
+/** Owner check for collection writes (emails compare case-insensitively). */
+function sameOwner(stored: string | null | undefined, caller: string): boolean {
+  return !!stored && !!caller && stored.trim().toLowerCase() === caller.trim().toLowerCase();
+}
+
+export async function d1CollectionUpdate(args: { slug: string; ownerEmail: string; name?: string; description?: string; isPublic?: boolean }) {
   const db = await getD1();
   if (!db) return null;
   const c = (await db.select().from(collections).where(eq(collections.slug, args.slug)).limit(1))[0];
   if (!c) throw new Error("not_found");
+  if (!sameOwner(c.ownerEmail, args.ownerEmail)) throw new Error("not_owner");
   const patch: Partial<{ name: string; description: string; isPublic: number }> = {};
   if (args.name !== undefined) patch.name = args.name;
   if (args.description !== undefined) patch.description = args.description;
@@ -674,11 +680,12 @@ export async function d1CollectionUpdate(args: { slug: string; name?: string; de
   };
 }
 
-export async function d1CollectionDelete(slug: string) {
+export async function d1CollectionDelete(slug: string, ownerEmail: string) {
   const db = await getD1();
   if (!db) return null;
   const c = (await db.select().from(collections).where(eq(collections.slug, slug)).limit(1))[0];
   if (!c) throw new Error("not_found");
+  if (!sameOwner(c.ownerEmail, ownerEmail)) throw new Error("not_owner");
   await db.delete(collectionItems).where(eq(collectionItems.collectionId, c.id));
   await db.delete(collections).where(eq(collections.id, c.id));
   return { ok: true as const };
