@@ -12,7 +12,13 @@
     "binding": "ASSETS"
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
+  },
+  "limits": {
+    "cpu_ms": 300
   },
   "vars": {
     "AUTH_STORE": "convex",

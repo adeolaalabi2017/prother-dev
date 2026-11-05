@@ -53,8 +53,17 @@ const nextConfig: NextConfig = {
   // tool can take to appear.
   //
   // NOT applied to /api/* (per-user, bookmark, analytics, admin) or to
-  // /admin — those stay no-store. Static assets under /_next and /logos keep
+  // /admin - those stay no-store. Static assets under /_next and /logos keep
   // Next's own immutable handling.
+  async redirects() {
+    return [
+      {
+        source: "/categories",
+        destination: "/tools",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

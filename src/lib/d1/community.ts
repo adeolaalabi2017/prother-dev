@@ -9,7 +9,7 @@
  * reviewCount, ratingSumX100, replyCount, voteCount) so D1-served reads stay
  * exact.
  */
-import { and, asc, desc, eq, gte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, or } from "drizzle-orm";
 import { getD1 } from "./client";
 import { parseArr } from "./queries2";
 import {
@@ -1176,43 +1176,72 @@ export async function d1EditorQueue(): Promise<{
   const db = await getD1();
   if (!db) return null;
   const nowMs = Date.now();
-  const [subRows, claimRows, reviewRows, toolRows] = await Promise.all([
-    db.select().from(submissions),
-    db.select().from(claims),
-    db.select().from(reviews),
-    db.select().from(tools),
+  const [pendingSubs, subStatuses, claimRows, reviewRows] = await Promise.all([
+    db
+      .select()
+      .from(submissions)
+      .where(eq(submissions.status, "pending"))
+      .orderBy(asc(submissions.createdAt)),
+    db.select({ status: submissions.status }).from(submissions),
+    db
+      .select()
+      .from(claims)
+      .where(
+        or(
+          eq(claims.status, "pending"),
+          eq(claims.status, "failed"),
+          eq(claims.status, "disputed")
+        )
+      )
+      .orderBy(asc(claims.createdAt))
+      .limit(50),
+    db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.status, "filtered"))
+      .orderBy(asc(reviews.createdAt))
+      .limit(50),
   ]);
-  const pending = subRows
-    .filter((s) => s.status === "pending")
-    .sort((a, b) => a.createdAt - b.createdAt)
-    .map((s) => ({
-      id: docId(s),
-      email: s.email,
-      websiteUrl: s.websiteUrl,
-      domain: s.domain,
-      name: s.name,
-      tagline: s.tagline,
-      description: s.description,
-      categorySlug: s.categorySlug,
-      tags: JSON.parse(s.tagsJson || "[]").join("|"),
-      pricingModel: s.pricingModel,
-      startingPrice: s.startingPrice ?? null,
-      pricingNote: s.pricingNote ?? null,
-      hasApi: s.hasApi === 1,
-      githubUrl: s.githubUrl ?? null,
-      docsUrl: s.docsUrl ?? null,
-      twitterUrl: s.twitterUrl ?? null,
-      logoEmoji: s.logoEmoji,
-      logoGradient: s.logoGradient,
-      isOwner: s.isOwner === 1,
-      confirmedLive: s.confirmedLive === 1,
-      agreedStandards: s.agreedStandards === 1,
-      status: s.status,
-      createdAt: isoFromMs(s.createdAt),
-      ageH: ageH(nowMs, s.createdAt),
-    }));
+
+  const toolIds = [
+    ...new Set([
+      ...claimRows.map((c) => c.toolId),
+      ...reviewRows.map((r) => r.toolId),
+    ]),
+  ].filter(Boolean);
+  const toolRows =
+    toolIds.length > 0
+      ? await db.select().from(tools).where(inArray(tools.id, toolIds))
+      : [];
+
+  const pending = pendingSubs.map((s) => ({
+    id: docId(s),
+    email: s.email,
+    websiteUrl: s.websiteUrl,
+    domain: s.domain,
+    name: s.name,
+    tagline: s.tagline,
+    description: s.description,
+    categorySlug: s.categorySlug,
+    tags: JSON.parse(s.tagsJson || "[]").join("|"),
+    pricingModel: s.pricingModel,
+    startingPrice: s.startingPrice ?? null,
+    pricingNote: s.pricingNote ?? null,
+    hasApi: s.hasApi === 1,
+    githubUrl: s.githubUrl ?? null,
+    docsUrl: s.docsUrl ?? null,
+    twitterUrl: s.twitterUrl ?? null,
+    logoEmoji: s.logoEmoji,
+    logoGradient: s.logoGradient,
+    isOwner: s.isOwner === 1,
+    confirmedLive: s.confirmedLive === 1,
+    agreedStandards: s.agreedStandards === 1,
+    status: s.status,
+    createdAt: isoFromMs(s.createdAt),
+    ageH: ageH(nowMs, s.createdAt),
+  }));
   const counts: Record<string, number> = { pending: 0, approved: 0, rejected: 0 };
-  for (const s of subRows) {
+  for (const s of subStatuses) {
     counts[s.status] = (counts[s.status] ?? 0) + 1;
   }
   const toolById = new Map(toolRows.map((t) => [t.id, t]));

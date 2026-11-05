@@ -4,7 +4,7 @@
  * convex/seo.ts sitemapData, and convex/categories.ts detail so
  * src/lib/data.ts can swap backends without touching callers.
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getD1 } from "./client";
 import { categories, forumThreads, posts, tools } from "./schema";
 
@@ -367,7 +367,7 @@ export async function d1SitemapData() {
   };
 }
 
-// ── Category detail (matches convex/categories.ts detail exactly) ──
+// -- Category detail (matches convex/categories.ts detail exactly) --
 export async function d1CategoryDetail2(slug: string) {
   const db = await getD1();
   if (!db) return null;
@@ -375,17 +375,22 @@ export async function d1CategoryDetail2(slug: string) {
     | CatRow
     | undefined;
   if (!cat) return { error: "not_found" as const };
-  const live = await db.select().from(tools).where(eq(tools.status, "live"));
-  if (live.length === 0 && (await db.select({ id: categories.id }).from(categories)).length === 0)
+  const inCat = (
+    await db
+      .select()
+      .from(tools)
+      .where(and(eq(tools.status, "live"), eq(tools.categoryId, cat.id)))
+  ).sort(
+    (a, b) =>
+      b.pinned - a.pinned ||
+      Number(b.editorsPick) - Number(a.editorsPick) ||
+      b.createdAt - a.createdAt,
+  );
+  if (
+    inCat.length === 0 &&
+    (await db.select({ id: categories.id }).from(categories).limit(1)).length === 0
+  )
     return null;
-  const inCat = live
-    .filter((t) => t.categoryId === cat.id)
-    .sort(
-      (a, b) =>
-        b.pinned - a.pinned ||
-        Number(b.editorsPick) - Number(a.editorsPick) ||
-        b.createdAt - a.createdAt,
-    );
   return {
     category: {
       id: docId(cat),

@@ -3,7 +3,7 @@
  * Same return shapes as convex/tools.ts homepage + convex/site.ts get so
  * src/lib/data.ts can swap backends without touching callers.
  */
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { getD1 } from "./client";
 import { categories, tools, siteSettings } from "./schema";
 
@@ -120,12 +120,11 @@ export async function d1CategoryDetail(slug: string) {
     await db.select().from(categories).where(eq(categories.slug, slug)).limit(1)
   )[0];
   if (!cat) return { error: "category_not_found" as const };
-  const live = await db
+  const inCat = await db
     .select()
     .from(tools)
-    .where(eq(tools.status, "live"))
+    .where(and(eq(tools.status, "live"), eq(tools.categoryId, cat.id)))
     .orderBy(desc(tools.createdAt));
-  const inCat = live.filter((t) => t.categoryId === cat.id);
   return {
     category: {
       slug: cat.slug,
