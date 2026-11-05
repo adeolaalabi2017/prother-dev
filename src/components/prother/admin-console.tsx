@@ -356,12 +356,7 @@ function SubmissionDetails({ s }: { s: PendingSub }) {
     ["Confirmed live", s.confirmedLive],
     ["Agreed to standards", s.agreedStandards],
   ];
-  const pricing = [
-    s.pricingModel?.replace(/_/g, " "),
-    s.startingPrice ? `from ${s.startingPrice}` : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const model = s.pricingModel?.replace(/_/g, " ") ?? "";
 
   return (
     <dl className="mt-3 space-y-2.5 rounded-lg border border-white/10 bg-black/20 p-3">
@@ -376,7 +371,8 @@ function SubmissionDetails({ s }: { s: PendingSub }) {
         <span className="font-mono">{s.categorySlug || "-"}</span>
       </SubDetailRow>
       <SubDetailRow label="Pricing">
-        <span className="capitalize">{pricing || "-"}</span>
+        <span className="capitalize">{model || "-"}</span>
+        {s.startingPrice && <span>, from {s.startingPrice}</span>}
         {s.pricingNote && <span className="block text-white/55">{s.pricingNote}</span>}
       </SubDetailRow>
       <SubDetailRow label="Has API">{s.hasApi ? "Yes" : "No"}</SubDetailRow>
