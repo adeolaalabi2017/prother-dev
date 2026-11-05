@@ -458,6 +458,7 @@ function SubmissionDetails({ s }: { s: PendingSub }) {
 function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
   const { toast } = useToast();
   const [subs, setSubs] = useState<PendingSub[] | null>(null);
+  const [filter, setFilter] = useState("");
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const toggleExpanded = (id: string) =>
@@ -535,8 +536,33 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
 
   if (subs === null) return <Spinner />;
 
+  const q = filter.trim().toLowerCase();
+  const filtered = subs.filter((s) => {
+    if (!q) return true;
+    return (
+      s.name.toLowerCase().includes(q) ||
+      s.domain.toLowerCase().includes(q) ||
+      s.email.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-3">
+      {subs.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+          <p className="font-mono text-xs text-white/60">
+            {filtered.length} {filtered.length === 1 ? "submission" : "submissions"} waiting for review
+            {q && ` (filtered from ${subs.length})`}
+          </p>
+          <Input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Search by name, domain, email…"
+            className="h-8 w-full sm:w-64 border-white/10 bg-white/5 text-xs text-white placeholder:text-white/40"
+          />
+        </div>
+      )}
+
       {error ? (
         <div className="rounded-lg border border-red-400/25 bg-red-400/[0.04] p-10 text-center">
           <p className="font-mono text-xs tracking-[0.25em] text-red-300 uppercase">
@@ -558,15 +584,29 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
             Retry
           </Button>
         </div>
-      ) : subs.length === 0 && (
+      ) : subs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">
           <CheckCircle2 className="mx-auto size-8 text-emerald-400" aria-hidden />
           <p className="mt-3 font-mono text-sm text-white/60">
             Queue clear. Nothing waiting.
           </p>
         </div>
-      )}
-      {subs.map((s) => {
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
+          <p className="font-mono text-sm text-white/60">
+            No submissions match “{filter.trim()}”
+          </p>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setFilter("")}
+            className="mt-3 rounded-lg text-xs text-white/60 hover:text-white"
+          >
+            Clear search
+          </Button>
+        </div>
+      ) : null}
+      {filtered.map((s) => {
         const open = expanded.has(s.id) || rejecting === s.id;
         return (
         <div key={s.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
@@ -593,10 +633,10 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
             <span className="hidden shrink-0 font-mono text-xs text-white/60 sm:block">
               {s.domain} · {s.ageH}h
             </span>
-            <span className="flex shrink-0 items-center gap-1 font-mono text-xs text-white/60">
-              <span className="hidden md:inline">{open ? "Hide" : "Details"}</span>
+            <span className="flex shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs text-white/70 hover:border-ember/40 hover:text-ember">
+              <span>{open ? "Hide details" : "View details"}</span>
               <ChevronDown
-                className={cn("size-4 transition-transform", open && "rotate-180")}
+                className={cn("size-3.5 transition-transform", open && "rotate-180")}
                 aria-hidden
               />
             </span>
@@ -3112,6 +3152,7 @@ function StatCard({
   caption,
   spark,
   accent,
+  onClick,
 }: {
   label: string;
   value: string | number;
@@ -3119,12 +3160,28 @@ function StatCard({
   caption?: string;
   spark?: number[];
   accent?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       className={cn(
         "rounded-lg border p-4 sm:p-5",
-        accent ? "border-ember/40 bg-ember/[0.06]" : "border-white/10 bg-white/[0.02]"
+        accent ? "border-ember/40 bg-ember/[0.06]" : "border-white/10 bg-white/[0.02]",
+        onClick &&
+          "cursor-pointer transition-colors hover:border-ember/60 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60"
       )}
     >
       <p className="font-mono text-xs tracking-[0.2em] text-white/60 uppercase">
@@ -3416,7 +3473,15 @@ function ActivityCard({
 
 const QUEUE_SLA_H = 14;
 
-function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number }) {
+function QueueAgingCard({
+  oldest,
+  ageH,
+  onViewQueue,
+}: {
+  oldest: string | null;
+  ageH: number;
+  onViewQueue?: () => void;
+}) {
   const pct = Math.min(100, Math.round((ageH / QUEUE_SLA_H) * 100));
   return (
     <Panel>
@@ -3445,6 +3510,16 @@ function QueueAgingCard({ oldest, ageH }: { oldest: string | null; ageH: number 
           <p className="mt-2 font-mono text-xs text-white/55">
             SLA {QUEUE_SLA_H}h · {pct}% elapsed
           </p>
+          {onViewQueue && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onViewQueue}
+              className="mt-3 w-full rounded-lg border-white/15 bg-white/5 font-mono text-xs text-white/70 hover:border-ember/40 hover:text-ember"
+            >
+              Open submissions queue →
+            </Button>
+          )}
         </>
       ) : (
         <div className="flex flex-col items-center py-8 text-center">
@@ -3478,7 +3553,15 @@ function OverviewSkeleton() {
   );
 }
 
-function OverviewView({ data, apiKey }: { data: Overview; apiKey: string }) {
+function OverviewView({
+  data,
+  apiKey,
+  onNavigate,
+}: {
+  data: Overview;
+  apiKey: string;
+  onNavigate?: (id: SectionId) => void;
+}) {
   const k = data.kpis;
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -3495,9 +3578,10 @@ function OverviewView({ data, apiKey }: { data: Overview; apiKey: string }) {
           label="Pending submissions"
           value={k.pendingSubs}
           accent={k.pendingSubs > 0}
+          onClick={onNavigate ? () => onNavigate("submissions") : undefined}
           caption={
             k.pendingSubs > 0 && data.oldestPending
-              ? `oldest · ${data.oldestPending} · ${data.queueAgeH}h`
+              ? `oldest · ${data.oldestPending} · ${data.queueAgeH}h (click to view)`
               : "queue clear"
           }
         />
@@ -3534,7 +3618,11 @@ function OverviewView({ data, apiKey }: { data: Overview; apiKey: string }) {
       {/* Table row — audit trail + queue aging side card */}
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
         <ActivityCard audit={data.audit} className="lg:col-span-2" />
-        <QueueAgingCard oldest={data.oldestPending} ageH={data.queueAgeH} />
+        <QueueAgingCard
+          oldest={data.oldestPending}
+          ageH={data.queueAgeH}
+          onViewQueue={onNavigate ? () => onNavigate("submissions") : undefined}
+        />
       </div>
 
       {/* First-party traffic readout (Task 28) — the numbers that back the
@@ -4233,7 +4321,7 @@ export function AdminDashboard() {
                     </Button>
                   </div>
                 ) : overview ? (
-                  <OverviewView data={overview} apiKey={key} />
+                  <OverviewView data={overview} apiKey={key} onNavigate={onNavigate} />
                 ) : (
                   <OverviewSkeleton />
                 )}
