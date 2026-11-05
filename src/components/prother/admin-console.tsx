@@ -305,12 +305,172 @@ type PendingSub = {
   ageH: number;
   logoEmoji: string;
   logoGradient: string;
+  websiteUrl?: string;
+  description?: string;
+  categorySlug?: string;
+  /** Pipe-joined on the wire ("a|b|c"). */
+  tags?: string;
+  pricingModel?: string;
+  startingPrice?: string | null;
+  pricingNote?: string | null;
+  hasApi?: boolean;
+  githubUrl?: string | null;
+  docsUrl?: string | null;
+  twitterUrl?: string | null;
+  isOwner?: boolean;
+  confirmedLive?: boolean;
+  agreedStandards?: boolean;
+  createdAt?: string;
 };
+
+/** Submitted URLs are untrusted input: only render http(s) links. */
+function safeHref(u: string | null | undefined): string | null {
+  if (!u) return null;
+  try {
+    const url = new URL(u);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function SubDetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-1 sm:grid-cols-[9rem_1fr] sm:gap-3">
+      <dt className="font-mono text-xs tracking-wider text-white/45 uppercase">{label}</dt>
+      <dd className="min-w-0 text-sm break-words text-white/80">{children}</dd>
+    </div>
+  );
+}
+
+function SubmissionDetails({ s }: { s: PendingSub }) {
+  const links: Array<[string, string | null | undefined]> = [
+    ["Website", s.websiteUrl],
+    ["GitHub", s.githubUrl],
+    ["Docs", s.docsUrl],
+    ["X / Twitter", s.twitterUrl],
+  ];
+  const tags = (s.tags ?? "").split("|").map((t) => t.trim()).filter(Boolean);
+  const attest: Array<[string, boolean | undefined]> = [
+    ["Maker / owner", s.isOwner],
+    ["Confirmed live", s.confirmedLive],
+    ["Agreed to standards", s.agreedStandards],
+  ];
+  const pricing = [
+    s.pricingModel?.replace(/_/g, " "),
+    s.startingPrice ? `from ${s.startingPrice}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    <dl className="mt-3 space-y-2.5 rounded-lg border border-white/10 bg-black/20 p-3">
+      <SubDetailRow label="Description">
+        {s.description ? (
+          <span className="whitespace-pre-wrap">{s.description}</span>
+        ) : (
+          <span className="text-white/40">None provided</span>
+        )}
+      </SubDetailRow>
+      <SubDetailRow label="Category">
+        <span className="font-mono">{s.categorySlug || "-"}</span>
+      </SubDetailRow>
+      <SubDetailRow label="Pricing">
+        <span className="capitalize">{pricing || "-"}</span>
+        {s.pricingNote && <span className="block text-white/55">{s.pricingNote}</span>}
+      </SubDetailRow>
+      <SubDetailRow label="Has API">{s.hasApi ? "Yes" : "No"}</SubDetailRow>
+      <SubDetailRow label="Tags">
+        {tags.length ? (
+          <span className="flex flex-wrap gap-1.5">
+            {tags.map((t) => (
+              <span
+                key={t}
+                className="rounded-full border border-white/15 px-2 py-0.5 font-mono text-xs text-white/70"
+              >
+                {t}
+              </span>
+            ))}
+          </span>
+        ) : (
+          "-"
+        )}
+      </SubDetailRow>
+      <SubDetailRow label="Links">
+        <span className="flex flex-col gap-1">
+          {links.map(([label, raw]) => {
+            if (!raw) return null;
+            const href = safeHref(raw);
+            return href ? (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="inline-flex items-center gap-1.5 text-ember hover:underline"
+              >
+                <span className="text-white/50">{label}:</span>
+                <span className="truncate">{raw}</span>
+                <ExternalLink className="size-3 shrink-0" aria-hidden />
+              </a>
+            ) : (
+              <span key={label} className="text-red-300">
+                {label}: {raw} (not a valid http(s) URL)
+              </span>
+            );
+          })}
+        </span>
+      </SubDetailRow>
+      <SubDetailRow label="Maker email">
+        {s.email ? (
+          <a href={`mailto:${s.email}`} className="text-ember hover:underline">
+            {s.email}
+          </a>
+        ) : (
+          "-"
+        )}
+      </SubDetailRow>
+      <SubDetailRow label="Attestations">
+        <span className="flex flex-wrap gap-1.5">
+          {attest.map(([label, on]) => (
+            <span
+              key={label}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-xs",
+                on
+                  ? "border-emerald-400/40 text-emerald-300"
+                  : "border-red-400/40 text-red-300"
+              )}
+            >
+              {on ? (
+                <CheckCircle2 className="size-3" aria-hidden />
+              ) : (
+                <X className="size-3" aria-hidden />
+              )}
+              {label}
+            </span>
+          ))}
+        </span>
+      </SubDetailRow>
+      <SubDetailRow label="Submitted">
+        {s.createdAt ? new Date(s.createdAt).toLocaleString() : "-"} ({s.ageH}h ago)
+      </SubDetailRow>
+    </dl>
+  );
+}
 
 function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void }) {
   const { toast } = useToast();
   const [subs, setSubs] = useState<PendingSub[] | null>(null);
   const [rejecting, setRejecting] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [failed, setFailed] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<"auth" | "load" | null>(null);
@@ -389,7 +549,7 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
           <p className="mx-auto mt-2 max-w-sm text-sm text-white/60">
             {error === "auth"
               ? "The console key didn't unlock the moderation queue. Lock the console and unlock again with the current admin key."
-              : "Couldn't reach the editor queue — the Cloudflare Access session may have expired. Reload the page, sign in to Access, then retry."}
+              : "Couldn't reach the editor queue: the Cloudflare Access session may have expired. Reload the page, sign in to Access, then retry."}
           </p>
           <Button
             onClick={() => {
@@ -410,9 +570,17 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
           </p>
         </div>
       )}
-      {subs.map((s) => (
+      {subs.map((s) => {
+        const open = expanded.has(s.id) || rejecting === s.id;
+        return (
         <div key={s.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => toggleExpanded(s.id)}
+            aria-expanded={open}
+            aria-controls={`sub-details-${s.id}`}
+            className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:outline-none"
+          >
             <div
               aria-hidden
               className={cn(
@@ -429,7 +597,20 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
             <span className="hidden shrink-0 font-mono text-xs text-white/60 sm:block">
               {s.domain} · {s.ageH}h
             </span>
-          </div>
+            <span className="flex shrink-0 items-center gap-1 font-mono text-xs text-white/60">
+              <span className="hidden md:inline">{open ? "Hide" : "Details"}</span>
+              <ChevronDown
+                className={cn("size-4 transition-transform", open && "rotate-180")}
+                aria-hidden
+              />
+            </span>
+          </button>
+
+          {open && (
+            <div id={`sub-details-${s.id}`}>
+              <SubmissionDetails s={s} />
+            </div>
+          )}
 
           {rejecting === s.id ? (
             <div className="mt-3 space-y-2.5 rounded-lg border border-red-400/25 bg-red-400/[0.05] p-3">
@@ -510,7 +691,8 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
