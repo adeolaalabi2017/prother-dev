@@ -17,9 +17,6 @@
       "enabled": true
     }
   },
-  "limits": {
-    "cpu_ms": 300
-  },
   "vars": {
     "AUTH_STORE": "convex",
     "AUTH_DEV_LINKS": "false",
