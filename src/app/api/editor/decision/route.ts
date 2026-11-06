@@ -4,6 +4,8 @@ import { editorAuthorized } from "@/lib/admin";
 import { slugifyName } from "@/lib/prother";
 import { convexEditorDecide, shadowEditorQueue } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
+import { renderApprovalEmail, renderRejectionEmail, MAKERS_INBOX } from "@/lib/email/decision-email";
+import { sendEmail } from "@/lib/email/send";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,10 @@ export const dynamic = "force-dynamic";
  * Approve closes the Track-B loop: Submission → Tool (community track,
  * verified, live at once — no scheduled state) + the exact submissionId FK
  * so the maker tracker links back to the listing.
+ *
+ * After the decision is saved the maker gets a best-effort email (approval
+ * with the listing link, or rejection with each failed standard). A failed
+ * send is logged and never undoes or fails the decision.
  */
 const bodySchema = z.discriminatedUnion("decision", [
   z.object({
@@ -53,6 +59,13 @@ export async function POST(req: NextRequest) {
     err instanceof Error ? err.message : String(err);
 
   if (input.decision === "reject") {
+    // Maker name/email for the decision email. A queue read failure must
+    // not block the rejection itself.
+    const maker = await shadowEditorQueue(client)
+      .then((q: { pending: Array<{ id: string; name: string; email: string }> } | null) =>
+        q?.pending.find((s) => s.id === input.id)
+      )
+      .catch(() => undefined);
     const note = `Failed: ${input.failedStandards.join(", ")}${
       input.note ? `: ${input.note}` : ""
     }`;
@@ -63,7 +76,24 @@ export async function POST(req: NextRequest) {
         decision: "reject",
         reviewNote: note,
       });
-      return NextResponse.json({ ok: true, decision: "rejected", reviewNote: res.reviewNote ?? note });
+      const emailed = maker?.email
+        ? await sendEmail(
+            maker.email,
+            renderRejectionEmail({
+              toolName: maker.name,
+              failedStandards: input.failedStandards,
+              note: input.note,
+            }),
+            `reject ${input.id}`,
+            { replyTo: MAKERS_INBOX }
+          )
+        : false;
+      return NextResponse.json({
+        ok: true,
+        decision: "rejected",
+        reviewNote: res.reviewNote ?? note,
+        emailed,
+      });
     } catch (err) {
       const m = convexErr(err);
       if (m.includes("submission_not_found")) {
@@ -115,7 +145,13 @@ export async function POST(req: NextRequest) {
         makerHandle,
         createdAt: nowMs,
       });
-      return NextResponse.json({ ok: true, decision: "approved", slug: res.slug });
+      const emailed = await sendEmail(
+        sub.email,
+        renderApprovalEmail({ toolName: sub.name, slug: res.slug ?? slug }),
+        `approve ${sub.id}`,
+        { replyTo: MAKERS_INBOX }
+      );
+      return NextResponse.json({ ok: true, decision: "approved", slug: res.slug, emailed });
     } catch (err) {
       const m = convexErr(err);
       if (m.includes("slug_taken")) continue;

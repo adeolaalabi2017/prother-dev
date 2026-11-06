@@ -509,7 +509,7 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
               : { decision, id, failedStandards: failed, note: "" }
           ),
         });
-        const d = (await res.json()) as { ok?: boolean; error?: string };
+        const d = (await res.json()) as { ok?: boolean; error?: string; emailed?: boolean };
         if (!res.ok || !d.ok) {
           toast({ title: d.error ?? "Decision failed", variant: "destructive" });
           return;
@@ -518,8 +518,12 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
           title: decision === "approve" ? "Listing approved" : "Rejected",
           description:
             decision === "approve"
-              ? "Now live in the directory."
-              : "The failed standards show in the maker's status tracker. No email is sent.",
+              ? d.emailed
+                ? "Now live in the directory. The maker has been emailed."
+                : "Now live in the directory. The maker email didn't send (check the Worker logs)."
+              : d.emailed
+                ? "The maker has been emailed the failed standards. They also show in the status tracker."
+                : "The failed standards show in the status tracker. The maker email didn't send (check the Worker logs).",
         });
         setRejecting(null);
         setFailed([]);
@@ -1039,7 +1043,7 @@ function FeaturesEditor({
         method: "PATCH",
         body: JSON.stringify({ id: tool.id, features }),
       });
-      const d = (await res.json()) as { ok?: boolean; error?: string };
+      const d = (await res.json()) as { ok?: boolean; error?: string; emailed?: boolean };
       if (!res.ok || !d.ok) {
         toast({ title: d.error ?? "Save failed", variant: "destructive" });
         return;
@@ -2517,7 +2521,7 @@ function TaxonomyTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => v
           method: "POST",
           body: JSON.stringify(payload),
         });
-        const d = (await res.json()) as { ok?: boolean; error?: string };
+        const d = (await res.json()) as { ok?: boolean; error?: string; emailed?: boolean };
         if (!res.ok || !d.ok) {
           toast({ title: d.error ?? "Save failed", variant: "destructive" });
           return false;
