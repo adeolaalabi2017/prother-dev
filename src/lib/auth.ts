@@ -320,6 +320,9 @@ const prismaAdapter: Adapter = {
 };
 
 // ── Providers ────────────────────────────────────────────────────────────
+/** Magic-link lifetime; the sign-in email quotes it, so keep them in one place. */
+const MAGIC_LINK_MAX_AGE_S = 15 * 60;
+
 const googleConfigured = Boolean(
   process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
 );
@@ -345,12 +348,19 @@ export const authOptions: NextAuthOptions = {
         if (apiKey) {
           try {
             const { Resend } = await import("resend");
+            const { renderSignInEmail } = await import("@/lib/email/signin-email");
+            const mail = renderSignInEmail({
+              url,
+              email: identifier,
+              expiresInMinutes: MAGIC_LINK_MAX_AGE_S / 60,
+            });
             const { error } = await new Resend(apiKey).emails.send({
               from:
                 process.env.EMAIL_FROM || "Prother <noreply@prother.dev>",
               to: identifier,
-              subject: "Sign in to Prother",
-              html: `<p>Click the link below to sign in to Prother. It expires in 15 minutes.</p><p><a href="${url}">Sign in to Prother</a></p><p>If you didn't request this, you can ignore this email.</p>`,
+              subject: mail.subject,
+              html: mail.html,
+              text: mail.text,
             });
             if (error) throw new Error(`${error.name}: ${error.message}`);
           } catch (err) {
@@ -361,7 +371,7 @@ export const authOptions: NextAuthOptions = {
         }
       },
       // Shorter than the default 24h — magic links should be short-lived.
-      maxAge: 15 * 60,
+      maxAge: MAGIC_LINK_MAX_AGE_S,
     }),
     ...(googleConfigured
       ? [
