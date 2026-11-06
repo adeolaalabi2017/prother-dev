@@ -268,7 +268,7 @@ export function StatusTracker() {
           </h2>
           <p className="mt-1.5 text-sm text-white/50">
             Editors check every listing against the six standards, typically
-            within 24h. Decisions are also emailed.
+            within 24h. Check back here for the decision.
           </p>
         </div>
 

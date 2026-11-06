@@ -519,7 +519,7 @@ function QueueTab({ apiKey, onChanged }: { apiKey: string; onChanged: () => void
           description:
             decision === "approve"
               ? "Now live in the directory."
-              : "Maker email names the failed standards.",
+              : "The failed standards show in the maker's status tracker. No email is sent.",
         });
         setRejecting(null);
         setFailed([]);
