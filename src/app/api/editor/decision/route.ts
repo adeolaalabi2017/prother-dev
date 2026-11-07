@@ -25,12 +25,15 @@ const bodySchema = z.discriminatedUnion("decision", [
   z.object({
     decision: z.literal("approve"),
     id: z.string().min(1),
+    /** false skips the maker email (bulk approvals past the Resend quota). */
+    notify: z.boolean().optional().default(true),
   }),
   z.object({
     decision: z.literal("reject"),
     id: z.string().min(1),
     failedStandards: z.array(z.enum(["S1", "S2", "S3", "S4", "S5", "S6"])).min(1),
     note: z.string().trim().max(500).optional().default(""),
+    notify: z.boolean().optional().default(true),
   }),
 ]);
 
@@ -76,7 +79,7 @@ export async function POST(req: NextRequest) {
         decision: "reject",
         reviewNote: note,
       });
-      const emailed = maker?.email
+      const emailed = input.notify && maker?.email
         ? await sendEmail(
             maker.email,
             renderRejectionEmail({
@@ -145,12 +148,14 @@ export async function POST(req: NextRequest) {
         makerHandle,
         createdAt: nowMs,
       });
-      const emailed = await sendEmail(
-        sub.email,
-        renderApprovalEmail({ toolName: sub.name, slug: res.slug ?? slug }),
-        `approve ${sub.id}`,
-        { replyTo: MAKERS_INBOX }
-      );
+      const emailed = input.notify
+        ? await sendEmail(
+            sub.email,
+            renderApprovalEmail({ toolName: sub.name, slug: res.slug ?? slug }),
+            `approve ${sub.id}`,
+            { replyTo: MAKERS_INBOX }
+          )
+        : false;
       return NextResponse.json({ ok: true, decision: "approved", slug: res.slug, emailed });
     } catch (err) {
       const m = convexErr(err);
