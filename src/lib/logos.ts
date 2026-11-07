@@ -88,6 +88,7 @@ export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   "hyperbrowser-og": "/logos/hyperbrowser-og.png",
   "intercom-fin": "/logos/intercom-fin.svg",
   "jev": "/logos/jev.png",
+  "jev-knows": "/logos/jev-knows.png",
   "jina-ai": "/logos/jina-ai.svg",
   "julia-1": "/logos/julia-1.svg",
   "kilocode": "/logos/kilocode.svg",
