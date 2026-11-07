@@ -3,7 +3,7 @@
  * Shapes match the (patched) Convex originals so src/lib/data.ts swaps
  * backends without touching callers.
  */
-import { and, asc, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
 import { getD1 } from "./client";
 import { parseArr } from "./queries2";
 import {
@@ -86,6 +86,34 @@ function rankScore(votes: number, createdMs: number, nowMs = Date.now()): number
 
 type Db = NonNullable<Awaited<ReturnType<typeof getD1>>>;
 
+/**
+ * Top 3 related tools in a category plus the live count, computed in SQL.
+ * Replaces loading up to 200 full tool rows (descriptions, JSON blobs) per
+ * tool page just to sort them in JS: that was a large share of the page's
+ * Worker CPU once the catalog grew.
+ */
+async function categoryNeighbours(db: Db, categoryId: string, excludeSlug: string) {
+  const live = and(eq(tools.status, "live"), eq(tools.categoryId, categoryId));
+  const [related, countRows] = await Promise.all([
+    db
+      .select({
+        slug: tools.slug,
+        name: tools.name,
+        tagline: tools.tagline,
+        logoEmoji: tools.logoEmoji,
+        logoGradient: tools.logoGradient,
+        logoUrl: tools.logoUrl,
+        editorsPick: tools.editorsPick,
+      })
+      .from(tools)
+      .where(and(live, ne(tools.slug, excludeSlug)))
+      .orderBy(desc(tools.editorsPick), desc(tools.createdAt))
+      .limit(3),
+    db.select({ n: sql<number>`count(*)` }).from(tools).where(live),
+  ]);
+  return { related, count: Number(countRows[0]?.n ?? 0) };
+}
+
 // ── Tool pageData ──
 export async function d1ToolPageData(slug: string) {
   const db = await getD1();
@@ -99,7 +127,7 @@ export async function d1ToolPageData(slug: string) {
       .from(reviews)
       .where(and(eq(reviews.toolId, tool.id), eq(reviews.status, "published")))
       .limit(100),
-    db.select().from(tools).where(and(eq(tools.status, "live"), eq(tools.categoryId, tool.categoryId))).limit(200),
+    categoryNeighbours(db, tool.categoryId, tool.slug),
   ]);
   if (catRows.length === 0) return null;
   const catById = new Map(catRows.map((c) => [c.id, c]));
@@ -107,13 +135,7 @@ export async function d1ToolPageData(slug: string) {
   const published = [...revRows].sort((a, b) => b.createdAt - a.createdAt);
   const stats = reviewAggregate(published.map((r) => ({ ease: r.ease, power: r.power, value: r.value })));
 
-  const related = [...inCategory]
-    .filter((t) => t.slug !== tool.slug)
-    .sort(
-      (a, b) =>
-        Number(b.editorsPick) - Number(a.editorsPick) || b.createdAt - a.createdAt,
-    )
-    .slice(0, 3);
+  const related = inCategory.related;
 
   const wantedSlugs = [...new Set(parseArr(tool.alternativesJson))].filter((s) => s && s !== tool.slug).slice(0, 6);
   const altDocs = await Promise.all(
@@ -193,7 +215,7 @@ export async function d1ToolPageData(slug: string) {
       contentUpdatedAt: tool.contentUpdatedAt != null ? isoFromMs(tool.contentUpdatedAt) : null,
     },
     alternatives,
-    categoryToolCount: inCategory.length,
+    categoryToolCount: inCategory.count,
   };
 }
 
@@ -209,7 +231,7 @@ export async function d1ToolDetail(slug: string, viewerEmail?: string, viewerUse
   const cat = catById.get(tool.categoryId)!;
 
   const [inCategory, revRows, comRows, followsRows, claimRows, collRows] = await Promise.all([
-    db.select().from(tools).where(and(eq(tools.status, "live"), eq(tools.categoryId, tool.categoryId))).limit(200),
+    categoryNeighbours(db, tool.categoryId, tool.slug),
     db
       .select()
       .from(reviews)
@@ -237,14 +259,8 @@ export async function d1ToolDetail(slug: string, viewerEmail?: string, viewerUse
       : Promise.resolve([]),
   ]);
 
-  const relatedDocs = [...inCategory]
-    .filter((t) => t.slug !== tool.slug)
-    .sort(
-      (a, b) =>
-        Number(b.editorsPick) - Number(a.editorsPick) || b.createdAt - a.createdAt,
-    )
-    .slice(0, 3);
-  const toolCount = inCategory.length;
+  const relatedDocs = inCategory.related;
+  const toolCount = inCategory.count;
 
   let items: (typeof collectionItems.$inferSelect)[] = [];
   if (viewerEmail != null && collRows.length > 0) {

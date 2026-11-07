@@ -3,7 +3,7 @@
  * Same return shapes as convex/tools.ts homepage + convex/site.ts get so
  * src/lib/data.ts can swap backends without touching callers.
  */
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getD1 } from "./client";
 import { categories, tools, siteSettings } from "./schema";
 
@@ -23,18 +23,21 @@ export async function d1SiteGet(): Promise<{
 } | null> {
   const db = await getD1();
   if (!db) return null;
-  const [settingsRows, toolRows, catRows] = await Promise.all([
+  // Counts in SQL: this runs on every page, so never ship rows just to count.
+  const [settingsRows, toolCount, catCount] = await Promise.all([
     db.select().from(siteSettings),
-    db.select({ id: tools.id }).from(tools).where(eq(tools.status, "live")),
-    db.select({ id: categories.id }).from(categories),
+    db.select({ n: sql<number>`count(*)` }).from(tools).where(eq(tools.status, "live")),
+    db.select({ n: sql<number>`count(*)` }).from(categories),
   ]);
+  const nTools = Number(toolCount[0]?.n ?? 0);
+  const nCats = Number(catCount[0]?.n ?? 0);
   // Empty local preview D1 (workerd) must fall back to Convex; real D1 has rows.
-  if (toolRows.length === 0 && catRows.length === 0) return null;
+  if (nTools === 0 && nCats === 0) return null;
   return {
     settings: Object.fromEntries(settingsRows.map((r) => [r.key, r.value])),
     stats: {
-      tools: toolRows.length,
-      categories: catRows.length,
+      tools: nTools,
+      categories: nCats,
       reviews: 0,
       comments: 0,
     },
@@ -65,26 +68,42 @@ export async function d1Homepage(): Promise<{
 } | null> {
   const db = await getD1();
   if (!db) return null;
-  const [catRows, live] = await Promise.all([
+  // Aggregate in SQL. This used to load every live tool row (all columns,
+  // descriptions included) to count categories and tags and keep 6 picks,
+  // which made the homepage the most CPU-expensive route on the Worker.
+  const [catRows, catCounts, tagRows, pickRows] = await Promise.all([
     db.select().from(categories).orderBy(asc(categories.sortOrder)),
-    db.select().from(tools).where(eq(tools.status, "live")),
+    db
+      .select({ categoryId: tools.categoryId, n: sql<number>`count(*)` })
+      .from(tools)
+      .where(eq(tools.status, "live"))
+      .groupBy(tools.categoryId),
+    db.all<{ tag: string; n: number }>(sql`
+      SELECT lower(trim(CAST(j.value AS TEXT))) AS tag, count(*) AS n
+      FROM tools, json_each(tools.tags_json) AS j
+      WHERE tools.status = 'live'
+        AND json_valid(tools.tags_json)
+        AND json_type(tools.tags_json) = 'array'
+      GROUP BY tag
+    `),
+    db
+      .select()
+      .from(tools)
+      .where(and(eq(tools.status, "live"), eq(tools.editorsPick, 1)))
+      .orderBy(desc(tools.pinned), desc(tools.createdAt))
+      .limit(6),
   ]);
-  if (live.length === 0) return null;
+  const totalLive = catCounts.reduce((sum, r) => sum + Number(r.n), 0);
+  if (totalLive === 0) return null;
   const catById = new Map(catRows.map((c) => [c.id, c]));
-  const bySlug = new Map<string, number>();
+  const countByCat = new Map(catCounts.map((r) => [r.categoryId, Number(r.n)]));
+  const bySlug = new Map<string, number>(
+    catRows.map((c) => [c.slug, countByCat.get(c.id) ?? 0]),
+  );
   const tagCounts = new Map<string, number>();
-  for (const t of live) {
-    const slug = catById.get(t.categoryId)?.slug;
-    if (slug) bySlug.set(slug, (bySlug.get(slug) ?? 0) + 1);
-    for (const raw of parseArr(t.tagsJson)) {
-      const tag = raw.trim().toLowerCase();
-      if (tag) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-    }
-  }
-  const picks = live
-    .filter((t) => t.editorsPick === 1)
-    .sort((a, b) => b.pinned - a.pinned || b.createdAt - a.createdAt)
-    .slice(0, 6)
+  for (const r of tagRows) if (r.tag) tagCounts.set(r.tag, Number(r.n));
+  const picks = pickRows
+    .filter((t) => catById.has(t.categoryId))
     .map((t) => {
       const cat = catById.get(t.categoryId)!;
       return {
