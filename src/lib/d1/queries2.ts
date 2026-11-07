@@ -4,7 +4,7 @@
  * convex/seo.ts sitemapData, and convex/categories.ts detail so
  * src/lib/data.ts can swap backends without touching callers.
  */
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getD1 } from "./client";
 import { categories, forumThreads, posts, tools } from "./schema";
 
@@ -375,17 +375,24 @@ export async function d1CategoryDetail2(slug: string) {
     | CatRow
     | undefined;
   if (!cat) return { error: "not_found" as const };
-  const inCat = (
-    await db
-      .select()
-      .from(tools)
-      .where(and(eq(tools.status, "live"), eq(tools.categoryId, cat.id)))
-  ).sort(
-    (a, b) =>
-      b.pinned - a.pinned ||
-      Number(b.editorsPick) - Number(a.editorsPick) ||
-      b.createdAt - a.createdAt,
-  );
+  // Only the columns the category grid renders, sorted in SQL. Full rows
+  // (descriptions, JSON blobs) for every tool in a big category cost the
+  // Worker real CPU to deserialize.
+  const inCat = await db
+    .select({
+      slug: tools.slug,
+      name: tools.name,
+      tagline: tools.tagline,
+      logoEmoji: tools.logoEmoji,
+      logoGradient: tools.logoGradient,
+      logoUrl: tools.logoUrl,
+      pricingModel: tools.pricingModel,
+      startingPrice: tools.startingPrice,
+      editorsPick: tools.editorsPick,
+    })
+    .from(tools)
+    .where(and(eq(tools.status, "live"), eq(tools.categoryId, cat.id)))
+    .orderBy(desc(tools.pinned), desc(tools.editorsPick), desc(tools.createdAt));
   if (
     inCat.length === 0 &&
     (await db.select({ id: categories.id }).from(categories).limit(1)).length === 0
