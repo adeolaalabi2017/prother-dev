@@ -16,7 +16,7 @@
  * must degrade to house creatives, never to 500s.
  */
 import { createServerConvexClient } from "@/lib/convex";
-import { shadowSite } from "@/lib/data";
+import { shadowSiteSettings } from "@/lib/data";
 import { AD_PLACEMENTS, type AdPlacement } from "@/lib/ads";
 
 export type ServingConfig = {
@@ -27,8 +27,8 @@ export type ServingConfig = {
 export async function getServingConfig(): Promise<ServingConfig> {
   let map = new Map<string, string>();
   try {
-    const res = await shadowSite(createServerConvexClient()!);
-    map = new Map(Object.entries(res.settings));
+    const settings = await shadowSiteSettings(createServerConvexClient()!);
+    map = new Map(Object.entries(settings));
   } catch {
     // Fail open (see header): house creatives, never 500s.
   }

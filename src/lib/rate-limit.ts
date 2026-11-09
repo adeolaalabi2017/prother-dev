@@ -17,7 +17,7 @@ const KV_MIN_TTL_SEC = 60;
 const MEMORY_MAX_KEYS = 5000;
 const memory = new Map<string, number>();
 
-async function getKv(): Promise<KV | null> {
+export async function getKv(): Promise<KV | null> {
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const ctx = await getCloudflareContext({ async: true });

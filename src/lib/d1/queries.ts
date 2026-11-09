@@ -5,7 +5,11 @@
  */
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getD1 } from "./client";
+import { kvCached } from "./kv-cache";
 import { categories, tools, siteSettings } from "./schema";
+
+// D1 bills count(*) one row per match, so aggregates over `tools` get cached.
+const AGGREGATE_TTL_SEC = 600;
 
 function parseArr(raw: string | null | undefined): string[] {
   if (!raw) return [];
@@ -17,34 +21,54 @@ function parseArr(raw: string | null | undefined): string[] {
   }
 }
 
+/** Settings only, for per-render callers that show no stats (one row per key). */
+export async function d1SiteSettings(): Promise<Record<string, string> | null> {
+  const db = await getD1();
+  if (!db) return null;
+  const rows = await db.select().from(siteSettings);
+  // Empty local preview D1 (workerd) must fall back to Convex; real D1 has rows.
+  if (rows.length === 0) return null;
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
 export async function d1SiteGet(): Promise<{
   settings: Record<string, string>;
   stats: { tools: number; categories: number; reviews: number; comments: number };
 } | null> {
   const db = await getD1();
   if (!db) return null;
-  // Counts in SQL: this runs on every page, so never ship rows just to count.
-  const [settingsRows, toolCount, catCount] = await Promise.all([
+  // Settings stay fresh so editor saves show at once; only the counts are cached.
+  const [settingsRows, counts] = await Promise.all([
     db.select().from(siteSettings),
-    db.select({ n: sql<number>`count(*)` }).from(tools).where(eq(tools.status, "live")),
-    db.select({ n: sql<number>`count(*)` }).from(categories),
+    kvCached("d1:v1:site-counts", AGGREGATE_TTL_SEC, async () => {
+      const [toolCount, catCount] = await Promise.all([
+        db.select({ n: sql<number>`count(*)` }).from(tools).where(eq(tools.status, "live")),
+        db.select({ n: sql<number>`count(*)` }).from(categories),
+      ]);
+      const nTools = Number(toolCount[0]?.n ?? 0);
+      const nCats = Number(catCount[0]?.n ?? 0);
+      // Empty local preview D1 (workerd) must fall back to Convex; real D1 has rows.
+      if (nTools === 0 && nCats === 0) return null;
+      return { tools: nTools, categories: nCats };
+    }),
   ]);
-  const nTools = Number(toolCount[0]?.n ?? 0);
-  const nCats = Number(catCount[0]?.n ?? 0);
-  // Empty local preview D1 (workerd) must fall back to Convex; real D1 has rows.
-  if (nTools === 0 && nCats === 0) return null;
+  if (!counts) return null;
   return {
     settings: Object.fromEntries(settingsRows.map((r) => [r.key, r.value])),
     stats: {
-      tools: nTools,
-      categories: nCats,
+      tools: counts.tools,
+      categories: counts.categories,
       reviews: 0,
       comments: 0,
     },
   };
 }
 
-export async function d1Homepage(): Promise<{
+export async function d1Homepage() {
+  return kvCached("d1:v1:homepage", AGGREGATE_TTL_SEC, loadHomepage);
+}
+
+async function loadHomepage(): Promise<{
   counts: { slug: string; count: number }[];
   picks: {
     slug: string;
