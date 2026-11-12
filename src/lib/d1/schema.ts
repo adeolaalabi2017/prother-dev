@@ -84,6 +84,10 @@ export const tools = sqliteTable(
     index("tools_by_status_category").on(t.status, t.categoryId),
     index("tools_by_category_featured").on(t.categoryId, t.pinned, t.editorsPick),
     index("tools_by_submission").on(t.submissionId),
+    index("tools_by_status_editors_pick").on(t.status, t.editorsPick, t.pinned, t.createdAt),
+    index("tools_by_status_category_related").on(t.status, t.categoryId, t.editorsPick, t.createdAt),
+    index("tools_by_status_featured").on(t.status, t.pinned, t.editorsPick, t.curated, t.createdAt),
+    index("tools_by_status_created").on(t.status, t.createdAt),
   ],
 );
 

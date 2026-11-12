@@ -4,7 +4,7 @@
  * convex/seo.ts sitemapData, and convex/categories.ts detail so
  * src/lib/data.ts can swap backends without touching callers.
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getD1 } from "./client";
 import { categories, forumThreads, posts, tools } from "./schema";
 
@@ -110,8 +110,9 @@ function pricingChip(model: string, price?: string | null): string {
 type ToolRow = typeof tools.$inferSelect;
 type CatRow = typeof categories.$inferSelect;
 
-function avgDenorm(t: ToolRow): number | null {
-  return t.reviewCount > 0 ? t.ratingSumX100 / 100 / t.reviewCount : null;
+function avgDenorm(t: { reviewCount: number | null; ratingSumX100: number | null }): number | null {
+  const rc = t.reviewCount ?? 0;
+  return rc > 0 ? (t.ratingSumX100 ?? 0) / 100 / rc : null;
 }
 
 // ── Directory ──
@@ -130,16 +131,172 @@ export async function d1Directory(args: {
   const safePageSize = Math.min(Math.max(1, pageSize), 48);
   const safePage = Math.min(Math.max(1, page), 100);
 
-  const [catRows, live] = await Promise.all([
-    db.select().from(categories),
-    db.select().from(tools).where(eq(tools.status, "live")),
-  ]);
-  if (live.length === 0) return null;
+  const catRows = await db.select().from(categories);
+  if (catRows.length === 0) return null;
   const catById = new Map(catRows.map((c) => [c.id, c]));
   const category = categorySlug ? (catRows.find((c) => c.slug === categorySlug) ?? null) : null;
   if (categorySlug && !category) return { error: "category_not_found" as const };
 
   const qTokens = q ? tokenize(q) : [];
+  const isSearchOrTag = qTokens.length > 0 || Boolean(tag);
+
+  if (!isSearchOrTag) {
+    // Fast path: SQL pagination without loading the entire tools catalog
+    const conditions = [eq(tools.status, "live")];
+    if (category) conditions.push(eq(tools.categoryId, category.id));
+    if (pricing) conditions.push(eq(tools.pricingModel, pricing));
+    const whereClause = and(...conditions);
+
+    let orderByClause;
+    if (sort === "newest") {
+      orderByClause = [desc(tools.createdAt)];
+    } else if (sort === "top-rated") {
+      orderByClause = [
+        sql`CASE WHEN ${tools.reviewCount} > 0 THEN 0 ELSE 1 END ASC`,
+        sql`(${tools.ratingSumX100} * 1.0 / (${tools.reviewCount} * 100)) DESC`,
+        desc(tools.createdAt),
+      ];
+    } else if (sort === "trending") {
+      orderByClause = [
+        sql`(${tools.commentCount} * 3.0 + ${tools.reviewCount} * 5.5) DESC`,
+        desc(tools.createdAt),
+      ];
+    } else {
+      // featured: pinned DESC, editorsPick DESC, curated DESC, createdAt DESC
+      orderByClause = [
+        desc(tools.pinned),
+        desc(tools.editorsPick),
+        desc(tools.curated),
+        desc(tools.createdAt),
+      ];
+    }
+
+    const [countResult, pageTools, catCountResult] = await Promise.all([
+      db.select({ n: sql<number>`count(*)` }).from(tools).where(whereClause),
+      db
+        .select({
+          id: tools.id,
+          slug: tools.slug,
+          name: tools.name,
+          tagline: tools.tagline,
+          logoEmoji: tools.logoEmoji,
+          logoGradient: tools.logoGradient,
+          logoUrl: tools.logoUrl,
+          pricingModel: tools.pricingModel,
+          startingPrice: tools.startingPrice,
+          pricingNote: tools.pricingNote,
+          categoryId: tools.categoryId,
+          editorsPick: tools.editorsPick,
+          curated: tools.curated,
+          claimed: tools.claimed,
+          hasApi: tools.hasApi,
+          pinned: tools.pinned,
+          commentCount: tools.commentCount,
+          reviewCount: tools.reviewCount,
+          createdAt: tools.createdAt,
+        })
+        .from(tools)
+        .where(whereClause)
+        .orderBy(...orderByClause)
+        .limit(safePageSize)
+        .offset((safePage - 1) * safePageSize),
+      category && pricing
+        ? db
+            .select({ n: sql<number>`count(*)` })
+            .from(tools)
+            .where(and(eq(tools.status, "live"), eq(tools.categoryId, category.id)))
+        : Promise.resolve(null),
+    ]);
+
+    const total = Number(countResult[0]?.n ?? 0);
+    if (
+      total === 0 &&
+      !category &&
+      !pricing &&
+      (await db.select({ id: tools.id }).from(tools).limit(1)).length === 0
+    ) {
+      return null;
+    }
+
+    const pages = Math.max(1, Math.ceil(total / safePageSize));
+    const rows = pageTools.map((t) => {
+      const cat = catById.get(t.categoryId);
+      const commentCount = t.commentCount ?? 0;
+      const editorsPick = t.editorsPick === 1;
+      const curated = t.curated === 1;
+      return {
+        slug: t.slug,
+        name: t.name,
+        tagline: t.tagline,
+        emoji: t.logoEmoji,
+        gradient: t.logoGradient,
+        pricing: { model: t.pricingModel, price: t.startingPrice, note: t.pricingNote },
+        category: { slug: cat?.slug ?? "", name: cat?.name ?? "", emoji: cat?.emoji ?? "" },
+        editorsPick,
+        curated,
+        badges: {
+          editorsPick,
+          curated,
+          unclaimed: !t.claimed,
+          hasApi: t.hasApi === 1,
+          openSource: t.pricingModel === "open_source",
+        },
+        logoUrl: t.logoUrl,
+        ...(commentCount > 0 ? { comments: commentCount } : {}),
+        listedAt: isoFromMs(t.createdAt),
+        reviews: { count: t.reviewCount ?? 0 },
+      };
+    });
+
+    return {
+      rows,
+      total,
+      page: safePage,
+      pages,
+      ...(category
+        ? {
+            categoryMeta: {
+              slug: category.slug,
+              name: category.name,
+              emoji: category.emoji,
+              count: pricing ? Number(catCountResult?.[0]?.n ?? 0) : total,
+            },
+          }
+        : {}),
+    };
+  }
+
+  // Search or tag query: load live tools with a narrow projection for token matching
+  const live = await db
+    .select({
+      id: tools.id,
+      slug: tools.slug,
+      name: tools.name,
+      tagline: tools.tagline,
+      description: tools.description,
+      tagsJson: tools.tagsJson,
+      logoEmoji: tools.logoEmoji,
+      logoGradient: tools.logoGradient,
+      logoUrl: tools.logoUrl,
+      pricingModel: tools.pricingModel,
+      startingPrice: tools.startingPrice,
+      pricingNote: tools.pricingNote,
+      categoryId: tools.categoryId,
+      editorsPick: tools.editorsPick,
+      curated: tools.curated,
+      claimed: tools.claimed,
+      hasApi: tools.hasApi,
+      pinned: tools.pinned,
+      commentCount: tools.commentCount,
+      reviewCount: tools.reviewCount,
+      ratingSumX100: tools.ratingSumX100,
+      createdAt: tools.createdAt,
+    })
+    .from(tools)
+    .where(eq(tools.status, "live"));
+
+  if (live.length === 0) return null;
+
   const matching = live.filter((t) => {
     if (category && t.categoryId !== category.id) return false;
     if (pricing && t.pricingModel !== pricing) return false;
@@ -164,7 +321,8 @@ export async function d1Directory(args: {
       return bb - aa || b.createdAt - a.createdAt;
     });
   } else if (sort === "trending") {
-    const score = (t: ToolRow) => t.commentCount * 3 + t.reviewCount * 5 + t.reviewCount * 0.5;
+    const score = (t: { commentCount: number | null; reviewCount: number | null }) =>
+      (t.commentCount ?? 0) * 3 + (t.reviewCount ?? 0) * 5 + (t.reviewCount ?? 0) * 0.5;
     matching.sort((a, b) => round1(score(b)) - round1(score(a)) || b.createdAt - a.createdAt);
   } else {
     matching.sort((a, b) => {
@@ -196,7 +354,7 @@ export async function d1Directory(args: {
   const pages = Math.max(1, Math.ceil(total / safePageSize));
   const pageTools = matching.slice((safePage - 1) * safePageSize, safePage * safePageSize);
   const rows = pageTools.map((t) => {
-    const cat = catById.get(t.categoryId)!;
+    const cat = catById.get(t.categoryId);
     const commentCount = t.commentCount ?? 0;
     const editorsPick = t.editorsPick === 1;
     const curated = t.curated === 1;
@@ -207,7 +365,7 @@ export async function d1Directory(args: {
       emoji: t.logoEmoji,
       gradient: t.logoGradient,
       pricing: { model: t.pricingModel, price: t.startingPrice, note: t.pricingNote },
-      category: { slug: cat.slug, name: cat.name, emoji: cat.emoji },
+      category: { slug: cat?.slug ?? "", name: cat?.name ?? "", emoji: cat?.emoji ?? "" },
       editorsPick,
       curated,
       badges: {
