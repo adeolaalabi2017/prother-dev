@@ -42,6 +42,30 @@ export const appendAudit = mutation({
   },
 });
 
+/**
+ * Latest 14 audit entries via the by_created index. The admin overview's
+ * numbers now come from D1 (src/lib/d1/admin-overview.ts); only the audit
+ * trail still lives here because logAudit writes to Convex.
+ */
+export const recentAudit = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("auditLogs")
+      .withIndex("by_created")
+      .order("desc")
+      .take(14);
+    return rows.map((a) => ({
+      id: a.legacyId ?? a._id,
+      action: a.action,
+      entity: a.entity,
+      entityId: a.entityId,
+      meta: a.meta,
+      at: isoFromMs(a.createdAt),
+    }));
+  },
+});
+
 export const overview = query({
   args: {},
   handler: async (ctx) => {
