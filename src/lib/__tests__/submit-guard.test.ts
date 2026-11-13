@@ -89,3 +89,14 @@ describe("likeNeedle", () => {
     expect(likeNeedle("100%_x")).toBe("%100\\%\\_x%");
   });
 });
+
+describe("chunk", () => {
+  it("splits a 200-id page into batches under D1's 100-parameter cap", async () => {
+    const { chunk } = await import("@/lib/d1/admin-tools");
+    const ids = Array.from({ length: 200 }, (_, i) => `t${i}`);
+    const parts = chunk(ids, 90);
+    expect(parts.map((p) => p.length)).toEqual([90, 90, 20]);
+    expect(parts.flat()).toEqual(ids);
+    expect(chunk([], 90)).toEqual([]);
+  });
+});

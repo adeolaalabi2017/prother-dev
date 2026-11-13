@@ -15,6 +15,14 @@ import { getD1 } from "./client";
 import { categories, comments, reviews, tools } from "./schema";
 
 const PAGE = 200;
+/** Ids per IN (...) list: under D1's 100-bound-parameter cap with room for others. */
+const ID_BATCH = 90;
+
+export function chunk<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 
 function arr<T = string>(raw: string | null | undefined): T[] {
   if (!raw) return [];
@@ -70,21 +78,34 @@ export async function d1AdminTools(args: { q: string; status: string; category: 
     db.select({ n: sql<number>`count(*)` }).from(tools).where(cond),
   ]);
 
-  const ids = rows.map((t) => t.id);
-  const [commentCounts, reviewCounts] = ids.length
-    ? await Promise.all([
+  // D1 allows at most 100 bound parameters per query, so a 200-row page
+  // can't go into one IN (...) list. Count in batches instead.
+  const batches = chunk(
+    rows.map((t) => t.id),
+    ID_BATCH
+  );
+  const [commentBatches, reviewBatches] = await Promise.all([
+    Promise.all(
+      batches.map((ids) =>
         db
           .select({ toolId: comments.toolId, n: sql<number>`count(*)` })
           .from(comments)
           .where(inArray(comments.toolId, ids))
-          .groupBy(comments.toolId),
+          .groupBy(comments.toolId)
+      )
+    ),
+    Promise.all(
+      batches.map((ids) =>
         db
           .select({ toolId: reviews.toolId, n: sql<number>`count(*)` })
           .from(reviews)
           .where(and(inArray(reviews.toolId, ids), eq(reviews.status, "published")))
-          .groupBy(reviews.toolId),
-      ])
-    : [[], []];
+          .groupBy(reviews.toolId)
+      )
+    ),
+  ]);
+  const commentCounts = commentBatches.flat();
+  const reviewCounts = reviewBatches.flat();
   const cByTool = new Map(commentCounts.map((r) => [r.toolId, Number(r.n)]));
   const rByTool = new Map(reviewCounts.map((r) => [r.toolId, Number(r.n)]));
   const catById = new Map(catRows.map((c) => [c.id, c]));
