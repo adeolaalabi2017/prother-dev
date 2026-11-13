@@ -6,6 +6,7 @@
 import { and, asc, desc, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
 import { getD1 } from "./client";
 import { parseArr } from "./queries2";
+import { d1LiveCountsByCategory } from "./queries";
 import {
   bookmarks,
   categories,
@@ -90,11 +91,12 @@ type Db = NonNullable<Awaited<ReturnType<typeof getD1>>>;
  * Top 3 related tools in a category plus the live count, computed in SQL.
  * Replaces loading up to 200 full tool rows (descriptions, JSON blobs) per
  * tool page just to sort them in JS: that was a large share of the page's
- * Worker CPU once the catalog grew.
+ * Worker CPU once the catalog grew. The count comes from the cached
+ * per-category map, since D1 bills count(*) one row per match.
  */
 async function categoryNeighbours(db: Db, categoryId: string, excludeSlug: string) {
   const live = and(eq(tools.status, "live"), eq(tools.categoryId, categoryId));
-  const [related, countRows] = await Promise.all([
+  const [related, counts] = await Promise.all([
     db
       .select({
         slug: tools.slug,
@@ -109,9 +111,9 @@ async function categoryNeighbours(db: Db, categoryId: string, excludeSlug: strin
       .where(and(live, ne(tools.slug, excludeSlug)))
       .orderBy(desc(tools.editorsPick), desc(tools.createdAt))
       .limit(3),
-    db.select({ n: sql<number>`count(*)` }).from(tools).where(live),
+    d1LiveCountsByCategory(),
   ]);
-  return { related, count: Number(countRows[0]?.n ?? 0) };
+  return { related, count: counts?.[categoryId] ?? 0 };
 }
 
 // ── Tool pageData ──
@@ -781,16 +783,14 @@ export async function d1ForumThread(slug: string, voterKey?: string) {
 export async function d1CompareCategories() {
   const db = await getD1();
   if (!db) return null;
-  const [catRows, live] = await Promise.all([
+  const [catRows, counts] = await Promise.all([
     db.select().from(categories).orderBy(asc(categories.sortOrder)),
-    db.select({ id: tools.id, categoryId: tools.categoryId }).from(tools).where(eq(tools.status, "live")),
+    d1LiveCountsByCategory(),
   ]);
   if (catRows.length === 0) return null;
-  const liveByCat = new Map<string, number>();
-  for (const t of live) liveByCat.set(t.categoryId, (liveByCat.get(t.categoryId) ?? 0) + 1);
   return [...catRows]
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((c) => ({ slug: c.slug, name: c.name, emoji: c.emoji, toolCount: liveByCat.get(c.id) ?? 0 }));
+    .map((c) => ({ slug: c.slug, name: c.name, emoji: c.emoji, toolCount: counts?.[c.id] ?? 0 }));
 }
 
 export async function d1CompareMatrix(categorySlug: string, selectedSlugs: string[]) {
