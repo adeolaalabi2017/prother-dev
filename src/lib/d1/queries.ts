@@ -64,6 +64,27 @@ export async function d1SiteGet(): Promise<{
   };
 }
 
+/**
+ * Live tool count per category id, cached. One group-by every TTL replaces a
+ * count(*) per tool page and the compare page's load of every live tool id.
+ * Kept in KV rather than a stored column: tools are written from the admin,
+ * moderation and community paths plus raw-SQL sync scripts, so a column
+ * would drift.
+ */
+export async function d1LiveCountsByCategory(): Promise<Record<string, number> | null> {
+  const db = await getD1();
+  if (!db) return null;
+  return kvCached("d1:v1:category-counts", AGGREGATE_TTL_SEC, async () => {
+    const rows = await db
+      .select({ categoryId: tools.categoryId, n: sql<number>`count(*)` })
+      .from(tools)
+      .where(eq(tools.status, "live"))
+      .groupBy(tools.categoryId);
+    if (rows.length === 0) return null;
+    return Object.fromEntries(rows.map((r) => [r.categoryId, Number(r.n)]));
+  });
+}
+
 export async function d1Homepage() {
   return kvCached("d1:v1:homepage", AGGREGATE_TTL_SEC, loadHomepage);
 }

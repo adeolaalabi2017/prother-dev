@@ -62,7 +62,10 @@ mock.module("@opennextjs/cloudflare", () => ({
   getCloudflareContext: async () => ({ env: { CACHE: fakeKv } }),
 }));
 
-const { d1SiteGet, d1SiteSettings, d1Homepage } = await import("@/lib/d1/queries");
+const { d1SiteGet, d1SiteSettings, d1Homepage, d1LiveCountsByCategory } = await import(
+  "@/lib/d1/queries"
+);
+const { d1CompareCategories } = await import("@/lib/d1/content");
 const { kvCached } = await import("@/lib/d1/kv-cache");
 
 beforeEach(() => {
@@ -72,7 +75,42 @@ beforeEach(() => {
   kvGetError = false;
   settingsRows = [{ key: "seo.defaultTitle", value: "Prother" }];
   toolRows = [{ n: 5, categoryId: "c1", slug: "tool-a" }];
-  categoryRows = [{ n: 2, id: "c1", slug: "agents", name: "Agents", emoji: "x" }];
+  categoryRows = [{ n: 2, id: "c1", slug: "agents", name: "Agents", emoji: "x", sortOrder: 1 }];
+});
+
+describe("d1LiveCountsByCategory", () => {
+  test("groups once, then serves the map from KV", async () => {
+    expect(await d1LiveCountsByCategory()).toEqual({ c1: 5 });
+    expect(tablesRead).toEqual([tools]);
+
+    tablesRead = [];
+    expect(await d1LiveCountsByCategory()).toEqual({ c1: 5 });
+    expect(tablesRead).toHaveLength(0);
+  });
+
+  test("does not cache an empty catalog", async () => {
+    toolRows = [];
+    expect(await d1LiveCountsByCategory()).toBeNull();
+    expect(kvPuts).toHaveLength(0);
+  });
+});
+
+describe("d1CompareCategories", () => {
+  test("uses cached counts instead of loading live tool rows", async () => {
+    const expected = [{ slug: "agents", name: "Agents", emoji: "x", toolCount: 5 }];
+    expect(await d1CompareCategories()).toEqual(expected);
+
+    tablesRead = [];
+    expect(await d1CompareCategories()).toEqual(expected);
+    expect(tablesRead).toEqual([categories]);
+  });
+
+  test("an empty catalog still lists categories with zero tools", async () => {
+    toolRows = [];
+    expect(await d1CompareCategories()).toEqual([
+      { slug: "agents", name: "Agents", emoji: "x", toolCount: 0 },
+    ]);
+  });
 });
 
 describe("d1SiteSettings", () => {
