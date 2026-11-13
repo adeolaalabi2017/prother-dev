@@ -424,12 +424,21 @@ export async function shadowAdminOverview(c: Client) { if (!c) return null as an
   return c.query(api.admin.overview, {});
 }
 
-export function shadowAdminTools(
+export async function shadowAdminTools(
   c: Client,
   q: string,
   status: string,
   category: string,
 ) {
+  // D1-first: the Convex table went stale after the D1 cutover (about 190
+  // tools vs 869) and collected four whole tables per request.
+  try {
+    const { d1AdminTools } = await import("@/lib/d1/admin-tools");
+    const d1 = await d1AdminTools({ q, status, category });
+    if (d1) return d1;
+  } catch (err) {
+    console.error("[data] d1AdminTools failed, falling back to Convex:", err);
+  }
   return c.query(api.admin.toolsTable, { q, status, category });
 }
 

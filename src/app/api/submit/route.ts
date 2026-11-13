@@ -9,6 +9,8 @@ import {
   shadowSubmitCheck,
 } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
+import { consumeQuota, hashIp, trustedClientIp } from "@/lib/rate-limit";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic"; 
 
@@ -16,7 +18,10 @@ export const dynamic = "force-dynamic";
  * POST /api/submit — PRD §11 Submission Wizard (Track B: community submit).
  * Rate limits (adapted for the auth-less landing scope): 3 submissions per
  * email / 7 days · 1 per domain · duplicate-domain → 409 with interstitial data.
+ * Bot defence: Cloudflare Turnstile (when TURNSTILE_SECRET_KEY is set) and
+ * IP_DAILY_LIMIT submissions per client IP per 24h (hashed key in KV).
  */
+const IP_DAILY_LIMIT = 5;
 const payloadSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   websiteUrl: z
@@ -64,6 +69,7 @@ const payloadSchema = z.object({
     .refine((v) => v === true, {
       message: "You must confirm you have read the Listing Standards",
     }),
+  turnstileToken: z.string().max(2048).optional(),
 });
 
 function slugify(name: string): string {
@@ -99,6 +105,19 @@ export async function POST(req: NextRequest) {
     );
   }
   const data = parsed.data;
+  const clientIp = trustedClientIp(req);
+
+  // Bot check before any database work.
+  const human = await verifyTurnstile(data.turnstileToken, clientIp);
+  if (!human.ok) {
+    return NextResponse.json(
+      {
+        error: "We couldn't confirm you're human. Complete the check and try again.",
+        fields: { turnstile: "Complete the human check" },
+      },
+      { status: 403 }
+    );
+  }
 
   const domain = domainOf(data.websiteUrl);
   if (!domain || !domain.includes(".")) {
@@ -151,6 +170,15 @@ export async function POST(req: NextRequest) {
         fields: { githubUrl: "Open Source tools need a public GitHub URL" },
       },
       { status: 422 }
+    );
+  }
+
+  // Rate limit 3: per client IP per 24h. Checked last so only otherwise
+  // valid submissions use a slot. Skipped off Cloudflare (no trusted IP).
+  if (clientIp && !(await consumeQuota(`submit:${await hashIp(clientIp)}`, IP_DAILY_LIMIT, 86_400_000))) {
+    return NextResponse.json(
+      { error: `Daily limit reached: ${IP_DAILY_LIMIT} submissions per network per day.` },
+      { status: 429 }
     );
   }
 
