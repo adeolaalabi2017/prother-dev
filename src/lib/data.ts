@@ -34,6 +34,23 @@ export async function shadowSite(c: Client | null | undefined) {
   return withAnnouncement(res);
 }
 
+/** Settings without stats: the cheap read for callers on every page render. */
+export async function shadowSiteSettings(
+  c: Client | null | undefined,
+): Promise<Record<string, string>> {
+  try {
+    const { d1SiteSettings } = await import("@/lib/d1/queries");
+    const d1 = await d1SiteSettings();
+    if (d1) return d1;
+  } catch {
+    // fall through to Convex
+  }
+  if (!c) {
+    throw new Error("[data] NEXT_PUBLIC_CONVEX_URL is required; the Prisma/custom.db fallback was retired (Phase A, 2026-10-06).");
+  }
+  return (await c.query(api.site.get, {})).settings;
+}
+
 function withAnnouncement(res: {
   settings: Record<string, string>;
   stats: { tools: number; categories: number; reviews: number; comments: number };

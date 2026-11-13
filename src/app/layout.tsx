@@ -11,7 +11,7 @@ import { AnalyticsPing } from "@/components/prother/analytics-ping";
 import { ClarityAnalytics } from "@/components/prother/clarity-analytics";
 import { siteUrl } from "@/lib/site-url";
 import { createServerConvexClient } from "@/lib/convex";
-import { shadowSite } from "@/lib/data";
+import { shadowSiteSettings } from "@/lib/data";
 
 /**
  * Typography: the SF Pro family. SF Pro is Apple's system font, so instead of
@@ -42,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // a failed settings read falls back to the locked defaults below.
   let map: Record<string, string> | null = null;
   try {
-    map = (await shadowSite(createServerConvexClient())).settings;
+    map = await shadowSiteSettings(createServerConvexClient());
   } catch {
     map = null;
   }
