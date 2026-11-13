@@ -97,6 +97,7 @@ jobs:
           NEXT_OUTPUT=cloudflare \
           NEXT_PUBLIC_CONVEX_URL='${{ secrets.NEXT_PUBLIC_CONVEX_URL }}' \
           NEXT_PUBLIC_SITE_URL='https://prother.dev' \
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY='${{ vars.TURNSTILE_SITE_KEY }}' \
           bunx opennextjs-cloudflare build
           bunx opennextjs-cloudflare deploy
         env:

@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { TURNSTILE_SITE_KEY, TurnstileWidget } from "./turnstile-widget";
 import {
   CATEGORIES,
 } from "./categories";
@@ -239,6 +240,8 @@ export function SubmitWizard() {
   const [dup, setDup] = useState<DuplicateInfo | null>(null);
   const [checkingDup, setCheckingDup] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [result, setResult] = useState<{ id: string; position: number } | null>(
     null
   );
@@ -317,6 +320,9 @@ export function SubmitWizard() {
 
   const onSubmit = useCallback(async () => {
     const errs = validateStep(4, form);
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      errs.turnstile = "Complete the human check";
+    }
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setSubmitting(true);
@@ -324,7 +330,7 @@ export function SubmitWizard() {
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, turnstileToken: turnstileToken ?? undefined }),
       });
       if (res.status === 201) {
         const data = (await res.json()) as { id: string; position: number };
@@ -336,6 +342,9 @@ export function SubmitWizard() {
         fields?: Record<string, string>;
         duplicate?: DuplicateInfo;
       };
+      // Turnstile tokens are single use: get a fresh one for the retry.
+      setTurnstileToken(null);
+      setTurnstileReset((n) => n + 1);
       if (data.fields) setErrors(data.fields);
       if (data.duplicate) {
         setDup(data.duplicate);
@@ -355,7 +364,7 @@ export function SubmitWizard() {
     } finally {
       setSubmitting(false);
     }
-  }, [form, toast]);
+  }, [form, toast, turnstileToken]);
 
   const taglineLen = form.tagline.trim().length;
   const descLen = form.description.trim().length;
@@ -958,8 +967,11 @@ export function SubmitWizard() {
                     </label>
                     <FieldError msg={errors.agreedStandards} />
 
+                    <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileReset} />
+                    <FieldError msg={errors.turnstile} />
+
                     <p className="font-mono text-xs leading-relaxed text-white/55">
-                      Rate limits: 3 submissions / email / 7 days · 1 per domain.
+                      Rate limits: 3 submissions / email / 7 days · 1 per domain · 5 per network / day.
                       By submitting you agree to editor review, and rejections cite the
                       failed standard(s) with one-click resubmit.
                     </p>

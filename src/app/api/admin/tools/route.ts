@@ -186,10 +186,10 @@ export async function GET(req: NextRequest) {
   const status = sp.get("status") ?? "";
   const category = sp.get("category") ?? "";
 
-  // Convex-only (admin cutover).
+  // D1-first with Convex fallback (lib/data.ts shadowAdminTools).
   const res = await shadowAdminTools(createServerConvexClient()!, q, status, category);
   return NextResponse.json(res, {
-    headers: { "x-data-backend": "convex" },
+    headers: { "x-data-backend": "total" in (res ?? {}) ? "d1" : "convex" },
   });
 }
 
