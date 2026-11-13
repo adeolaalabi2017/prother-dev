@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { describeTurnstileError } from "@/lib/turnstile-errors";
 
 /**
  * Cloudflare Turnstile widget (explicit render). Renders nothing unless
@@ -15,7 +16,7 @@ type TurnstileApi = {
       theme?: "auto" | "light" | "dark";
       callback: (token: string) => void;
       "expired-callback"?: () => void;
-      "error-callback"?: () => void;
+      "error-callback"?: (code: string) => boolean | void;
     }
   ) => string;
   reset: (id: string) => void;
@@ -48,6 +49,20 @@ function loadScript(): Promise<void> {
   return scriptPromise;
 }
 
+/** Count a widget failure by code in the daily error stats (admin Traffic). */
+function reportFailure(code: string) {
+  try {
+    void fetch("/api/analytics/error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ m: `turnstile:${code}`, p: window.location.pathname }),
+      keepalive: true,
+    });
+  } catch {
+    // analytics never blocks
+  }
+}
+
 export function TurnstileWidget({
   onToken,
   resetKey = 0,
@@ -60,6 +75,8 @@ export function TurnstileWidget({
   const ref = useRef<HTMLDivElement>(null);
   const idRef = useRef<string | null>(null);
   const cb = useRef(onToken);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
     cb.current = onToken;
   }, [onToken]);
@@ -68,25 +85,60 @@ export function TurnstileWidget({
     if (!TURNSTILE_SITE_KEY || !ref.current) return;
     let alive = true;
     const el = ref.current;
+    const fail = (code: string) => {
+      cb.current(null);
+      if (!alive) return;
+      setFailure(code);
+      reportFailure(code);
+    };
     loadScript()
       .then(() => {
         if (!alive || !window.turnstile) return;
         idRef.current = window.turnstile.render(el, {
           sitekey: TURNSTILE_SITE_KEY,
           theme: "dark",
-          callback: (t) => cb.current(t),
+          callback: (t) => {
+            setFailure(null);
+            cb.current(t);
+          },
           "expired-callback": () => cb.current(null),
-          "error-callback": () => cb.current(null),
+          "error-callback": (code) => {
+            fail(String(code || "unknown"));
+            // Handled: we show our own message and retry button.
+            return true;
+          },
         });
       })
-      .catch(() => cb.current(null));
+      .catch(() => fail("script-blocked"));
     return () => {
       alive = false;
       if (idRef.current && window.turnstile) window.turnstile.remove(idRef.current);
       idRef.current = null;
     };
-  }, [resetKey]);
+  }, [resetKey, retry]);
 
   if (!TURNSTILE_SITE_KEY) return null;
-  return <div ref={ref} className="min-h-[65px]" aria-label="Human verification" />;
+  return (
+    <div>
+      <div ref={ref} className="min-h-[65px]" aria-label="Human verification" />
+      {failure && (
+        <div role="alert" className="mt-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-sm">
+          <p className="text-red-200">
+            Verification failed: {describeTurnstileError(failure)}{" "}
+            <span className="font-mono text-xs text-red-200/70">(error {failure})</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setFailure(null);
+              setRetry((n) => n + 1);
+            }}
+            className="mt-1.5 text-sm font-semibold text-ember underline-offset-2 hover:underline"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
