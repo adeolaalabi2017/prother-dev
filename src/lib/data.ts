@@ -404,7 +404,23 @@ export async function shadowForumList(
   return c.query(api.forum.list, { topic, sort, voterKey });
 }
 
-export function shadowAdminOverview(c: Client) { if (!c) return null as any;
+export async function shadowAdminOverview(c: Client) { if (!c) return null as any;
+  // D1-first: the Convex overview went stale after the D1 cutover and loaded
+  // ten whole tables per view. Audit trail stays in Convex (logAudit writes
+  // there) via an indexed take(14).
+  try {
+    const { d1AdminOverview } = await import("@/lib/d1/admin-overview");
+    const d1 = await d1AdminOverview();
+    if (d1) {
+      const audit = await c.query(api.admin.recentAudit, {}).catch((err: unknown) => {
+        console.error("[data] recentAudit failed:", err);
+        return [];
+      });
+      return { ...d1, audit };
+    }
+  } catch (err) {
+    console.error("[data] d1AdminOverview failed, falling back to Convex:", err);
+  }
   return c.query(api.admin.overview, {});
 }
 

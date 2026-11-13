@@ -7,18 +7,18 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/overview — dashboard payload for the /admin route
- * (PRD F-49 admin dashboard). Convex-only (admin cutover): directory
- * metrics, 14-day charts, queue age, and the Convex audit trail.
+ * (PRD F-49 admin dashboard). Directory metrics, 14-day charts and queue
+ * age come from D1 (SQL aggregates); the audit trail from Convex.
  */
 export async function GET(req: Request) {
   const denied = await guard(req);
   if (denied) return denied;
 
-  // Convex-only (admin cutover). logAudit is Convex-first (lib/admin.ts),
-  // so the audit trail keeps growing in Convex.
+  // logAudit is Convex-first (lib/admin.ts), so the audit trail keeps
+  // growing in Convex; shadowAdminOverview reads it back from there.
   logAudit("admin.view", "overview");
   const payload = await shadowAdminOverview(createServerConvexClient()!);
   return NextResponse.json(payload, {
-    headers: { "Cache-Control": "no-store", "x-data-backend": "convex" },
+    headers: { "Cache-Control": "no-store", "x-data-backend": "d1" },
   });
 }
