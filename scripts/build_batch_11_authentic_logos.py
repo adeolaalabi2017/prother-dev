@@ -66,14 +66,12 @@ moonshot_svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" w
   </g>
 </svg>'''
 
-# 6. Zhipu AI
-zhipu_raw = fetch_url("https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/zhipu-color.svg")
-zhipu_paths = "".join(re.findall(r'<path.*?</path>', zhipu_raw))
-zhipu_svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+# 6. Zhipu AI (Z.ai official stylized Z mark)
+zhipu_svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <title>Zhipu AI</title>
   <rect width="32" height="32" rx="6" fill="#0B1015"/>
-  <g transform="translate(5, 5) scale(0.9167)">
-    {zhipu_paths}
+  <g transform="translate(5.8, 5.8) scale(0.85)">
+    <path clip-rule="evenodd" d="M12.105 2L9.927 4.953H.653L2.83 2h9.276zM23.254 19.048L21.078 22h-9.242l2.174-2.952h9.244zM24 2L9.264 22H0L14.736 2H24z" fill="#FFFFFF" fill-rule="evenodd"/>
   </g>
 </svg>'''
 
