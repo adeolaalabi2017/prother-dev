@@ -23,13 +23,12 @@ kling_svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" widt
 </svg>'''
 
 # 2. Fireworks AI
-fireworks_raw = fetch_url("https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/fireworks-color.svg")
-fireworks_paths = "".join(re.findall(r'<path.*?</path>', fireworks_raw))
+fireworks_path = 'M81.7059 54.1818C78.5142 54.6039 55.4095 56.7847 55.4095 56.7847C55.4095 56.7847 73.5555 41.8118 75.8594 40.0496L72.5652 32.0864L53.2692 51.3455C47.3171 57.2857 49.3284 62.1476 57.7376 62.1466L85 62.1447L81.7059 54.1818ZM12.4348 32.0864L9.14057 40.0496C11.4445 41.8118 29.5906 56.7847 29.5906 56.7847C29.5906 56.7847 6.48583 54.6039 3.29425 54.1818L3.8147e-06 62.1447L27.2625 62.1466C35.6717 62.1476 37.683 57.2857 31.7308 51.3455L12.4348 32.0864ZM58.7645 22.8534L48.3445 48.046C45.1308 55.8169 39.8694 55.8169 36.6556 48.046L26.2356 22.8534H34.8532C35.6009 25.6561 42.5 48.1476 42.5 48.1476C42.5 48.1476 49.3169 25.9641 50.147 22.8534H58.7645Z'
 fireworks_svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <title>Fireworks AI</title>
   <rect width="32" height="32" rx="6" fill="#0B1015"/>
-  <g transform="translate(5, 5) scale(0.9167)">
-    {fireworks_paths}
+  <g transform="translate(3.2, 3.2) scale(0.301176)">
+    <path d="{fireworks_path}" fill="#FFFFFF"/>
   </g>
 </svg>'''
 
