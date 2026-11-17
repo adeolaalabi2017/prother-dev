@@ -100,3 +100,25 @@ describe("chunk", () => {
     expect(chunk([], 90)).toEqual([]);
   });
 });
+
+describe("describeTurnstileError", () => {
+  it("names site-side problems so the owner can act", async () => {
+    const { describeTurnstileError } = await import("@/lib/turnstile-errors");
+    expect(describeTurnstileError("110200")).toContain("site owner");
+    expect(describeTurnstileError("110100")).toContain("site owner");
+  });
+  it("points browser-side failures at the browser", async () => {
+    const { describeTurnstileError } = await import("@/lib/turnstile-errors");
+    expect(describeTurnstileError("600010")).toContain("browser");
+    expect(describeTurnstileError("300030")).toContain("browser");
+    expect(describeTurnstileError("script-blocked")).toContain("blocking");
+    expect(describeTurnstileError("200100")).toContain("clock");
+    expect(describeTurnstileError("999999")).toContain("Try again");
+  });
+  it("uses no em or en dashes", async () => {
+    const { describeTurnstileError } = await import("@/lib/turnstile-errors");
+    for (const c of ["110200", "110100", "110500", "110510", "200100", "106010", "102001", "600010", "script-blocked", "x"]) {
+      expect(describeTurnstileError(c)).not.toMatch(/[–—]/);
+    }
+  });
+});

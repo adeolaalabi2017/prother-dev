@@ -5,6 +5,7 @@ import { validateSafeUrl } from "@/lib/ssrf";
 import { CATEGORIES } from "@/components/prother/categories";
 import {
   convexSubmissionCreate,
+  shadowErrorLog,
   shadowSubmissionCountSince,
   shadowSubmitCheck,
 } from "@/lib/data";
@@ -110,6 +111,14 @@ export async function POST(req: NextRequest) {
   // Bot check before any database work.
   const human = await verifyTurnstile(data.turnstileToken, clientIp);
   if (!human.ok) {
+    // Count refusals by reason (admin Traffic > errors): separates a wrong
+    // secret ("invalid-input-secret") from bots sending no or bad tokens.
+    const now = new Date();
+    await shadowErrorLog(createServerConvexClient()!, {
+      sig: `turnstile-server:${human.reason} @ /api/submit`.slice(0, 120),
+      day: now.toISOString().slice(0, 10),
+      nowMs: now.getTime(),
+    }).catch(() => {});
     return NextResponse.json(
       {
         error: "We couldn't confirm you're human. Complete the check and try again.",
