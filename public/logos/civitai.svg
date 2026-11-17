@@ -1,7 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <title>Civitai</title>
+  <defs>
+    <linearGradient id="civitaiInner" gradientUnits="userSpaceOnUse" x1="10.156" y1="22.45" x2="10.156" y2="2.4614" gradientTransform="matrix(1 0 0 -1 0 24)">
+      <stop offset="0" stop-color="#081692"/>
+      <stop offset="1" stop-color="#1E043C"/>
+    </linearGradient>
+    <linearGradient id="civitaiOuter" gradientUnits="userSpaceOnUse" x1="10.156" y1="22.45" x2="10.156" y2="2.45" gradientTransform="matrix(1 0 0 -1 0 24)">
+      <stop offset="0" stop-color="#1284F7"/>
+      <stop offset="1" stop-color="#0A20C9"/>
+    </linearGradient>
+  </defs>
   <rect width="32" height="32" rx="6" fill="#0B1015"/>
-  <g transform="translate(5, 5) scale(0.9167)" fill="#FFFFFF">
-    <path d="M22.392 6L12 0 1.608 6v12L12 24l10.392-6V6zm-3.407 1.967L12 3.934 5.015 7.967v8.066L12 20.065l6.985-4.032V7.967z"></path><path d="M12 6.885l4.43 2.558v1.377h-2.386L12 9.64l-2.044 1.18v2.36L12 14.36l2.044-1.18h2.386v1.377L12 17.115l-4.43-2.558V9.443L12 6.885z"></path>
+  <g transform="translate(5.29, 3.82) scale(1.05)">
+    <path fill="url(#civitaiInner)" d="M1.5 6.6v10l8.7 5l8.7-5v-10l-8.7-5L1.5 6.6z"/>
+    <path fill="url(#civitaiOuter)" d="M10.2 4.7l5.9 3.4V15l-5.9 3.4L4.2 15V8.1L10.2 4.7 M10.2 1.6l-8.7 5v10l8.7 5l8.7-5v-10C18.8 6.6 10.2 1.6 10.2 1.6z"/>
+    <path fill="#FFFFFF" d="M11.8 12.4l-1.7 1l-1.7-1v-1.9l1.7-1l1.7 1h2.1V9.3l-3.8-2.2L6.4 9.3v4.3l3.8 2.2l3.8-2.2v-1.2H11.8z"/>
   </g>
 </svg>

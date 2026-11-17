@@ -7,6 +7,7 @@
 export const KNOWN_LOCAL_LOGOS: Record<string, string> = {
   "agent37": "/logos/agent37.png",
   "agently": "/logos/agently.png",
+  "agno": "/logos/agno.svg",
   "ai21-labs": "/logos/ai21-labs.svg",
   "aider": "/logos/aider.svg",
   "anthropic": "/logos/anthropic.svg",
