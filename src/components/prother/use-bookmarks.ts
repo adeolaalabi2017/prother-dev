@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { create } from "zustand";
 import { useSession } from "next-auth/react";
 import { getVoterKey } from "./voter";
@@ -180,8 +180,14 @@ export function useBookmarksList() {
 export function useBookmark(targetType: BookmarkTargetType, targetId?: string | null) {
   const { status } = useSession();
 
-  const items = useBookmarkStore((s) => s.items);
-  const loadError = useBookmarkStore((s) => s.loadError);
+  // Primitive selectors: a toggle re-renders only consumers whose own
+  // membership (or the loaded flag) changed, not every bookmark button.
+  const bookmarked = useBookmarkStore(
+    (s) =>
+      !!targetId &&
+      (s.items ?? []).some((i) => i.targetType === targetType && i.targetId === targetId)
+  );
+  const ready = useBookmarkStore((s) => s.items !== null || s.loadError);
 
   useEffect(() => {
     // No target (e.g. the always-mounted tool overlay while closed): don't
@@ -192,13 +198,6 @@ export function useBookmark(targetType: BookmarkTargetType, targetId?: string | 
     const store = useBookmarkStore.getState();
     void store.ensure(hint, store.owner !== null && store.owner !== hint);
   }, [status, targetId]);
-
-  const bookmarked = useMemo(
-    () =>
-      !!targetId &&
-      (items ?? []).some((i) => i.targetType === targetType && i.targetId === targetId),
-    [items, targetType, targetId]
-  );
 
   const [pending, setPending] = useState(false);
 
@@ -278,7 +277,7 @@ export function useBookmark(targetType: BookmarkTargetType, targetId?: string | 
   return {
     bookmarked,
     /** True while the owner's list is still loading (first paint). */
-    ready: items !== null || loadError,
+    ready,
     pending,
     toggle,
   };

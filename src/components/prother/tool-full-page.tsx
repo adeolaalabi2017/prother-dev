@@ -1123,7 +1123,8 @@ export function ToolFullPage() {
   const openTool = useExplorer((s) => s.openTool);
   const addCompare = useExplorer((s) => s.addCompare);
   const removeCompare = useExplorer((s) => s.removeCompare);
-  const compareSlugs = useExplorer((s) => s.compare);
+  const inCompare = useExplorer((s) => (s.slug ? s.compare.includes(s.slug) : false));
+  const compareCount = useExplorer((s) => s.compare.length);
 
   const [detail, setDetail] = useState<ToolFullDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1238,8 +1239,7 @@ export function ToolFullPage() {
   );
   const savedSet = useMemo(() => new Set(savedIn.map((s) => s.slug)), [savedIn]);
 
-  const inCompare = slug ? compareSlugs.includes(slug) : false;
-  const compareFull = compareSlugs.length >= 4 && !inCompare;
+  const compareFull = compareCount >= 4 && !inCompare;
 
   const onCompare = useCallback(() => {
     if (!slug) return;

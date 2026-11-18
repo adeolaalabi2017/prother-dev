@@ -847,20 +847,13 @@ export function EditorConsole() {
     [load]
   );
 
-  // Restore session key + ⌘⇧E shortcut.
+  // Restore session key. (The ⌘⇧E shortcut lives in GlobalOverlays, since
+  // this console only mounts once it is first opened.)
   useEffect(() => {
     if (sessionStorage.getItem(KEY_STORAGE)) {
       setAuthed(true);
     }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === "e") {
-        e.preventDefault();
-        setOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [setOpen]);
+  }, []);
 
   // Load the queue when the dialog opens.
   useEffect(() => {
