@@ -240,11 +240,11 @@ export function ToolDecisionCard(props: ToolCardProps) {
 
           {/* Decision Badges Row */}
           <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-            {badges.map((b, idx) => {
+            {badges.map((b) => {
               if (b.tone === "emerald") {
                 return (
                   <span
-                    key={idx}
+                    key={b.label}
                     className="inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 font-mono text-[11px] font-medium text-emerald-400"
                   >
                     {b.label}
@@ -254,7 +254,7 @@ export function ToolDecisionCard(props: ToolCardProps) {
               if (b.tone === "sky") {
                 return (
                   <span
-                    key={idx}
+                    key={b.label}
                     className="inline-flex items-center rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 font-mono text-[11px] font-medium text-sky-400"
                   >
                     {b.label}
@@ -264,7 +264,7 @@ export function ToolDecisionCard(props: ToolCardProps) {
               if (b.tone === "amber") {
                 return (
                   <span
-                    key={idx}
+                    key={b.label}
                     className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-0.5 font-mono text-[11px] font-medium text-amber-300"
                   >
                     {b.label}
@@ -273,7 +273,7 @@ export function ToolDecisionCard(props: ToolCardProps) {
               }
               return (
                 <span
-                  key={idx}
+                  key={b.label}
                   className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 font-mono text-[11px] font-medium text-white/70"
                 >
                   {b.label}

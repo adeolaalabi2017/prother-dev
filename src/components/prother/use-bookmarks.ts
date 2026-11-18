@@ -290,7 +290,11 @@ export async function removeBookmark(
 ): Promise<boolean> {
   const key = getVoterKey();
   const store = useBookmarkStore.getState();
-  const snapshot = store.items ?? [];
+  // Keep only the removed item, not the whole list: a full-list restore on
+  // failure would also undo any toggle made while this request was in flight.
+  const prev = (store.items ?? []).find(
+    (i) => i.targetType === targetType && i.targetId === targetId
+  );
   store.remove(targetType, targetId);
   try {
     const res = await fetch("/api/bookmarks", {
@@ -306,7 +310,7 @@ export async function removeBookmark(
     if (!res.ok) throw new Error(`bookmark_${res.status}`);
     return true;
   } catch {
-    useBookmarkStore.getState().replaceAll(snapshot);
+    if (prev) useBookmarkStore.getState().upsert(prev);
     return false;
   }
 }

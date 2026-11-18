@@ -12,8 +12,10 @@
 
 import { useExplorer } from "./explorer-store";
 
-/** The floating compare tray shows only when there is something to compare
- *  and no full page is stacked on top of the feed. */
+/** The floating compare tray shows when there is something to compare,
+ *  except under the compare, tool, post and mine full pages. The tray sits
+ *  above full pages (z-65 over the shell's z-60), so it stays visible over
+ *  the category, collection and saved pages. */
 export function useCompareTrayVisible(): boolean {
   return useExplorer(
     (s) =>
@@ -30,7 +32,7 @@ export function useCompareCount(): number {
   return useExplorer((s) => s.compare.length);
 }
 
-/** The 0–2 selected slugs (array identity changes only on add/remove). */
+/** The 0 to 4 selected slugs (array identity changes only on add/remove). */
 export function useCompareSlugs(): string[] {
   return useExplorer((s) => s.compare);
 }
