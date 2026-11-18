@@ -3,8 +3,9 @@
   "name": "prother",
   // OpenNext → Cloudflare Workers (Workers with static assets is the modern
   // successor to Cloudflare Pages for Next.js — @cloudflare/next-on-pages is
-  // deprecated). `opennextjs-cloudflare build` fills .open-next/worker.js.
-  "main": ".open-next/worker.js",
+  // deprecated). `opennextjs-cloudflare build` fills .open-next/worker.js,
+  // which worker.ts wraps with the edge HTML/OG cache.
+  "main": "worker.ts",
   "compatibility_date": "2025-12-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
@@ -29,13 +30,19 @@
       "database_id": "ab47ba10-6e7e-4d73-a1ef-dfee0a6e4147"
     }
   ],
+  "r2_buckets": [
+    {
+      // OpenNext ISR incremental cache (open-next.config.ts).
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "prother-inc-cache"
+    }
+  ],
   "kv_namespaces": [
     {
       "binding": "CACHE",
       "id": "c5e5112657dd4d6594d0c25b1279fe65"
     }
   ]
-  // R2 pending: enable R2 in dashboard (billing required), then add:
+  // Media uploads to R2 (R2 is now enabled): create the bucket, then add:
   // "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "prother-media" }]
-  // KV durable ISR cache: wire kvIncrementalCache in open-next.config.ts later.
 }

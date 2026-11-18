@@ -46,6 +46,9 @@ const nextConfig: NextConfig = {
   // directory: it forces a fresh origin render + Convex round trip on every
   // crawler hit and every page view.
   //
+  // A Worker runs before Cloudflare's CDN cache, so these headers are enforced
+  // by the edge cache in worker.ts (Cache API), not by the CDN itself.
+  //
   // These overrides let the CDN serve a stale copy while it revalidates in the
   // background (stale-while-revalidate), so the user gets a fast TTFB and
   // crawlers stop hitting the origin on every request. The window is short

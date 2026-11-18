@@ -92,3 +92,6 @@ qa/
 worklog.md
 Caddyfile
 *.pid
+
+# Local-only wrangler variants (e.g. remote-D1 preview)
+wrangler.*.local.jsonc
