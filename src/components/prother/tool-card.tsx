@@ -151,11 +151,11 @@ export function ToolDecisionCard(props: ToolCardProps) {
     className = "",
   } = props;
 
-  const compareSlugs = useExplorer((s) => s.compare);
+  // Boolean selector: a compare change re-renders only the card whose
+  // membership flipped, not every card subscribed to the whole array.
+  const inCompare = useExplorer((s) => s.compare.includes(slug));
   const addCompare = useExplorer((s) => s.addCompare);
   const removeCompare = useExplorer((s) => s.removeCompare);
-
-  const inCompare = compareSlugs.includes(slug);
 
   const onCompareToggle = useCallback(
     (e: React.MouseEvent) => {
