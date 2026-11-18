@@ -40,7 +40,15 @@ import { getGuidesForTool } from "@/lib/journal-relations";
  * the reference: hero > proof > verdict > about > related.
  */
 
-export const dynamic = "force-dynamic";
+// ISR: rendered on first request, stored in the R2 incremental cache
+// (open-next.config.ts), regenerated in the background after 6h.
+// Shared across data centres, so most hits never boot the Next server.
+export const revalidate = 21600;
+
+// No build-time prerender: pages render on demand, then cache.
+export async function generateStaticParams() {
+  return [];
+}
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -163,49 +171,52 @@ type ConvexBundle = {
 };
 
 const getConvexBundle = cache(
+  // No try/catch: an infra failure (D1/Convex unreachable) must throw so Next
+  // serves a 500 (never cached) or keeps the stale ISR copy. Mapping it to
+  // null would hit notFound() and cache a false 404 for the revalidate window.
+  // An unconfigured data layer (no Convex URL, e.g. the CI soft-404 check) is
+  // not an outage: it has no tools, so it stays a 404.
   async (slug: string): Promise<ConvexBundle | null> => {
-    try {
-      const resolved = slug === "claude-haiku-5-5" ? "haiku-5-5" : slug;
-      const res = await shadowToolPageData(createServerConvexClient(), resolved);
-      if ("error" in res) return null;
-      const isoOrNull = (v: string | null): Date | null =>
-        v ? new Date(v) : null;
-      return {
-        tool: {
-          ...res.tool,
-          tags: res.tool.tags.join("|"),
-          createdAt: new Date(res.tool.createdAt),
-        },
-        stats: res.stats,
-        reviews: res.reviews,
-        threads: res.threads,
-        relatedRows: res.related,
-        mediaMap: new Map([
-          [
-            res.tool.id,
-            { logoUrl: res.logoUrl, screenshotUrls: res.screenshots },
-          ],
-        ]),
-        editorialMap: new Map([
-          [
-            res.tool.id,
-            {
-              longDescription: res.editorial.longDescription,
-              useCases: res.editorial.useCases,
-              pros: res.editorial.pros,
-              cons: res.editorial.cons,
-              alternativeSlugs: res.editorial.alternativeSlugs,
-              pricingCheckedAt: isoOrNull(res.editorial.pricingCheckedAt),
-              contentUpdatedAt: isoOrNull(res.editorial.contentUpdatedAt),
-            },
-          ],
-        ]),
-        categoryToolCount: res.categoryToolCount,
-        alternatives: res.alternatives,
-      };
-    } catch {
-      return null;
-    }
+    const client = createServerConvexClient();
+    if (!client) return null;
+    const resolved = slug === "claude-haiku-5-5" ? "haiku-5-5" : slug;
+    const res = await shadowToolPageData(client, resolved);
+    if ("error" in res) return null;
+    const isoOrNull = (v: string | null): Date | null =>
+      v ? new Date(v) : null;
+    return {
+      tool: {
+        ...res.tool,
+        tags: res.tool.tags.join("|"),
+        createdAt: new Date(res.tool.createdAt),
+      },
+      stats: res.stats,
+      reviews: res.reviews,
+      threads: res.threads,
+      relatedRows: res.related,
+      mediaMap: new Map([
+        [
+          res.tool.id,
+          { logoUrl: res.logoUrl, screenshotUrls: res.screenshots },
+        ],
+      ]),
+      editorialMap: new Map([
+        [
+          res.tool.id,
+          {
+            longDescription: res.editorial.longDescription,
+            useCases: res.editorial.useCases,
+            pros: res.editorial.pros,
+            cons: res.editorial.cons,
+            alternativeSlugs: res.editorial.alternativeSlugs,
+            pricingCheckedAt: isoOrNull(res.editorial.pricingCheckedAt),
+            contentUpdatedAt: isoOrNull(res.editorial.contentUpdatedAt),
+          },
+        ],
+      ]),
+      categoryToolCount: res.categoryToolCount,
+      alternatives: res.alternatives,
+    };
   },
 );
 

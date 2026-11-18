@@ -16,6 +16,22 @@ export default function robots(): MetadataRoute.Robots {
 
   return {
     rules: [
+      // SEO-tool / backlink-index crawlers. They send no visitors, and their
+      // bursts drove Worker CPU-limit (503) errors in Nov 2026. Search and
+      // AI-answer crawlers below stay allowed.
+      {
+        userAgent: [
+          "SERankingBacklinksBot",
+          "AhrefsBot",
+          "SemrushBot",
+          "MJ12bot",
+          "DotBot",
+          "BLEXBot",
+          "DataForSeoBot",
+          "PetalBot",
+        ],
+        disallow: "/",
+      },
       // Explicit permissions for AI Search & Answer Engine citation crawlers
       {
         userAgent: [
