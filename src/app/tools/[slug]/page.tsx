@@ -174,9 +174,13 @@ const getConvexBundle = cache(
   // No try/catch: an infra failure (D1/Convex unreachable) must throw so Next
   // serves a 500 (never cached) or keeps the stale ISR copy. Mapping it to
   // null would hit notFound() and cache a false 404 for the revalidate window.
+  // An unconfigured data layer (no Convex URL, e.g. the CI soft-404 check) is
+  // not an outage: it has no tools, so it stays a 404.
   async (slug: string): Promise<ConvexBundle | null> => {
+    const client = createServerConvexClient();
+    if (!client) return null;
     const resolved = slug === "claude-haiku-5-5" ? "haiku-5-5" : slug;
-    const res = await shadowToolPageData(createServerConvexClient(), resolved);
+    const res = await shadowToolPageData(client, resolved);
     if ("error" in res) return null;
     const isoOrNull = (v: string | null): Date | null =>
       v ? new Date(v) : null;
