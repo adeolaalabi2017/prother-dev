@@ -65,6 +65,21 @@ const nextConfig: NextConfig = {
         destination: "/tools",
         permanent: true,
       },
+      {
+        // There is no /search page; search lives at /tools?q= (the
+        // SearchAction target). Bots and guessed URLs hit /search ~35x/day.
+        // Next forwards the query string, so /search?q=x lands on /tools?q=x.
+        source: "/search",
+        destination: "/tools",
+        permanent: true,
+      },
+      {
+        // Crawlers (PerplexityBot, Baidu, Meta) probe the WordPress/Yoast
+        // sitemap index name; the real sitemap is /sitemap.xml.
+        source: "/sitemap_index.xml",
+        destination: "/sitemap.xml",
+        permanent: true,
+      },
     ];
   },
   async headers() {
