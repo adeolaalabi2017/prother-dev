@@ -16,7 +16,15 @@ import { safeJsonLd } from "@/lib/safe-json-ld";
 import { extractDirectoryConnections } from "@/lib/journal-relations";
 import { JournalDirectoryBridge } from "@/components/prother/journal-directory-bridge";
 
-export const dynamic = "force-dynamic";
+// ISR: rendered on first request, stored in the R2 incremental cache
+// (open-next.config.ts), regenerated in the background after 1h.
+// Shared across data centres, so most hits never boot the Next server.
+export const revalidate = 3600;
+
+// No build-time prerender: pages render on demand, then cache.
+export async function generateStaticParams() {
+  return [];
+}
 
 const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://prother.dev";
 
