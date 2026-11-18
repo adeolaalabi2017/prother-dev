@@ -1143,26 +1143,38 @@ export function ToolFullPage() {
     toggle: toggleToolBookmark,
   } = useBookmark("tool", slug);
 
+  // Only the latest load may commit state. Switching tools (or retrying)
+  // aborts the previous request, so a slow response for tool A can never
+  // land after tool B's and render A's data under B's slug.
+  const loadCtrlRef = useRef<AbortController | null>(null);
+
   const load = useCallback(async () => {
+    loadCtrlRef.current?.abort();
     if (!slug) return;
+    const ctrl = new AbortController();
+    loadCtrlRef.current = ctrl;
     setLoading(true);
     setNotFound(false);
     setLoadErr(false);
     setSavedLocal(null);
     try {
-      const res = await fetch(`/api/tools/${encodeURIComponent(slug)}`);
+      const res = await fetch(`/api/tools/${encodeURIComponent(slug)}`, {
+        signal: ctrl.signal,
+      });
+      if (ctrl.signal.aborted) return;
       if (res.status === 404) {
         setNotFound(true);
         return;
       }
       if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as ToolFullDetail;
+      if (ctrl.signal.aborted) return;
       setDetail(data);
       setFollowing(data.viewer?.following ?? false);
     } catch {
-      setLoadErr(true);
+      if (!ctrl.signal.aborted) setLoadErr(true);
     } finally {
-      setLoading(false);
+      if (!ctrl.signal.aborted) setLoading(false);
     }
   }, [slug]);
 
@@ -1170,6 +1182,7 @@ export function ToolFullPage() {
     setDetail(null);
     setShotIndex(null);
     void load();
+    return () => loadCtrlRef.current?.abort();
   }, [load]);
 
   const onFollow = useCallback(async () => {

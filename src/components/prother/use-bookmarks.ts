@@ -86,9 +86,13 @@ type BookmarkStore = {
 };
 
 // In-flight dedupe lives outside the store — two consumers mounting at once
-// share one request instead of racing two.
+// share one request instead of racing two. `requestSeq` makes the latest
+// request the only one allowed to commit: when the owner changes mid-flight
+// (anon -> signed in), the older anon response is discarded instead of
+// overwriting the signed-in list.
 let inflight: Promise<void> | null = null;
 let inflightFor: OwnerHint | null = null;
+let requestSeq = 0;
 
 const useBookmarkStore = create<BookmarkStore>((set, get) => ({
   items: null,
@@ -98,20 +102,26 @@ const useBookmarkStore = create<BookmarkStore>((set, get) => ({
   ensure: async (hint, force = false) => {
     const s = get();
     if (!force && !s.loadError && s.owner === hint && s.items !== null) return;
-    if (inflight && inflightFor === hint) return inflight;
+    if (!force && inflight && inflightFor === hint) return inflight;
+    const seq = ++requestSeq;
     inflightFor = hint;
-    inflight = (async () => {
+    const request = (async () => {
       try {
         const items = await fetchBookmarkList(hint);
+        if (seq !== requestSeq) return; // superseded by a newer request
         set({ items, owner: hint, loadError: false });
       } catch {
+        if (seq !== requestSeq) return;
         set({ loadError: true, owner: hint });
       } finally {
-        inflight = null;
-        inflightFor = null;
+        if (seq === requestSeq) {
+          inflight = null;
+          inflightFor = null;
+        }
       }
     })();
-    return inflight;
+    inflight = request;
+    return request;
   },
 
   upsert: (item) =>
@@ -174,11 +184,14 @@ export function useBookmark(targetType: BookmarkTargetType, targetId?: string | 
   const loadError = useBookmarkStore((s) => s.loadError);
 
   useEffect(() => {
+    // No target (e.g. the always-mounted tool overlay while closed): don't
+    // load the list, or every page view pays for a bookmarks GET.
+    if (!targetId) return;
     const hint = ownerHintFor(status);
     if (!hint) return;
     const store = useBookmarkStore.getState();
     void store.ensure(hint, store.owner !== null && store.owner !== hint);
-  }, [status]);
+  }, [status, targetId]);
 
   const bookmarked = useMemo(
     () =>
