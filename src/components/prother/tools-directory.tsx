@@ -32,7 +32,10 @@ import { ToolDecisionCard } from "./tool-card";
 
 type Sort = "featured" | "top-rated" | "newest" | "trending";
 
-const PAGE_LIMIT = 60;
+// Must equal the server's effective page size: d1Directory caps pageSize at
+// 48. Asking for 60 got 48 back, so `floor(48 / 60) + 1` re-requested page 1
+// and "Load more" appended duplicates instead of advancing.
+const PAGE_LIMIT = 48;
 
 export type ToolsDirectoryProps = {
   /** SSR'd first page (directory default ordering) — skips the boot fetch. */
@@ -129,10 +132,18 @@ export function ToolsDirectory({
   // stand — no redundant mount fetch. Handlers flip this before the effect runs.
   const interactedRef = useRef(false);
 
+  // Filter generation: bumped on every filter change so an in-flight
+  // "load more" for the previous filter set can never append its rows to
+  // the new result list.
+  const filterGenRef = useRef(0);
+  const loadMoreCtrlRef = useRef<AbortController | null>(null);
+
   // Debounced directory fetch (250ms) — results land in async continuations.
   // The query is mirrored into the URL (replaceState) alongside the fetch so
   // /tools?q=… stays shareable without a navigation.
   useEffect(() => {
+    filterGenRef.current += 1;
+    loadMoreCtrlRef.current?.abort();
     if (!interactedRef.current && initialRows) return;
     const q = query.trim();
     const ctrl = new AbortController();
@@ -212,16 +223,30 @@ export function ToolsDirectory({
     if (tag) sp.set("tag", tag);
     if (pricing) sp.set("pricing", pricing);
 
+    const gen = filterGenRef.current;
+    const ctrl = new AbortController();
+    loadMoreCtrlRef.current = ctrl;
     try {
-      const res = await fetch(`/api/tools?${sp.toString()}`);
+      const res = await fetch(`/api/tools?${sp.toString()}`, {
+        signal: ctrl.signal,
+      });
       if (res.ok) {
         const d = (await res.json()) as { rows: DirectoryRow[]; total: number };
-        setRows((prev) => (prev ? [...prev, ...d.rows] : d.rows));
+        // Filters changed while this page was in flight: drop it.
+        if (gen !== filterGenRef.current) return;
+        // Dedupe by slug: rows are keyed by slug, and a duplicate key makes
+        // React leave orphaned cards in the DOM on the next replace.
+        setRows((prev) => {
+          if (!prev) return d.rows;
+          const seen = new Set(prev.map((r) => r.slug));
+          return [...prev, ...d.rows.filter((r) => !seen.has(r.slug))];
+        });
         setTotal(d.total);
       }
     } catch {
-      // Keep existing rows
+      // Keep existing rows (aborts land here too)
     } finally {
+      if (loadMoreCtrlRef.current === ctrl) loadMoreCtrlRef.current = null;
       setLoadingMore(false);
     }
   }, [rows, loadingMore, total, query, sort, category, tag, pricing]);

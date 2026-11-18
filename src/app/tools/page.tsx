@@ -106,7 +106,7 @@ export async function generateMetadata({
 /** Results per SERP page. */
 const SERP_PAGE_SIZE = 12;
 /** How many rows the client directory bootstraps with (matches its PAGE_LIMIT). */
-const DIRECTORY_PAGE_LIMIT = 60;
+const DIRECTORY_PAGE_LIMIT = 48;
 
 function pricingLabel(model: string, price: string | null): string {
   switch (model) {
