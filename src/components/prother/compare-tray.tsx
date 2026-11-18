@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Scale, X } from "lucide-react";
@@ -11,7 +11,7 @@ import { useCompareTrayVisible } from "./compare-store";
 /**
  * Floating compare tray - a bottom pill that follows the visitor across the
  * site after they add tools to a comparison. Supports 1 to 4 tools matching
- * the /compare matrix. Hidden whenever any full page is stacked on top.
+ * the /compare matrix. Visibility rules live in useCompareTrayVisible.
  */
 
 export function CompareTray() {
@@ -22,17 +22,25 @@ export function CompareTray() {
   const reducedMotion = useReducedMotion();
   const [names, setNames] = useState<Record<string, string>>({});
 
-  // Resolve slug -> display name by fetching the specific tools in the
-  // compare list (graceful: the tray falls back to the raw slug if the
-  // individual endpoint is unreachable). The merge into state is idempotent,
-  // so re-fetching a slug already present simply overwrites it with itself.
+  // Resolve slug -> display name by fetching only the slugs not resolved yet
+  // (graceful: the tray falls back to the raw slug if the individual endpoint
+  // is unreachable). Keyed on the joined slug string, not the array, so a
+  // syncFromUrl that rebuilds the same list doesn't refetch. `requestedRef`
+  // tracks slugs already fetched or in flight (a failed fetch is dropped from
+  // it so a later change retries). Results always merge, even if the list
+  // changed meanwhile: the merge is idempotent, and dropping them would just
+  // refetch the same names.
+  const requestedRef = useRef<Set<string>>(new Set());
   const slugsKey = slugs.join(",");
   useEffect(() => {
-    if (!visible || slugs.length === 0) return;
-    let alive = true;
+    if (!visible || !slugsKey) return;
+    const requested = requestedRef.current;
+    const missing = slugsKey.split(",").filter((s) => !requested.has(s));
+    if (missing.length === 0) return;
+    for (const s of missing) requested.add(s);
 
     Promise.allSettled(
-      slugs.map((slug) =>
+      missing.map((slug) =>
         fetch(`/api/tools/${encodeURIComponent(slug)}`).then(async (res) => {
           if (!res.ok) return null;
           const data = (await res.json()) as { slug: string; name: string };
@@ -40,7 +48,9 @@ export function CompareTray() {
         })
       )
     ).then((results) => {
-      if (!alive) return;
+      results.forEach((r, i) => {
+        if (r.status !== "fulfilled" || !r.value?.name) requested.delete(missing[i]);
+      });
       setNames((prev) => {
         const next = { ...prev };
         for (const r of results) {
@@ -51,11 +61,7 @@ export function CompareTray() {
         return next;
       });
     });
-
-    return () => {
-      alive = false;
-    };
-  }, [visible, slugsKey, slugs]);
+  }, [visible, slugsKey]);
 
   const nameOf = (slug: string) => names[slug] ?? slug;
 

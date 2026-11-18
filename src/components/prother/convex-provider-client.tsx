@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 
 /**
@@ -16,17 +15,27 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
  * (every query passes "skip" in that mode — see CONVEX_LIVE in the search
  * components, which keep their /api fetch fallback). With a URL, subscribed
  * components update live over websocket.
+ *
+ * The client is a lazily created module singleton: every island that mounts
+ * this provider (hero search, command palette) shares one websocket and one
+ * query cache, so overlapping subscriptions (e.g. trending) dedupe instead
+ * of opening a second connection.
  */
+let sharedClient: ConvexReactClient | null = null;
+
+function getClient(): ConvexReactClient {
+  if (!sharedClient) {
+    const url =
+      process.env.NEXT_PUBLIC_CONVEX_URL?.trim() || "https://convex.invalid";
+    sharedClient = new ConvexReactClient(url);
+  }
+  return sharedClient;
+}
+
 export function ConvexClientProviderInner({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const client = useMemo(() => {
-    const url =
-      process.env.NEXT_PUBLIC_CONVEX_URL?.trim() || "https://convex.invalid";
-    return new ConvexReactClient(url);
-  }, []);
-
-  return <ConvexProvider client={client}>{children}</ConvexProvider>;
+  return <ConvexProvider client={getClient()}>{children}</ConvexProvider>;
 }

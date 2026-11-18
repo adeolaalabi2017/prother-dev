@@ -418,6 +418,31 @@ const DEFAULT_CLAIM_STEPS = [
   "Hit VERIFY NOW: we fetch your page and look for the tag.",
 ];
 
+/**
+ * A boolean that turns on, then back off after `ms`. The pending timer is
+ * cleared on re-trigger and on unmount, so closing the page mid-flash leaves
+ * no timer behind.
+ */
+function useTransientFlag(ms: number): [boolean, () => void] {
+  const [on, setOn] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    },
+    []
+  );
+  const flash = useCallback(() => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    setOn(true);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      setOn(false);
+    }, ms);
+  }, [ms]);
+  return [on, flash];
+}
+
 function ClaimPanel({
   slug,
   maker,
@@ -434,7 +459,7 @@ function ClaimPanel({
   const { toast } = useToast();
   const [starting, setStarting] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useTransientFlag(1600);
   const [failReason, setFailReason] = useState<string | null>(null);
   const claimRef = useRef(claim);
   claimRef.current = claim;
@@ -516,12 +541,11 @@ function ClaimPanel({
   const onCopyTag = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(metaTag);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      flashCopied();
     } catch {
       toast({ title: "Could not copy. Select the tag manually.", variant: "destructive" });
     }
-  }, [metaTag, toast]);
+  }, [metaTag, toast, flashCopied]);
 
   // Anonymous: sign-in gate.
   if (sessionStatus === "unauthenticated") {
@@ -1132,7 +1156,7 @@ export function ToolFullPage() {
   const [loadErr, setLoadErr] = useState(false);
   const [following, setFollowing] = useState(false);
   const [savedLocal, setSavedLocal] = useState<{ slug: string; name: string }[] | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useTransientFlag(1600);
   const [reportOpen, setReportOpen] = useState(false);
   // Screenshot lightbox: index into detail.screenshots, null = closed.
   const [shotIndex, setShotIndex] = useState<number | null>(null);
@@ -1223,13 +1247,12 @@ export function ToolFullPage() {
   const onCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      flashCopied();
       toast({ title: "Link copied" });
     } catch {
       toast({ title: "Could not copy the link", description: shareUrl, variant: "destructive" });
     }
-  }, [shareUrl, toast]);
+  }, [shareUrl, toast, flashCopied]);
 
   // Memoize the fallback so the Set below doesn't rebuild on every render
   // (savedLocal and detail are both stable unless the underlying data changes).
@@ -1246,19 +1269,6 @@ export function ToolFullPage() {
     if (inCompare) removeCompare(slug);
     else if (!compareFull) addCompare(slug);
   }, [slug, inCompare, compareFull, addCompare, removeCompare]);
-
-  // Real-route links (alternatives, category) leave the overlay: close it so
-  // the navigated page shows. ToolFullPage mounts in the root layout, so the
-  // store must drop the slug or the overlay would cover the target page.
-  // Modifier-clicks (open in new tab) keep the overlay untouched.
-  const onRealLinkClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
-        return;
-      closeTool({ sync: false });
-    },
-    [closeTool]
-  );
 
   const claim: StartedClaim | null = detail?.viewer?.claim
     ? {
@@ -1957,7 +1967,6 @@ export function ToolFullPage() {
                     <Link
                       key={alt.slug}
                       href={`/tools/${alt.slug}`}
-                      onClick={onRealLinkClick}
                       className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-sm text-white/80 transition-colors hover:border-ember/40 hover:text-ember"
                     >
                       {alt.name}
@@ -1982,7 +1991,6 @@ export function ToolFullPage() {
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <Link
                     href={`/categories/${detail.category.slug}`}
-                    onClick={onRealLinkClick}
                     className="group inline-flex min-h-11 min-w-0 items-center gap-2.5 text-base font-bold text-white transition-colors hover:text-ember"
                   >
                     <span

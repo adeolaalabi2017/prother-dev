@@ -30,7 +30,14 @@ import { ToolDecisionCard } from "./tool-card";
  * toolbar mirrors the searched query.
  */
 
-type Sort = "featured" | "top-rated" | "newest" | "trending";
+const SORTS = ["featured", "top-rated", "newest", "trending"] as const;
+type Sort = (typeof SORTS)[number];
+
+// initialSort is a prop typed `string` (the page validates ?sort=, but this
+// component must not trust its callers): narrow it instead of casting.
+function toSort(raw: string | undefined): Sort {
+  return SORTS.find((s) => s === raw) ?? "featured";
+}
 
 // Must equal the server's effective page size: d1Directory caps pageSize at
 // 48. Asking for 60 got 48 back, so `floor(48 / 60) + 1` re-requested page 1
@@ -122,7 +129,7 @@ export function ToolsDirectory({
   const [tag, setTag] = useState<string>(initialTag ?? "");
   const [pricing, setPricing] = useState<string>(initialPricing ?? "");
   const [category, setCategory] = useState<string>(initialCategory ?? "all");
-  const [sort, setSort] = useState<Sort>((initialSort as Sort) ?? "featured");
+  const [sort, setSort] = useState<Sort>(() => toSort(initialSort));
   const [rows, setRows] = useState<DirectoryRow[] | null>(initialRows ?? null);
   const [total, setTotal] = useState(initialTotal ?? 0);
   const [failed, setFailed] = useState(false);
