@@ -32,7 +32,10 @@ import { ToolDecisionCard } from "./tool-card";
 
 type Sort = "featured" | "top-rated" | "newest" | "trending";
 
-const PAGE_LIMIT = 60;
+// Must equal the server's effective page size: d1Directory caps pageSize at
+// 48. Asking for 60 got 48 back, so `floor(48 / 60) + 1` re-requested page 1
+// and "Load more" appended duplicates instead of advancing.
+const PAGE_LIMIT = 48;
 
 export type ToolsDirectoryProps = {
   /** SSR'd first page (directory default ordering) — skips the boot fetch. */
@@ -231,7 +234,13 @@ export function ToolsDirectory({
         const d = (await res.json()) as { rows: DirectoryRow[]; total: number };
         // Filters changed while this page was in flight: drop it.
         if (gen !== filterGenRef.current) return;
-        setRows((prev) => (prev ? [...prev, ...d.rows] : d.rows));
+        // Dedupe by slug: rows are keyed by slug, and a duplicate key makes
+        // React leave orphaned cards in the DOM on the next replace.
+        setRows((prev) => {
+          if (!prev) return d.rows;
+          const seen = new Set(prev.map((r) => r.slug));
+          return [...prev, ...d.rows.filter((r) => !seen.has(r.slug))];
+        });
         setTotal(d.total);
       }
     } catch {
