@@ -11,7 +11,8 @@ import { useCompareTrayVisible } from "./compare-store";
 /**
  * Floating compare tray - a bottom pill that follows the visitor across the
  * site after they add tools to a comparison. Supports 1 to 4 tools matching
- * the /compare matrix. Visibility rules live in useCompareTrayVisible.
+ * the /compare matrix. Hidden whenever any full page is stacked on top
+ * (rules in useCompareTrayVisible).
  */
 
 export function CompareTray() {
