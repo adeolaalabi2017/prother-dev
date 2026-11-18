@@ -12,10 +12,10 @@
 
 import { useExplorer } from "./explorer-store";
 
-/** The floating compare tray shows when there is something to compare,
- *  except under the compare, tool, post and mine full pages. The tray sits
- *  above full pages (z-65 over the shell's z-60), so it stays visible over
- *  the category, collection and saved pages. */
+/** The floating compare tray shows only when there is something to compare
+ *  and no full page is stacked on top of the feed. Every full page that
+ *  GlobalOverlays mounts counts: the tray sits above them (z-65 over the
+ *  shell's z-60), and none of them offers a way to add tools to compare. */
 export function useCompareTrayVisible(): boolean {
   return useExplorer(
     (s) =>
@@ -23,7 +23,10 @@ export function useCompareTrayVisible(): boolean {
       !s.compareOpen &&
       !s.slug &&
       !s.postSlug &&
-      !s.mineView
+      !s.categoryView &&
+      !s.collectionSlug &&
+      !s.mineView &&
+      !s.savedView
   );
 }
 
