@@ -12,16 +12,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  // Free plan: 200k Observability events/day. Unsampled logs + traces
-  // (one span per D1/R2/Convex call) exhausted it under bot traffic.
-  // Log 5% of requests; error counts in Workers Metrics stay complete
-  // (analytics, not logs). Re-enable traces at a low rate only to debug.
+  // Observability off: the free plan's 200k events/day allowance was
+  // exhausted under bot traffic. Error counts and request outcomes in
+  // Workers Metrics come from analytics, not logs, and stay available.
+  // To debug, re-enable with a low head_sampling_rate (e.g. 0.05).
   "observability": {
-    "enabled": true,
-    "head_sampling_rate": 0.05,
-    "traces": {
-      "enabled": false
-    }
+    "enabled": false
   },
   "vars": {
     "AUTH_STORE": "convex",
