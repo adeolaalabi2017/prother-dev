@@ -290,7 +290,7 @@ export function AuthMenu() {
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label="Sign in or create account"
-          className="inline-flex h-9 items-center rounded-lg border border-white/15 bg-transparent px-3.5 font-mono text-sm uppercase tracking-[0.25em] text-ember transition-colors hover:border-ember/50 hover:bg-ember/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+          className="inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-lg border border-white/15 bg-transparent px-2.5 font-mono text-xs uppercase tracking-[0.15em] text-ember sm:px-3.5 sm:text-sm sm:tracking-[0.25em] transition-colors hover:border-ember/50 hover:bg-ember/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
         >
           Sign in
         </button>
