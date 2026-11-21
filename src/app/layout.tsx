@@ -12,6 +12,7 @@ import { ClarityAnalytics } from "@/components/prother/clarity-analytics";
 import { siteUrl } from "@/lib/site-url";
 import { createServerConvexClient } from "@/lib/convex";
 import { shadowSiteSettings } from "@/lib/data";
+import { THEME_INLINE_SCRIPT } from "@/lib/theme-script";
 
 /**
  * Typography: the SF Pro family. SF Pro is Apple's system font, so instead of
@@ -110,6 +111,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Sets html.light/.dark before first paint (no theme flash). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INLINE_SCRIPT }} />
+      </head>
       <body className="antialiased bg-background text-foreground">
         {/* Skip-to-content: WCAG 2.4.1 bypass block. Visually hidden until
             focused, then renders as a fixed top-bar link so keyboard users

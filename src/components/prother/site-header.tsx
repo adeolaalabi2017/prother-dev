@@ -80,7 +80,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex items-center gap-2.5"
+          className="flex shrink-0 items-center gap-2.5"
           aria-label="Prother home"
         >
           {brandingLogoUrl && !logoError ? (
@@ -129,7 +129,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <button
             type="button"
             onClick={() => setSearch(true)}
@@ -152,7 +152,9 @@ export function SiteHeader() {
             <Search className="size-4" aria-hidden />
           </button>
           <AuthMenu />
-          <ThemeToggle />
+          {/* Below sm the toggle lives in the mobile menu (ThemeToggleRow) so
+              the header row fits a 375px screen without wrapping. */}
+          <ThemeToggle className="hidden sm:inline-flex" />
           {privileged && (
             <Link
               href="/admin"

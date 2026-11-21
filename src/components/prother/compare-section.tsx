@@ -45,7 +45,7 @@ export function CompareSection() {
             <Link
               key={s.slug}
               href={`/compare/${s.slug}`}
-              className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-[#0c0d10] p-5 transition-all duration-200 hover:border-ember/40 hover:bg-white/[0.035] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+              className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-coal p-5 transition-all duration-200 hover:border-ember/40 hover:bg-white/[0.035] hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
             >
               <div>
                 {/* Category kicker */}
