@@ -6,6 +6,7 @@
  */
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getD1 } from "./client";
+import { kvCached } from "./kv-cache";
 import { categories, forumThreads, posts, tools } from "./schema";
 
 export function parseArr(raw: string | null | undefined): string[] {
@@ -493,36 +494,62 @@ export async function d1Search(q: string) {
 }
 
 // ── Sitemap ──
+// Crawlers hit /sitemap.xml constantly and each miss of the edge cache used to
+// `select *` four tables (descriptions and all) to keep a handful of columns.
+// Select only what the sitemap emits and cache the result for an hour, the
+// same freshness the route already declares (`revalidate = 3600`).
+const SITEMAP_TTL_SEC = 3600;
+
 export async function d1SitemapData() {
   const db = await getD1();
   if (!db) return null;
-  const [liveTools, catRows, pubPosts, threads] = await Promise.all([
-    db.select().from(tools).where(eq(tools.status, "live")),
-    db.select().from(categories),
-    db.select().from(posts).where(eq(posts.status, "published")),
-    db.select().from(forumThreads),
-  ]);
-  if (liveTools.length === 0) return null;
-  return {
-    tools: liveTools
-      .slice(0, 5000)
-      .map((t) => ({ slug: t.slug, createdAt: isoFromMs(t.createdAt) })),
-    categories: catRows.map((c) => ({ slug: c.slug })),
-    posts: pubPosts.slice(0, 1000).map((p) => ({
-      slug: p.slug,
-      updatedAt: isoFromMs(p.updatedAt),
-      publishedAt: p.publishedAt != null ? isoFromMs(p.publishedAt) : null,
-    })),
-    threads: threads
-      .filter((t) => !t.hidden)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 500)
-      .map((t) => ({
-        slug: t.slug,
-        createdAt: isoFromMs(t.createdAt),
-        updatedAt: isoFromMs(t.updatedAt),
+  return kvCached("d1:v1:sitemap", SITEMAP_TTL_SEC, async () => {
+    const [liveTools, catRows, pubPosts, threads] = await Promise.all([
+      db
+        .select({ slug: tools.slug, createdAt: tools.createdAt })
+        .from(tools)
+        .where(eq(tools.status, "live")),
+      db.select({ slug: categories.slug }).from(categories),
+      db
+        .select({
+          slug: posts.slug,
+          updatedAt: posts.updatedAt,
+          publishedAt: posts.publishedAt,
+        })
+        .from(posts)
+        .where(eq(posts.status, "published")),
+      db
+        .select({
+          slug: forumThreads.slug,
+          hidden: forumThreads.hidden,
+          createdAt: forumThreads.createdAt,
+          updatedAt: forumThreads.updatedAt,
+        })
+        .from(forumThreads),
+    ]);
+    // Empty local preview D1 (workerd) must fall back to Convex; null is never cached.
+    if (liveTools.length === 0) return null;
+    return {
+      tools: liveTools
+        .slice(0, 5000)
+        .map((t) => ({ slug: t.slug, createdAt: isoFromMs(t.createdAt) })),
+      categories: catRows.map((c) => ({ slug: c.slug })),
+      posts: pubPosts.slice(0, 1000).map((p) => ({
+        slug: p.slug,
+        updatedAt: isoFromMs(p.updatedAt),
+        publishedAt: p.publishedAt != null ? isoFromMs(p.publishedAt) : null,
       })),
-  };
+      threads: threads
+        .filter((t) => !t.hidden)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 500)
+        .map((t) => ({
+          slug: t.slug,
+          createdAt: isoFromMs(t.createdAt),
+          updatedAt: isoFromMs(t.updatedAt),
+        })),
+    };
+  });
 }
 
 // -- Category detail (matches convex/categories.ts detail exactly) --
