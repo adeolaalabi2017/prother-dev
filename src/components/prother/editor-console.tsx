@@ -33,7 +33,7 @@ import {
 import { CATEGORIES } from "./categories";
 import { useExplorer } from "./explorer-store";
 import { STANDARD_DEFS } from "@/lib/standards";
-import { PRICING_MODELS } from "@/lib/submit";
+import { PRICING_MODELS, SUBMISSIONS_ENABLED } from "@/lib/submit";
 
 // ── Types (mirrors /api/editor/queue) ────────────────────────────────────
 
@@ -810,7 +810,7 @@ export function EditorConsole() {
   const [queue, setQueue] = useState<QueueResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<"submissions" | "claims" | "reviews">(
-    "submissions"
+    SUBMISSIONS_ENABLED ? "submissions" : "claims"
   );
 
   const load = useCallback(async () => {
@@ -865,7 +865,9 @@ export function EditorConsole() {
   const pendingCount = queue?.pending?.length ?? 0;
 
   const TABS = [
-    { id: "submissions", label: "SUBMISSIONS", count: pendingCount },
+    ...(SUBMISSIONS_ENABLED
+      ? [{ id: "submissions" as const, label: "SUBMISSIONS", count: pendingCount }]
+      : []),
     { id: "claims", label: "CLAIMS", count: claimCount },
     { id: "reviews", label: "FILTERED REVIEWS", count: reviewCount },
   ] as const;
@@ -878,8 +880,7 @@ export function EditorConsole() {
       >
         <DialogTitle className="sr-only">Editor review queue</DialogTitle>
         <DialogDescription className="sr-only">
-          Moderate pending tool submissions: approve to publish the listing
-          immediately, or reject citing failed listing standards.
+          Moderate claims and filtered reviews.
         </DialogDescription>
 
         {!authed ? (
@@ -948,7 +949,7 @@ export function EditorConsole() {
                 </div>
               )}
 
-              {tab === "submissions" && (
+              {SUBMISSIONS_ENABLED && tab === "submissions" && (
                 <>
                   {queue && pendingCount === 0 && (
                     <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-10 text-center">

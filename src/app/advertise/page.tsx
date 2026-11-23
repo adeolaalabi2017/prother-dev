@@ -156,13 +156,6 @@ export default async function AdvertisePage() {
               <Mail className="size-4" aria-hidden />
               Get started
             </a>
-            <Link
-              href="/submit"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/80 transition-colors hover:border-ember/40 hover:text-white"
-            >
-              List your product free
-              <ArrowUpRight className="size-4" aria-hidden />
-            </Link>
           </div>
 
           {/* Real, live platform stats */}

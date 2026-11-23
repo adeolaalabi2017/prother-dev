@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { SUBMISSIONS_ENABLED } from "@/lib/submit";
 import { editorAuthorized } from "@/lib/admin";
 import { slugifyName } from "@/lib/prother";
 import { convexEditorDecide, shadowEditorQueue } from "@/lib/data";
@@ -38,6 +39,9 @@ const bodySchema = z.discriminatedUnion("decision", [
 ]);
 
 export async function POST(req: NextRequest) {
+  if (!SUBMISSIONS_ENABLED) {
+    return NextResponse.json({ error: "Submissions are paused" }, { status: 410 });
+  }
   if (!(await editorAuthorized(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

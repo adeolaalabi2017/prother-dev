@@ -25,8 +25,6 @@ const COLS: { title: string; links: FooterLink[] }[] = [
       { label: "Conversational AI", href: "/categories/conversational-ai" },
       { label: "Generative Content", href: "/categories/generative-content" },
       { label: "Automation", href: "/categories/automation" },
-      { label: "Submit your tool", href: "/submit" },
-      { label: "Check submission status", href: "#", tracker: true },
     ],
   },
   {
@@ -35,7 +33,6 @@ const COLS: { title: string; links: FooterLink[] }[] = [
       { label: "The Journal", href: "/journal" },
       { label: "Guides", href: "/journal" },
       { label: "FAQ", href: "/about" },
-      { label: "For makers", href: "/submit" },
       { label: "Listing standards", href: "/about" },
       { label: "RSS · Journal", href: "/api/rss", external: true },
     ],

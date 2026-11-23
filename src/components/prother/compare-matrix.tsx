@@ -603,8 +603,7 @@ export function CompareMatrixView({
           </div>
 
           <p className="font-mono text-xs text-white/55">
-            Missing values are shown as a dash. Makers can enrich their listing at
-            any time: <Link href="/submit" className="text-ember hover:underline">submit a tool</Link>.
+            Missing values are shown as a dash.
           </p>
         </>
       )}

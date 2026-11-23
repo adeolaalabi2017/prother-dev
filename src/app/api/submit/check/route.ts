@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { domainOf } from "@/lib/submit";
+import { SUBMISSIONS_ENABLED, domainOf } from "@/lib/submit";
 import { shadowSubmitCheck } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
@@ -11,6 +11,9 @@ export const dynamic = "force-dynamic";
  * Checks submitted queue AND existing listings (1 submission per domain).
  */
 export async function GET(req: NextRequest) {
+  if (!SUBMISSIONS_ENABLED) {
+    return NextResponse.json({ error: "Submissions are paused" }, { status: 410 });
+  }
   const url = req.nextUrl.searchParams.get("url") ?? "";
   const domain = domainOf(url);
   if (!domain) {

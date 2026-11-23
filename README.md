@@ -56,7 +56,7 @@ The AI landscape is flooded with pay-to-win directories, stale SEO link dumps, a
 - Threaded discussions organized into 4 rooms: General, Workflows, Pricing Feedback, and Makers.
 - Upvoting, nested comment replies, markdown formatting, and verified maker badges.
 
-### 📝 5-Step Submission Wizard (`/submit`)
+### 📝 5-Step Submission Wizard (`/submit`, currently paused via `SUBMISSIONS_ENABLED`)
 - Real-time interactive preview card updating on every keystroke.
 - Automatic duplicate domain checking against existing listings.
 - Live submission moderation queue tracker with ticket lookups.
