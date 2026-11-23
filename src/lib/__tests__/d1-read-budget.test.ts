@@ -25,6 +25,7 @@ function chain(rows: unknown[]) {
     groupBy: () => self,
     orderBy: () => self,
     limit: () => self,
+    offset: () => self,
   });
   return self;
 }
@@ -67,6 +68,7 @@ const { d1SiteGet, d1SiteSettings, d1Homepage, d1LiveCountsByCategory } = await 
 );
 const { d1CompareCategories } = await import("@/lib/d1/content");
 const { kvCached } = await import("@/lib/d1/kv-cache");
+const { d1Directory } = await import("@/lib/d1/queries2");
 
 beforeEach(() => {
   tablesRead = [];
@@ -183,5 +185,61 @@ describe("kvCached", () => {
   test("corrupt cached JSON falls through to the loader", async () => {
     kvStore.set("k", "{not json");
     expect(await kvCached("k", 600, async () => ({ a: 1 }))).toEqual({ a: 1 });
+  });
+});
+
+describe("d1Directory", () => {
+  test("paginates in SQL and returns rows", async () => {
+    toolRows = [
+      {
+        id: "t1",
+        slug: "tool-a",
+        name: "Tool A",
+        tagline: "A great tool",
+        logoEmoji: "🚀",
+        logoGradient: "from-blue-500 to-indigo-500",
+        logoUrl: "/logos/tool-a.svg",
+        pricingModel: "freemium",
+        startingPrice: "$10",
+        pricingNote: "monthly",
+        categoryId: "c1",
+        editorsPick: 1,
+        curated: 1,
+        claimed: 1,
+        hasApi: 1,
+        commentCount: 2,
+        reviewCount: 5,
+        createdAt: 1700000000000,
+        n: 1,
+      },
+    ];
+    const res = await d1Directory({
+      categorySlug: null,
+      q: null,
+      pricing: null,
+      tag: null,
+      sort: "featured",
+      page: 1,
+      pageSize: 24,
+    });
+    expect(res).not.toBeNull();
+    if (res && !("error" in res)) {
+      expect(res.rows).toHaveLength(1);
+      expect(res.rows[0].slug).toBe("tool-a");
+      expect(res.total).toBe(1);
+    }
+  });
+
+  test("returns not found for nonexistent category", async () => {
+    const res = await d1Directory({
+      categorySlug: "does-not-exist",
+      q: null,
+      pricing: null,
+      tag: null,
+      sort: "featured",
+      page: 1,
+      pageSize: 24,
+    });
+    expect(res).toEqual({ error: "category_not_found" });
   });
 });
