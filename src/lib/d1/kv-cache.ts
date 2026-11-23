@@ -10,7 +10,30 @@
  */
 import { getKv } from "@/lib/rate-limit";
 
-export async function kvCached<T>(
+/**
+ * Loads currently running in this isolate, by key. Callers that miss the cache
+ * at the same moment (the homepage reads one bundle from three sections at
+ * once) share a single load instead of each running the full D1 aggregate.
+ * KV is eventually consistent and the first write is not visible to the other
+ * callers yet, so without this every concurrent caller pays for the scan.
+ */
+const inflight = new Map<string, Promise<unknown>>();
+
+export function kvCached<T>(
+  key: string,
+  ttlSec: number,
+  load: () => Promise<T | null>,
+): Promise<T | null> {
+  const running = inflight.get(key) as Promise<T | null> | undefined;
+  if (running) return running;
+  const p = kvReadThrough(key, ttlSec, load).finally(() => {
+    inflight.delete(key);
+  });
+  inflight.set(key, p);
+  return p;
+}
+
+async function kvReadThrough<T>(
   key: string,
   ttlSec: number,
   load: () => Promise<T | null>,

@@ -182,6 +182,42 @@ describe("kvCached", () => {
     expect(await kvCached("k", 600, async () => ({ a: 1 }))).toEqual({ a: 1 });
   });
 
+  test("concurrent misses share one load", async () => {
+    let loads = 0;
+    const load = async () => {
+      loads += 1;
+      await new Promise((r) => setTimeout(r, 5));
+      return { a: 1 };
+    };
+    const results = await Promise.all([
+      kvCached("shared", 600, load),
+      kvCached("shared", 600, load),
+      kvCached("shared", 600, load),
+    ]);
+    expect(loads).toBe(1);
+    expect(results).toEqual([{ a: 1 }, { a: 1 }, { a: 1 }]);
+    expect(kvPuts.filter((p) => p.key === "shared")).toHaveLength(1);
+  });
+
+  test("a failed load is not shared with later callers", async () => {
+    await expect(
+      kvCached("flaky", 600, async () => {
+        throw new Error("d1 down");
+      }),
+    ).rejects.toThrow("d1 down");
+    expect(await kvCached("flaky", 600, async () => ({ a: 2 }))).toEqual({ a: 2 });
+  });
+
+  test("different keys load independently", async () => {
+    let loads = 0;
+    const load = async () => {
+      loads += 1;
+      return { a: 1 };
+    };
+    await Promise.all([kvCached("k1", 600, load), kvCached("k2", 600, load)]);
+    expect(loads).toBe(2);
+  });
+
   test("corrupt cached JSON falls through to the loader", async () => {
     kvStore.set("k", "{not json");
     expect(await kvCached("k", 600, async () => ({ a: 1 }))).toEqual({ a: 1 });

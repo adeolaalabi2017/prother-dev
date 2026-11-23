@@ -270,36 +270,41 @@ export async function generateMetadata({
 
 // ── Server data for the two static sections ──────────────────────────────
 
-/** Live listing count per category slug (statuses other than live don't count). */
-async function liveCountByCategory(): Promise<Map<string, number>> {
-  // Convex-only homepage bundle (empty grid rather than 500 on failure).
+type HomepageBundle = Awaited<ReturnType<typeof shadowHomepage>>;
+
+/**
+ * One homepage bundle (category counts, tag counts, editor's picks) per render.
+ * The three sections below all read from it, so it is fetched once: each extra
+ * call meant another KV read and, on a cache miss, another D1 aggregate scan.
+ * Null on failure; each section then falls back on its own.
+ */
+async function loadHomepageBundle(): Promise<HomepageBundle | null> {
   try {
-    const { counts } = await shadowHomepage(createServerConvexClient()!);
-    return new Map(counts.map((c) => [c.slug, c.count]));
+    return await shadowHomepage(createServerConvexClient()!);
   } catch {
-    return new Map(); // grid renders with 0 counts rather than 500ing
+    return null;
   }
+}
+
+/** Live listing count per category slug (statuses other than live don't count). */
+function liveCountByCategory(bundle: HomepageBundle | null): Map<string, number> {
+  // Empty grid (0 counts) rather than 500 when the bundle failed.
+  if (!bundle) return new Map();
+  return new Map(
+    bundle.counts.map((c: { slug: string; count: number }) => [c.slug, c.count]),
+  );
 }
 
 /** Live tool count per tag, for the homepage intent cards. Empty on failure. */
-async function liveCountByTag(): Promise<Record<string, number>> {
-  try {
-    const { tagCounts } = await shadowHomepage(createServerConvexClient()!);
-    return (tagCounts ?? {}) as Record<string, number>;
-  } catch {
-    return {};
-  }
+function liveCountByTag(bundle: HomepageBundle | null): Record<string, number> {
+  return (bundle?.tagCounts ?? {}) as Record<string, number>;
 }
 
 /** Up to 6 Editor's Picks: pinned first, then newest. */
-async function getEditorsPicks() {
-  // Convex-only homepage bundle (section hides on failure).
-  try {
-    const { picks } = await shadowHomepage(createServerConvexClient()!);
-    return picks as Array<(typeof picks)[number] & { logoUrl?: string | null }>;
-  } catch {
-    return []; // section hides: the homepage never fails on a section query
-  }
+function getEditorsPicks(bundle: HomepageBundle | null) {
+  // Section hides when the bundle failed: the homepage never fails on a section query.
+  type Pick = NonNullable<HomepageBundle>["picks"][number];
+  return (bundle?.picks ?? []) as Array<Pick & { logoUrl?: string | null }>;
 }
 
 /** First sentence of a category blurb: the one-line hook on the grid card. */
@@ -574,12 +579,13 @@ export default async function Page() {
     ],
   };
 
-  const [counts, picks, siteData, tagCounts] = await Promise.all([
-    liveCountByCategory(),
-    getEditorsPicks(),
+  const [bundle, siteData] = await Promise.all([
+    loadHomepageBundle(),
     getSiteData(),
-    liveCountByTag(),
   ]);
+  const counts = liveCountByCategory(bundle);
+  const picks = getEditorsPicks(bundle);
+  const tagCounts = liveCountByTag(bundle);
 
   return (
     <>
