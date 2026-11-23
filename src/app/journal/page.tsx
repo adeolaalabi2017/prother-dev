@@ -7,7 +7,15 @@ import { createServerConvexClient } from "@/lib/convex";
 import { shadowJournalList } from "@/lib/data";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 
-export const dynamic = "force-dynamic";
+// ISR: stored in the R2 incremental cache (open-next.config.ts) and
+// regenerated in the background every 5 minutes. The index takes no query
+// params, so it can be prerendered on its real path.
+//
+// Build-time note: CI's verify build has no NEXT_PUBLIC_CONVEX_URL, so the data
+// layer returns null there. The page must tolerate that (render an empty list)
+// instead of failing the build. The deploy build has the URL and bakes real
+// posts. A failed fetch at runtime throws, so Next keeps the last good page.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   // One merged `alternates` — a second literal key would silently drop the
@@ -49,7 +57,7 @@ export const metadata: Metadata = {
 export default async function JournalPage() {
   // Convex-only (journal cutover): published-desc order + cover merge.
   const res = await shadowJournalList(createServerConvexClient()!, 24);
-  const cards = res.posts.map((p) => ({
+  const cards = (res?.posts ?? []).map((p) => ({
     ...p,
     id: p.id ?? p.slug,
     tags: p.tags,
