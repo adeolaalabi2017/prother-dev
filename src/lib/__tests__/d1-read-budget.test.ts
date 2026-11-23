@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { categories, siteSettings, tools } from "@/lib/d1/schema";
+import { INTENTS } from "@/lib/intents";
 
 /**
  * D1 free tier bills rows_read, and count(*) reads one index row per match.
@@ -39,7 +40,8 @@ const fakeDb = {
   }),
   all: async () => {
     tablesRead.push(tools);
-    return [{ tag: "agents", n: 2 }];
+    // One row: t0 is the count for the first intent tag, the rest are zero.
+    return [{ t0: 2, t1: 0, t2: 0, t3: 0, t4: 0, t5: 0 }];
   },
 };
 
@@ -157,7 +159,11 @@ describe("d1SiteGet", () => {
 describe("d1Homepage", () => {
   test("second render does no D1 reads", async () => {
     const first = await d1Homepage();
-    expect(first?.tagCounts).toEqual({ agents: 2 });
+    const tags = INTENTS.map((i) => i.tag);
+    expect(first?.tagCounts).toEqual({
+      [tags[0]!]: 2,
+      ...Object.fromEntries(tags.slice(1).map((t) => [t, 0])),
+    });
 
     tablesRead = [];
     expect(await d1Homepage()).toEqual(first);

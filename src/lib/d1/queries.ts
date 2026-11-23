@@ -7,9 +7,15 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getD1 } from "./client";
 import { kvCached } from "./kv-cache";
 import { categories, tools, siteSettings } from "./schema";
+import { INTENTS } from "@/lib/intents";
 
 // D1 bills count(*) one row per match, so aggregates over `tools` get cached.
 const AGGREGATE_TTL_SEC = 600;
+
+/** Escape LIKE wildcards so a tag like `open_source` matches literally. */
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
 
 function parseArr(raw: string | null | undefined): string[] {
   if (!raw) return [];
@@ -116,6 +122,7 @@ async function loadHomepage(): Promise<{
   // Aggregate in SQL. This used to load every live tool row (all columns,
   // descriptions included) to count categories and tags and keep 6 picks,
   // which made the homepage the most CPU-expensive route on the Worker.
+  const intentTags = [...new Set(INTENTS.map((i) => i.tag.toLowerCase()))];
   const [catRows, catCounts, tagRows, pickRows] = await Promise.all([
     db.select().from(categories).orderBy(asc(categories.sortOrder)),
     db
@@ -123,13 +130,22 @@ async function loadHomepage(): Promise<{
       .from(tools)
       .where(eq(tools.status, "live"))
       .groupBy(tools.categoryId),
-    db.all<{ tag: string; n: number }>(sql`
-      SELECT lower(trim(CAST(j.value AS TEXT))) AS tag, count(*) AS n
-      FROM tools, json_each(tools.tags_json) AS j
-      WHERE tools.status = 'live'
-        AND json_valid(tools.tags_json)
-        AND json_type(tools.tags_json) = 'array'
-      GROUP BY tag
+    // One pass over the live tools, one case-insensitive substring match per
+    // intent tag. This is the same rule the /tools?tag= filter applies
+    // (ciContains in queries2.ts), so a card's count equals the list it links
+    // to. An exact-tag count undercounted (agents 14 vs 31 in the list).
+    db.all<Record<string, number | null>>(sql`
+      SELECT ${sql.join(
+        intentTags.map(
+          (tag, i) =>
+            sql`sum(CASE WHEN lower(tags_json) LIKE ${`%${escapeLike(tag)}%`} ESCAPE '\\' THEN 1 ELSE 0 END) AS ${sql.raw(`t${i}`)}`,
+        ),
+        sql`, `,
+      )}
+      FROM tools
+      WHERE status = 'live'
+        AND json_valid(tags_json)
+        AND json_type(tags_json) = 'array'
     `),
     db
       .select()
@@ -146,7 +162,8 @@ async function loadHomepage(): Promise<{
     catRows.map((c) => [c.slug, countByCat.get(c.id) ?? 0]),
   );
   const tagCounts = new Map<string, number>();
-  for (const r of tagRows) if (r.tag) tagCounts.set(r.tag, Number(r.n));
+  const tagRow = tagRows[0] ?? {};
+  intentTags.forEach((tag, i) => tagCounts.set(tag, Number(tagRow[`t${i}`] ?? 0)));
   const picks = pickRows
     .filter((t) => catById.has(t.categoryId))
     .map((t) => {
