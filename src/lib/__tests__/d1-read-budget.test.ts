@@ -70,7 +70,7 @@ const { d1SiteGet, d1SiteSettings, d1Homepage, d1LiveCountsByCategory } = await 
 );
 const { d1CompareCategories } = await import("@/lib/d1/content");
 const { kvCached } = await import("@/lib/d1/kv-cache");
-const { d1Directory } = await import("@/lib/d1/queries2");
+const { d1Directory, d1SitemapData } = await import("@/lib/d1/queries2");
 
 beforeEach(() => {
   tablesRead = [];
@@ -173,6 +173,27 @@ describe("d1Homepage", () => {
   test("does not cache an empty catalog", async () => {
     toolRows = [];
     expect(await d1Homepage()).toBeNull();
+    expect(kvPuts).toHaveLength(0);
+  });
+});
+
+describe("d1SitemapData", () => {
+  test("second call is served from KV with no D1 reads", async () => {
+    toolRows = [{ slug: "tool-a", createdAt: 1_700_000_000_000 }];
+    const first = await d1SitemapData();
+    expect(first?.tools).toEqual([
+      { slug: "tool-a", createdAt: new Date(1_700_000_000_000).toISOString() },
+    ]);
+    expect(kvPuts).toEqual([{ key: "d1:v1:sitemap", ttl: 3600 }]);
+
+    tablesRead = [];
+    expect(await d1SitemapData()).toEqual(first);
+    expect(tablesRead).toHaveLength(0);
+  });
+
+  test("does not cache an empty catalog", async () => {
+    toolRows = [];
+    expect(await d1SitemapData()).toBeNull();
     expect(kvPuts).toHaveLength(0);
   });
 });
