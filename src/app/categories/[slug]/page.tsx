@@ -280,11 +280,7 @@ export default async function CategoryPage({ params }: Params) {
               </p>
               <p className="mt-2 text-sm text-white/60">
                 New {category.name.toLowerCase()} tools appear as they&apos;re
-                approved.{" "}
-                <Link href="/submit" className="text-ember hover:underline">
-                  Submit yours
-                </Link>
-                .
+                approved.
               </p>
             </div>
           ) : (
@@ -415,10 +411,6 @@ export default async function CategoryPage({ params }: Params) {
           <p className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-xs tracking-[0.2em] text-white/55 uppercase">
             <Link href="/tools" className="transition-colors hover:text-ember">
               Browse the full directory
-            </Link>
-            <span aria-hidden>/</span>
-            <Link href="/submit" className="transition-colors hover:text-ember">
-              List your tool
             </Link>
           </p>
         </div>

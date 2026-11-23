@@ -8,14 +8,6 @@ import { BackToTop } from "./back-to-top";
 import { ToolExplorerHost } from "./tool-explorer-host";
 import { useExplorer } from "./explorer-store";
 
-const SubmitWizard = dynamic(
-  () => import("./submit-wizard").then((m) => m.SubmitWizard),
-  { ssr: false },
-);
-const StatusTracker = dynamic(
-  () => import("./status-tracker").then((m) => m.StatusTracker),
-  { ssr: false },
-);
 const EditorConsole = dynamic(
   () => import("./editor-console").then((m) => m.EditorConsole),
   { ssr: false },
@@ -74,8 +66,6 @@ function useOpenedOnce(open: boolean): boolean {
  * their flag; dialogs latch open via useOpenedOnce.
  */
 export function GlobalOverlays() {
-  const submitOpen = useOpenedOnce(useExplorer((s) => s.submitOpen));
-  const trackOpen = useOpenedOnce(useExplorer((s) => s.trackOpen));
   const editorOpen = useOpenedOnce(useExplorer((s) => s.editorOpen));
   const mineOpen = useExplorer((s) => s.mineView !== null);
   const savedOpen = useExplorer((s) => s.savedView !== null);
@@ -101,8 +91,6 @@ export function GlobalOverlays() {
   return (
     <>
       <ToolExplorerHost />
-      {submitOpen && <SubmitWizard />}
-      {trackOpen && <StatusTracker />}
       {editorOpen && <EditorConsole />}
       <CompareTray />
       <DeepLinkHost />

@@ -10,7 +10,6 @@ import {
   Settings2,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExplorer } from "./explorer-store";
 import { useSiteSettings } from "./use-site-settings";
@@ -166,13 +165,6 @@ export function SiteHeader() {
               <Settings2 className="size-4" aria-hidden />
             </Link>
           )}
-          <Button
-            asChild
-            variant="outline"
-            className="hidden h-9 rounded-lg border-white/15 bg-white/[0.04] px-3.5 font-mono text-xs uppercase tracking-wider text-white/80 transition-colors hover:border-ember/40 hover:bg-white/[0.08] hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink sm:inline-flex"
-          >
-            <Link href="/submit">Submit Tool</Link>
-          </Button>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -211,14 +203,6 @@ export function SiteHeader() {
               {l.label}
             </Link>
           ))}
-          <Button
-            asChild
-            className="mt-2 rounded-lg bg-ember font-semibold text-coal shadow-none hover:bg-ember-hot dark:text-coal"
-          >
-            <Link href="/submit" onClick={() => setOpen(false)}>
-              Submit your tool
-            </Link>
-          </Button>
           {privileged && (
             <Link
               href="/admin"

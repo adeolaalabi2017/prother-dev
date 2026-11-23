@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { SUBMISSIONS_ENABLED } from "@/lib/submit";
 import { shadowSubmissionsByEmail } from "@/lib/data";
 import { createServerConvexClient } from "@/lib/convex";
 
@@ -25,6 +26,9 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  if (!SUBMISSIONS_ENABLED) {
+    return NextResponse.json({ error: "Submissions are paused" }, { status: 410 });
+  }
   const email = new URL(req.url).searchParams.get("email");
   const parsed = querySchema.safeParse({ email });
   if (!parsed.success) {

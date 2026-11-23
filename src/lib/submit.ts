@@ -3,6 +3,13 @@
  * Client-safe: NO database imports here (lib/prother.ts pulls Prisma).
  */
 
+/**
+ * Master switch for external tool submissions. Paused until the site and its
+ * resources are stable. To re-enable: set true, restore the UI entry points
+ * (see git history of the "pause submissions" commit).
+ */
+export const SUBMISSIONS_ENABLED = false;
+
 /** Controlled tag vocabulary v1 (PRD §13), ≤5 per tool. */
 export const TAG_VOCAB = [
   "open-source",

@@ -92,6 +92,7 @@ import { AdsTab } from "./admin/admin-ads";
 import { AdminMediaTab } from "./admin/admin-media";
 import { IntegrationsModule } from "./admin/admin-integrations";
 import { ImageUploadField } from "./image-upload-field";
+import { SUBMISSIONS_ENABLED } from "@/lib/submit";
 
 /**
  * Admin Console — /admin route (Task 20-c redesign).
@@ -3582,10 +3583,10 @@ function OverviewView({
           label="Pending submissions"
           value={k.pendingSubs}
           accent={k.pendingSubs > 0}
-          onClick={onNavigate ? () => onNavigate("submissions") : undefined}
+          onClick={SUBMISSIONS_ENABLED && onNavigate ? () => onNavigate("submissions") : undefined}
           caption={
             k.pendingSubs > 0 && data.oldestPending
-              ? `oldest · ${data.oldestPending} · ${data.queueAgeH}h (click to view)`
+              ? `oldest · ${data.oldestPending} · ${data.queueAgeH}h ${SUBMISSIONS_ENABLED ? " (click to view)" : ""}`
               : "queue clear"
           }
         />
@@ -3625,7 +3626,7 @@ function OverviewView({
         <QueueAgingCard
           oldest={data.oldestPending}
           ageH={data.queueAgeH}
-          onViewQueue={onNavigate ? () => onNavigate("submissions") : undefined}
+          onViewQueue={SUBMISSIONS_ENABLED && onNavigate ? () => onNavigate("submissions") : undefined}
         />
       </div>
 
@@ -3971,7 +3972,9 @@ const NAV_GROUPS: { label: string; items: { id: SectionId; label: string; icon: 
   {
     label: "Manage",
     items: [
-      { id: "submissions", label: "Submissions", icon: ListChecks },
+      ...(SUBMISSIONS_ENABLED
+        ? [{ id: "submissions" as const, label: "Submissions", icon: ListChecks }]
+        : []),
       { id: "tools", label: "Listings", icon: Database },
       { id: "categories", label: "Categories", icon: Tags },
       { id: "users", label: "Users", icon: Users },

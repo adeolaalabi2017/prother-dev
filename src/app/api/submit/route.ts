@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { TAG_VOCAB, domainOf } from "@/lib/submit";
+import { SUBMISSIONS_ENABLED, TAG_VOCAB, domainOf } from "@/lib/submit";
 import { validateSafeUrl } from "@/lib/ssrf";
 import { CATEGORIES } from "@/components/prother/categories";
 import {
@@ -91,6 +91,9 @@ function fieldErrors(err: z.ZodError): Record<string, string> {
 }
 
 export async function POST(req: NextRequest) {
+  if (!SUBMISSIONS_ENABLED) {
+    return NextResponse.json({ error: "Submissions are paused" }, { status: 410 });
+  }
   let body: unknown;
   try {
     body = await req.json();

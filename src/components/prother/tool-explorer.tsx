@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
-  MailSearch,
   Scale,
-  Sparkles,
   TrendingUp,
 } from "lucide-react";
 import {
@@ -63,8 +61,6 @@ function CommandPalette() {
   const searchOpen = useExplorer((s) => s.searchOpen);
   const setSearch = useExplorer((s) => s.setSearch);
   const openTool = useExplorer((s) => s.openTool);
-  const setSubmitOpen = useExplorer((s) => s.setSubmitOpen);
-  const setTrackOpen = useExplorer((s) => s.setTrackOpen);
 
   // Trending rows load once per open; typed queries hit /api/search (≥2 chars).
   const [trending, setTrending] = useState<TrendingRow[]>([]);
@@ -300,26 +296,6 @@ function CommandPalette() {
 
         <CommandSeparator />
         <CommandGroup heading="Actions">
-          <CommandItem
-            value="submit a tool to the directory listing wizard"
-            onSelect={() => {
-              setSearch(false);
-              window.setTimeout(() => setSubmitOpen(true), 80);
-            }}
-          >
-            <Sparkles aria-hidden />
-            <span>Submit a tool to the directory</span>
-          </CommandItem>
-          <CommandItem
-            value="track my submission status makers"
-            onSelect={() => {
-              setSearch(false);
-              window.setTimeout(() => setTrackOpen(true), 80);
-            }}
-          >
-            <MailSearch aria-hidden />
-            <span>Track my submission</span>
-          </CommandItem>
           <CommandItem
             value="read the standards quality bar"
             onSelect={() => goTo("/about#standards")}

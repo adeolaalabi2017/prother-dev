@@ -5,7 +5,6 @@ import { CategoryTicker } from "@/components/prother/category-ticker";
 import { IntentPath } from "@/components/prother/intent-path";
 import { TrendingStrip } from "@/components/prother/trending-strip";
 import { CompareSection } from "@/components/prother/compare-section";
-import { SubmitOpenButton } from "@/components/prother/submit-open-button";
 import { CATEGORIES } from "@/components/prother/categories";
 import { EditorsPicks } from "@/components/prother/editors-picks";
 import { clamp } from "@/lib/og";
@@ -507,7 +506,7 @@ function ClosingBand({ copy }: { copy: Record<string, string> }) {
         <div className="grid items-end gap-8 md:grid-cols-[1fr_auto]">
           <div className="max-w-2xl">
             <p className="font-mono text-xs font-semibold tracking-[0.25em] text-ember uppercase">
-              TOOL AUDIT & SUBMISSIONS
+              TOOL DIRECTORY
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl text-balance">
               {copy["home.closingHeadline"] ||
@@ -515,14 +514,10 @@ function ClosingBand({ copy }: { copy: Record<string, string> }) {
             </h2>
             <p className="mt-4 max-w-xl text-base text-white/65 text-pretty">
               {copy["home.closingSub"] ||
-                "Submit your tool for an independent technical audit. Submissions are free forever and reviewed by human engineers."}
+                "Browse independently reviewed AI tools, compare them side by side, and shortlist what fits your stack."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3.5 md:justify-end">
-            <SubmitOpenButton
-              label="Submit Your Tool for Review"
-              className="h-11 px-6 text-sm font-semibold"
-            />
             <Link
               href="/tools"
               className="pressable inline-flex h-11 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-6 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
