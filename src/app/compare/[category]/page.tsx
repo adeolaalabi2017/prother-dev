@@ -22,7 +22,15 @@ import { safeJsonLd } from "@/lib/safe-json-ld";
  * 2. Pairwise "VS" comparison routes (e.g. /compare/cursor-vs-windsurf)
  */
 
-export const dynamic = "force-dynamic";
+// ISR: category landings and pairwise VS routes render on first request, are
+// stored in the R2 incremental cache (open-next.config.ts) and regenerate in
+// the background after 1h. No searchParams or request APIs are read here.
+export const revalidate = 3600;
+
+// No build-time prerender: pages render on demand, then cache.
+export async function generateStaticParams() {
+  return [];
+}
 
 type Params = { params: Promise<{ category: string }> };
 
