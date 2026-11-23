@@ -7,6 +7,9 @@ export default function robots(): MetadataRoute.Robots {
     "/admin", // console shell (also noindexed)
     "/api/admin",
     "/api/editor",
+    // Internal render targets behind /tools rewrites (canonical is /tools).
+    "/tools-live",
+    "/tools-default",
     // Test/QA fixtures must never be indexed. vorflux-test-2 is a
     // seeded placeholder row that is still "live" in the database;
     // it is excluded from the sitemap (see sitemap.ts) and blocked

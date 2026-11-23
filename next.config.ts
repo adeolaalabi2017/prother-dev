@@ -58,6 +58,22 @@ const nextConfig: NextConfig = {
   // NOT applied to /api/* (per-user, bookmark, analytics, admin) or to
   // /admin - those stay no-store. Static assets under /_next and /logos keep
   // Next's own immutable handling.
+  // /tools renders from two internal routes. Requests carrying a filter, search
+  // or page param need searchParams, so they go to the per-request /tools-live.
+  // Plain /tools goes to /tools-default/all, an ISR page. The URL the visitor
+  // sees never changes; query strings are forwarded to the destination.
+  async rewrites() {
+    return {
+      beforeFiles: [
+        ...["q", "tag", "pricing", "sort", "page"].map((key) => ({
+          source: "/tools",
+          has: [{ type: "query" as const, key }],
+          destination: "/tools-live",
+        })),
+        { source: "/tools", destination: "/tools-default/all" },
+      ],
+    };
+  },
   async redirects() {
     return [
       {
