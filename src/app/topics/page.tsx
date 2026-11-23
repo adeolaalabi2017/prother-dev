@@ -5,7 +5,7 @@ import { TOPICS } from "@/lib/topics";
 import { Breadcrumbs } from "@/lib/breadcrumbs";
 import { safeJsonLd } from "@/lib/safe-json-ld";
 
-export const dynamic = "force-dynamic";
+// Pure static content (TOPICS constant, no data reads): prerendered at build.
 
 export const metadata: Metadata = {
   title: "AI Topics & Curated Collections | Prother",
