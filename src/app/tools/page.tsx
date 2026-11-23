@@ -17,7 +17,6 @@ import { createServerConvexClient } from "@/lib/convex";
 import { shadowSerp, shadowToolsDirectory } from "@/lib/data";
 import { ToolLogo } from "@/components/prother/tool-logo";
 import { safeJsonLd } from "@/lib/safe-json-ld";
-import { DEFAULT_TOOLS_METADATA } from "./default-metadata";
 
 /** One scored result row on the /tools?q= SERP. */
 export type SerpToolRow = {
@@ -35,9 +34,6 @@ export type SerpToolRow = {
   listedAt: string;
 };
 
-// Internal route. next.config.ts rewrites /tools requests that carry q, tag,
-// pricing, sort or page to here (they need searchParams, so they render per
-// request). Plain /tools is rewritten to /tools-default/all, which is ISR.
 export const dynamic = "force-dynamic";
 
 /** Mirrors GET /api/tools so a hand-edited URL can't reach an invalid value. */
@@ -74,7 +70,37 @@ export async function generateMetadata({
     };
   }
 
-  return DEFAULT_TOOLS_METADATA;
+  return {
+    alternates: {
+      canonical: "/tools",
+      types: { "application/rss+xml": "/api/rss" },
+    },
+    title: "AI tools · search & compare | Prother",
+    description:
+      "The curated directory for AI tools: search, compare, and save your stack. Filter by category, pricing, and tags. No gates. Browse free.",
+    keywords: [
+      "AI tools directory",
+      "browse AI tools",
+      "AI tool search",
+      "search AI tools",
+      "compare AI tools",
+    ],
+    openGraph: {
+      title: "AI tools · search & compare | Prother",
+      description:
+        "The curated directory for AI tools: search, compare, and save your stack. Filter by category, pricing, and tags. No gates. Browse free.",
+      siteName: "Prother",
+      type: "website",
+      images: [{ url: "/api/og", width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "AI tools · search & compare | Prother",
+      description:
+        "The curated directory for AI tools: search, compare, and save your stack.",
+      images: ["/api/og"],
+    },
+  };
 }
 
 /** Results per SERP page. */
