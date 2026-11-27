@@ -56,6 +56,27 @@ function insert(table: string, cols: string[], rows: string[][]) {
     total++;
   }
 }
+/**
+ * Tools upsert instead of replace: removals are written to D1 only, so Convex
+ * may still say "live". A tool already removed in D1 keeps that status; every
+ * other column still syncs. To restore one, change its status in D1.
+ */
+function upsertTools(cols: string[], rows: string[][]) {
+  const set = cols
+    .filter((c) => c !== "id")
+    .map((c) =>
+      c === "status"
+        ? "status = CASE WHEN tools.status = 'removed' THEN tools.status ELSE excluded.status END"
+        : `${c} = excluded.${c}`,
+    )
+    .join(", ");
+  for (const r of rows) {
+    out.push(
+      `INSERT INTO tools (${cols.join(", ")}) VALUES (${r.join(", ")}) ON CONFLICT(id) DO UPDATE SET ${set};`,
+    );
+    total++;
+  }
+}
 
 // categories (8)
 insert(
@@ -68,8 +89,7 @@ insert(
 );
 
 // tools (150)
-insert(
-  "tools",
+upsertTools(
   ["id","slug","name","tagline","description","website_url","logo_emoji","logo_gradient","logo_url",
    "screenshot_urls_json","long_description","use_cases_json","pros_json","cons_json","alternatives_json",
    "pricing_checked_at","content_updated_at","pricing_model","starting_price","pricing_note","has_api",
