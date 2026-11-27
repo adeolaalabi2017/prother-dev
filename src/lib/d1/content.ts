@@ -226,7 +226,7 @@ export async function d1ToolDetail(slug: string, viewerEmail?: string, viewerUse
   const db = await getD1();
   if (!db) return null;
   const tool = (await db.select().from(tools).where(eq(tools.slug, slug)).limit(1))[0];
-  if (!tool) return { error: "Tool not found" as const };
+  if (!tool || tool.status !== "live") return { error: "Tool not found" as const };
   const catRows = await db.select().from(categories);
   if (catRows.length === 0) return null;
   const catById = new Map(catRows.map((c) => [c.id, c]));

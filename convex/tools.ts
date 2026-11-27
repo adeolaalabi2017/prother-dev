@@ -245,7 +245,7 @@ export const detail = query({
       .query("tools")
       .withIndex("by_slug", (i) => i.eq("slug", slug))
       .unique();
-    if (!tool) return { error: "Tool not found" as const };
+    if (!tool || tool.status !== "live") return { error: "Tool not found" as const };
 
     const categories = await ctx.db.query("categories").collect();
     const catById = new Map(categories.map((c) => [c._id, c]));
