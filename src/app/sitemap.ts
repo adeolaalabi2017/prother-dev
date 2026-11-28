@@ -77,19 +77,16 @@ function buildSitemap(
   const statics: MetadataRoute.Sitemap = [
     {
       url: base,
-      lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
     },
     {
       url: `${base}/tools`,
-      lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.9,
     },
     {
       url: `${base}/compare`,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     },
@@ -116,7 +113,6 @@ function buildSitemap(
     // Curated topic & intent hubs (programmatic SEO)
     {
       url: `${base}/topics`,
-      lastModified: new Date(),
       changeFrequency: "weekly" as const,
       priority: 0.8,
     },
@@ -127,13 +123,11 @@ function buildSitemap(
     })),
     {
       url: `${base}/forums`,
-      lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.7,
     },
     {
       url: `${base}/journal`,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     },

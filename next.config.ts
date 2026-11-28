@@ -117,6 +117,13 @@ const nextConfig: NextConfig = {
           { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
         ],
       },
+      // Share images and badges are assets, not pages. noindex keeps them out
+      // of search without a robots.txt block, which would also stop share-card
+      // crawlers from fetching them.
+      ...["/api/og", "/api/badge/:slug"].map((source) => ({
+        source,
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      })),
       {
         source:
           "/:path((?!api|admin|_next|logos|favicon.ico|robots.txt|sitemap.xml).*)",
